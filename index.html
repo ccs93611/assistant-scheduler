@@ -1147,8 +1147,8 @@ function renderYearLeave(mi){
   sel.innerHTML='<option value="">全部</option>'+all.map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');
   sel.value=all.some(s=>s.id===cur)?cur:'';
   const list=sel.value?all.filter(s=>s.id===sel.value):all;
-  const cell=(n,max,extra='')=>`<td class="num">${n>max?`<span class="pill warn">${n} / ${max}</span>`:`${n} / ${max}`}${extra}</td>`;
-  $('yearLeaveTable').innerHTML=`<thead><tr><th>助理</th><th class="num">事假（含家庭照顧假）</th><th class="num">病假（含生理假視同病假）</th><th class="num">生理假</th></tr></thead><tbody>`+
+  const cell=(n,max,extra='')=>`<td>${n>max?`<span class="pill warn">${n} / ${max}</span>`:`${n} / ${max}`}${extra}</td>`;
+  $('yearLeaveTable').innerHTML=`<thead><tr><th>助理</th><th>事假（含家庭照顧假）</th><th>病假（含生理假視同病假）</th><th>生理假</th></tr></thead><tbody>`+
     (list.length?list.map(s=>{const t=yearLeave(s.id,y);
       return `<tr><td>${esc(fullName(s))}</td>${cell(t.per,LEAVE_LIMITS.事假,t.fc?`<br><small style="color:var(--sub)">事假 ${t.perOnly}＋家庭照顧假 ${t.fc}（${t.fcHours} 小時）</small>`:'')}${cell(t.sickTotal,LEAVE_LIMITS.病假,t.menAsSick?`<br><small style="color:var(--sub)">病假 ${t.sick}＋生理假視同 ${t.menAsSick}</small>`:'')}${cell(t.men,LEAVE_LIMITS.生理假)}</tr>`;}).join('')
     :'<tr><td colspan="4" class="empty">尚未建立助理。</td></tr>')+'</tbody>';
@@ -1160,8 +1160,13 @@ function renderMakeup(mi){
   if(cur&&byId(cur))sel.value=cur;
   if(!$('mkDate').value){const t=new Date();const d=(t>=mi.first&&t<=mi.last)?t:mi.first;$('mkDate').value=ymd(d);}
   const a=ymd(mi.first),z=ymd(mi.last);
-  const rows=makeups.filter(m=>m.date>=a&&m.date<=z).sort((x,y)=>x.date.localeCompare(y.date)||codeOf(x.staffId).localeCompare(codeOf(y.staffId),'en',{numeric:true}));
-  $('mkTable').innerHTML='<thead><tr><th>日期</th><th>助理</th><th>班別</th><th>備註</th><th></th></tr></thead><tbody>'+
+  const byDate=(x,y)=>x.date.localeCompare(y.date)||codeOf(x.staffId).localeCompare(codeOf(y.staffId),'en',{numeric:true});
+  const shKey=m=>{const x=m.shifts||[];return x.length===3?'0':'1'+SHIFTS.map(s=>x.includes(s.id)?'0':'1').join('');};
+  const MK={date:byDate,staff:(x,y)=>codeOf(x.staffId).localeCompare(codeOf(y.staffId),'en',{numeric:true}),shift:(x,y)=>shKey(x).localeCompare(shKey(y))};
+  const k=MK[mkSort.key]||byDate;
+  const rows=makeups.filter(m=>m.date>=a&&m.date<=z).sort((x,y)=>(k(x,y)*mkSort.dir)||byDate(x,y));
+  const th=(key,label)=>`<th><button type="button" class="th-btn${mkSort.key===key?' on':''}" data-mksort="${key}" aria-label="依${label}排序">${label}<span>${mkSort.key===key?(mkSort.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
+  $('mkTable').innerHTML=`<thead><tr>${th('date','日期')}${th('staff','助理')}${th('shift','班別')}<th>備註</th><th></th></tr></thead><tbody>`+
     (rows.length?rows.map(m=>{const d=parseYmd(m.date);const sh=(m.shifts||[]).length===3?'全天':SHIFTS.filter(s=>(m.shifts||[]).includes(s.id)).map(s=>s.short).join('、');
       return `<tr><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td><td>${esc(fullName(byId(m.staffId)))}</td><td>${sh||'—'}</td><td>${esc(m.note||'')}</td><td class="num">${canLeaveFor(m.staffId)?`<button class="small danger" data-delmk="${m.id}">刪除</button>`:''}</td></tr>`;}).join('')
     :`<tr><td colspan="5" class="empty">${mi.label}還沒有補班紀錄。</td></tr>`)+'</tbody>';
@@ -2399,7 +2404,9 @@ document.querySelector('.pool .seg').addEventListener('click',e=>{
   document.querySelector('.pool').classList.toggle('extra-mode',extraMode);
   toast(extraMode?'加診模式：之後排入的助理都算加診。':'基本模式。');
 });
-$('mkTable').addEventListener('click',e=>{const b=e.target.closest('[data-delmk]');if(!b)return;const m=makeups.find(x=>x.id===b.dataset.delmk);if(m&&canLeaveFor(m.staffId)){store.delMk(m.id);toast('已刪除補班紀錄。');}});
+$('mkTable').addEventListener('click',e=>{
+  const so=e.target.closest('[data-mksort]');if(so){const k=so.dataset.mksort;mkSort=mkSort.key===k?{key:k,dir:-mkSort.dir}:{key:k,dir:1};renderAll();$('mkScroll').scrollTop=0;return;}
+  const b=e.target.closest('[data-delmk]');if(!b)return;const m=makeups.find(x=>x.id===b.dataset.delmk);if(m&&canLeaveFor(m.staffId)){store.delMk(m.id);toast('已刪除補班紀錄。');}});
 function fcCalc(a=$('fcStart').value,b=$('fcEnd').value){
   if(!a||!b)return null;
   const toM=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
@@ -2512,6 +2519,7 @@ let leaveScrolled={lv:false,fc:false};
 let stSorts={manager:{key:'code',dir:1},doctor:{key:'code',dir:1},assistant:{key:'code',dir:1}};
 let lvSorts={doctor:{key:'date',dir:1},assistant:{key:'date',dir:1}};
 let fcSort={key:'date',dir:1};
+let mkSort={key:'date',dir:1}; // 事假補班表格排序
 function scrollToUpcoming(box){ // 捲到今天之後最近的一筆
   if(!box.offsetParent)return false;
   const rows=[...box.querySelectorAll('tbody tr[data-date]')];if(!rows.length)return false;
