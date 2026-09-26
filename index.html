@@ -15,7 +15,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 // Firebase 專案設定（Firebase 主控台 → 專案設定 → 你的應用程式）。設為 null 時改用本機 localStorage 模式。
-window.FIREBASE_CONFIG = null;
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDVLHhcdtHGhcP3MpZZooCsx12faOZGkr4",
+  authDomain: "assistant-schedular.firebaseapp.com",
+  projectId: "assistant-schedular",
+  storageBucket: "assistant-schedular.firebasestorage.app",
+  messagingSenderId: "325806157772",
+  appId: "1:325806157772:web:9c8912c3659c31b2823769"
+};
 // 最高管理者的 Gmail：不需要綁定人員就擁有全部權限（要和 firestore.rules 裡的 OWNERS 一致）
 window.OWNER_EMAILS = ['ccs93611@gmail.com'];
 </script>
@@ -747,7 +754,7 @@ async function boot(){
   renderAll();
   if(!window.FIREBASE_CONFIG||!window.firebase){mode='local';loadLocal();buildLeaveIdx();renderAll();return;}
   firebase.initializeApp(window.FIREBASE_CONFIG);
-  const fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true});
+  const fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});
   fbAuth=firebase.auth();
   showGate('loading');
   fbAuth.onAuthStateChanged(async u=>{
@@ -810,7 +817,9 @@ async function signIn(){
   try{await fbAuth.signInWithPopup(pr);}
   catch(e){
     if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-environment')return fbAuth.signInWithRedirect(pr);
-    if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast('登入失敗：'+(e.code||e.message),'warn');
+    if(e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request')return;
+    const why={'auth/configuration-not-found':'Firebase 尚未啟用 Authentication 或 Google 登入','auth/operation-not-allowed':'Firebase 尚未啟用 Google 登入','auth/unauthorized-domain':`這個網域（${location.hostname}）還沒加入 Firebase 的授權網域`,'auth/network-request-failed':'網路連線失敗'}[e.code];
+    console.error(e);toast('登入失敗：'+(why||e.code||e.message),'warn');
   }
 }
 function signOutAndReload(){if(fbAuth)fbAuth.signOut().then(()=>location.reload());}
