@@ -404,7 +404,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
         </div>
         <div class="card">
           <h2 id="yearLeaveTitle">年度假別統計</h2>
-          <p class="desc">以日曆年計算，兩診算 1 天。事假每年上限 14 天、病假 30 天、生理假 3 天；生理假第 4 天起視同病假，計入病假天數並套用病假的扣薪規則。</p>
+          <p class="desc">以日曆年計算，兩診算 1 天。事假每年上限 14 天（家庭照顧假 3.5 小時算一診，與事假合計）、病假 30 天、生理假 3 天；生理假第 4 天起視同病假，計入病假天數並套用病假的扣薪規則。</p>
           <div class="field" id="ylPick" style="max-width:220px;margin-bottom:10px"><label for="ylStaff">助理代號</label><select id="ylStaff"></select></div>
           <div class="scroll-x"><table class="list" id="yearLeaveTable"></table></div>
         </div>
@@ -1070,9 +1070,9 @@ function renderYearLeave(mi){
   sel.value=all.some(s=>s.id===cur)?cur:'';
   const list=sel.value?all.filter(s=>s.id===sel.value):all;
   const cell=(n,max,extra='')=>`<td class="num">${n>max?`<span class="pill warn">${n} / ${max}</span>`:`${n} / ${max}`}${extra}</td>`;
-  $('yearLeaveTable').innerHTML=`<thead><tr><th>助理</th><th class="num">事假</th><th class="num">病假（含生理假視同病假）</th><th class="num">生理假</th></tr></thead><tbody>`+
+  $('yearLeaveTable').innerHTML=`<thead><tr><th>助理</th><th class="num">事假（含家庭照顧假）</th><th class="num">病假（含生理假視同病假）</th><th class="num">生理假</th></tr></thead><tbody>`+
     (list.length?list.map(s=>{const t=yearLeave(s.id,y);
-      return `<tr><td>${esc(fullName(s))}</td>${cell(t.per,LEAVE_LIMITS.事假)}${cell(t.sickTotal,LEAVE_LIMITS.病假,t.menAsSick?`<br><small style="color:var(--sub)">病假 ${t.sick}＋生理假視同 ${t.menAsSick}</small>`:'')}${cell(t.men,LEAVE_LIMITS.生理假)}</tr>`;}).join('')
+      return `<tr><td>${esc(fullName(s))}</td>${cell(t.per,LEAVE_LIMITS.事假,t.fc?`<br><small style="color:var(--sub)">事假 ${t.perOnly}＋家庭照顧假 ${t.fc}（${t.fcHours} 小時）</small>`:'')}${cell(t.sickTotal,LEAVE_LIMITS.病假,t.menAsSick?`<br><small style="color:var(--sub)">病假 ${t.sick}＋生理假視同 ${t.menAsSick}</small>`:'')}${cell(t.men,LEAVE_LIMITS.生理假)}</tr>`;}).join('')
     :'<tr><td colspan="4" class="empty">尚未建立助理。</td></tr>')+'</tbody>';
 }
 function renderMakeup(mi){
@@ -1208,7 +1208,9 @@ function payRec(sid,ym){
 // 以日曆年計，兩診算一天。生理假每年前 3 天（6 診）另計，超過的診數視同病假，並計入病假 30 天。
 const LEAVE_LIMITS={事假:14,病假:30,生理假:3};
 const PER_DAY=2; // 兩診＝一天
-function yearLeave(sid,year,extra=[]){
+// 家庭照顧假：3.5 小時＝一診，兩診＝一天，與事假合計每年上限 14 天
+const FC_HOURS_PER_SHIFT=3.5;
+function yearLeave(sid,year,extra=[],extraFcHours=0){
   const ex=new Set(extra.map(x=>x.date));
   const recs=leaves.filter(l=>l.staffId===sid&&l.date.startsWith(year)&&!ex.has(l.date)).concat(extra.filter(x=>x.date.startsWith(year)))
     .sort((a,b)=>a.date.localeCompare(b.date));
@@ -1217,15 +1219,20 @@ function yearLeave(sid,year,extra=[]){
   recs.forEach(l=>{const n=(l.shifts||[]).length;
     if(l.type==='事假')per+=n;else if(l.type==='病假')sick+=n;
     else if(l.type==='生理假'){const ok=Math.max(0,Math.min(n,cap-men));men+=ok;if(n>ok){asSick.set(l.date,n-ok);menSick+=n-ok;}}});
-  const d=x=>x/PER_DAY;
-  return {per:d(per),sick:d(sick),men:d(men),menAsSick:d(menSick),sickTotal:d(sick+menSick),asSick};
+  const fcH=familyCare.reduce((n,l)=>n+(l.staffId===sid&&l.date.startsWith(year)?(Number(l.hours)||0):0),0)+extraFcHours;
+  const d=x=>Math.round(x/PER_DAY*100)/100,fcShifts=fcH/FC_HOURS_PER_SHIFT;
+  return {per:d(per+fcShifts),perOnly:d(per),fc:d(fcShifts),fcHours:fcH,sick:d(sick),men:d(men),menAsSick:d(menSick),sickTotal:d(sick+menSick),asSick};
+}
+function fcLimitIssue(sid,date,hours){
+  const y=date.slice(0,4),b=yearLeave(sid,y),a=yearLeave(sid,y,[],hours);
+  return a.per>LEAVE_LIMITS.事假&&a.per>b.per?`${codeOf(sid)} ${y} 年事假＋家庭照顧假將達 ${a.per} 天，超過 ${LEAVE_LIMITS.事假} 天`:'';
 }
 const menSickShifts=l=>l.type==='生理假'?(yearLeave(l.staffId,l.date.slice(0,4)).asSick.get(l.date)||0):0;
 function leaveLimitIssues(sid,extra){
   const over=[],info=[];
   [...new Set(extra.map(x=>x.date.slice(0,4)))].forEach(y=>{
     const b=yearLeave(sid,y),a=yearLeave(sid,y,extra);
-    if(a.per>LEAVE_LIMITS.事假&&a.per>b.per)over.push(`${codeOf(sid)} ${y} 年事假將達 ${a.per} 天，超過 ${LEAVE_LIMITS.事假} 天`);
+    if(a.per>LEAVE_LIMITS.事假&&a.per>b.per)over.push(`${codeOf(sid)} ${y} 年事假${a.fc?'＋家庭照顧假':''}將達 ${a.per} 天，超過 ${LEAVE_LIMITS.事假} 天`);
     if(a.sickTotal>LEAVE_LIMITS.病假&&a.sickTotal>b.sickTotal)over.push(`${codeOf(sid)} ${y} 年病假（含生理假視同病假）將達 ${a.sickTotal} 天，超過 ${LEAVE_LIMITS.病假} 天`);
     if(a.menAsSick>b.menAsSick)info.push(`生理假已超過每年 ${LEAVE_LIMITS.生理假} 天，超過的 ${(a.menAsSick-b.menAsSick)*PER_DAY} 診視同病假。`);
   });
@@ -2171,9 +2178,15 @@ $('fcForm').addEventListener('submit',e=>{
   if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休假日不需要登記家庭照顧假。','warn');return;}
   const c=fcCalc();
   if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
-  store.fc({id:uid('f'),staffId:sid,date,shift:$('fcShift').value||null,start:$('fcStart').value,end:$('fcEnd').value,hours:c.hours,note:$('fcNote').value.trim(),createdAt:Date.now()});
-  $('fcNote').value='';const h=c.hours;
-  toast(`已登記 ${codeOf(sid)} 家庭照顧假 ${h} 小時。`);
+  const apply=()=>{
+    store.fc({id:uid('f'),staffId:sid,date,shift:$('fcShift').value||null,start:$('fcStart').value,end:$('fcEnd').value,hours:c.hours,note:$('fcNote').value.trim(),createdAt:Date.now()});
+    $('fcNote').value='';toast(`已登記 ${codeOf(sid)} 家庭照顧假 ${c.hours} 小時。`);
+  };
+  // 與事假合計每年上限 14 天
+  const over=fcLimitIssue(sid,date,c.hours);
+  if(!over)return apply();
+  if(!canWrite){toast(`無法登記：${over}。請洽診所管理者。`,'warn');return;}
+  dialog(`<h3>超過年度請假上限</h3><p>${esc(over)}</p><p>確定仍要登記嗎？</p>`,apply,'仍要登記',true);
 });
 $('mkForm').addEventListener('submit',e=>{
   e.preventDefault();
