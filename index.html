@@ -283,7 +283,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .gate p{color:var(--sub); font-size:.88rem; margin:0 0 18px;}
 .gate .who{font-weight:500; color:var(--ink); word-break:break-all;}
 .gate .acts{display:flex; flex-direction:column; gap:8px;}
-.gate[hidden],.me[hidden],.card[hidden]{display:none;}
+.gate[hidden],.me[hidden],.card[hidden],.field[hidden]{display:none;}
 .me{font-size:.75rem; color:var(--sub); display:flex; align-items:center; gap:6px;}
 .pay-table input{width:110px; text-align:right;}
 .pay-table td:first-child,.pay-table td.num{white-space:nowrap;}
@@ -405,6 +405,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
         <div class="card">
           <h2 id="yearLeaveTitle">年度假別統計</h2>
           <p class="desc">以日曆年計算，兩診算 1 天。事假每年上限 14 天、病假 30 天、生理假 3 天；生理假第 4 天起視同病假，計入病假天數並套用病假的扣薪規則。</p>
+          <div class="field" id="ylPick" style="max-width:220px;margin-bottom:10px"><label for="ylStaff">助理代號</label><select id="ylStaff"></select></div>
           <div class="scroll-x"><table class="list" id="yearLeaveTable"></table></div>
         </div>
         <div class="card">
@@ -1062,7 +1063,12 @@ function renderFamilyCare(mi){
 function renderYearLeave(mi){
   const y=String(mi.first.getFullYear());
   $('yearLeaveTitle').textContent=`${y} 年假別統計`;
-  const list=activeStaff('assistant').filter(s=>canWrite||s.id===myStaffId());
+  const all=activeStaff('assistant').filter(s=>canWrite||s.id===myStaffId());
+  const sel=$('ylStaff'),cur=sel.value;
+  $('ylPick').hidden=!canWrite;
+  sel.innerHTML='<option value="">全部</option>'+all.map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');
+  sel.value=all.some(s=>s.id===cur)?cur:'';
+  const list=sel.value?all.filter(s=>s.id===sel.value):all;
   const cell=(n,max,extra='')=>`<td class="num">${n>max?`<span class="pill warn">${n} / ${max}</span>`:`${n} / ${max}`}${extra}</td>`;
   $('yearLeaveTable').innerHTML=`<thead><tr><th>助理</th><th class="num">事假</th><th class="num">病假（含生理假視同病假）</th><th class="num">生理假</th></tr></thead><tbody>`+
     (list.length?list.map(s=>{const t=yearLeave(s.id,y);
@@ -2180,6 +2186,7 @@ $('mkForm').addEventListener('submit',e=>{
   store.mk({id:uid('m'),staffId:sid,date,shifts,note:$('mkNote').value.trim(),createdAt:Date.now()});
   $('mkNote').value='';toast(`已登記 ${codeOf(sid)} 補班 ${shifts.length} 診。`);
 });
+$('ylStaff').addEventListener('change',renderAll);
 $('mkTable').addEventListener('click',e=>{const b=e.target.closest('[data-delmk]');if(!b)return;const m=makeups.find(x=>x.id===b.dataset.delmk);if(m&&canLeaveFor(m.staffId)){store.delMk(m.id);toast('已刪除補班紀錄。');}});
 function fcCalc(a=$('fcStart').value,b=$('fcEnd').value){
   if(!a||!b)return null;
