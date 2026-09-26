@@ -1119,7 +1119,7 @@ const PAY_FIELDS=[
   {k:'lateMin',label:'遲到',g:'sub',unit:'分鐘'},
 ];
 const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,divisor:240};
-const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['starUnit','五星好評每則（元）'],['skill','技能津貼預設'],['divisor','時薪基數（本俸÷）']];
+const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['divisor','時薪基數（本俸÷）']];
 const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產假','陪產假','生理假','補休','颱風假','不可上班','其他','家庭照顧假'];
 const DEFAULT_DEDUCT={事假:1,病假:0.5,家庭照顧假:1,不可上班:1,其他:1};
 function payCfg(){const p=cfg.pay||{};const o={};Object.keys(PAY_DEFAULTS).forEach(k=>o[k]=Number.isFinite(p[k])?p[k]:PAY_DEFAULTS[k]);if(!(o.divisor>0))o.divisor=240;o.deduct=Object.assign({},DEFAULT_DEDUCT,p.deduct||{});return o;}
