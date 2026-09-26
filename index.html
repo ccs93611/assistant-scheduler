@@ -1,0 +1,2049 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>新海美學牙醫診所</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#F3F1EC; --panel:#FFFFFF; --ink:#1F2A24; --sub:#5C6B63; --faint:#8B968E;
+  --line:#DAD8CE; --accent:#3B5D52; --accent-ink:#FFFFFF; --accent-soft:#DDE7E1;
+  --doc:#B8895A; --doc-soft:rgba(184,137,90,.10);
+  --warn:#B4432E; --warn-soft:#F6E1DB; --ok:#3F7A58;
+  --asst-bg:#CFEBD6; --asst-bd:#7FBF91; --asst-ink:#1D4A2B;
+  --day-line:#A3AAA0;
+  --slot:#EFEDE5; --chip:#E4E9E2; --shadow:0 8px 28px rgba(31,42,36,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#171C19; --panel:#20261F; --ink:#EDEFE8; --sub:#9AA79C; --faint:#76827A;
+    --line:#353C32; --accent:#8DB5A2; --accent-ink:#10160F; --accent-soft:#2A3A32;
+    --doc:#D8A876; --doc-soft:rgba(216,168,118,.10);
+    --warn:#E6866D; --warn-soft:#3D2620; --ok:#86C29D;
+    --asst-bg:#23452F; --asst-bd:#3F7D55; --asst-ink:#CDEBD6; --day-line:#5E6A5B; --slot:#262C22; --chip:#2E362A; --shadow:0 8px 28px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#171C19; --panel:#20261F; --ink:#EDEFE8; --sub:#9AA79C; --faint:#76827A;
+  --line:#353C32; --accent:#8DB5A2; --accent-ink:#10160F; --accent-soft:#2A3A32;
+  --doc:#D8A876; --doc-soft:rgba(216,168,118,.10);
+  --warn:#E6866D; --warn-soft:#3D2620; --ok:#86C29D;
+  --asst-bg:#23452F; --asst-bd:#3F7D55; --asst-ink:#CDEBD6; --day-line:#5E6A5B; --slot:#262C22; --chip:#2E362A; --shadow:0 8px 28px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  font-size:14px; line-height:1.5; font-variant-numeric:tabular-nums;
+}
+button,input,select{font:inherit; color:inherit;}
+button{
+  border:1px solid var(--line); background:var(--panel); padding:7px 13px; border-radius:7px; cursor:pointer;
+  transition:background .12s,border-color .12s;
+}
+button:hover{border-color:var(--sub);}
+button:focus-visible,input:focus-visible,select:focus-visible,.pos:focus-visible,.chip:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+button.primary{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:500;}
+button.danger{color:var(--warn);}
+button.small{padding:4px 10px; font-size:.78rem;}
+button:disabled{opacity:.45; cursor:not-allowed;}
+input,select{border:1px solid var(--line); background:var(--bg); border-radius:6px; padding:6px 8px; min-width:0;}
+
+.shell{padding-inline:20px;}
+header.top{
+  display:flex; justify-content:space-between; align-items:flex-end; gap:14px; flex-wrap:wrap;
+  padding-block:20px 14px; border-bottom:1px solid var(--line);
+}
+h1{font-size:1.5rem; margin:0; font-weight:700; letter-spacing:.5px; text-wrap:balance;}
+.month-label{color:var(--sub); font-size:.95rem; margin-top:2px;}
+.ctrl{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+.sync{font-size:.72rem; color:var(--faint); display:flex; align-items:center; gap:6px;}
+.sync i{width:7px; height:7px; border-radius:50%; background:var(--faint); display:inline-block;}
+.sync.live i{background:var(--ok);}
+.sync.local i{background:var(--doc);}
+
+nav.tabs{display:flex; gap:4px; padding-block:12px 0; border-bottom:1px solid var(--line); overflow-x:auto;}
+nav.tabs button{border:none; background:none; border-radius:0; padding:8px 14px 10px; color:var(--sub); border-bottom:2px solid transparent; white-space:nowrap;}
+nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent); font-weight:500;}
+
+.banner{margin-top:12px; padding:9px 12px; border-radius:8px; font-size:.82rem; background:var(--slot); color:var(--sub);}
+.banner.warn{background:var(--warn-soft); color:var(--warn);}
+
+main{padding-block:18px 48px;}
+.sched{display:flex; gap:18px; align-items:flex-start;}
+.pool{
+  width:220px; flex-shrink:0; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px;
+  position:sticky; top:calc(env(safe-area-inset-top,0px) + 12px);
+}
+.pool h2{font-size:.8rem; letter-spacing:.08em; color:var(--sub); margin:0 0 8px; font-weight:500;}
+.pool h2 + .chips{margin-bottom:16px;}
+.chips{display:flex; flex-direction:column; gap:6px;}
+.chip{
+  display:flex; justify-content:space-between; align-items:center; gap:6px;
+  background:var(--chip); border-radius:7px; padding:7px 10px; cursor:grab; user-select:none; border:1px solid transparent;
+}
+.chip.doctor{background:var(--doc-soft); border-color:color-mix(in srgb,var(--doc) 30%,transparent);}
+.chip.sel{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft);}
+.chip .nm{font-weight:500;}
+.chip .nm small{font-weight:400; color:var(--sub); margin-left:4px;}
+.chip .cnt{color:var(--sub); font-size:.74rem; white-space:nowrap;}
+.chip .cnt .ot4{color:var(--sub);}
+.chip .cnt{text-align:right;}
+.chip .cnt.over{color:var(--warn); font-weight:500;}
+.hint{font-size:.72rem; color:var(--faint); margin:12px 0 0; line-height:1.55;}
+.legend{display:flex; flex-direction:column; gap:4px; margin-top:12px; font-size:.72rem; color:var(--sub);}
+.legend span{display:flex; align-items:center; gap:6px;}
+.legend b{width:14px; height:12px; border-radius:3px; display:inline-block;}
+
+.weeks{flex:1; min-width:0; display:flex; flex-direction:column; gap:16px;}
+.week{background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+.week-head{display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-bottom:1px solid var(--line);}
+.week-head span{font-weight:500;}
+.week-head .gapcount{font-size:.75rem; color:var(--warn); margin-left:10px; font-weight:400;}
+.table-wrap{overflow-x:auto;}
+table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
+.grid th,.grid td{border:1px solid var(--line); padding:0; vertical-align:top;}
+.grid tr > :first-child{border-left:none;}
+.grid thead th,.grid td.slot,.grid td.closed{border-left:2px solid var(--day-line); border-right:2px solid var(--day-line);} /* 日與日之間的分隔線 */
+.grid tr > :last-child{border-right:none;}
+.grid thead th{background:var(--slot); font-weight:500; text-align:center; padding:4px 3px; font-size:.72rem; line-height:1.3;}
+.grid thead th.out{color:var(--faint);}
+.grid thead th.today{box-shadow:inset 0 -3px 0 var(--accent);}
+.hol-scroll{overflow:auto; overscroll-behavior:contain; border:1px solid var(--line); border-radius:8px;}
+.hol-scroll thead th{position:sticky; top:0; background:var(--panel); z-index:1;}
+.subhead{font-size:.85rem; margin:0 0 6px; color:var(--sub); font-weight:500;}
+.dialog.wide{max-width:560px;}
+.priv-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; margin-bottom:16px;}
+.priv-grid .wide{grid-column:1/-1;}
+.priv-grid input{width:100%;}
+@media (max-width:480px){.priv-grid{grid-template-columns:1fr;}}
+.th-btn{border:1px solid var(--line); background:var(--panel); padding:3px 9px; font:inherit; font-size:.75rem; font-weight:500; color:var(--sub); display:inline-flex; gap:4px; align-items:center; border-radius:5px; cursor:pointer; white-space:nowrap;}
+.th-btn:hover{background:var(--slot); color:var(--ink);}
+.th-btn.on{color:var(--accent); border-color:var(--accent); background:var(--accent-soft);}
+.th-btn span{font-size:.65rem; opacity:.8;}
+.pm-hits{display:flex; flex-direction:column; gap:4px; margin-top:6px; max-height:180px; overflow:auto;}
+.pm-hit{display:flex; align-items:center; gap:8px; text-align:left; padding:5px 8px;}
+.pm-hit img{width:22px; height:22px; border-radius:50%;}
+.tpl td{vertical-align:top; min-width:96px;}
+.tpl-cell{display:flex; flex-direction:column; gap:4px; align-items:stretch;}
+.tpl-doc{font-size:.72rem; padding:3px 6px; border-radius:6px; border:1px dashed var(--line); background:transparent; color:var(--faint); white-space:nowrap;}
+.tpl-doc.on{border:1px solid color-mix(in srgb,var(--doc) 50%,transparent); background:var(--doc-soft); color:var(--ink); font-weight:500;}
+.tpl td.off{color:var(--faint); font-size:.72rem; vertical-align:middle;}
+.list th.posc,.list td.posc{background:color-mix(in srgb,var(--accent-soft) 45%,transparent);}
+.list th.combo,.list td.combo{background:color-mix(in srgb,var(--slot) 60%,transparent);}
+.excl-list{display:flex; flex-wrap:wrap; gap:6px; padding-block:4px;}
+.excl-chip{font-size:.75rem; padding:3px 10px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--ink);}
+.excl-chip.nh.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent); text-decoration:none; font-weight:500;}
+.excl-chip.on{background:var(--warn-soft); border-color:var(--warn); color:var(--warn); text-decoration:line-through;}
+.rules-doc{max-width:760px; line-height:1.7; font-size:.88rem;}
+.rules-doc h3{font-size:.9rem; margin:16px 0 6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+.rules-doc h3:first-child{margin-top:0;}
+.rules-doc ol,.rules-doc ul{margin:0; padding-left:1.4em;}
+.rules-doc li{margin:2px 0;}
+.rules-doc .note{color:var(--sub); font-size:.8rem; margin:6px 0 0;}
+.day-hol{font-size:.6rem; color:var(--doc); font-weight:500; margin-top:1px;}
+.grid thead th.hol{background:var(--doc-soft);}
+td.closed.holiday small{font-size:.6rem; color:var(--doc);}
+.day-leave{font-size:.6rem; color:var(--warn); font-weight:400; margin-top:2px;}
+.shift-label{background:var(--slot); padding:4px 7px !important; white-space:nowrap; text-align:left; vertical-align:middle !important; font-weight:500; font-size:.72rem; width:74px;}
+.shift-label small{display:block; color:var(--sub); font-weight:400; font-size:.6rem;}
+td.slot.out{opacity:.55;}
+td.closed{background:repeating-linear-gradient(135deg,var(--slot) 0 6px,transparent 6px 12px); text-align:center; vertical-align:middle !important; color:var(--faint); font-size:.75rem;}
+.slot-grid{display:flex; min-height:42px;}
+.pos{flex:1 0 auto; min-width:28px; border-right:1px dashed var(--line); padding:2px 1px 3px; display:flex; flex-direction:column; gap:2px; align-items:stretch; cursor:pointer; transition:background .1s;}
+.pos:last-child{border-right:none;}
+.pos.doc{background:var(--doc-soft);}
+.pos.over{background:var(--accent-soft);}
+.pos.bad{background:var(--warn-soft);}
+.pos.target{background:color-mix(in srgb,var(--accent-soft) 55%,transparent);}
+.q-items{display:flex; flex-wrap:nowrap; gap:2px; justify-content:center;}
+.q-items .item,.q-items .gap{flex:0 0 26px; width:26px; padding:1px 0;}
+.q-items .gap{height:auto; min-height:14px;}
+.item.ph{visibility:hidden;}
+.pos-label{font-size:.5rem; line-height:1.2; color:var(--faint); text-align:center; white-space:nowrap; letter-spacing:.02em;}
+.item{
+  position:relative; background:var(--bg); border:1px solid var(--line); border-radius:4px; font-size:.7rem; font-weight:500;
+  text-align:center; padding:2px 1px; cursor:grab; line-height:1.2; white-space:nowrap; font-size:.58rem;
+}
+.pos.doc .item{border-color:color-mix(in srgb,var(--doc) 45%,transparent);}
+.item.asst,.pos.doc .item.asst{background:var(--chip); border-color:var(--chip); color:var(--ink);} /* 與左方助理名單相同的綠色 */
+.slot-grid .pos .item.onleave{border-color:var(--warn); color:var(--warn); background:var(--warn-soft);}
+.slot-grid .pos .item.hl{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+.item.onleave{border-color:var(--warn); color:var(--warn); background:var(--warn-soft);}
+.item.hl{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+.item .rm{
+  position:absolute; top:-7px; right:-5px; width:15px; height:15px; border-radius:50%; padding:0; line-height:13px;
+  font-size:.62rem; border:1px solid var(--line); background:var(--panel); color:var(--sub); display:none;
+}
+.item:hover .rm,.item:focus-within .rm{display:block;}
+@media (hover:none){ .item .rm{display:block;} }
+.chip.gapchip{padding:2px 8px; background:transparent; border:1px dashed var(--warn); color:var(--warn); font-size:.72rem; cursor:grab; gap:0;}
+.chip.gapchip.sel{box-shadow:0 0 0 2px var(--warn-soft);}
+.chip.gapchip b{display:none;}
+.gap.manual{position:relative; cursor:grab; background:var(--warn-soft);}
+.gap.manual.hl{border-style:solid;}
+.gap:hover .rm,.gap:focus-within .rm{display:block;}
+.gap .rm{position:absolute; top:-7px; right:-5px; width:15px; height:15px; border-radius:50%; padding:0; line-height:13px; font-size:.62rem; border:1px solid var(--line); background:var(--panel); color:var(--sub); display:none;}
+.dstack{display:flex; flex-direction:column; gap:2px; flex:0 0 26px; width:26px;}
+.q-items .dstack .item{flex:0 0 auto; width:26px;}
+.q-items .dstack .gap{flex:0 0 auto; width:26px; height:14px; min-height:14px;}
+.pos.doc .item.sub{font-weight:400;}
+.item.orphan{border-color:var(--warn); color:var(--warn); border-style:dashed;}
+.gap{height:14px; border:1px dashed color-mix(in srgb,var(--warn) 55%,transparent); border-radius:4px;}
+
+.card{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+.card h2{font-size:1rem; margin:0 0 4px;}
+.card .desc{color:var(--sub); font-size:.8rem; margin:0 0 14px;}
+.stack{display:flex; flex-direction:column; gap:16px;}
+.form-row{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;}
+.field{display:flex; flex-direction:column; gap:4px;}
+.field label,.field .lb{font-size:.72rem; color:var(--sub);}
+.checks{display:flex; gap:10px; align-items:center; padding-block:6px;}
+.checks label{display:flex; gap:4px; align-items:center; font-size:.85rem; color:var(--ink);}
+
+table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
+.list th{text-align:left; font-weight:500; color:var(--sub); font-size:.75rem; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
+.list td{padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:middle;}
+.list tr:last-child td{border-bottom:none;}
+.list td.num,.list th.num{text-align:right;}
+.list input,.list select{width:100%;}
+.list tr.inactive td{color:var(--faint);}
+.pill{display:inline-block; font-size:.7rem; padding:1px 8px; border-radius:999px; background:var(--chip); color:var(--sub); white-space:nowrap;}
+.pill.doc{background:var(--doc-soft); color:var(--doc);}
+.pill.warn{background:var(--warn-soft); color:var(--warn);}
+.scroll-x{overflow-x:auto;}
+
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px;}
+.tile{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px;}
+.tile .k{font-size:.75rem; color:var(--sub);}
+.tile .v{font-size:1.6rem; font-weight:700; margin-top:2px;}
+.tile .v small{font-size:.8rem; font-weight:400; color:var(--sub); margin-left:4px;}
+.tile.warn .v{color:var(--warn);}
+.bar{height:8px; background:var(--slot); border-radius:4px; min-width:80px; position:relative; overflow:hidden;}
+.bar b{position:absolute; inset:0 auto 0 0; background:var(--accent); border-radius:4px;}
+.bar.doc b{background:var(--doc);}
+
+.matrix{border-collapse:collapse; font-size:.82rem;}
+.matrix th,.matrix td{padding:6px 10px; text-align:center; border-bottom:1px solid var(--line);}
+.matrix th{font-weight:500; color:var(--sub);}
+.matrix td:first-child,.matrix th:first-child{text-align:left;}
+
+.overlay{position:fixed; inset:0; background:rgba(15,20,17,.4); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
+.dialog{background:var(--panel); border-radius:12px; padding:20px 22px; max-width:420px; width:100%; box-shadow:var(--shadow); max-height:calc(100vh - 32px); overflow:auto;}
+.dialog h3{margin:0 0 8px; font-size:1.05rem;}
+.dialog p{margin:0 0 12px; color:var(--sub); font-size:.86rem;}
+.dialog .opts{display:flex; flex-direction:column; gap:8px; margin:6px 0 16px;}
+.dialog .opts label{display:flex; gap:8px; align-items:flex-start; padding:10px 12px; border:1px solid var(--line); border-radius:8px; cursor:pointer; font-size:.86rem;}
+.dialog .opts input{flex-shrink:0; margin-top:3px;}
+.dialog .opts label small{display:block; color:var(--sub); font-size:.75rem;}
+.dialog .acts{display:flex; justify-content:flex-end; gap:8px;}
+
+.toasts{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom,0px) + 18px); display:flex; flex-direction:column; gap:8px; z-index:60; width:min(460px,calc(100% - 32px));}
+.toast{background:var(--ink); color:var(--bg); padding:10px 14px; border-radius:9px; font-size:.85rem; display:flex; justify-content:space-between; gap:12px; align-items:center; box-shadow:var(--shadow);}
+.toast.warn{background:var(--warn); color:#fff;}
+.toast button{background:transparent; color:inherit; border-color:currentColor; padding:3px 10px; font-size:.78rem;}
+.empty{color:var(--faint); text-align:center; padding:22px 10px !important; font-size:.85rem;}
+
+@media (max-width:860px){
+  .sched{flex-direction:column;}
+  .pool{width:100%; position:static;}
+  .pool .chips{flex-direction:row; flex-wrap:wrap;}
+  .pool .chip{flex:0 0 auto;}
+}
+@media (prefers-reduced-motion:reduce){ *{transition:none !important;} }
+</style>
+
+<div class="shell">
+  <header class="top">
+    <div>
+      <h1>新海美學牙醫診所</h1>
+      <div class="month-label" id="monthLabel"></div>
+    </div>
+    <div class="ctrl">
+      <span class="sync" id="sync"><i></i><span>連線中…</span></span>
+      <button id="prevMonth" aria-label="上個月">◀ 上個月</button>
+      <button id="thisMonth">本月</button>
+      <button id="nextMonth" aria-label="下個月">下個月 ▶</button>
+      <button id="tplBtn" data-w>帶入醫師班表</button>
+      <button id="autoBtn" class="primary" data-w>自動排班</button>
+      <button id="exportBtn">匯出 Excel</button>
+    </div>
+  </header>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="schedule">排班表</button>
+    <button role="tab" data-tab="docleave">醫師休假</button>
+    <button role="tab" data-tab="leave">助理請假</button>
+    <button role="tab" data-tab="holidays">休假日</button>
+    <button role="tab" data-tab="stats">工時統計</button>
+    <button role="tab" data-tab="settings">人員名單</button>
+    <button role="tab" data-tab="rules">排班規則</button>
+  </nav>
+  <div id="banner"></div>
+  <main>
+    <section id="tab-schedule" hidden>
+      <div class="sched">
+        <aside class="pool">
+          <h2>醫師</h2>
+          <div class="chips" id="chipsDoctor"></div>
+          <h2>助理</h2>
+          <div class="chips" id="chipsAssistant"></div>
+          <div class="legend">
+            <span><b style="background:var(--doc-soft);border:1px solid var(--doc)"></b>跟診（先排醫師，助理排在醫師下方）</span>
+            <span><span class="chip gapchip" draggable="true" tabindex="0" data-chip="_gap" title="拖到班表可以多開一個待補的缺口"><b></b>缺口</span>尚未排滿（可拖曳到班表）</span>
+            <span><b style="background:var(--warn-soft);border:1px solid var(--warn)"></b>當班已請假</span>
+          </div>
+          <p class="hint">拖曳人員到格子排班，或點一下人員再點格子。拖曳格子裡的人可以換位置，滑過去按 × 移除。</p>
+        </aside>
+        <div class="weeks" id="weeks"></div>
+      </div>
+    </section>
+
+    <section id="tab-docleave" hidden>
+      <div class="stack">
+        <div class="card">
+          <h2>醫師休假</h2>
+          <p class="desc">自動排班會避開這些時段；已經排進去的會在班表上標紅。</p>
+          <form class="form-row leave-form" data-role="doctor" style="margin-bottom:16px">
+            <div class="field"><label for="lvStaff-doctor">醫師</label><select id="lvStaff-doctor" data-n="staff" required></select></div>
+            <div class="field"><label for="lvFrom-doctor">開始日期</label><input type="date" id="lvFrom-doctor" data-n="from" required></div>
+            <div class="field"><label for="lvTo-doctor">結束日期</label><input type="date" id="lvTo-doctor" data-n="to"></div>
+            <div class="field"><span class="lb">班別</span>
+              <div class="checks">
+                <label><input type="checkbox" data-sh="day" checked>早</label>
+                <label><input type="checkbox" data-sh="eve" checked>午</label>
+                <label><input type="checkbox" data-sh="night" checked>晚</label>
+              </div>
+            </div>
+            <div class="field"><label for="lvType-doctor">休假類別</label><select id="lvType-doctor" data-n="type"><option>休假</option><option>進修</option><option>公務</option><option>病假</option><option>其他</option></select></div>
+            <div class="field" style="flex:1;min-width:140px"><label for="lvNote-doctor">備註</label><input id="lvNote-doctor" data-n="note" placeholder="例如：學會、出國…"></div>
+            <button class="primary" type="submit" data-w>登記</button>
+          </form>
+          <h3 class="subhead" id="leaveTitle-doctor"></h3>
+          <div class="hol-scroll" id="leaveScroll-doctor"><table class="list leave-table" id="leaveTable-doctor"></table></div>
+          <p class="hint" id="leaveHint-doctor" hidden>上下捲動可查看其他休假日。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-leave" hidden>
+      <div class="stack">
+        <div class="card">
+          <h2>請假登記</h2>
+          <p class="desc">自動排班會避開這些時段；已經排進去的會在班表上標紅。</p>
+          <form class="form-row leave-form" data-role="assistant" style="margin-bottom:16px">
+            <div class="field"><label for="lvStaff-assistant">助理</label><select id="lvStaff-assistant" data-n="staff" required></select></div>
+            <div class="field"><label for="lvFrom-assistant">開始日期</label><input type="date" id="lvFrom-assistant" data-n="from" required></div>
+            <div class="field"><label for="lvTo-assistant">結束日期</label><input type="date" id="lvTo-assistant" data-n="to"></div>
+            <div class="field"><span class="lb">班別</span>
+              <div class="checks">
+                <label><input type="checkbox" data-sh="day" checked>早</label>
+                <label><input type="checkbox" data-sh="eve" checked>午</label>
+                <label><input type="checkbox" data-sh="night" checked>晚</label>
+              </div>
+            </div>
+            <div class="field"><label for="lvType-assistant">請假類別</label><select id="lvType-assistant" data-n="type"><option>特休</option><option>排休</option><option>事假</option><option>病假</option><option>公假</option><option>婚假</option><option>喪假</option><option>產假</option><option>陪產假</option><option>生理假</option><option>補休</option><option>颱風假</option><option>不可上班</option><option>其他</option></select></div>
+            <div class="field" style="flex:1;min-width:140px"><label for="lvNote-assistant">備註</label><input id="lvNote-assistant" data-n="note" placeholder="例如：家中有事…"></div>
+            <button class="primary" type="submit" data-w>登記</button>
+          </form>
+          <h3 class="subhead" id="leaveTitle-assistant"></h3>
+          <div class="hol-scroll" id="leaveScroll-assistant"><table class="list leave-table" id="leaveTable-assistant"></table></div>
+          <p class="hint" id="leaveHint-assistant" hidden>上下捲動可查看其他請假日期。</p>
+        </div>
+        <div class="card">
+          <h2>家庭照顧假</h2>
+          <p class="desc">僅限助理。填寫時間段後自動計算時數，以 1 小時為最小單位，未滿 1 小時的部分以 1 小時計。家庭照顧假另外記錄，不會影響排班。</p>
+          <form class="form-row" id="fcForm" style="margin-bottom:14px">
+            <div class="field"><label for="fcStaff">助理</label><select id="fcStaff" required></select></div>
+            <div class="field"><label for="fcDate">日期</label><input type="date" id="fcDate" required></div>
+            <div class="field"><label for="fcShift">班別</label><select id="fcShift"><option value="">不指定</option><option value="day">早班</option><option value="eve">午班</option><option value="night">晚班</option></select></div>
+            <div class="field"><label for="fcStart">開始時間</label><input type="time" id="fcStart" value="08:30" required></div>
+            <div class="field"><label for="fcEnd">結束時間</label><input type="time" id="fcEnd" value="09:30" required></div>
+            <div class="field"><span class="lb">時數</span><div id="fcCalc" style="padding-block:6px;font-weight:500;white-space:nowrap">1 小時</div></div>
+            <div class="field" style="flex:1;min-width:140px"><label for="fcNote">備註</label><input id="fcNote" placeholder="例如：陪同家人就醫"></div>
+            <button class="primary" type="submit" data-w>登記</button>
+          </form>
+          <div class="hol-scroll" id="fcScroll"><table class="list" id="fcTable"></table></div>
+          <p class="hint" id="fcHint" hidden>上下捲動可查看其他家庭照顧假日期。</p>
+          <div class="scroll-x" style="margin-top:14px"><table class="list" id="fcSummary"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-holidays" hidden>
+      <div class="stack">
+        <div class="card">
+          <h2>休假日</h2>
+          <p class="desc">休假日當天全天休診，班表不排班。新增時如果當天已經有人排班，會一併清除。</p>
+          <form class="form-row" id="holForm" style="margin-bottom:14px">
+            <div class="field"><label for="holFrom">日期</label><input type="date" id="holFrom" required></div>
+            <div class="field"><label for="holTo">結束日期（選填）</label><input type="date" id="holTo"></div>
+            <div class="field" style="flex:1;min-width:140px"><label for="holName">名稱</label><input id="holName" placeholder="國慶日、中秋節、院內旅遊…"></div>
+            <button class="primary" type="submit" data-w>新增休假日</button>
+          </form>
+          <div class="hol-scroll" id="holScroll"><table class="list" id="holTable"></table></div>
+          <p class="hint" id="holHint" hidden>上下捲動可查看其他休假日。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-stats" hidden>
+      <div class="stack">
+        <div class="card">
+          <h2>統計期間</h2>
+          <p class="desc">預設為上方選擇的月份，也可以自訂任意日期區間，下方所有數據都會依這段期間重新計算。</p>
+          <form class="form-row" id="rangeForm">
+            <div class="field"><label for="stFrom">開始日期</label><input type="date" id="stFrom"></div>
+            <div class="field"><label for="stTo">結束日期</label><input type="date" id="stTo"></div>
+            <button class="primary" type="submit">套用</button>
+            <button type="button" id="stReset">回到當月</button>
+            <span class="hint" id="stInfo" style="margin:0 0 8px"></span>
+          </form>
+        </div>
+        <div class="tiles" id="tiles"></div>
+        <div class="card">
+          <h2 id="statsTitle">本月工時</h2>
+          <p class="desc">只統計助理。「早+晚」「全天班」是同一天上這些班的天數；「主櫃」「跟診」「流動」是本月擔任該崗位的班數。每班 3.5 小時；助理同一天早、午、晚三班都上時，當日計 10 小時，另計單日超時 0.5 小時。「合理工時」＝（期間天數－週日數－休假日天數）× 8 － 請假天數 × 7 小時，當天有任何請假就算一天。只計算統計期間內的日期；「排班超時」＝工時－合理工時，負數表示排班未達合理工時；「排班總超時」＝單日超時＋排班超時（負數以 0 計）。</p>
+          <div class="scroll-x"><table class="list" id="statsTable"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-settings" hidden>
+      <div class="stack">
+        <div class="card">
+          <h2>管理人員名單</h2>
+          <p class="desc">院長、行政、主管等管理人員。管理人員不會排進班表，但一樣可以記錄個資與設定權限。</p>
+          <form class="form-row staff-form" data-role="manager" style="margin-bottom:14px">
+            <div class="field" style="width:90px"><label for="nsCode-manager">代號</label><input id="nsCode-manager" data-n="code" required placeholder="M1"></div>
+            <div class="field" style="width:140px"><label for="nsName-manager">姓名</label><input id="nsName-manager" data-n="name" placeholder="選填"></div>
+            <button class="primary" type="submit" data-w>新增管理人員</button>
+          </form>
+          <div class="hol-scroll" id="staffScroll-manager"><table class="list staff-table" id="staffTable-manager"></table></div>
+          <p class="hint" id="staffHint-manager" hidden>上下捲動可查看其他管理人員。</p>
+        </div>
+        <div class="card">
+          <h2>醫師名單</h2>
+          <p class="desc">按「修改」編輯代號與姓名。停用的醫師保留過去班表，但不會出現在排班名單。</p>
+          <form class="form-row staff-form" data-role="doctor" style="margin-bottom:14px">
+            <div class="field" style="width:90px"><label for="nsCode-doctor">代號</label><input id="nsCode-doctor" data-n="code" required placeholder="Dr.G"></div>
+            <div class="field" style="width:140px"><label for="nsName-doctor">姓名</label><input id="nsName-doctor" data-n="name" placeholder="選填"></div>
+            <button class="primary" type="submit" data-w>新增醫師</button>
+          </form>
+          <div class="hol-scroll" id="staffScroll-doctor"><table class="list staff-table" id="staffTable-doctor"></table></div>
+          <p class="hint" id="staffHint-doctor" hidden>上下捲動可查看其他醫師。</p>
+        </div>
+        <div class="card">
+          <h2>助理名單</h2>
+          <p class="desc">按「修改」編輯代號與姓名。停用的助理保留過去班表，但不會出現在排班名單。</p>
+          <form class="form-row staff-form" data-role="assistant" style="margin-bottom:14px">
+            <div class="field" style="width:90px"><label for="nsCode-assistant">代號</label><input id="nsCode-assistant" data-n="code" required placeholder="G"></div>
+            <div class="field" style="width:140px"><label for="nsName-assistant">姓名</label><input id="nsName-assistant" data-n="name" placeholder="選填"></div>
+            <button class="primary" type="submit" data-w>新增助理</button>
+          </form>
+          <div class="field" style="max-width:320px;margin-bottom:8px"><label for="staffSearch-assistant">搜尋助理</label><input id="staffSearch-assistant" type="search" placeholder="輸入代號或姓名…" autocomplete="off"></div>
+          <div class="hol-scroll" id="staffScroll-assistant"><table class="list staff-table" id="staffTable-assistant"></table></div>
+          <p class="hint" id="staffHint-assistant" hidden>上下捲動可查看其他助理。</p>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="tab-rules" hidden>
+      <div class="stack">
+        <div class="card">
+          <h2>預設醫師班表</h2>
+          <p class="desc">設定每週固定的醫師跟診時段，點醫師名字切換是否排入。之後在上方按「帶入醫師班表」，就能一鍵把這份班表套用到目前月份。</p>
+          <div class="scroll-x"><table class="matrix tpl" id="tplMatrix"></table></div>
+        </div>
+        <div class="card">
+          <h2>不參與自動排班的助理</h2>
+          <p class="desc">點名字切換：標紅的助理在「自動排班」時不會被排進該崗位。手動拖曳排班不受影響。</p>
+          <div class="scroll-x"><table class="matrix excl" id="exclMatrix"></table></div>
+        </div>
+        <div class="card">
+          <h2>排班設定</h2>
+          <p class="desc">自動排班依照這些規則填入人員，並優先分配給本月班數較少的人。</p>
+          <div class="form-row" id="needRow" style="margin-bottom:16px"></div>
+          <div class="form-row" style="margin-bottom:18px">
+            <div class="field" style="width:170px"><label for="maxPerDay">每人每天最多班數</label><input id="maxPerDay" type="number" min="1" max="3"></div>
+            <div class="field" style="width:190px"><label for="otMax">超時上限（小時）</label><input id="otMax" type="number" min="0" max="40" step="0.5"></div>
+            <div class="field" style="width:190px"><label for="maxFull">助理每月全天班上限</label><input id="maxFull" type="number" min="0" max="31"></div>
+            <div class="field" style="width:190px"><label for="maxDN">助理每月早+晚上限</label><input id="maxDN" type="number" min="0" max="31"></div>
+          </div>
+          <div class="field" style="margin-bottom:16px"><span class="lb">健保只排這些助理（點名字切換；都不選代表不限制）</span><div class="excl-list" id="nhOnlyRow"></div></div>
+          <div class="banner" style="margin:0 0 18px">自動排班另外遵守：助理當月工時以合理工時為上限並盡量排滿（合理工時＝（當月天數－週日數－休假日天數）×8－請假天數×7），超過的部分計為加班，最多不超過上方「超時上限」。全天班與早+晚次數會盡量平均分配。同一醫師同一天盡量由同一位助理跟診。手動排班不受這些限制。</div>
+          <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:4px">看診時段（取消勾選代表休診，不排班）</div>
+          <div class="scroll-x"><table class="matrix" id="openMatrix"></table></div>
+        </div>
+        <div class="card">
+          <h2>目前的自動排班規則</h2>
+          <p class="desc">依優先順序列出，會跟著上方設定即時更新。手動拖曳排班不受這些規則限制。</p>
+          <div class="rules-doc" id="rulesDoc"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+(function(){
+const SHIFTS=[
+  {id:'day',name:'早班',short:'早',time:'08:30-12:00',hours:3.5},
+  {id:'eve',name:'午班',short:'午',time:'13:50-17:20',hours:3.5},
+  {id:'night',name:'晚班',short:'晚',time:'18:00-21:30',hours:3.5},
+];
+const POS=[
+  {label:'主櫃',role:'assistant'},{label:'副櫃',role:'assistant'},{label:'跟診',role:'doctor'},
+  {label:'流動',role:'assistant'},{label:'健保',role:'assistant'},
+];
+const DAYS=['一','二','三','四','五','六','日'];
+const ROLE={doctor:'醫師',assistant:'助理',manager:'管理人員'};
+const DEFAULT_CFG={need:[1,0,0,0,0], maxPerDay:2, closed:{}};
+const LOCAL_KEY='clinic_roster_local_v1';
+const PREF_KEY='clinic_roster_prefs_v1';
+
+// ---------- state ----------
+let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, userNs=null, accessLinks={};
+let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], privateInfo={}, isAdmin=true;
+let prefs=loadPrefs();
+let selectedId=null, lastUndo=null, editingHol=null, editingLeave=null, editingFc=null, editingStaff=null;
+
+function clone(o){return JSON.parse(JSON.stringify(o));}
+function loadPrefs(){try{return Object.assign({tab:'schedule',monthOffset:0},JSON.parse(localStorage.getItem(PREF_KEY)||'{}'));}catch(e){return {tab:'schedule',monthOffset:0};}}
+function savePrefs(){try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs));}catch(e){}}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+
+// ---------- dates ----------
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const md=d=>`${d.getMonth()+1}/${d.getDate()}`;
+const parseYmd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+function mondayOf(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}
+function monthInfo(){
+  const now=new Date();
+  const first=new Date(now.getFullYear(),now.getMonth()+prefs.monthOffset,1);
+  const last=new Date(first.getFullYear(),first.getMonth()+1,0);
+  const mondays=[];
+  for(let d=mondayOf(first);d<=last;d.setDate(d.getDate()+7)) mondays.push(new Date(d));
+  const dates=[];
+  for(let d=new Date(first);d<=last;d.setDate(d.getDate()+1)){
+    const x=new Date(d);dates.push({d:x,key:ymd(x),dow:(x.getDay()+6)%7,wk:ymd(mondayOf(x))});
+  }
+  return {first,last,mondays,dates,label:`${first.getFullYear()}年 ${first.getMonth()+1}月`,ym:`${first.getFullYear()}-${pad(first.getMonth()+1)}`};
+}
+
+// ---------- lookups ----------
+const byId=id=>staff.find(s=>s.id===id);
+const GAP='_gap';
+const ppl=a=>a.filter(x=>x!==GAP);
+const gapN=a=>a.filter(x=>x===GAP).length;
+function removeOne(a,id){if(id!==GAP)return a.filter(x=>x!==id);const i=a.indexOf(GAP);if(i>=0)a.splice(i,1);return a;}
+const codeOf=id=>{if(id===GAP)return '缺口';const s=byId(id);return s?(s.code||s.name||'?'):'?';};
+const fullName=s=>s?[s.code,s.name].filter(Boolean).join(' '):'（已刪除）';
+const activeStaff=role=>staff.filter(s=>s.active!==false&&(!role||s.role===role)).sort(sortStaff);
+function sortStaff(a,b){if(a.role!==b.role){const o={manager:0,doctor:1,assistant:2};return (o[a.role]??3)-(o[b.role]??3);}return (a.code||a.name||'').localeCompare(b.code||b.name||'','zh-Hant',{numeric:true});}
+const isClosed=(dow,sh)=>!!(cfg.closed&&cfg.closed[dow+'_'+sh]);
+const holidayOf=date=>cfg.holidays&&cfg.holidays[date]||null;
+const closedAt=(dow,sh,date)=>isClosed(dow,sh)||!!holidayOf(date);
+const fmtH=h=>h.toFixed(1).replace(/\.0$/,'');
+const need=pi=>Math.max(0,Number(cfg.need?.[pi]??1));
+function getCell(wk,ck){
+  const c=weeks[wk]?.[ck];
+  const out=[[],[],[],[],[]];
+  if(Array.isArray(c)) for(let i=0;i<5;i++) if(Array.isArray(c[i])) out[i]=c[i].filter(Boolean).slice();
+  return out;
+}
+const FOLLOW=2;
+function getLink(wk,ck){const v=weeks[wk]?.['L'+ck];return Array.isArray(v)?v.filter(x=>Array.isArray(x)&&x.length===2).map(x=>x.slice()):[];}
+let leaveIdx=new Map();
+function buildLeaveIdx(){
+  leaveIdx=new Map();
+  leaves.forEach(l=>(l.shifts||[]).forEach(sh=>{const k=l.date+'|'+sh;if(!leaveIdx.has(k))leaveIdx.set(k,new Set());leaveIdx.get(k).add(l.staffId);}));
+}
+const onLeave=(id,date,sh)=>!!leaveIdx.get(date+'|'+sh)?.has(id);
+function dayCount(wk,dow,id){let n=0;SHIFTS.forEach(sh=>{if(getCell(wk,dow+'_'+sh.id).some(a=>a.includes(id)))n++;});return n;}
+function weekCount(wk,id){let n=0;for(let dow=0;dow<7;dow++)n+=dayCount(wk,dow,id);return n;}
+
+// ---------- persistence ----------
+const queues=new Map();
+function queue(path,fn){
+  const prev=queues.get(path)||Promise.resolve();
+  const next=prev.catch(()=>{}).then(fn).catch(e=>{handleWriteError(e);throw e;});
+  queues.set(path,next.catch(()=>{}));
+  return next;
+}
+function handleWriteError(e){
+  console.error(e);
+  if(e&&e.code==='invalid_argument'&&mode==='live'){platformWrite=false;renderAll();toast('你沒有編輯權限，目前為唯讀模式。','warn');return;}
+  if(e&&e.code==='quota_exceeded'){toast('資料庫已滿，請刪除舊的請假紀錄後再試。','warn');return;}
+  toast('儲存失敗，請稍後再試一次。','warn');
+}
+function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};}}catch(e){}}
+
+const store={
+  async cells(wk,patch){ // patch: {ck: arrs}
+    weeks[wk]=Object.assign({},weeks[wk]||{},patch);
+    renderAll();
+    if(!db){saveLocal();return;}
+    const ref=db.doc('weeks/'+wk);
+    return queue('weeks/'+wk,async()=>{
+      if(weeksExist.has(wk)) await ref.update({cells:patch});
+      else {await ref.set({cells:weeks[wk]});weeksExist.add(wk);}
+    });
+  },
+  async week(wk,cells){ // full replace
+    weeks[wk]=cells;renderAll();
+    if(!db){saveLocal();return;}
+    return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({cells});weeksExist.add(wk);});
+  },
+  async staff(s){
+    const i=staff.findIndex(x=>x.id===s.id);if(i>=0)staff[i]=s;else staff.push(s);renderAll();
+    if(!db){saveLocal();return;}
+    const {id,...body}=s;
+    return queue('staff/'+id,()=>db.doc('staff/'+id).set(body));
+  },
+  async delStaff(id){
+    staff=staff.filter(x=>x.id!==id);renderAll();
+    if(!db){saveLocal();return;}
+    return queue('staff/'+id,()=>db.doc('staff/'+id).delete());
+  },
+  async cfg(next){
+    cfg=next;renderAll();
+    if(!db){saveLocal();return;}
+    return queue('config/main',()=>db.doc('config/main').set(next));
+  },
+  async leave(l){
+    leaves.push(l);buildLeaveIdx();renderAll();
+    if(!db){saveLocal();return;}
+    const {id,...body}=l;
+    return queue('leaves/'+id,()=>db.doc('leaves/'+id).set(body));
+  },
+  async putLeave(l){
+    leaves=leaves.map(x=>x.id===l.id?l:x);buildLeaveIdx();renderAll();
+    if(!db){saveLocal();return;}
+    const {id,...body}=l;
+    return queue('leaves/'+id,()=>db.doc('leaves/'+id).set(body));
+  },
+  async delLeave(id){
+    leaves=leaves.filter(x=>x.id!==id);buildLeaveIdx();renderAll();
+    if(!db){saveLocal();return;}
+    return queue('leaves/'+id,()=>db.doc('leaves/'+id).delete());
+  },
+  async fc(l){
+    familyCare.push(l);renderAll();
+    if(!db){saveLocal();return;}
+    const {id,...body}=l;
+    return queue('familyCare/'+id,()=>db.doc('familyCare/'+id).set(body));
+  },
+  async putFc(l){
+    familyCare=familyCare.map(x=>x.id===l.id?l:x);renderAll();
+    if(!db){saveLocal();return;}
+    const {id,...body}=l;
+    return queue('familyCare/'+id,()=>db.doc('familyCare/'+id).set(body));
+  },
+  async priv(id,obj){
+    privateInfo[id]=obj;renderAll();
+    if(!db){saveLocal();return;}
+    return queue('priv/'+id,()=>db.doc('data/private/people/'+id).set(obj));
+  },
+  async link(id,obj){
+    if(obj)accessLinks[id]=obj;else delete accessLinks[id];renderAll();
+    if(!db){saveLocal();return;}
+    return queue('link/'+id,()=>obj?db.doc('data/access/links/'+id).set(obj):db.doc('data/access/links/'+id).delete());
+  },
+  async delPriv(id){
+    delete privateInfo[id];
+    if(!db){saveLocal();return;}
+    return queue('priv/'+id,()=>db.doc('data/private/people/'+id).delete());
+  },
+  async delFc(id){
+    familyCare=familyCare.filter(x=>x.id!==id);renderAll();
+    if(!db){saveLocal();return;}
+    return queue('familyCare/'+id,()=>db.doc('familyCare/'+id).delete());
+  },
+};
+
+// ---------- boot ----------
+async function boot(){
+  renderAll();
+  let dbNs=null;
+  try{dbNs=window.claude?await window.claude.use('db'):null;}catch(e){dbNs=null;}
+  if(!dbNs){mode='local';loadLocal();buildLeaveIdx();renderAll();return;}
+  db=dbNs;
+  try{
+    const user=await window.claude.use('user');
+    if(user&&typeof user.can==='function'){const c=await user.can('data.write');if(c===false)platformWrite=false;}
+    if(user){userNs=user;try{myId=await user.id();}catch(e){}}
+    if(user&&typeof user.canEdit==='function'){const a=await user.canEdit();isAdmin=a!==false;}
+  }catch(e){}
+  let loaded={staff:false,weeks:false,leaves:false,cfg:false,fc:false};
+  const done=k=>{loaded[k]=true;if(Object.values(loaded).every(Boolean))mode='live';renderAll();};
+  const onErr=e=>{console.error(e);if(e&&e.code==='revoked'){platformWrite=false;}renderAll();};
+  db.collection('staff').onSnapshot(snap=>{staff=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('staff');},onErr);
+  db.collection('weeks').onSnapshot(snap=>{
+    const w={};weeksExist=new Set();
+    snap.docs.forEach(d=>{w[d.id]=clone(d.data().cells||{});weeksExist.add(d.id);});
+    weeks=w;done('weeks');
+  },onErr);
+  db.collection('leaves').onSnapshot(snap=>{leaves=snap.docs.map(d=>Object.assign({id:d.id},d.data()));buildLeaveIdx();done('leaves');},onErr);
+  db.collection('data/private/people').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=clone(d.data()));privateInfo=m;renderAll();},e=>console.warn(e));
+  db.collection('data/access/links').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=clone(d.data()));accessLinks=m;renderAll();},e=>console.warn(e));
+  db.collection('familyCare').onSnapshot(snap=>{familyCare=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('fc');},onErr);
+  db.doc('config/main').onSnapshot(snap=>{cfg=Object.assign(clone(DEFAULT_CFG),snap.exists?clone(snap.data()):{});done('cfg');},onErr);
+}
+
+// ---------- rendering ----------
+const $=id=>document.getElementById(id);
+const PERMS={view:'僅檢視',self:'登記本人請假',manage:'排班管理',super:'超級管理員'};
+const superOK=()=>isAdmin||effPerm()==='super';
+function myStaffId(){if(!myId)return null;const e=Object.entries(accessLinks).find(([,v])=>v&&v.account===myId);return e?e[0]:null;}
+function effPerm(){ // admin = 擁有者/編輯者；其他人依綁定的權限，未綁定視為僅檢視
+  if(mode!=='live'||isAdmin)return 'admin';
+  const sid=myStaffId();return sid?(accessLinks[sid].perm||'view'):'view';
+}
+function canLeaveFor(sid){if(!platformWrite)return false;const p=effPerm();return p==='admin'||p==='super'||p==='manage'||(p==='self'&&sid&&sid===myStaffId());}
+function renderAll(){
+  const mi=monthInfo();
+  {const p=effPerm();canWrite=platformWrite&&(p==='admin'||p==='super'||p==='manage');}
+  $('monthLabel').textContent=mi.label;
+  const sync=$('sync');
+  sync.className='sync '+(mode==='live'?'live':mode==='local'?'local':'');
+  sync.querySelector('span').textContent=mode==='live'?'已同步・多人共用':mode==='local'?'僅存於此瀏覽器':'連線中…';
+  const b=$('banner');
+  if(mode==='live'&&!platformWrite) b.innerHTML='<div class="banner warn">你目前只有檢視權限，可以查看班表，但無法修改。</div>';
+  else if(mode==='live'&&effPerm()==='self') b.innerHTML=`<div class="banner">你的權限：${PERMS.self}。可以查看班表，並在「${byId(myStaffId())?.role==='doctor'?'醫師休假':'助理請假'}」登記自己的${byId(myStaffId())?.role==='doctor'?'休假':'請假'}。</div>`;
+  else if(mode==='live'&&effPerm()==='view') b.innerHTML=`<div class="banner">你的權限：${PERMS.view}${myStaffId()?'':'（尚未綁定人員）'}。如需修改，請洽診所管理者。</div>`;
+  else if(mode==='local') b.innerHTML='<div class="banner">目前無法連到共用資料庫，資料只會存在這台裝置的瀏覽器裡。</div>';
+  else b.innerHTML='';
+  document.querySelectorAll('[data-w]').forEach(el=>el.disabled=!canWrite);
+  document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
+  ['schedule','docleave','leave','holidays','stats','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
+  const counts=monthCounts(mi);
+  renderPool(counts,mi);
+  if(prefs.tab==='schedule') renderWeeks(mi);
+  if(prefs.tab==='leave') renderLeave(mi,['assistant']);
+  if(prefs.tab==='docleave') renderLeave(mi,['doctor']);
+  if(prefs.tab==='stats'){const r=statRange(mi);renderStats(r,r.custom?monthCounts(r):counts);}
+  if(prefs.tab==='settings') renderSettings();
+  if(prefs.tab==='rules') renderRules();
+  if(prefs.tab==='holidays') renderHolidays();
+}
+
+const otMax=()=>Number.isFinite(cfg.otMax)?cfg.otMax:3;
+let statCustom=null; // {from,to}：自訂統計期間；null 代表跟著月份
+function statRange(mi){
+  if(!statCustom)return Object.assign({},mi,{custom:false});
+  const first=parseYmd(statCustom.from),last=parseYmd(statCustom.to);
+  const dates=[];for(let d=new Date(first);d<=last;d.setDate(d.getDate()+1)){const x=new Date(d);dates.push({d:x,key:ymd(x),dow:(x.getDay()+6)%7,wk:ymd(mondayOf(x))});}
+  const mondays=[];for(let d=mondayOf(first);d<=last;d.setDate(d.getDate()+7))mondays.push(new Date(d));
+  return {first,last,dates,mondays,custom:true,label:`${md(first)}–${md(last)}${first.getFullYear()!==last.getFullYear()?`（${first.getFullYear()}–${last.getFullYear()}）`:''}`,ym:`${statCustom.from}_${statCustom.to}`};
+}
+function reasonableDays(mi,id){ // 合理工時＝（期間天數－週日數－休假日天數）×8－請假天數×7 小時
+  let sun=0,hol=0,lv=0;
+  mi.dates.forEach(({d,key})=>{
+    if(d.getDay()===0){sun++;return;}
+    if(holidayOf(key)){hol++;return;}
+    if(leaves.some(l=>l.staffId===id&&l.date===key))lv++;
+  });
+  return (mi.dates.length-sun-hol)*8-lv*7; // 小時
+}
+function fourWeekExcess(mi,id){ // 四週工時超過上限的時數（兩段取較大者）；期間不足 28 天時回傳 null
+  const f=mi.first,l=mi.last;
+  if(Math.round((l-f)/864e5)+1<28)return null;const starts=[new Date(f),(()=>{const d=new Date(l);d.setDate(d.getDate()-27);return d;})()];
+  let worst=0;
+  starts.forEach(st=>{
+    let sum=0,off=0;
+    for(let t=0;t<28;t++){
+      const d=new Date(st);d.setDate(st.getDate()+t);const key=ymd(d);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;
+      let n=0;SHIFTS.forEach(sh=>{if(getCell(wk,dow+'_'+sh.id).some(a=>a.includes(id)))n++;});
+      sum+=n>=3?10:n*3.5;
+      if(holidayOf(key)||leaves.some(lv=>lv.staffId===id&&lv.date===key&&lv.type!=='排休'))off++;
+    }
+    worst=Math.max(worst,sum-(160-7*off));
+  });
+  return Math.max(0,Math.round(worst*10)/10);
+}
+function monthCounts(mi){
+  const c={};
+  mi.dates.forEach(({wk,dow})=>SHIFTS.forEach(sh=>{
+    const cell=getCell(wk,dow+'_'+sh.id);
+    const seen=new Set();cell.forEach(a=>ppl(a).forEach(id=>seen.add(id)));
+    seen.forEach(id=>{c[id]=c[id]||{total:0,day:0,eve:0,night:0,hours:0,ot:0,fullDays:0,dn:0,pos:[0,0,0,0,0]};c[id].total++;c[id][sh.id]++;});
+    cell.forEach((a,pi)=>ppl(a).forEach(id=>c[id].pos[pi]++));
+  }));
+  // 工時：每班 3.5 小時；助理同一天早午晚三班都上，當日計 10 小時，另計加班 0.5 小時
+  mi.dates.forEach(({wk,dow})=>{
+    const per={},who={};
+    SHIFTS.forEach(sh=>{const seen=new Set();getCell(wk,dow+'_'+sh.id).forEach(a=>ppl(a).forEach(id=>seen.add(id)));seen.forEach(id=>{per[id]=(per[id]||0)+1;(who[id]=who[id]||[]).push(sh.id);});});
+    Object.entries(per).forEach(([id,n])=>{
+      const x=c[id];if(!x)return;
+      if(n===2&&who[id].join('+')==='day+night')x.dn++; // 同一天只上早班與晚班
+      if(n===3&&byId(id)?.role==='assistant'){x.hours+=10;x.ot+=0.5;x.fullDays++;}
+      else x.hours+=n*3.5;
+    });
+  });
+  return c;
+}
+
+function renderPool(counts,mi){
+  const curWk=ymd(mondayOf(new Date()));
+  [['doctor','chipsDoctor'],['assistant','chipsAssistant']].forEach(([role,el])=>{
+    const list=activeStaff(role);
+    $(el).innerHTML=list.length?list.map(s=>{
+      const n=counts[s.id]?.total||0;
+      return `<div class="chip ${role}${selectedId===s.id?' sel':''}" draggable="${canWrite}" tabindex="0" data-chip="${s.id}" title="${esc(fullName(s))}">
+        <span class="nm">${esc(s.code||s.name)}${s.code&&s.name?`<small>${esc(s.name)}</small>`:''}</span>
+        <span class="cnt">${n}班${role==='doctor'?'':`・${fmtH(counts[s.id]?.hours||0)}h`}${role==='assistant'?(()=>{const x=Math.round(((counts[s.id]?.hours||0)-reasonableDays(mi,s.id))*10)/10;return x?`<span class="ot4" title="排班超時（工時－合理工時）">${x>0?'+':'−'}${fmtH(Math.abs(x))}h</span>`:'';})():''}</span></div>`;
+    }).join(''):`<div class="hint" style="margin:0">尚無${ROLE[role]}，請到「人員名單」新增。</div>`;
+  });
+}
+
+function renderWeeks(mi){
+  const today=ymd(new Date());
+  $('weeks').innerHTML=mi.mondays.map(mon=>{
+    const wk=ymd(mon);const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    const days=[...Array(7)].map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return {d,key:ymd(d),out:d.getMonth()!==mi.first.getMonth()};});
+    let gaps=0;
+    const head=days.map((x,i)=>{
+      const ids=new Set();SHIFTS.forEach(sh=>leaveIdx.get(x.key+'|'+sh.id)?.forEach(id=>ids.add(id)));
+      const lv=ids.size?`<div class="day-leave">假 ${[...ids].map(codeOf).map(esc).join('、')}</div>`:'';
+      const hd=holidayOf(x.key);return `<th class="${x.out?'out':''}${x.key===today?' today':''}${hd?' hol':''}">週${DAYS[i]}<br>${md(x.d)}${hd?`<div class="day-hol">休假日${hd.name?'・'+esc(hd.name):''}</div>`:''}${lv}</th>`;
+    }).join('');
+    // 每天、每個崗位的固定欄位順序：先依最早出現的班（早>午>晚），同班再依代號 A-Z；三班共用，讓同一人上下對齊
+    const layout=days.map((x,dow)=>POS.map((p,pi)=>{
+      const first=new Map();let extra=0;
+      SHIFTS.forEach((sh,si)=>{
+        if(closedAt(dow,sh.id,x.key))return;
+        const c=getCell(wk,dow+'_'+sh.id)[pi];
+        const pc=pi===FOLLOW?ppl(c).filter(id=>byId(id)?.role==='doctor'):ppl(c);
+        pc.forEach(id=>{if(!first.has(id))first.set(id,si);});
+        extra=Math.max(extra,gapN(c)+(x.out?0:Math.max(0,need(pi)-pc.length)));
+      });
+      const order=[...first.keys()].sort((a,b)=>first.get(a)-first.get(b)||codeOf(a).localeCompare(codeOf(b),'en',{numeric:true,sensitivity:'base'}));
+      return {order,extra:Math.max(0,extra)};
+    }));
+    const body=SHIFTS.map(sh=>{
+      const tds=days.map((x,dow)=>{
+        if(closedAt(dow,sh.id,x.key)){const h=holidayOf(x.key);return `<td class="closed${h?' holiday':''}">休診${h&&h.name?`<br><small>${esc(h.name)}</small>`:''}</td>`;}
+        const ck=dow+'_'+sh.id;const cell=getCell(wk,ck);
+        const cols=POS.map((p,pi)=>{
+          const L=layout[dow][pi];const man=gapN(cell[pi]);
+          const itemH=(id,cls='',note='')=>{
+            const lv=onLeave(id,x.key,sh.id);
+            return `<div class="item${cls}${byId(id)?.role==='assistant'?' asst':''}${lv?' onleave':''}${selectedId===id?' hl':''}" draggable="${canWrite}" data-item="${id}" data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" title="${esc(fullName(byId(id)))}${note}${lv?'（當班已請假）':''}"><span>${esc(codeOf(id))}</span>${canWrite?`<button class="rm" data-rm aria-label="移除">×</button>`:''}</div>`;
+          };
+          let here,body;
+          if(pi===FOLLOW){
+            const lk=getLink(wk,ck);const all=ppl(cell[pi]);
+            here=new Set(all.filter(id=>byId(id)?.role==='doctor'));
+            const assts=all.filter(id=>!here.has(id));
+            const docOf=a=>{const l=lk.find(z=>z[0]===a);return l&&here.has(l[1])?l[1]:null;};
+            body=L.order.map(d=>here.has(d)
+              ?(()=>{const mine=assts.filter(a=>docOf(a)===d);if(!mine.length)gaps++;return `<div class="dstack" data-doc="${d}">${itemH(d)}${mine.length?mine.map(a=>itemH(a,' sub',`（跟 ${codeOf(d)}）`)).join(''):`<div class="gap" title="${esc(codeOf(d))} 尚未排跟診助理"></div>`}</div>`;})()
+              :'<div class="dstack"><div class="item ph" aria-hidden="true"></div></div>').join('')
+              +assts.filter(a=>!docOf(a)).map(a=>`<div class="dstack">${itemH(a,' orphan','（未對應醫師）')}</div>`).join('');
+          }else{
+            here=new Set(ppl(cell[pi]));
+            body=L.order.map(id=>here.has(id)?itemH(id):'<div class="item ph" aria-hidden="true"></div>').join('');
+          }
+          const miss=x.out?0:Math.max(0,need(pi)-here.size);gaps+=miss+man;
+          const items=body+`<div class="gap manual${selectedId===GAP?' hl':''}" draggable="${canWrite}" data-item="${GAP}" data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" title="待補缺口：拖入人員即可補上">${canWrite?'<button class="rm" data-rm aria-label="移除缺口">×</button>':''}</div>`.repeat(man)+'<div class="gap"></div>'.repeat(miss)+'<div class="item ph" aria-hidden="true"></div>'.repeat(Math.max(0,L.extra-miss-man));
+          return `<div class="pos${p.role==='doctor'?' doc':''}" data-pos data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" data-date="${x.key}" data-sh="${sh.id}" tabindex="-1" title="${pi===FOLLOW?'跟診：先排醫師，助理拖到醫師下方':p.label+'（限'+ROLE[p.role]+'）'}"><div class="pos-label">${p.label}</div><div class="q-items">${items}</div></div>`;
+        }).join('');
+        return `<td class="slot${x.out?' out':''}"><div class="slot-grid">${cols}</div></td>`;
+      }).join('');
+      return `<tr><th class="shift-label">${sh.name}<small>${sh.time}</small></th>${tds}</tr>`;
+    }).join('');
+    return `<div class="week"><div class="week-head"><span>${md(mon)} – ${md(sun)}</span>${canWrite?`<span style="display:flex;gap:6px"><button class="small" data-tplweek="${wk}">一鍵帶入醫師班表</button><button class="small" data-clear="${wk}">清空本週</button></span>`:''}</div>
+      <div class="table-wrap"><table class="grid"><thead><tr><th class="shift-label"></th>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
+  }).join('');
+}
+
+function renderFamilyCare(mi){
+  const sel=$('fcStaff');const cur=sel.value;
+  $('fcForm').querySelector('button[type=submit]').disabled=!(canWrite||(canLeaveFor(myStaffId())&&byId(myStaffId())?.role==='assistant'));
+  sel.innerHTML=activeStaff('assistant').filter(s=>canWrite||s.id===myStaffId()).map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');
+  if(cur&&byId(cur))sel.value=cur;
+  if(!$('fcDate').value){const t=new Date();const d=(t>=mi.first&&t<=mi.last)?t:mi.first;$('fcDate').value=ymd(d);}
+  const a=ymd(mi.first),z=ymd(mi.last),yr=String(mi.first.getFullYear());
+  if(editingFc&&$('fcTable').contains(document.activeElement)&&document.activeElement.tagName!=='BUTTON')return;
+  const byDate=(x,y)=>x.date.localeCompare(y.date)||(x.start||'').localeCompare(y.start||'')||codeOf(x.staffId).localeCompare(codeOf(y.staffId),'en',{numeric:true});
+  const shIdx=l=>{const i=SHIFTS.findIndex(x=>x.id===l.shift);return i<0?9:i;};
+  const FK={date:byDate,staff:(x,y)=>codeOf(x.staffId).localeCompare(codeOf(y.staffId),'en',{numeric:true}),shift:(x,y)=>shIdx(x)-shIdx(y),time:(x,y)=>(x.start||'~').localeCompare(y.start||'~')||(x.end||'').localeCompare(y.end||''),hours:(x,y)=>x.hours-y.hours};
+  const k=FK[fcSort.key]||byDate;
+  const rows=familyCare.filter(l=>l.date>=a&&l.date<=z).sort((x,y)=>(k(x,y)*fcSort.dir)||byDate(x,y));
+  const th=(key,label,cls='')=>`<th${cls}><button type="button" class="th-btn${fcSort.key===key?' on':''}" data-fcsort="${key}" aria-label="依${label}排序">${label}<span>${fcSort.key===key?(fcSort.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
+  $('fcTable').innerHTML=`<thead><tr>${th('date','日期')}${th('staff','助理')}${th('shift','班別')}${th('time','時間段')}${th('hours','時數',' class="num"')}<th>備註</th><th></th></tr></thead><tbody>`+
+    (rows.length?rows.map(l=>{const d=parseYmd(l.date);const sh=SHIFTS.find(x=>x.id===l.shift);
+      if(editingFc===l.id)return `<tr data-fcrow="${l.id}"><td><input type="date" data-e="date" value="${l.date}" aria-label="日期"></td><td>${esc(fullName(byId(l.staffId)))}</td>
+        <td><select data-e="shift" aria-label="班別"><option value="">不指定</option>${SHIFTS.map(x=>`<option value="${x.id}"${x.id===l.shift?' selected':''}>${x.name}</option>`).join('')}</select></td>
+        <td style="white-space:nowrap"><input type="time" data-e="start" value="${l.start||''}" aria-label="開始時間" style="width:auto"> – <input type="time" data-e="end" value="${l.end||''}" aria-label="結束時間" style="width:auto"></td>
+        <td class="num" data-e="calc">${l.hours} 小時</td><td><input data-e="note" value="${esc(l.note||'')}" aria-label="備註"></td>
+        <td class="num" style="white-space:nowrap"><button class="small primary" data-fcsave="${l.id}">儲存</button> <button class="small" data-fccancel>取消</button></td></tr>`;
+      return `<tr data-date="${l.date}"><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${sh?sh.name:'—'}</td><td>${l.start&&l.end?`${l.start}–${l.end}`:'—'}</td><td class="num">${l.hours} 小時</td><td>${esc(l.note||'')}</td><td class="num" style="white-space:nowrap">${canLeaveFor(l.staffId)?`<button class="small" data-editfc="${l.id}">變更</button> <button class="small danger" data-delfc="${l.id}">刪除</button>`:''}</td></tr>`;}).join('')
+    :`<tr><td colspan="7" class="empty">${mi.label}還沒有家庭照顧假紀錄。</td></tr>`)+'</tbody>';
+  const tot={};familyCare.forEach(l=>{if(!l.date.startsWith(yr))return;const t=(tot[l.staffId]=tot[l.staffId]||{m:0,y:0});t.y+=l.hours;if(l.date>=a&&l.date<=z)t.m+=l.hours;});
+  {const n=limitRows($('fcScroll'),3);$('fcHint').hidden=n<=3;if(!leaveScrolled.fc)leaveScrolled.fc=scrollToUpcoming($('fcScroll'));}
+  const ids=Object.keys(tot).sort((x,y)=>codeOf(x).localeCompare(codeOf(y),'en',{numeric:true}));
+  $('fcSummary').innerHTML=ids.length?`<thead><tr><th>助理</th><th class="num">${mi.first.getMonth()+1}月合計</th><th class="num">${yr}年累計</th></tr></thead><tbody>`+
+    ids.map(id=>`<tr><td>${esc(fullName(byId(id)))}</td><td class="num">${tot[id].m} 小時</td><td class="num">${tot[id].y} 小時</td></tr>`).join('')+'</tbody>':'';
+}
+function renderLeave(mi,roles){
+  if(roles.includes('assistant'))renderFamilyCare(mi);
+  roles.forEach(role=>{
+    const word=role==='doctor'?'休假':'請假';
+    const sel=$('lvStaff-'+role);const cur=sel.value;
+    const selfOnly=!canWrite&&canLeaveFor(myStaffId())&&byId(myStaffId())?.role===role;
+    document.querySelector(`.leave-form[data-role=${role}] button[type=submit]`).disabled=!(canWrite||selfOnly);
+    sel.innerHTML=activeStaff(role).filter(s=>canWrite||s.id===myStaffId()).map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');
+    if(cur&&byId(cur))sel.value=cur;
+    const fromEl=$('lvFrom-'+role);
+    if(!fromEl.value){const t=new Date();const d=(t>=mi.first&&t<=mi.last)?t:mi.first;fromEl.value=ymd(d);}
+    $('leaveTitle-'+role).textContent=`${mi.label} ${ROLE[role]}${word}`;
+    const tb=$('leaveTable-'+role);
+    if(editingLeave&&tb.contains(document.activeElement)&&document.activeElement.tagName!=='BUTTON')return;
+    const clashOf=l=>{const d=parseYmd(l.date);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;return (l.shifts||[]).filter(sh=>getCell(wk,dow+'_'+sh).some(a=>a.includes(l.staffId)));};
+    const byDate=(a,b)=>a.date.localeCompare(b.date)||codeOf(a.staffId).localeCompare(codeOf(b.staffId),'en',{numeric:true});
+    let rows=leaves.filter(l=>byId(l.staffId)?.role===role&&l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).sort(byDate);
+    let head=`<th>日期</th><th>${ROLE[role]}</th><th>班別</th><th>${word}類別</th><th>備註</th><th>狀態</th><th></th>`;
+    {
+      const lvSort=lvSorts[role];
+      const shKey=l=>{const x=l.shifts||[];return (x.length===3?'0':'1'+SHIFTS.map(s=>x.includes(s.id)?'0':'1').join(''));};
+      const KEYS={date:null,staff:(a,b)=>codeOf(a.staffId).localeCompare(codeOf(b.staffId),'en',{numeric:true}),shift:(a,b)=>shKey(a).localeCompare(shKey(b)),type:(a,b)=>(a.type||'').localeCompare(b.type||'','zh-Hant'),status:(a,b)=>(clashOf(b).length>0)-(clashOf(a).length>0)};
+      const k=KEYS[lvSort.key]||byDate;
+      rows.sort((a,b)=>(k(a,b)*lvSort.dir)||byDate(a,b));
+      const th=(key,label)=>`<th><button type="button" class="th-btn${lvSort.key===key?' on':''}" data-lvsort="${key}" data-role="${role}" aria-label="依${label}排序">${label}<span>${lvSort.key===key?(lvSort.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
+      head=th('date','日期')+th('staff',ROLE[role])+th('shift','班別')+th('type',word+'類別')+'<th>備註</th>'+th('status','狀態')+'<th></th>';
+    }
+    $('leaveTable-'+role).innerHTML=`<thead><tr>${head}</tr></thead><tbody>`+
+      (rows.length?rows.map(l=>{
+        const d=parseYmd(l.date);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;
+        const clash=clashOf(l);
+        const shTxt=(l.shifts||[]).length===3?'全天':SHIFTS.filter(s=>l.shifts.includes(s.id)).map(s=>s.short).join('、');
+        if(editingLeave===l.id){
+          const types=[...document.querySelectorAll(`#lvType-${role} option`)].map(o=>o.value);
+          if(l.type&&!types.includes(l.type))types.push(l.type);
+          return `<tr data-lvrow="${l.id}"><td><input type="date" data-e="date" value="${l.date}" aria-label="日期"></td><td>${esc(fullName(byId(l.staffId)))}</td>
+            <td><div class="checks" style="padding:0">${SHIFTS.map(s=>`<label><input type="checkbox" data-esh="${s.id}"${(l.shifts||[]).includes(s.id)?' checked':''}>${s.short}</label>`).join('')}</div></td>
+            <td><select data-e="type" aria-label="類別">${types.map(t=>`<option${t===l.type?' selected':''}>${esc(t)}</option>`).join('')}</select></td>
+            <td><input data-e="note" value="${esc(l.note||'')}" aria-label="備註"></td><td></td>
+            <td class="num" style="white-space:nowrap"><button class="small primary" data-lvsave="${l.id}">儲存</button> <button class="small" data-lvcancel>取消</button></td></tr>`;
+        }
+        return `<tr data-date="${l.date}"><td>${md(d)}（${DAYS[dow]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}</td><td>${esc(l.note||'')}</td>
+          <td>${clash.length?`<span class="pill warn">已排${SHIFTS.filter(s=>clash.includes(s.id)).map(s=>s.short).join('、')}班</span>`:'<span class="pill">無衝突</span>'}</td>
+          <td class="num" style="white-space:nowrap">${canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
+      }).join(''):`<tr><td colspan="7" class="empty">這個月還沒有${ROLE[role]}${word}紀錄。</td></tr>`)+'</tbody>';
+    {const n=limitRows($('leaveScroll-'+role),10);$('leaveHint-'+role).hidden=n<=10;if(role==='assistant'&&!leaveScrolled.lv)leaveScrolled.lv=scrollToUpcoming($('leaveScroll-assistant'));}
+  });
+}
+
+function renderStats(mi,counts){
+  $('statsTitle').textContent=`${mi.label} 工時`;
+  if(document.activeElement?.id!=='stFrom'&&document.activeElement?.id!=='stTo'){$('stFrom').value=ymd(mi.first);$('stTo').value=ymd(mi.last);}
+  $('stReset').hidden=!mi.custom;
+  $('stInfo').textContent=`共 ${mi.dates.length} 天${mi.custom?'（自訂期間）':'（依月份）'}`;
+  let slots=0,filled=0,leaveShifts=0;
+  mi.dates.forEach(({wk,dow,key})=>SHIFTS.forEach(sh=>{
+    if(closedAt(dow,sh.id,key))return;
+    const cell=getCell(wk,dow+'_'+sh.id);
+    POS.forEach((p,pi)=>{const n=need(pi)+gapN(cell[pi]);const h=ppl(cell[pi]).length;slots+=Math.max(n,h);filled+=h;});
+    {const lk=getLink(wk,dow+'_'+sh.id);const f=ppl(cell[FOLLOW]);f.filter(d=>byId(d)?.role==='doctor'&&!lk.some(z=>z[1]===d&&f.includes(z[0]))).forEach(()=>slots++);}
+    leaveShifts+=leaveIdx.get(key+'|'+sh.id)?.size||0;
+  }));
+  const pct=slots?Math.round(filled/slots*100):0;
+  $('tiles').innerHTML=`
+    <div class="tile"><div class="k">需排崗位</div><div class="v">${slots}<small>格</small></div></div>
+    <div class="tile"><div class="k">已排</div><div class="v">${filled}<small>${pct}%</small></div></div>
+    <div class="tile${slots-filled?' warn':''}"><div class="k">缺口</div><div class="v">${slots-filled}<small>格</small></div></div>
+    <div class="tile"><div class="k">請假</div><div class="v">${leaveShifts}<small>班次</small></div></div>`;
+  const list=staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id]));
+  const maxH=Math.max(1,...list.map(s=>(counts[s.id]?.total||0)));
+  $('statsTable').innerHTML=`<thead><tr><th>人員</th><th>職稱</th><th class="num">早</th><th class="num">午</th><th class="num">晚</th><th class="num">總班數</th><th class="num combo">早+晚</th><th class="num combo">全天班</th><th class="num posc">主櫃</th><th class="num posc">跟診</th><th class="num posc">流動</th><th class="num">工時</th><th class="num" title="（期間天數－週日數－休假日天數）× 8 － 請假天數 × 7 小時">合理工時</th><th class="num">單日超時</th><th class="num" title="工時－合理工時">排班超時</th><th class="num" title="單日超時＋排班超時（排班超時為負數時以 0 計）">排班總超時</th><th style="width:18%"></th><th class="num">請假班次</th></tr></thead><tbody>`+
+    (list.length?list.map(s=>{
+      const c=counts[s.id]||{total:0,day:0,eve:0,night:0,hours:0,ot:0,fullDays:0,dn:0,pos:[0,0,0,0,0]};
+      const lv=leaves.filter(l=>l.staffId===s.id&&l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).reduce((n,l)=>n+(l.shifts||[]).length,0);
+      return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}</td><td><span class="pill${s.role==='doctor'?' doc':''}">${ROLE[s.role]}</span></td>
+        <td class="num">${c.day}</td><td class="num">${c.eve}</td><td class="num">${c.night}</td><td class="num"><b>${c.total}</b></td>${[c.dn,c.fullDays].map(v=>`<td class="num combo">${v||'<span style="color:var(--faint)">0</span>'}</td>`).join('')}${[0,2,3].map(pi=>`<td class="num posc">${c.pos[pi]||'<span style="color:var(--faint)">0</span>'}</td>`).join('')}
+        <td class="num">${c.hours.toFixed(1)}</td><td class="num">${reasonableDays(mi,s.id).toFixed(1)}</td><td class="num">${c.ot?`<span class="pill warn">${c.ot.toFixed(1)}</span>`:'<span style="color:var(--faint)">0</span>'}</td>${(()=>{const x=Math.round((c.hours-reasonableDays(mi,s.id))*10)/10,t=Math.round((Math.max(0,x)+(c.ot||0))*10)/10;const cell=v=>v>0?`<span class="pill warn">${v.toFixed(1)}</span>`:v<0?`<span style="color:var(--faint)">${v.toFixed(1)}</span>`:'<span style="color:var(--faint)">0</span>';return `<td class="num">${cell(x)}</td><td class="num"><b>${cell(t)}</b></td>`;})()}<td><div class="bar${s.role==='doctor'?' doc':''}"><b style="width:${c.total/maxH*100}%"></b></div></td>
+        <td class="num">${lv}</td></tr>`;
+    }).join(''):`<tr><td colspan="18" class="empty">尚未建立助理。</td></tr>`)+'</tbody>';
+}
+
+function renderHolidays(){
+  const dis=canWrite?'':' disabled';
+  const active=document.activeElement;
+  if(active&&active.closest&&active.closest('#holTable')&&active.tagName==='INPUT')return;
+  const hols=Object.entries(cfg.holidays||{}).sort((a,b)=>a[0].localeCompare(b[0]));
+  const todayK=ymd(new Date());
+  const nextHol=(hols.find(([d])=>d>=todayK)||[])[0];
+  $('holTable').innerHTML=`<thead><tr><th>日期</th><th>名稱</th><th></th></tr></thead><tbody>`+
+    (hols.length?hols.map(([d,h])=>{const dt=parseYmd(d);
+      if(editingHol===d)return `<tr data-holrow="${d}"><td><input type="date" id="holEditDate" value="${d}" aria-label="日期"></td><td><input id="holEditName" value="${esc(h.name||'')}" placeholder="名稱" aria-label="名稱"></td><td class="num" style="white-space:nowrap"><button class="small primary" data-holsave="${d}">儲存</button> <button class="small" data-holcancel>取消</button></td></tr>`;
+      return `<tr class="${d<todayK?'inactive':''}"><td>${d.replace(/-/g,'/')}（${DAYS[(dt.getDay()+6)%7]}）${d===nextHol?' <span class="pill doc">最近</span>':''}</td><td>${esc(h.name||'休假日')}</td><td class="num" style="white-space:nowrap">${canWrite?`<button class="small" data-edithol="${d}">變更</button> <button class="small danger" data-delhol="${d}">刪除</button>`:''}</td></tr>`;}).join('')
+    :`<tr><td colspan="3" class="empty">尚未設定休假日。</td></tr>`)+'</tbody>';
+  fitHolList(hols);
+}
+const EXCL_POS=[0,1,2,3]; // 主櫃、副櫃、跟診、流動
+function isExcluded(pi,id){return !!(cfg.autoExclude&&(cfg.autoExclude[pi]||[]).includes(id));}
+function renderRulesDoc(){
+  const nd=POS.map((p,pi)=>need(pi)?`${p.label} ${need(pi)} 人`:null).filter(Boolean);
+  const zero=POS.filter((p,pi)=>!need(pi)).map(p=>p.label);
+  const MAXF=Number.isFinite(cfg.maxFullDays)?cfg.maxFullDays:10, MAXDN=Number.isFinite(cfg.maxDN)?cfg.maxDN:2;
+  const ex=Object.entries(cfg.autoExclude||{}).filter(([,a])=>a&&a.length).map(([pi,a])=>`${POS[pi].label}：${a.map(codeOf).join('、')}`);
+  $('rulesDoc').innerHTML=`
+    <h3>排班範圍</h3>
+    <ul><li>只排目前所選月份，跨月的日子不動，休診時段和休假日會跳過。</li><li>可以選「只補空缺」或「整月重新排」；整月重新排只清除本月助理的排班，醫師和手動缺口保留。</li></ul>
+    <h3>一、崗位的人力優先順序</h3>
+    <ol><li>主櫃</li><li>跟診（幫跟診醫師配助理）</li><li>健保</li><li>流動（人手不足時先排晚班，其次午班，最後早班）</li><li>副櫃（人手不足時先排午班，其次晚班，最後早班）</li></ol>
+    <p class="note">每一項會先排完整個月才輪到下一項，所以人手不足時，缺口會先出現在順序較後面的崗位。</p>
+    <p class="note">目前每班需求：${nd.length?nd.join('、'):'沒有設定'}${zero.length?`；${zero.join('、')}為 0，只補手動放入的缺口`:''}。跟診醫師由「帶入醫師班表」排入，自動排班只幫已在跟診的醫師配助理。</p>
+    <h3>二、一定要遵守的條件 <span class="pill warn">找不到符合的人就留成缺口</span></h3>
+    <ol>
+      <li>崗位職稱：主櫃、副櫃、流動、健保只排助理；跟診只排醫師，助理只能排在醫師下方。</li>
+      <li>排除名單：列在「不參與自動排班的助理」的人不排進該崗位${ex.length?`（目前：${esc(ex.join('；'))}）`:'（目前沒有）'}。</li>
+      <li>健保只排：${(()=>{const nh=(cfg.nhOnly||[]).filter(id=>byId(id));return nh.length?`<b>${esc(nh.map(codeOf).join('、'))}</b>（可在上方「排班設定」調整）`:'目前不限制（可在上方「排班設定」指定）';})()}。</li>
+      <li>請假：當班有醫師休假或助理請假（任何類別）的人不排。</li>
+      <li>同一班只能擔任一個崗位。</li>
+      <li>每人每天最多班數：<b>${cfg.maxPerDay||2}</b> 班。</li>
+      <li>助理當天沒有請假，就一定至少排一班：一般崗位排完後，當天還沒有班的助理會加排到副櫃（空著時）或流動，挑人最少的一班。休診或休假日不算。這條優先於下面的工時與次數上限，必要時可以超過合理工時。</li>
+      <li>工時上限為合理工時：助理當月工時不超過合理工時＝（當月天數－週日數－休假日天數）× 8 －請假天數 × 7 小時；每班 3.5 小時，三班全上計 10 小時，加班不計入。超過的部分計為加班，最多 <b>${otMax()}</b> 小時（可在「排班設定」調整，設為 0 即不允許超過）。</li>
+      <li>助理工時必須排滿合理工時：一般崗位排完後，工時不足的助理會加排到副櫃（空著時）或流動，直到達到合理工時；補足時不使用超時。受請假、每日班數等條件限制而排不滿時，會在排班完成訊息列出差幾小時。</li>
+      <li>助理每月全天班上限：<b>${MAXF}</b> 次。</li>
+      <li>助理每月早+晚上限：<b>${MAXDN}</b> 次。</li>
+    </ol>
+    <h3>三、盡量做到的偏好 <span class="pill">越前面越優先</span></h3>
+    <ol>
+      <li>助理工時盡量不超過合理工時（不得已才用加班補足）。</li>
+      <li>全天班和早+晚次數盡量平均分配。</li>
+      <li>同一醫師同一天，盡量由同一位助理跟診。</li>
+      <li>條件都一樣時用固定規則決定，同樣資料每次排出的結果相同。</li>
+    </ol>
+    <h3>四、排完後的檢驗</h3>
+    <ul><li>同一班裡，如果流動的助理當天其他班也跟著同一位醫師，就和目前的跟診助理對調，讓跟診更連貫（前提是雙方都沒被排除在該崗位）。</li><li>同一班裡，如果流動的助理當天其他班擔任主櫃，就和目前的主櫃助理對調，讓主櫃更連貫（前提同上）。</li><li>跟診優先於主櫃：先檢查跟診，再檢查主櫃，最後再檢查一次跟診；兩者衝突時以跟診連貫為準。</li><li>最後檢查全天班醫師：若醫師早、午、晚都有跟診，但跟診助理不是同一人，而當天有全天班助理在流動，就讓這位助理整天跟這位醫師，原本的跟診助理改到流動。</li><li>接著檢查主櫃：若當天早、午、晚的主櫃不是同一人，而當天有全天班助理在流動，就讓這位助理整天擔任主櫃，原本的主櫃改到流動。</li><li>若主櫃早午不同人、午晚也不同人，就找流動的助理互換，至少讓早午或午晚的主櫃是同一人（找換動最少的方式）。</li><li>最後再次檢查跟診：醫師當天的跟診助理若不連貫，就從流動或主櫃找一位助理互換，讓這位醫師盡量整天（至少連續兩班）由同一人跟診；被換下的跟診助理改到對方原本的崗位。</li><li>最後，若某班流動缺人而副櫃有人，就把副櫃的助理調到流動（被排除在流動的人不調）。</li></ul>`;
+}
+function renderRules(){
+  const dis=canWrite?'':' disabled';
+  renderRulesDoc();
+  {const on=cfg.nhOnly||[];const as=activeStaff('assistant');
+   $('nhOnlyRow').innerHTML=as.length?as.map(p=>`<button type="button" class="excl-chip nh${on.includes(p.id)?' on':''}" data-nh="${p.id}" aria-pressed="${on.includes(p.id)}" title="${esc(fullName(p))}"${dis}>${esc(p.code||p.name)}</button>`).join(''):'<span class="hint" style="margin:0">尚無助理</span>';}
+  $('exclMatrix').innerHTML='<tbody>'+EXCL_POS.map(pi=>{
+    const people=pi===FOLLOW?[...activeStaff('assistant')]:activeStaff(POS[pi].role);
+    const n=people.filter(p=>isExcluded(pi,p.id)).length;
+    return `<tr><td style="white-space:nowrap;vertical-align:top;padding-top:10px">不參與${POS[pi].label}${pi===FOLLOW?'<br><span style="color:var(--faint);font-size:.68rem">（跟診助理）</span>':''}${n?`<br><span class="pill warn">${n} 人</span>`:''}</td>
+      <td style="text-align:left"><div class="excl-list">${people.length?people.map(p=>`<button type="button" class="excl-chip${isExcluded(pi,p.id)?' on':''}" data-excl="${pi}" data-id="${p.id}" aria-pressed="${isExcluded(pi,p.id)}" title="${esc(fullName(p))}"${dis}>${esc(p.code||p.name)}</button>`).join(''):'<span class="hint" style="margin:0">尚無人員</span>'}</div></td></tr>`;
+  }).join('')+'</tbody>';
+  {const docs=activeStaff('doctor');const tpl=cfg.docTpl||{};
+   $('tplMatrix').innerHTML=`<thead><tr><th></th>${DAYS.map(d=>`<th>週${d}</th>`).join('')}</tr></thead><tbody>`+
+    SHIFTS.map(sh=>`<tr><td>${sh.name}<br><span style="color:var(--faint);font-size:.7rem">${sh.time}</span></td>${DAYS.map((_,dow)=>{
+      if(isClosed(dow,sh.id))return '<td class="off">休診</td>';
+      const on=tpl[dow+'_'+sh.id]||[];
+      return `<td><div class="tpl-cell">${docs.length?docs.map(d=>`<button type="button" class="tpl-doc${on.includes(d.id)?' on':''}" data-tpl="${dow}_${sh.id}" data-doc="${d.id}" aria-pressed="${on.includes(d.id)}"${dis}>${esc(d.code||d.name)}</button>`).join(''):'<span class="hint" style="margin:0">尚無醫師</span>'}</div></td>`;}).join('')}</tr>`).join('')+'</tbody>';}
+  const active=document.activeElement;
+  if(active&&active.closest&&active.closest('#needRow,#maxPerDay,#maxFull,#maxDN,#otMax')&&active.tagName==='INPUT')return;
+  $('needRow').innerHTML=POS.map((p,pi)=>`<div class="field" style="width:96px"><label for="need${pi}">${p.label}需求人數</label><input id="need${pi}" type="number" min="0" max="5" value="${need(pi)}" data-need="${pi}"${dis}></div>`).join('');
+  $('maxPerDay').value=cfg.maxPerDay||2;$('maxPerDay').disabled=!canWrite;
+  $('maxFull').value=Number.isFinite(cfg.maxFullDays)?cfg.maxFullDays:10;$('maxFull').disabled=!canWrite;
+  $('maxDN').value=Number.isFinite(cfg.maxDN)?cfg.maxDN:2;$('maxDN').disabled=!canWrite;
+  $('otMax').value=otMax();$('otMax').disabled=!canWrite;
+  $('openMatrix').innerHTML=`<thead><tr><th></th>${DAYS.map(d=>`<th>週${d}</th>`).join('')}</tr></thead><tbody>`+
+    SHIFTS.map(sh=>`<tr><td>${sh.name} <span style="color:var(--faint)">${sh.time}</span></td>${DAYS.map((_,dow)=>`<td><input type="checkbox" data-open="${dow}_${sh.id}" aria-label="週${DAYS[dow]}${sh.name}看診"${isClosed(dow,sh.id)?'':' checked'}${dis}></td>`).join('')}</tr>`).join('')+'</tbody>';
+}
+function renderSettings(){
+  const dis=canWrite?'':' disabled';
+  const active=document.activeElement;
+  if(active&&active.closest&&active.closest('.staff-table,#needRow,#openMatrix,#maxPerDay,#holTable')&&active.tagName==='INPUT'&&active.type!=='checkbox') return; // avoid clobbering typing
+  ['manager','doctor','assistant'].forEach(role=>{
+    const st=stSorts[role];
+    const cmpCode=(a,b)=>(a.code||'').localeCompare(b.code||'','en',{numeric:true,sensitivity:'base'});
+    const cmpName=(a,b)=>(!a.name)-(!b.name)||(a.name||'').localeCompare(b.name||'','zh-Hant');
+    const q=role==='assistant'?($('staffSearch-assistant').value||'').trim().toLowerCase():'';
+    const list=staff.filter(x=>x.role===role&&(!q||(x.code||'').toLowerCase().includes(q)||(x.name||'').toLowerCase().includes(q))).sort((a,b)=>((a.active===false)-(b.active===false))||(st.key==='name'?(!a.name&&!b.name?cmpCode(a,b):(!a.name)-(!b.name)||cmpName(a,b)*st.dir||cmpCode(a,b)):cmpCode(a,b)*st.dir));
+    const sth=(key,label)=>`<button type="button" class="th-btn${st.key===key?' on':''}" data-stsort="${key}" data-role="${role}" aria-label="依${label}排序">${label}<span>${st.key===key?(st.dir>0?'▲':'▼'):'↕'}</span></button>`;
+    $('staffTable-'+role).innerHTML=`<thead><tr><th style="width:90px">${sth('code','代號')}</th><th>${sth('name','姓名')}</th><th>狀態</th><th></th></tr></thead><tbody>`+
+    (list.length?list.map(s=>editingStaff===s.id?`<tr data-srow="${s.id}" data-editing>
+      <td><input data-f="code" value="${esc(s.code||'')}" aria-label="代號"></td>
+      <td><input data-f="name" value="${esc(s.name||'')}" placeholder="選填" aria-label="姓名"></td>
+      <td style="white-space:nowrap"><button class="small primary" data-staffsave>儲存</button> <button class="small" data-staffcancel>取消</button></td>
+      <td></td></tr>`
+    :`<tr class="${s.active===false?'inactive':''}" data-srow="${s.id}">
+      <td><b>${esc(s.code||'')}</b></td>
+      <td>${esc(s.name||'')||'<span style="color:var(--faint)">—</span>'}</td>
+      <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有擁有者、編輯者與超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有擁有者、編輯者與超級管理員可以設定權限"'}>權限</button>${accessLinks[s.id]?.account?` <span class="pill">${PERMS[accessLinks[s.id].perm]||PERMS.view}</span>`:''}</td>
+      <td class="num" style="white-space:nowrap"><button class="small" data-toggle${dis}>${s.active===false?'恢復在職':'停用'}</button> <button class="small danger" data-delstaff${dis}>刪除</button></td></tr>`).join('')
+      :`<tr><td colspan="4" class="empty">${q?`找不到符合「${esc(q)}」的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
+    {const max=role==='assistant'?10:6;const n=limitRows($('staffScroll-'+role),max);$('staffHint-'+role).hidden=n<=max;}
+  });
+
+}
+
+// ---------- scheduling actions ----------
+function assign(id,t,from){
+  if(!canWrite)return;
+  const isGap=id===GAP;
+  const p=isGap?{role:POS[t.pi].role}:byId(id);if(!p)return;
+  const pos=POS[t.pi];
+  const asstFollow=t.pi===FOLLOW&&p.role==='assistant';
+  if(p.role!==pos.role&&!asstFollow){toast(`${pos.label}只能排${ROLE[pos.role]}。`,'warn');return;}
+  const patches={};
+  const put=(wk,ck,arrs,lk)=>{const o=(patches[wk]=patches[wk]||{});o[ck]=arrs;o['L'+ck]=lk;};
+  const get=(wk,ck)=>patches[wk]?.[ck]||getCell(wk,ck);
+  const getL=(wk,ck)=>patches[wk]?.['L'+ck]||getLink(wk,ck);
+  let dropped=[];
+  const detach=(a,lk)=>{ // remove id from follow links; a doctor takes its assistants along out of the cell
+    if(!isGap&&p.role==='doctor'&&a[FOLLOW].includes(id)){
+      const ds=lk.filter(z=>z[1]===id).map(z=>z[0]);dropped=dropped.concat(ds);
+      a[FOLLOW]=a[FOLLOW].filter(z=>!ds.includes(z));
+    }
+    return lk.filter(z=>z[0]!==id&&z[1]!==id);
+  };
+  if(from){
+    const a=get(from.wk,from.ck);let lk=getL(from.wk,from.ck);
+    if(from.pi===FOLLOW)lk=detach(a,lk);
+    a[from.pi]=removeOne(a[from.pi],id);put(from.wk,from.ck,a,lk);
+  }
+  const tgt=get(t.wk,t.ck);let tl=getL(t.wk,t.ck);
+  if(isGap){tgt[t.pi].push(GAP);put(t.wk,t.ck,tgt,tl);Object.entries(patches).forEach(([wk,patch])=>store.cells(wk,patch));return;}
+  if(!from&&tgt[t.pi].includes(id)&&!(asstFollow&&t.doc))return;
+  let docFor=null;
+  if(asstFollow){
+    const docs=ppl(tgt[FOLLOW]).filter(z=>byId(z)?.role==='doctor');
+    if(!docs.length){toast('跟診需先排入醫師，才能排入助理。','warn');return;}
+    const load=d=>tl.filter(z=>z[1]===d&&z[0]!==id).length;
+    docFor=t.doc&&docs.includes(t.doc)?t.doc:docs.slice().sort((a,b)=>load(a)-load(b))[0];
+  }
+  tl=detach(tgt,tl);
+  for(let i=0;i<5;i++)tgt[i]=tgt[i].filter(x=>x!==id);
+  if(!asstFollow){const gi=tgt[t.pi].indexOf(GAP);if(gi>=0)tgt[t.pi].splice(gi,1);}
+  tgt[t.pi].push(id);
+  if(docFor)tl.push([id,docFor]);
+  put(t.wk,t.ck,tgt,tl);
+  Object.entries(patches).forEach(([wk,patch])=>store.cells(wk,patch));
+  const dow=Number(t.ck.split('_')[0]);
+  if(dropped.length) toast(`已一併移除 ${codeOf(id)} 的跟診助理 ${dropped.map(codeOf).join('、')}。`);
+  if(onLeave(id,t.date,t.sh)) toast(`${codeOf(id)} 在這個時段已請假。`,'warn');
+  else if(dayCount(t.wk,dow,id)>(cfg.maxPerDay||2)) toast(`${codeOf(id)} 當天已超過 ${cfg.maxPerDay} 班。`,'warn');
+}
+function removeFrom(id,wk,ck,pi){
+  if(!canWrite)return;
+  const a=getCell(wk,ck);let lk=getLink(wk,ck);
+  if(pi===FOLLOW&&id!==GAP){
+    if(byId(id)?.role==='doctor'){const ds=lk.filter(z=>z[1]===id).map(z=>z[0]);a[FOLLOW]=a[FOLLOW].filter(z=>!ds.includes(z));if(ds.length)toast(`已一併移除跟診助理 ${ds.map(codeOf).join('、')}。`);}
+    lk=lk.filter(z=>z[0]!==id&&z[1]!==id);
+  }
+  a[pi]=removeOne(a[pi],id);store.cells(wk,{[ck]:a,['L'+ck]:lk});
+}
+
+// 工時計算：每班 3.5 小時；同一天早午晚三班都上計 10 小時（另計加班 0.5，加班不計入四週工時）
+const dayHours=n=>n>=3?10:n*3.5;
+function autoSchedule(fillOnly){
+  const mi=monthInfo();
+  const inMonth=new Set(mi.dates.map(x=>x.key));
+  const work={};const before={};
+  mi.mondays.forEach(m=>{
+    const wk=ymd(m);before[wk]=weeks[wk]?clone(weeks[wk]):null;
+    const w=clone(weeks[wk]||{});
+    // 整月重新排：只清除本月的助理（含跟診配對），醫師與手動缺口保留
+    if(!fillOnly){for(let dow=0;dow<7;dow++){const d=new Date(m);d.setDate(m.getDate()+dow);if(inMonth.has(ymd(d)))SHIFTS.forEach(sh=>{
+      const ck=dow+'_'+sh.id;const c=w[ck];
+      if(Array.isArray(c))w[ck]=c.map(a=>Array.isArray(a)?a.filter(id=>id===GAP||byId(id)?.role!=='assistant'):[]);
+      delete w['L'+ck];
+    });}}
+    work[wk]=w;
+  });
+  const W=wk=>work[wk]||weeks[wk]||{};
+  const cellOf=(wk,ck)=>{const c=W(wk)[ck];const o=[[],[],[],[],[]];if(Array.isArray(c))for(let i=0;i<5;i++)if(Array.isArray(c[i]))o[i]=c[i].slice();return o;};
+  const inCell=(wk,ck,id)=>cellOf(wk,ck).some(a=>a.includes(id));
+  const setOn=(wk,dow,id)=>SHIFTS.filter(sh=>inCell(wk,dow+'_'+sh.id,id)).map(x=>x.id);
+  const dCount=(wk,dow,id)=>setOn(wk,dow,id).length;
+  // 只看本月（每週班數計算只含本月內的日子）
+  const wCount=(wk,id)=>{let n=0;const m=parseYmd(wk);for(let d=0;d<7;d++){const x=new Date(m);x.setDate(m.getDate()+d);if(inMonth.has(ymd(x)))n+=dCount(wk,d,id);}return n;};
+  const month={},posN={}; // posN[id][pi]：本月擔任各崗位的班數，用來讓跟診次數接近
+  const pn=(id,pi)=>(posN[id]&&posN[id][pi])||0;
+  mi.dates.forEach(({wk,dow})=>SHIFTS.forEach(sh=>{const c=cellOf(wk,dow+'_'+sh.id);const s=new Set();c.forEach((a,pi)=>ppl(a).forEach(i=>{s.add(i);(posN[i]=posN[i]||[0,0,0,0,0])[pi]++;}));s.forEach(i=>month[i]=(month[i]||0)+1);}));
+
+  // ---- 規則：工時上限為合理工時 ----
+  // 四週 = 當月 1 日起算 28 天（如 9/1–9/28），以及當月最後一天往回 28 天（如 9/3–9/30）
+  const base=new Date(mi.first);base.setDate(base.getDate()-27);
+  const N=mi.dates.length+54;
+  const keyAt=i=>{const d=new Date(base);d.setDate(base.getDate()+i);return ymd(d);};
+  const idxOf=key=>Math.round((parseYmd(key)-base)/864e5);
+  const assts=staff.filter(x=>x.role==='assistant');
+  const H={},OFF={},holi=new Uint8Array(N);
+  assts.forEach(a=>{H[a.id]=new Float64Array(N);OFF[a.id]=new Uint8Array(N);});
+  for(let i=0;i<N;i++){
+    const key=keyAt(i);const d=parseYmd(key);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;
+    if(holidayOf(key))holi[i]=1;
+    const per={};SHIFTS.forEach(sh=>{const seen=new Set();cellOf(wk,dow+'_'+sh.id).forEach(a=>ppl(a).forEach(id=>seen.add(id)));seen.forEach(id=>per[id]=(per[id]||0)+1);});
+    Object.entries(per).forEach(([id,n])=>{if(H[id])H[id][i]=dayHours(n);});
+  }
+  leaves.forEach(l=>{if(l.type!=='排休'&&OFF[l.staffId]){const i=idxOf(l.date);if(i>=0&&i<N)OFF[l.staffId][i]=1;}});
+  const OTMAX=otMax();
+  // 工時上限＝合理工時：（當月天數－週日數－休假日天數）×8－請假天數×7
+  const I0=idxOf(ymd(mi.first)),I1=idxOf(ymd(mi.last));
+  const CAP={};assts.forEach(a=>CAP[a.id]=reasonableDays(mi,a.id));
+  const monthSum=id=>{let x=0;for(let t=I0;t<=I1;t++)x+=H[id][t];return x;};
+  const overBy=(id,i,add)=>(i<I0||i>I1)?0:monthSum(id)+add-CAP[id]; // 加入後超過合理工時多少小時
+  const hoursOk=(id,i,add)=>overBy(id,i,add)<=OTMAX+1e-9; // 超過的部分計為加班，最多 OTMAX 小時
+  const otPenalty=(id,wk,dow,key,shId)=>{ // 盡量不超過合理工時
+    if(!H[id])return 0;const cur=setOn(wk,dow,id);
+    const ex=overBy(id,idxOf(key),dayHours(cur.length+1)-dayHours(cur.length));
+    return ex>1e-9?1e6+1000*ex:0; // 優先度高於全天班、早+晚的平均分配
+  };
+  // ---- 規則 3、4：每月全天班、早+晚 次數上限，並盡量平均 ----
+  const MAXF=Number.isFinite(cfg.maxFullDays)?cfg.maxFullDays:10, MAXDN=Number.isFinite(cfg.maxDN)?cfg.maxDN:2;
+  const comboOf=a=>a.length===3?'full':(a.length===2&&a[0]==='day'&&a[1]==='night')?'dn':null;
+  const cnt={};assts.forEach(a=>cnt[a.id]={full:0,dn:0});
+  mi.dates.forEach(({wk,dow})=>assts.forEach(a=>{const c=comboOf(setOn(wk,dow,a.id));if(c)cnt[a.id][c]++;}));
+  const asstOk=(id,wk,dow,key,shId)=>{
+    if(!cnt[id])return true;
+    const cur=setOn(wk,dow,id);if(cur.includes(shId))return false;
+    const nxt=SHIFTS.map(x=>x.id).filter(x=>cur.includes(x)||x===shId);
+    const c0=comboOf(cur),c1=comboOf(nxt);
+    if(c1==='full'&&cnt[id].full-(c0==='full')+1>MAXF)return false;
+    if(c1==='dn'&&cnt[id].dn-(c0==='dn')+1>MAXDN)return false;
+    return hoursOk(id,idxOf(key),dayHours(nxt.length)-dayHours(cur.length));
+  };
+  const comboAfter=(id,wk,dow,shId)=>{const cur=setOn(wk,dow,id);return comboOf(SHIFTS.map(x=>x.id).filter(x=>cur.includes(x)||x===shId));};
+  // 平均分配：會多出全天班（或早+晚）的人，若次數已高於目前最少的人，就排在後面（優先度高於規則 5、6）
+  const actA=activeStaff('assistant').filter(x=>cnt[x.id]).map(x=>x.id);
+  const minOf=k=>actA.length?Math.min(...actA.map(i=>cnt[i][k])):0;
+  const balance=(id,wk,dow,shId)=>{if(!cnt[id])return 0;const c=comboAfter(id,wk,dow,shId);if(!c)return 0;return 10000*Math.max(0,cnt[id][c]-minOf(c));};
+  const commit=(id,wk,dow,key,shId,cur,pi)=>{ // cur = 加入前當天的班別
+    month[id]=(month[id]||0)+1;(posN[id]=posN[id]||[0,0,0,0,0])[pi]++;
+    if(!cnt[id])return;
+    const c0=comboOf(cur),c1=comboOf(setOn(wk,dow,id));
+    if(c0)cnt[id][c0]--;if(c1)cnt[id][c1]++;
+    H[id][idxOf(key)]=dayHours(setOn(wk,dow,id).length);
+  };
+  const baseOk=(s,cell,wk,dow,key,sh)=>!cell.some(a=>a.includes(s.id))&&!onLeave(s.id,key,sh.id)&&
+    dCount(wk,dow,s.id)<(cfg.maxPerDay||2)&&
+    (s.role!=='assistant'||asstOk(s.id,wk,dow,key,sh.id));
+
+  let shortage=0,added=0;
+  const hash=(s)=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))|0;return h;};
+  // 人力優先順序（人手不足時缺口留在後面的崗位）：主櫃 > 跟診 > 健保 > 流動 > 副櫃
+  const STAGES=[['main'],['pair'],[4],[3],[1]];
+  // 流動人手不足時的優先順序：晚班 > 午班 > 早班；副櫃：午班 > 晚班 > 早班（整月依序排）
+  const SH_ORDER={3:[2,1,0],1:[1,2,0]};
+  const iter=(stage,fn)=>{
+    if(stage.length===1&&SH_ORDER[stage[0]]){SH_ORDER[stage[0]].forEach(si=>mi.dates.forEach(dt=>fn(dt,SHIFTS[si],si)));}
+    else mi.dates.forEach(dt=>SHIFTS.forEach((sh,si)=>fn(dt,sh,si)));
+  };
+  STAGES.forEach(stage=>iter(stage,({wk,dow,key},sh,si)=>{
+    if(closedAt(dow,sh.id,key))return;
+    const ck=dow+'_'+sh.id;const cell=cellOf(wk,ck);
+    const fillPos=pi=>{
+      const p=POS[pi];
+      const want=need(pi)+gapN(cell[pi]);
+      while(ppl(cell[pi]).length<want){
+        const prevCk=si>0?dow+'_'+SHIFTS[si-1].id:null;
+        const prev=prevCk?cellOf(wk,prevCk):null;
+        const nh=(cfg.nhOnly||[]).filter(id=>byId(id));
+        const cands=activeStaff(p.role).filter(s=>!isExcluded(pi,s.id)&&(pi!==4||!nh.length||nh.includes(s.id))&&baseOk(s,cell,wk,dow,key,sh));
+        if(!cands.length){shortage+=want-ppl(cell[pi]).length;break;}
+        const fair=s=>(month[s.id]||0); // 依本月總班數，讓班數較少的人優先
+        const score=s=>fair(s)+balance(s.id,wk,dow,sh.id)+otPenalty(s.id,wk,dow,key,sh.id);
+        cands.sort((a,b)=>score(a)-score(b)||hash(a.id+key+sh.id)-hash(b.id+key+sh.id));
+        const pick=cands[0];const cur=setOn(wk,dow,pick.id);
+        const gi=cell[pi].indexOf(GAP);if(gi>=0)cell[pi].splice(gi,1);cell[pi].push(pick.id);
+        work[wk][ck]=cell;commit(pick.id,wk,dow,key,sh.id,cur,pi);added++;
+      }
+    };
+    if(stage[0]==='main'){fillPos(FOLLOW);fillPos(0);} // 跟診醫師（只用醫師，不佔助理人力）＋主櫃
+    else if(stage[0]==='pair'){ // 幫跟診醫師配助理
+    {
+      const lk=Array.isArray(W(wk)['L'+ck])?W(wk)['L'+ck].map(z=>z.slice()):[];
+      const f=cell[FOLLOW];
+      const sameDay=[];SHIFTS.forEach(x=>{if(x.id!==sh.id)(W(wk)['L'+dow+'_'+x.id]||[]).forEach(z=>sameDay.push(z));});
+      f.filter(d=>byId(d)?.role==='doctor').forEach(d=>{
+        if(lk.some(z=>z[1]===d&&f.includes(z[0])))return;
+        const cands=activeStaff('assistant').filter(s=>!isExcluded(FOLLOW,s.id)&&baseOk(s,cell,wk,dow,key,sh));
+        if(!cands.length){shortage++;return;}
+        const bonus=id=>sameDay.some(z=>z[0]===id&&z[1]===d)?1000:0; // 規則 5：同醫師同日同助理
+        const score=s=>(month[s.id]||0)+balance(s.id,wk,dow,sh.id)+otPenalty(s.id,wk,dow,key,sh.id)-bonus(s.id);
+        cands.sort((a,b)=>score(a)-score(b)||hash(a.id+key+sh.id)-hash(b.id+key+sh.id));
+        const pick=cands[0];const cur=setOn(wk,dow,pick.id);
+        f.push(pick.id);lk.push([pick.id,d]);work[wk][ck]=cell;work[wk]['L'+ck]=lk;
+        commit(pick.id,wk,dow,key,sh.id,cur,FOLLOW);added++;
+      });
+      work[wk]['L'+ck]=lk;
+    }
+    }else stage.forEach(pi=>fillPos(pi));
+    work[wk][ck]=cell;
+  }));
+
+  // ---- 助理當日沒有請假，就一定要排至少一班（加排到副櫃〔空著時〕或流動，挑人最少的一班）----
+  const missDay=[],forcedDays=[];let daily=0;
+  mi.dates.forEach(({wk,dow,key})=>{
+    const open=SHIFTS.filter(sh=>!closedAt(dow,sh.id,key));if(!open.length)return;
+    activeStaff('assistant').forEach(a=>{
+      if(leaves.some(l=>l.staffId===a.id&&l.date===key))return; // 當天有請假（任何類別）就不強制
+      if(setOn(wk,dow,a.id).length)return;
+      let best=null;
+      open.forEach(sh=>{
+        const ck=dow+'_'+sh.id;const cell=cellOf(wk,ck);
+        if(!asstOk(a.id,wk,dow,key,sh.id))return;
+        const pi=(!ppl(cell[1]).length&&!isExcluded(1,a.id))?1:(!isExcluded(3,a.id)?3:(!isExcluded(1,a.id)?1:-1));
+        if(pi<0)return;
+        const score=ppl(cell.flat()).length*10+otPenalty(a.id,wk,dow,key,sh.id)/1e5+(hash(a.id+key+sh.id)&7)/100;
+        if(!best||score<best.score)best={sh,ck,cell,pi,score};
+      });
+      if(!best){ // 優先度高於四週工時與次數上限：找不到時放寬工時上限，只保留每日班數與排除名單
+        open.forEach(sh=>{
+          const ck=dow+'_'+sh.id;const cell=cellOf(wk,ck);
+          if((cfg.maxPerDay||2)<1)return;
+          const pi=(!ppl(cell[1]).length&&!isExcluded(1,a.id))?1:(!isExcluded(3,a.id)?3:(!isExcluded(1,a.id)?1:-1));
+          if(pi<0)return;
+          const score=ppl(cell.flat()).length*10+(hash(a.id+key+sh.id)&7)/100;
+          if(!best||score<best.score)best={sh,ck,cell,pi,score,forced:true};
+        });
+      }
+      if(!best){missDay.push(`${a.code||a.name} ${md(parseYmd(key))}`);return;}
+      if(best.forced)forcedDays.push(`${a.code||a.name} ${md(parseYmd(key))}`);
+      best.cell[best.pi].push(a.id);work[wk][best.ck]=best.cell;
+      commit(a.id,wk,dow,key,best.sh.id,[],best.pi);added++;daily++;
+    });
+  });
+
+  // ---- 助理工時必須排滿合理工時：不足的人加排到副櫃（空著時）或流動，不使用超時 ----
+  const limitOf=id=>CAP[id];
+  const sumOf=id=>monthSum(id);
+  let topUp=0;const short=[];
+  activeStaff('assistant').forEach(a=>{
+    if(!H[a.id])return;
+    for(let guard=0;guard<120;guard++){
+      const defs=[limitOf(a.id)-sumOf(a.id)];
+      if(Math.max(...defs)<1e-9)break;
+      let best=null;
+      mi.dates.forEach(({wk,dow,key})=>SHIFTS.forEach(sh=>{
+        if(closedAt(dow,sh.id,key))return;
+        const i=idxOf(key);
+        if(defs[0]<=1e-9||i<I0||i>I1)return;
+        const ck=dow+'_'+sh.id;const cell=cellOf(wk,ck);
+        if(cell.some(x=>x.includes(a.id))||onLeave(a.id,key,sh.id))return;
+        const cur=setOn(wk,dow,a.id);
+        if(cur.length>=(cfg.maxPerDay||2))return;
+        if(overBy(a.id,i,dayHours(cur.length+1)-dayHours(cur.length))>1e-9)return; // 補足時不超過上限
+        if(!asstOk(a.id,wk,dow,key,sh.id))return;
+        const pi=(!ppl(cell[1]).length&&!isExcluded(1,a.id))?1:(!isExcluded(3,a.id)?3:(!isExcluded(1,a.id)?1:-1));
+        if(pi<0)return;
+        const score=ppl(cell.flat()).length*10+(cur.length?0:1)+(hash(a.id+key+sh.id)&7)/100;
+        if(!best||score<best.score)best={wk,dow,key,sh,ck,cell,pi,cur,score};
+      }));
+      if(!best){const d=limitOf(a.id)-sumOf(a.id);if(d>=3)short.push(`${a.code||a.name} 差 ${fmtH(d)}h`);break;}
+      best.cell[best.pi].push(a.id);work[best.wk][best.ck]=best.cell;
+      commit(a.id,best.wk,best.dow,best.key,best.sh.id,best.cur,best.pi);added++;topUp++;
+    }
+  });
+
+  // ---- 排完後檢驗：同一班的流動助理若能讓跟診更連貫，就和跟診助理對調 ----
+  let swaps=0;
+  const followSwap=()=>mi.dates.forEach(({wk,dow,key})=>{
+    for(let pass=0;pass<3;pass++){
+      let changed=false;
+      SHIFTS.forEach(sh=>{
+        if(closedAt(dow,sh.id,key))return;
+        const ck=dow+'_'+sh.id;const cell=cellOf(wk,ck);
+        const lk=Array.isArray(W(wk)['L'+ck])?W(wk)['L'+ck].map(z=>z.slice()):[];
+        lk.forEach(pair=>{
+          const [cur,d]=pair;
+          // 當天其他班跟這位醫師的助理
+          const others=SHIFTS.filter(x=>x.id!==sh.id).map(x=>(W(wk)['L'+dow+'_'+x.id]||[]).find(z=>z[1]===d)?.[0]).filter(Boolean);
+          const cont=id=>others.filter(o=>o===id).length;
+          let best=null;
+          ppl(cell[3]).forEach(z=>{
+            if(byId(z)?.role!=='assistant'||isExcluded(FOLLOW,z)||isExcluded(3,cur))return;
+            if(cont(z)>cont(cur)&&(!best||cont(z)>cont(best)))best=z;
+          });
+          if(!best)return;
+          cell[3]=cell[3].map(x=>x===best?cur:x);
+          cell[FOLLOW]=cell[FOLLOW].map(x=>x===cur?best:x);
+          pair[0]=best;
+          posN[best]&&(posN[best][3]--,posN[best][FOLLOW]++);posN[cur]&&(posN[cur][FOLLOW]--,posN[cur][3]++);
+          swaps++;changed=true;
+        });
+        work[wk][ck]=cell;work[wk]['L'+ck]=lk;
+      });
+      if(!changed)break;
+    }
+  });
+  followSwap();
+
+  // ---- 排完後檢驗：同一班的流動助理若能讓主櫃更連貫，就和主櫃助理對調 ----
+  let mswaps=0;
+  mi.dates.forEach(({wk,dow,key})=>{
+    for(let pass=0;pass<3;pass++){
+      let changed=false;
+      SHIFTS.forEach(sh=>{
+        if(closedAt(dow,sh.id,key))return;
+        const ck=dow+'_'+sh.id;const cell=cellOf(wk,ck);
+        const others=SHIFTS.filter(x=>x.id!==sh.id).flatMap(x=>ppl(cellOf(wk,dow+'_'+x.id)[0]));
+        const cont=id=>others.filter(o=>o===id).length;
+        ppl(cell[0]).forEach(cur=>{
+          if(byId(cur)?.role!=='assistant'||isExcluded(3,cur))return;
+          let best=null;
+          ppl(cell[3]).forEach(z=>{
+            if(byId(z)?.role!=='assistant'||isExcluded(0,z))return;
+            if(cont(z)>cont(cur)&&(!best||cont(z)>cont(best)))best=z;
+          });
+          if(!best)return;
+          cell[3]=cell[3].map(x=>x===best?cur:x);
+          cell[0]=cell[0].map(x=>x===cur?best:x);
+          mswaps++;changed=true;
+        });
+        work[wk][ck]=cell;
+      });
+      if(!changed)break;
+    }
+  });
+
+  followSwap(); // 跟診優於主櫃：主櫃對調後再檢查一次跟診
+
+  // ---- 排完後檢驗：全天班醫師的跟診助理不連貫時，改由當天在流動的全天班助理整天跟診 ----
+  let fullSwaps=0;
+  const canF=id=>!isExcluded(FOLLOW,id),canFl=id=>!isExcluded(3,id);
+  mi.dates.forEach(({wk,dow,key})=>{
+    if(SHIFTS.some(x=>closedAt(dow,x.id,key)))return;
+    const cks=SHIFTS.map(x=>dow+'_'+x.id);
+    const cells=cks.map(ck=>cellOf(wk,ck));
+    const lks=cks.map(ck=>Array.isArray(W(wk)['L'+ck])?W(wk)['L'+ck].map(z=>z.slice()):[]);
+    const docs=[...new Set(cells[0][FOLLOW])].filter(d=>byId(d)?.role==='doctor'&&cells.every(c=>c[FOLLOW].includes(d)));
+    docs.forEach(d=>{
+      const asOf=i=>lks[i].find(z=>z[1]===d&&cells[i][FOLLOW].includes(z[0]))?.[0]||null;
+      const cur=[0,1,2].map(asOf);
+      if(cur[0]&&cur.every(x=>x===cur[0]))return; // 已經連貫
+      // 全天班、且當天不在跟診以外就在流動的助理
+      const full=activeStaff('assistant').filter(a=>cells.every(c=>c.some(x=>x.includes(a.id))));
+      const cands=full.filter(a=>canF(a.id)&&[0,1,2].every(i=>cur[i]===a.id||cells[i][3].includes(a.id))&&[0,1,2].some(i=>cells[i][3].includes(a.id)));
+      if(!cands.length)return;
+      cands.sort((p,q)=>[0,1,2].filter(i=>cur[i]===q.id).length-[0,1,2].filter(i=>cur[i]===p.id).length);
+      const X=cands[0].id;
+      // 被換下來的跟診助理要能去流動
+      if(![0,1,2].every(i=>cur[i]===X||!cur[i]||canFl(cur[i])))return;
+      [0,1,2].forEach(i=>{
+        if(cur[i]===X)return;
+        const c=cells[i];const old=cur[i];
+        c[3]=c[3].filter(v=>v!==X);
+        if(old){c[FOLLOW]=c[FOLLOW].map(v=>v===old?X:v);c[3].push(old);lks[i]=lks[i].map(z=>z[0]===old&&z[1]===d?[X,d]:z);}
+        else{c[FOLLOW].push(X);lks[i].push([X,d]);}
+      });
+      fullSwaps++;
+    });
+    cks.forEach((ck,i)=>{work[wk][ck]=cells[i];work[wk]['L'+ck]=lks[i];});
+  });
+
+  // ---- 排完後檢驗：主櫃不連貫時，改由當天在流動的全天班助理整天擔任主櫃 ----
+  let fullMain=0;
+  mi.dates.forEach(({wk,dow,key})=>{
+    if(SHIFTS.some(x=>closedAt(dow,x.id,key)))return;
+    const cks=SHIFTS.map(x=>dow+'_'+x.id);
+    const cells=cks.map(ck=>cellOf(wk,ck));
+    const cur=cells.map(c=>ppl(c[0]).find(id=>byId(id)?.role==='assistant')||null);
+    if(cur[0]&&cur.every(x=>x===cur[0]))return; // 主櫃已經連貫
+    const cands=activeStaff('assistant').filter(a=>!isExcluded(0,a.id)&&
+      cells.every((c,i)=>cur[i]===a.id||c[3].includes(a.id))&&cells.some(c=>c[3].includes(a.id)));
+    if(!cands.length)return;
+    cands.sort((p,q)=>cur.filter(x=>x===q.id).length-cur.filter(x=>x===p.id).length);
+    const X=cands[0].id;
+    if(!cur.every(x=>x===X||!x||!isExcluded(3,x)))return; // 被換下的主櫃要能去流動
+    cells.forEach((c,i)=>{
+      if(cur[i]===X)return;
+      c[3]=c[3].filter(v=>v!==X);
+      if(cur[i]){c[0]=c[0].map(v=>v===cur[i]?X:v);c[3].push(cur[i]);}
+      else{const gi=c[0].indexOf(GAP);if(gi>=0)c[0].splice(gi,1);c[0].push(X);}
+    });
+    fullMain++;
+    cks.forEach((ck,i)=>{work[wk][ck]=cells[i];});
+  });
+
+  // ---- 排完後檢驗：主櫃早午、午晚都不同人時，和流動互換，至少讓早午或午晚同一人 ----
+  let pairMain=0;
+  mi.dates.forEach(({wk,dow,key})=>{
+    const cks=SHIFTS.map(x=>dow+'_'+x.id);
+    const open=SHIFTS.map(x=>!closedAt(dow,x.id,key));
+    const cells=cks.map(ck=>cellOf(wk,ck));
+    const mainOf=i=>open[i]?(ppl(cells[i][0]).find(id=>byId(id)?.role==='assistant')||null):null;
+    const m=[0,1,2].map(mainOf);
+    const linked=(i,j)=>open[i]&&open[j]&&m[i]&&m[i]===m[j];
+    if(!open[1]||linked(0,1)||linked(1,2))return;
+    if(!(open[0]&&m[0]!==m[1])&&!(open[2]&&m[2]!==m[1]))return;
+    // 候選：某助理 X 在一組相鄰兩班裡，每班不是主櫃就是在流動
+    let best=null;
+    [[0,1],[1,2]].forEach(pair=>{
+      if(!pair.every(i=>open[i]))return;
+      const pool=new Set();pair.forEach(i=>{if(m[i])pool.add(m[i]);ppl(cells[i][3]).forEach(id=>pool.add(id));});
+      pool.forEach(X=>{
+        if(byId(X)?.role!=='assistant'||isExcluded(0,X))return;
+        if(!pair.every(i=>m[i]===X||cells[i][3].includes(X)))return;
+        if(!pair.every(i=>m[i]===X||!m[i]||!isExcluded(3,m[i])))return; // 被換下的主櫃要能去流動
+        const cost=pair.filter(i=>m[i]!==X).length;
+        if(!best||cost<best.cost)best={X,pair,cost};
+      });
+    });
+    if(!best)return;
+    best.pair.forEach(i=>{
+      const X=best.X,c=cells[i];if(m[i]===X)return;
+      c[3]=c[3].filter(v=>v!==X);
+      if(m[i]){c[0]=c[0].map(v=>v===m[i]?X:v);c[3].push(m[i]);}
+      else{const gi=c[0].indexOf(GAP);if(gi>=0)c[0].splice(gi,1);c[0].push(X);}
+      work[wk][cks[i]]=c;
+    });
+    pairMain++;
+  });
+
+  // ---- 最後再次檢查：醫師當天跟診助理不連貫時，從流動或主櫃調人，讓跟診盡量由同一人 ----
+  let lastFix=0;
+  mi.dates.forEach(({wk,dow,key})=>{
+    const cks=SHIFTS.map(x=>dow+'_'+x.id);
+    const open=SHIFTS.map(x=>!closedAt(dow,x.id,key));
+    const cells=cks.map(ck=>cellOf(wk,ck));
+    const lks=cks.map(ck=>Array.isArray(W(wk)['L'+ck])?W(wk)['L'+ck].map(z=>z.slice()):[]);
+    const docs=new Set();cells.forEach((c,i)=>{if(open[i])c[FOLLOW].forEach(id=>{if(byId(id)?.role==='doctor')docs.add(id);});});
+    let changed=false;
+    docs.forEach(d=>{
+      const S=[0,1,2].filter(i=>open[i]&&cells[i][FOLLOW].includes(d));
+      if(S.length<2)return;
+      const asOf=i=>lks[i].find(z=>z[1]===d&&cells[i][FOLLOW].includes(z[0]))?.[0]||null;
+      const cur=S.map(asOf);
+      const freq={};cur.forEach(x=>{if(x)freq[x]=(freq[x]||0)+1;});
+      const have=Math.max(0,...Object.values(freq));
+      if(have===S.length)return; // 已經連貫
+      // 候選助理 X：每一班要嘛已經跟這位醫師，要嘛在流動或主櫃（可以互換）
+      const pool=new Set();S.forEach(i=>{ppl(cells[i][3]).forEach(id=>pool.add(id));ppl(cells[i][0]).forEach(id=>pool.add(id));if(asOf(i))pool.add(asOf(i));});
+      let best=null;
+      pool.forEach(X=>{
+        if(byId(X)?.role!=='assistant'||isExcluded(FOLLOW,X))return;
+        const plan=[];
+        S.forEach((i,k)=>{
+          if(cur[k]===X){plan.push({i,from:-1});return;}
+          const from=cells[i][3].includes(X)?3:(cells[i][0].includes(X)?0:-2);
+          if(from<0)return;
+          if(cur[k]&&isExcluded(from,cur[k]))return; // 被換下的跟診助理要能去流動或主櫃
+          plan.push({i,from});
+        });
+        // 只取連續的一段，才算連貫
+        let bs=null,bl=0,st=0,ln=0;const ok=new Set(plan.map(p=>p.i));
+        S.forEach((i,k)=>{
+          if(!ok.has(i)){ln=0;return;}
+          if(ln>0&&S[k-1]===i-1)ln++;else{ln=1;st=k;}
+          if(ln>bl){bl=ln;bs=st;}
+        });
+        if(bl<2||bl<=have)return;
+        const seg=S.slice(bs,bs+bl);const moves=plan.filter(p=>seg.includes(p.i)&&p.from>=0).length;
+        if(!best||bl>best.len||(bl===best.len&&moves<best.moves))best={X,seg,plan,len:bl,moves};
+      });
+      if(!best)return;
+      best.seg.forEach(i=>{
+        const p=best.plan.find(q=>q.i===i);if(!p||p.from<0)return;
+        const c=cells[i],X=best.X,old=asOf(i);
+        c[p.from]=c[p.from].filter(v=>v!==X);
+        if(old){c[FOLLOW]=c[FOLLOW].map(v=>v===old?X:v);c[p.from].push(old);lks[i]=lks[i].map(z=>z[0]===old&&z[1]===d?[X,d]:z);}
+        else{c[FOLLOW].push(X);lks[i].push([X,d]);}
+        changed=true;
+      });
+      lastFix++;
+    });
+    if(changed)cks.forEach((ck,i)=>{work[wk][ck]=cells[i];work[wk]['L'+ck]=lks[i];});
+  });
+
+  // ---- 再檢查：流動缺人而副櫃有人時，把副櫃的助理調到流動 ----
+  let subToFlow=0;
+  mi.dates.forEach(({wk,dow,key})=>SHIFTS.forEach(sh=>{
+    if(closedAt(dow,sh.id,key))return;
+    const ck=dow+'_'+sh.id;const cell=cellOf(wk,ck);
+    let changed=false;
+    const want=()=>need(3)+gapN(cell[3]);
+    while(ppl(cell[3]).length<want()){
+      const X=ppl(cell[1]).find(id=>byId(id)?.role==='assistant'&&!isExcluded(3,id));
+      if(!X)break;
+      cell[1]=cell[1].filter(v=>v!==X);
+      const gi=cell[3].indexOf(GAP);if(gi>=0)cell[3].splice(gi,1);
+      cell[3].push(X);subToFlow++;changed=true;
+    }
+    if(changed)work[wk][ck]=cell;
+  }));
+
+  lastUndo=before;
+  Object.entries(work).forEach(([wk,cells])=>store.week(wk,cells));
+  toast(`已排入 ${added} 個崗位${daily||topUp?`（其中 ${[daily?`${daily} 班是為讓每人每天至少一班`:'',topUp?`${topUp} 班是為補滿合理工時`:''].filter(Boolean).join('、')}而加排）`:''}${swaps||mswaps?`，並對調${' '+[swaps?`${swaps} 組流動與跟診`:'',mswaps?`${mswaps} 組流動與主櫃`:''].filter(Boolean).join('、')}，讓跟診與主櫃更連貫`:''}${fullSwaps?`；另有 ${fullSwaps} 位全天班醫師改由流動的全天班助理整天跟診`:''}${fullMain?`；${fullMain} 天的主櫃改由流動的全天班助理整天擔任`:''}${pairMain?`；${pairMain} 天的主櫃和流動互換，讓早午或午晚由同一人擔任`:''}${lastFix?`；最後再調整 ${lastFix} 位醫師的跟診，讓跟診助理更連貫`:''}${subToFlow?`；${subToFlow} 位副櫃助理調到缺人的流動`:''}${shortage?`，還有 ${shortage} 個缺口找不到符合規則的人員`:''}${forcedDays.length?`。為了每天至少一班而超過合理工時：${forcedDays.slice(0,6).join('、')}${forcedDays.length>6?` 等 ${forcedDays.length} 天`:''}`:''}${missDay.length?`。無法排入當天任何一班：${missDay.slice(0,8).join('、')}${missDay.length>8?` 等 ${missDay.length} 天`:''}`:''}${short.length?`。未能排滿合理工時：${short.join('、')}`:''}。`,(shortage||short.length||missDay.length||forcedDays.length)?'warn':'',{label:'復原',fn:undoAuto});
+}
+function undoAuto(){
+  if(!lastUndo)return;const u=lastUndo;lastUndo=null;
+  Object.entries(u).forEach(([wk,cells])=>store.week(wk,cells||{}));
+  toast('已復原到變更前的班表。');
+}
+
+// ---------- dialogs & toasts ----------
+const PRIV_FIELDS=[
+  {k:'idNumber',label:'身分證字號'},{k:'birthday',label:'生日',type:'date'},
+  {k:'phone',label:'電話',type:'tel'},{k:'email',label:'E-mail',type:'email'},
+  {k:'address',label:'通訊地址',wide:true},
+  {k:'hireDate',label:'到職日期',type:'date'},{k:'resignDate',label:'離職日期',type:'date'},
+];
+function seniority(hire,resign){
+  if(!hire)return '—';const a=parseYmd(hire),b=resign?parseYmd(resign):new Date();
+  let m=(b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth());if(b.getDate()<a.getDate())m--;
+  if(m<0)return '—';return `${Math.floor(m/12)} 年 ${m%12} 個月`;
+}
+async function openPerm(s){
+  if(!superOK()){toast('只有擁有者、編輯者與超級管理員可以設定權限。','warn');return;}
+  const cur=accessLinks[s.id]||{};let account=cur.account||null;
+  const nameOf=async id=>{if(!id)return '';if(!userNs)return '（已綁定）';const ps=await userNs.profiles([id]);return ps[id]?.name||'（無法顯示名稱的帳號）';};
+  dialog(`<h3>${esc(fullName(s))} 的權限</h3><p>把這位人員綁定到他的 claude.ai 帳號，並設定他打開這份班表時可以做什麼。擁有者與編輯者一律可以做所有事。${isAdmin?'':'<br><b style="color:var(--warn)">你在 Share 裡不是編輯者，權限設定可能無法儲存，請洽擁有者。</b>'}</p>
+    <div class="field" style="margin-bottom:10px"><span class="lb">綁定帳號</span>
+      <div id="pmCur" style="padding-block:4px;font-weight:500"></div>
+      ${userNs&&mode==='live'?`<input id="pmSearch" placeholder="輸入姓名搜尋同事…" autocomplete="off"><div id="pmHits" class="pm-hits"></div>`:'<div class="hint" style="margin:0">目前無法連到共用資料庫，無法搜尋帳號。</div>'}
+    </div>
+    <div class="opts">${Object.entries({view:'只能查看班表、休假與統計，不能修改。',self:'可以查看，並登記、變更自己的請假或休假（助理含家庭照顧假）。',manage:'可以排班、登記所有人的請假、設定休假日與規則，但不能看個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。對方在 Share 裡也必須是「編輯者」，個資與權限才存得進去。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${(cur.perm||'view')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
+    ov=>{
+      const perm=ov.querySelector('input[name=pm]:checked').value;
+      if(!account){store.link(s.id,null);toast('已解除綁定。');return;}
+      const other=Object.entries(accessLinks).find(([sid,v])=>sid!==s.id&&v&&v.account===account);
+      if(other){toast(`這個帳號已經綁定給 ${codeOf(other[0])}，請先解除。`,'warn');return false;}
+      store.link(s.id,{account,perm});toast(`已設定 ${codeOf(s.id)} 的權限：${PERMS[perm]}。`);
+    },'儲存');
+  const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
+  const paintCur=async()=>{const el=ov.querySelector('#pmCur');if(!account){el.innerHTML='<span style="color:var(--faint)">尚未綁定</span>';return;}
+    el.textContent=await nameOf(account)+' ';const b=document.createElement('button');b.type='button';b.className='small';b.textContent='解除綁定';b.onclick=()=>{account=null;paintCur();};el.appendChild(b);};
+  paintCur();
+  const inp=ov.querySelector('#pmSearch');
+  if(inp){
+    const hits=ov.querySelector('#pmHits');
+    const paint=list=>{hits.innerHTML='';list.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='pm-hit';const img=document.createElement('img');img.src=p.avatarUrl;img.alt='';b.appendChild(img);b.appendChild(document.createTextNode(p.name||'（未命名）'));b.onclick=()=>{account=p.id;hits.innerHTML='';inp.value='';paintCur();};hits.appendChild(b);});
+      if(!list.length&&inp.value.trim())hits.innerHTML='<div class="hint" style="margin:4px 0">找不到符合的同事。</div>';};
+    inp.addEventListener('focus',async()=>paint(await userNs.search('')));
+    inp.addEventListener('input',async()=>paint(await userNs.search(inp.value.trim())));
+  }
+}
+function openPrivate(s){
+  if(!superOK()){toast('只有擁有者、編輯者與超級管理員可以查看個資。','warn');return;}
+  const d=privateInfo[s.id]||{};const ro=canWrite?'':' disabled';
+  dialog(`<h3>${esc(fullName(s))} 的個資</h3><p>只有擁有者、編輯者與超級管理員看得到，其他人看不到。${isAdmin?'':'<br><b style="color:var(--warn)">你在 Share 裡不是編輯者，個資可能無法讀取或儲存，請洽擁有者。</b>'}</p>
+    <div class="priv-grid">${PRIV_FIELDS.map(f=>`<div class="field${f.wide?' wide':''}"><label for="pv-${f.k}">${f.label}</label><input id="pv-${f.k}" data-pv="${f.k}" type="${f.type||'text'}" value="${esc(d[f.k]||'')}"${ro}></div>`).join('')}
+    <div class="field"><span class="lb">總年資</span><div id="pvSen" style="padding-block:6px;font-weight:500">${seniority(d.hireDate,d.resignDate)}</div></div></div>`,
+    ov=>{
+      if(!canWrite)return;
+      const o={};ov.querySelectorAll('[data-pv]').forEach(i=>{const v=i.value.trim();if(v)o[i.dataset.pv]=v;});
+      if(o.email&&!/^[^@\s]+@[^@\s]+$/.test(o.email)){toast('E-mail 格式不正確。','warn');return false;}
+      store.priv(s.id,o);toast('已儲存個資。');
+    },canWrite?'儲存':'關閉');
+  const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
+  ov.addEventListener('input',e=>{if(e.target.dataset.pv==='hireDate'||e.target.dataset.pv==='resignDate')ov.querySelector('#pvSen').textContent=seniority(ov.querySelector('[data-pv=hireDate]').value,ov.querySelector('[data-pv=resignDate]').value);});
+  ov.querySelector('[data-pv]')?.focus();
+}
+function dialog(html,onOk,okLabel='確認',danger=false){
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true">${html}<div class="acts"><button data-x>取消</button><button class="primary" data-ok style="${danger?'background:var(--warn);border-color:var(--warn);color:#fff':''}">${okLabel}</button></div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener('click',e=>{if(e.target===ov||e.target.closest('[data-x]'))close();if(e.target.closest('[data-ok]')){const r=onOk(ov);if(r!==false)close();}});
+  ov.querySelector('[data-ok]').focus();
+  ov.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+}
+function toast(msg,kind='',action){
+  const t=document.createElement('div');t.className='toast '+kind;
+  t.innerHTML=`<span>${esc(msg)}</span>`;
+  if(action){const b=document.createElement('button');b.textContent=action.label;b.onclick=()=>{action.fn();t.remove();};t.appendChild(b);}
+  $('toasts').appendChild(t);setTimeout(()=>t.remove(),action?9000:4200);
+}
+
+// ---------- events ----------
+document.querySelector('nav.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(b.dataset.tab==='holidays'&&prefs.tab!=='holidays')holScrolled=false;if(b.dataset.tab==='leave'&&prefs.tab!=='leave')leaveScrolled={lv:false,fc:false};prefs.tab=b.dataset.tab;savePrefs();renderAll();});
+$('rangeForm').addEventListener('submit',e=>{
+  e.preventDefault();const a=$('stFrom').value,b=$('stTo').value;
+  if(!a||!b){toast('請選擇開始與結束日期。','warn');return;}
+  if(b<a){toast('結束日期不能早於開始日期。','warn');return;}
+  if(Math.round((parseYmd(b)-parseYmd(a))/864e5)>730){toast('統計期間最長 2 年。','warn');return;}
+  statCustom={from:a,to:b};document.activeElement?.blur();renderAll();
+});
+$('stReset').onclick=()=>{statCustom=null;renderAll();};
+$('prevMonth').onclick=()=>{prefs.monthOffset--;savePrefs();document.querySelectorAll('[data-n=from]').forEach(x=>x.value='');renderAll();};
+$('nextMonth').onclick=()=>{prefs.monthOffset++;savePrefs();document.querySelectorAll('[data-n=from]').forEach(x=>x.value='');renderAll();};
+$('thisMonth').onclick=()=>{prefs.monthOffset=0;savePrefs();document.querySelectorAll('[data-n=from]').forEach(x=>x.value='');renderAll();};
+$('tplBtn').onclick=()=>{
+  const tpl=cfg.docTpl||{};
+  if(!Object.values(tpl).some(a=>a&&a.length)){toast('還沒設定預設醫師班表，請先到「排班規則」設定。','warn');return;}
+  dialog(`<h3>帶入醫師班表・${monthInfo().label}</h3><p>依「排班規則」裡的預設醫師班表，把醫師排進本月每一天的跟診。休診、休假日與醫師休假的時段會自動跳過。</p>
+    <div class="opts"><label><input type="radio" name="tm" value="fill" checked><span>只補沒有醫師的時段<small>已經排了醫師的時段保持不動</small></span></label>
+    <label><input type="radio" name="tm" value="all"><span>覆蓋本月醫師<small>以預設班表為準；不在預設裡的醫師會移除，他們的跟診助理也一併移除</small></span></label></div>`,
+    ov=>applyDocTemplate(ov.querySelector('input[name=tm]:checked').value==='all'),'帶入');
+};
+function applyDocTemplate(overwrite,dates){
+  if(!canWrite)return;
+  dates=dates||monthInfo().dates;const tpl=cfg.docTpl||{};
+  const before={},patches={};let added=0,skipped=0,removed=0;
+  dates.forEach(({wk,dow,key})=>SHIFTS.forEach(sh=>{
+    if(closedAt(dow,sh.id,key))return;
+    const ck=dow+'_'+sh.id;
+    const want=(tpl[ck]||[]).filter(id=>byId(id)?.role==='doctor'&&byId(id).active!==false);
+    const ok=want.filter(id=>{if(onLeave(id,key,sh.id)){skipped++;return false;}return true;});
+    const get=()=>patches[wk]?.[ck]||getCell(wk,ck);
+    const cell=get();let lk=patches[wk]?.['L'+ck]||getLink(wk,ck);
+    const curDocs=ppl(cell[FOLLOW]).filter(id=>byId(id)?.role==='doctor');
+    if(!overwrite&&curDocs.length)return;
+    let changed=false;
+    if(overwrite){
+      curDocs.filter(d=>!ok.includes(d)).forEach(d=>{
+        const as=lk.filter(z=>z[1]===d).map(z=>z[0]);
+        cell[FOLLOW]=cell[FOLLOW].filter(x=>x!==d&&!as.includes(x));lk=lk.filter(z=>z[1]!==d);removed++;changed=true;
+      });
+    }
+    ok.forEach(d=>{if(cell[FOLLOW].includes(d))return;for(let i=0;i<5;i++)if(i!==FOLLOW)cell[i]=cell[i].filter(x=>x!==d);cell[FOLLOW].push(d);added++;changed=true;});
+    if(!changed)return;
+    if(!(wk in before))before[wk]=weeks[wk]?clone(weeks[wk]):null;
+    (patches[wk]=patches[wk]||{})[ck]=cell;patches[wk]['L'+ck]=lk;
+  }));
+  if(!Object.keys(patches).length){toast(skipped?`沒有需要帶入的時段（${skipped} 個時段因醫師休假跳過）。`:'沒有需要帶入的時段。');return;}
+  lastUndo=before;
+  Object.entries(patches).forEach(([wk,p])=>store.cells(wk,p));
+  toast(`已帶入 ${added} 個醫師時段${removed?`，移除 ${removed} 個`:''}${skipped?`，${skipped} 個因醫師休假跳過`:''}。`,'',{label:'復原',fn:undoAuto});
+}
+$('autoBtn').onclick=()=>{
+  if(!activeStaff().length){toast('請先到「人員名單」新增人員。','warn');return;}
+  dialog(`<h3>自動排班・${monthInfo().label}</h3><p>依需求人數、請假、每日上限與工時規則排班，並讓每個人的班數盡量平均。</p>
+    <div class="opts"><label><input type="radio" name="am" value="fill" checked><span>只補空缺<small>保留已經排好的人，只填入空的崗位</small></span></label>
+    <label><input type="radio" name="am" value="all"><span>整月重新排<small>清除本月所有助理的排班後重新產生；醫師保留不動</small></span></label></div>`,
+    ov=>autoSchedule(ov.querySelector('input[name=am]:checked').value==='fill'),'開始排班');
+};
+
+const weeksEl=$('weeks');
+let drag=null;
+weeksEl.addEventListener('dragstart',e=>{
+  const it=e.target.closest('[data-item]');if(!it||!canWrite)return;
+  drag={id:it.dataset.item,from:{wk:it.dataset.wk,ck:it.dataset.ck,pi:Number(it.dataset.pi)}};
+  e.dataTransfer.setData('text/plain',drag.id);e.dataTransfer.effectAllowed='move';
+});
+document.querySelector('.pool').addEventListener('dragstart',e=>{
+  const c=e.target.closest('[data-chip]');if(!c||!canWrite)return;
+  drag={id:c.dataset.chip,from:null};e.dataTransfer.setData('text/plain',drag.id);e.dataTransfer.effectAllowed='copy';
+});
+document.addEventListener('dragend',()=>{drag=null;document.querySelectorAll('.pos.over,.pos.bad').forEach(x=>x.classList.remove('over','bad'));});
+weeksEl.addEventListener('dragover',e=>{
+  const p=e.target.closest('[data-pos]');if(!p||!drag)return;
+  e.preventDefault();
+  const r=byId(drag.id)?.role;const pi=Number(p.dataset.pi);
+  const ok=drag.id===GAP||r===POS[pi].role||(pi===FOLLOW&&r==='assistant'&&!!p.querySelector('.dstack[data-doc]'));
+  p.classList.add(ok?'over':'bad');
+});
+weeksEl.addEventListener('dragleave',e=>{const p=e.target.closest('[data-pos]');if(p&&!p.contains(e.relatedTarget))p.classList.remove('over','bad');});
+weeksEl.addEventListener('drop',e=>{
+  const p=e.target.closest('[data-pos]');if(!p||!drag)return;e.preventDefault();
+  p.classList.remove('over','bad');
+  const t={wk:p.dataset.wk,ck:p.dataset.ck,pi:Number(p.dataset.pi),date:p.dataset.date,sh:p.dataset.sh,doc:e.target.closest('[data-doc]')?.dataset.doc};
+  const f=drag.from;
+  if(f&&f.wk===t.wk&&f.ck===t.ck&&f.pi===t.pi&&!(t.pi===FOLLOW&&t.doc&&t.doc!==drag.id)){drag=null;return;}
+  assign(drag.id,t,f);drag=null;
+});
+weeksEl.addEventListener('click',e=>{
+  const tw=e.target.closest('[data-tplweek]');
+  if(tw){
+    if(!Object.values(cfg.docTpl||{}).some(a=>a&&a.length)){toast('還沒設定預設醫師班表，請先到「排班規則」設定。','warn');return;}
+    const mon=parseYmd(tw.dataset.tplweek);
+    const mi=monthInfo();const inM=k=>k>=ymd(mi.first)&&k<=ymd(mi.last); // 只帶入本月，不跨月
+    applyDocTemplate(false,[...Array(7)].map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return {wk:tw.dataset.tplweek,dow:i,key:ymd(d)};}).filter(x=>inM(x.key)));
+    return;
+  }
+  const clr=e.target.closest('[data-clear]');
+  if(clr){const wk=clr.dataset.clear;dialog(`<h3>清空 ${md(parseYmd(wk))} 這一週？</h3><p>這週所有排班都會被移除。</p>`,()=>{lastUndo={[wk]:weeks[wk]?clone(weeks[wk]):null};store.week(wk,{});toast('已清空本週。','',{label:'復原',fn:undoAuto});},'清空',true);return;}
+  const rm=e.target.closest('[data-rm]');
+  if(rm){const it=rm.closest('[data-item]');removeFrom(it.dataset.item,it.dataset.wk,it.dataset.ck,Number(it.dataset.pi));return;}
+  const it=e.target.closest('[data-item]');
+  if(it&&!selectedId){selectedId=it.dataset.item;renderAll();return;}
+  const p=e.target.closest('[data-pos]');
+  if(p&&selectedId){assign(selectedId,{wk:p.dataset.wk,ck:p.dataset.ck,pi:Number(p.dataset.pi),date:p.dataset.date,sh:p.dataset.sh,doc:e.target.closest('[data-doc]')?.dataset.doc},null);return;}
+});
+document.querySelector('.pool').addEventListener('click',e=>{
+  const c=e.target.closest('[data-chip]');if(!c)return;
+  selectedId=selectedId===c.dataset.chip?null:c.dataset.chip;renderAll();
+  if(selectedId)toast(`已選取 ${codeOf(selectedId)}，點班表格子即可排入。按 Esc 取消。`);
+});
+document.querySelector('.pool').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const c=e.target.closest('[data-chip]');if(c){e.preventDefault();c.click();}}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selectedId){selectedId=null;renderAll();}});
+
+// leave
+document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('submit',e=>{
+  e.preventDefault();
+  const role=form.dataset.role;const word=role==='doctor'?'休假':'請假';const f=n=>form.querySelector(`[data-n="${n}"]`);
+  const sid=f('staff').value;if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的'+word+'。','warn');return;}const from=f('from').value;const to=f('to').value||from;
+  const shifts=[...form.querySelectorAll('[data-sh]')].filter(x=>x.checked).map(x=>x.dataset.sh);
+  if(!sid||!from){toast(`請選擇${ROLE[role]}與日期。`,'warn');return;}
+  if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
+  if(to<from){toast('結束日期不能早於開始日期。','warn');return;}
+  const note=f('note').value.trim();const type=f('type').value;let n=0;
+  let sun=0,hol=0;
+  for(let d=parseYmd(from);ymd(d)<=to&&n<62;d.setDate(d.getDate()+1)){
+    const key=ymd(d);
+    if(d.getDay()===0){sun++;continue;} // 週日不需請假
+    if(holidayOf(key)){hol++;continue;} // 休假日不需請假
+    const dup=leaves.find(l=>l.staffId===sid&&l.date===key);
+    if(dup)store.delLeave(dup.id);
+    const merged=dup?[...new Set([...(dup.shifts||[]),...shifts])]:shifts;
+    store.leave({id:uid('l'),staffId:sid,date:key,shifts:SHIFTS.map(s=>s.id).filter(s=>merged.includes(s)),type,note:note||dup?.note||'',createdAt:Date.now()});n++;
+  }
+  if(!n){toast(`週日與休假日不需要登記${word}。`,'warn');return;}
+  f('note').value='';f('to').value='';
+  const skip=[sun?`${sun} 個週日`:'',hol?`${hol} 個休假日`:''].filter(Boolean).join('、');
+  toast(`已登記 ${codeOf(sid)} ${n} 天${word}${skip?`（已略過 ${skip}）`:''}。`);
+}));
+$('fcForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const sid=$('fcStaff').value;if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的家庭照顧假。','warn');return;}const date=$('fcDate').value;
+  if(!sid||!date){toast('請選擇助理與日期。','warn');return;}
+  if(byId(sid)?.role!=='assistant'){toast('家庭照顧假僅限助理。','warn');return;}
+  if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休假日不需要登記家庭照顧假。','warn');return;}
+  const c=fcCalc();
+  if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
+  store.fc({id:uid('f'),staffId:sid,date,shift:$('fcShift').value||null,start:$('fcStart').value,end:$('fcEnd').value,hours:c.hours,note:$('fcNote').value.trim(),createdAt:Date.now()});
+  $('fcNote').value='';const h=c.hours;
+  toast(`已登記 ${codeOf(sid)} 家庭照顧假 ${h} 小時。`);
+});
+function fcCalc(a=$('fcStart').value,b=$('fcEnd').value){
+  if(!a||!b)return null;
+  const toM=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
+  const mins=toM(b)-toM(a);if(mins<=0)return null;
+  return {mins,hours:Math.max(1,Math.ceil(mins/60))};
+}
+function showFcCalc(){
+  const c=fcCalc();const el=$('fcCalc');
+  if(!c){el.textContent='—';el.style.color='var(--warn)';return;}
+  el.style.color='';const raw=c.mins/60;
+  el.textContent=Number.isInteger(raw)?`${c.hours} 小時`:`${c.hours} 小時（實際 ${raw.toFixed(1).replace(/\.0$/,'')}）`;
+}
+['fcStart','fcEnd'].forEach(id=>$(id).addEventListener('input',showFcCalc));
+$('fcShift').addEventListener('change',()=>{const sh=SHIFTS.find(x=>x.id===$('fcShift').value);if(!sh)return;const [a]=sh.time.split('-');$('fcStart').value=a;const [h,m]=a.split(':').map(Number);const e=h*60+m+60;$('fcEnd').value=`${pad(Math.floor(e/60))}:${pad(e%60)}`;showFcCalc();});
+$('fcTable').addEventListener('click',e=>{
+  const so=e.target.closest('[data-fcsort]');if(so){const k=so.dataset.fcsort;fcSort=fcSort.key===k?{key:k,dir:-fcSort.dir}:{key:k,dir:1};renderAll();$('fcScroll').scrollTop=0;return;}
+  const fcId=(e.target.closest('[data-editfc],[data-fcsave],[data-delfc]')||{}).dataset;const fcRec=fcId&&familyCare.find(x=>x.id===(fcId.editfc||fcId.fcsave||fcId.delfc));
+  if(fcRec&&!canLeaveFor(fcRec.staffId)){toast('你沒有權限修改這筆紀錄。','warn');return;}
+  const ed=e.target.closest('[data-editfc]');if(ed){editingFc=ed.dataset.editfc;renderAll();return;}
+  if(e.target.closest('[data-fccancel]')){editingFc=null;renderAll();return;}
+  const sv=e.target.closest('[data-fcsave]');
+  if(sv){
+    const row=sv.closest('[data-fcrow]');const old=familyCare.find(x=>x.id===sv.dataset.fcsave);if(!old)return;
+    const q=k=>row.querySelector(`[data-e=${k}]`).value;
+    if(!q('date')){toast('請選擇日期。','warn');return;}
+    if(parseYmd(q('date')).getDay()===0||holidayOf(q('date'))){toast('週日與休假日不需要登記家庭照顧假。','warn');return;}
+    const c=fcCalc(q('start'),q('end'));
+    if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
+    editingFc=null;
+    store.putFc(Object.assign({},old,{date:q('date'),shift:q('shift')||null,start:q('start'),end:q('end'),hours:c.hours,note:q('note').trim()}));
+    toast(`已變更家庭照顧假，共 ${c.hours} 小時。`);return;
+  }
+  const b=e.target.closest('[data-delfc]');if(b)store.delFc(b.dataset.delfc);
+});
+$('fcTable').addEventListener('input',e=>{
+  const row=e.target.closest('[data-fcrow]');if(!row||!['start','end'].includes(e.target.dataset.e))return;
+  const c=fcCalc(row.querySelector('[data-e=start]').value,row.querySelector('[data-e=end]').value);
+  row.querySelector('[data-e=calc]').textContent=c?`${c.hours} 小時`:'—';
+});
+document.querySelectorAll('.leave-table').forEach(tb=>tb.addEventListener('click',e=>{
+  const so=e.target.closest('[data-lvsort]');if(so){const k=so.dataset.lvsort,r=so.dataset.role,cur=lvSorts[r];lvSorts[r]=cur.key===k?{key:k,dir:-cur.dir}:{key:k,dir:1};renderAll();$('leaveScroll-'+r).scrollTop=0;return;}
+  const lvId=(e.target.closest('[data-editleave],[data-lvsave],[data-delleave]')||{}).dataset;const lvRec=lvId&&leaves.find(x=>x.id===(lvId.editleave||lvId.lvsave||lvId.delleave));
+  if(lvRec&&!canLeaveFor(lvRec.staffId)){toast('你沒有權限修改這筆紀錄。','warn');return;}
+  const ed=e.target.closest('[data-editleave]');if(ed){editingLeave=ed.dataset.editleave;renderAll();return;}
+  if(e.target.closest('[data-lvcancel]')){editingLeave=null;renderAll();return;}
+  const sv=e.target.closest('[data-lvsave]');
+  if(sv){
+    const row=sv.closest('[data-lvrow]');const old=leaves.find(x=>x.id===sv.dataset.lvsave);if(!old)return;
+    const date=row.querySelector('[data-e=date]').value;
+    const shifts=SHIFTS.map(s=>s.id).filter(id=>row.querySelector(`[data-esh="${id}"]`).checked);
+    if(!date){toast('請選擇日期。','warn');return;}
+    if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休假日不需要登記'+(byId(old.staffId)?.role==='doctor'?'休假':'請假')+'。','warn');return;}
+    if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
+    if(leaves.some(x=>x.id!==old.id&&x.staffId===old.staffId&&x.date===date)){toast(`${codeOf(old.staffId)} 在 ${date.slice(5).replace('-','/')} 已經有${byId(old.staffId)?.role==='doctor'?'休假':'請假'}紀錄。`,'warn');return;}
+    editingLeave=null;
+    store.putLeave(Object.assign({},old,{date,shifts,type:row.querySelector('[data-e=type]').value,note:row.querySelector('[data-e=note]').value.trim()}));
+    toast(byId(old.staffId)?.role==='doctor'?'已變更休假。':'已變更請假。');return;
+  }
+  const b=e.target.closest('[data-delleave]');if(b)store.delLeave(b.dataset.delleave);
+}));
+
+// staff
+$('staffSearch-assistant').addEventListener('input',()=>renderSettings());
+document.querySelectorAll('.staff-form').forEach(form=>form.addEventListener('submit',e=>{
+  e.preventDefault();if(!canWrite)return;
+  const role=form.dataset.role;const f=n=>form.querySelector(`[data-n="${n}"]`);
+  const code=f('code').value.trim();if(!code){toast('請輸入代號。','warn');return;}
+  store.staff({id:uid('s'),code,name:f('name').value.trim(),role,active:true,createdAt:Date.now()});
+  f('code').value='';f('name').value='';if(f('max'))f('max').value='';f('code').focus();
+  toast(`已新增${ROLE[role]} ${code}。`);
+}));
+
+document.querySelectorAll('.staff-table').forEach(tb=>tb.addEventListener('click',e=>{
+  const so=e.target.closest('[data-stsort]');if(so){const k=so.dataset.stsort,r=so.dataset.role,c=stSorts[r];stSorts[r]=c.key===k?{key:k,dir:-c.dir}:{key:k,dir:1};renderAll();return;}
+  const row=e.target.closest('[data-srow]');if(!row)return;const s=byId(row.dataset.srow);if(!s)return;
+  if(e.target.closest('[data-staffpriv]')){openPrivate(s);return;}
+  if(e.target.closest('[data-staffperm]')){openPerm(s);return;}
+  if(e.target.closest('[data-staffedit]')){editingStaff=s.id;renderAll();row.parentNode.querySelector('[data-editing] [data-f=code]')?.focus();return;}
+  if(e.target.closest('[data-staffcancel]')){editingStaff=null;renderAll();return;}
+  if(e.target.closest('[data-staffsave]')){
+    const q=f=>row.querySelector(`[data-f=${f}]`).value;
+    const code=q('code').trim();
+    if(!code){toast('代號不能空白。','warn');return;}
+    editingStaff=null;document.activeElement?.blur();
+    store.staff(Object.assign(clone(s),{code,name:q('name').trim(),}));
+    toast('已儲存。');return;
+  }
+  if(e.target.closest('[data-toggle]')){store.staff(Object.assign(clone(s),{active:s.active===false}));return;}
+  if(e.target.closest('[data-delstaff]')){
+    dialog(`<h3>刪除 ${esc(fullName(s))}？</h3><p>會同時從所有班表中移除這個人，無法復原。如果只是離職，建議改用「停用」。</p>`,()=>{
+      Object.keys(weeks).forEach(wk=>{
+        const w=weeks[wk];let changed=false;const nw={};
+        Object.keys(w).forEach(ck=>{if(ck[0]==='L'){const v=getLink(wk,ck.slice(1));const nv=v.filter(z=>z[0]!==s.id&&z[1]!==s.id);if(nv.length!==v.length)changed=true;nw[ck]=nv;return;}const a=getCell(wk,ck);nw[ck]=a.map(x=>{const y=x.filter(i=>i!==s.id);if(y.length!==x.length)changed=true;return y;});});
+        if(changed)store.week(wk,nw);
+      });
+      leaves.filter(l=>l.staffId===s.id).forEach(l=>store.delLeave(l.id));
+      store.delPriv(s.id);
+      if(accessLinks[s.id])store.link(s.id,null);
+      store.delStaff(s.id);
+    },'刪除',true);
+  }
+}));
+$('needRow').addEventListener('change',e=>{const i=e.target.dataset.need;if(i==null)return;const n=clone(cfg);n.need=n.need||[1,0,0,0,0];n.need[i]=Math.max(0,Math.min(5,Number(e.target.value)||0));e.target.blur();store.cfg(n);toast('已儲存。');});
+$('otMax').addEventListener('change',e=>{const n=clone(cfg);const v=parseFloat(e.target.value);n.otMax=Number.isFinite(v)&&v>=0?Math.min(40,Math.round(v*2)/2):3;e.target.blur();store.cfg(n);toast('已儲存。');});
+[['maxFull','maxFullDays',10],['maxDN','maxDN',2]].forEach(([el,k,def])=>$(el).addEventListener('change',e=>{const n=clone(cfg);const v=parseInt(e.target.value,10);n[k]=Number.isFinite(v)&&v>=0?Math.min(31,v):def;e.target.blur();store.cfg(n);toast('已儲存。');}));
+$('maxPerDay').addEventListener('change',e=>{const n=clone(cfg);n.maxPerDay=Math.max(1,Math.min(3,Number(e.target.value)||2));e.target.blur();store.cfg(n);toast('已儲存。');});
+const HOL_ROWS=10;
+let leaveScrolled={lv:false,fc:false};
+let stSorts={manager:{key:'code',dir:1},doctor:{key:'code',dir:1},assistant:{key:'code',dir:1}};
+let lvSorts={doctor:{key:'date',dir:1},assistant:{key:'date',dir:1}};
+let fcSort={key:'date',dir:1};
+function scrollToUpcoming(box){ // 捲到今天之後最近的一筆
+  if(!box.offsetParent)return false;
+  const rows=[...box.querySelectorAll('tbody tr[data-date]')];if(!rows.length)return false;
+  if(!box.style.maxHeight)return true;
+  const t=ymd(new Date());const r=rows.find(x=>x.dataset.date>=t);
+  box.scrollTop=r?r.offsetTop-rows[0].offsetTop:box.scrollHeight;
+  return true;
+}
+function limitRows(box,max){ // 最多顯示 max 列，其餘上下捲動；回傳總列數
+  const rows=box.querySelectorAll('tbody tr');
+  if(rows.length<=max||!box.offsetParent){box.style.maxHeight='';return rows.length;}
+  const head=box.querySelector('thead').offsetHeight;const last=rows[max-1];
+  box.style.maxHeight=(head+last.offsetTop+last.offsetHeight-rows[0].offsetTop+2)+'px';
+  return rows.length;
+}
+let holScrolled=false;
+function fitHolList(hols){
+  const box=$('holScroll');const rows=box.querySelectorAll('tbody tr');
+  $('holHint').hidden=rows.length<=HOL_ROWS;
+  if(rows.length<=HOL_ROWS){box.style.maxHeight='';return;}
+  if(!box.offsetParent)return;
+  const head=box.querySelector('thead').offsetHeight;
+  const tenth=rows[HOL_ROWS-1];box.style.maxHeight=(head+tenth.offsetTop+tenth.offsetHeight-rows[0].offsetTop+2)+'px';
+  if(!holScrolled&&box.offsetParent){ // 第一次顯示時，捲到今天之後的第一個休假日
+    holScrolled=true;const t=ymd(new Date());const i=hols.findIndex(([d])=>d>=t);
+    box.scrollTop=i<0?box.scrollHeight:rows[i].offsetTop-rows[0].offsetTop;
+  }
+}
+function busyDays(dates){return dates.filter(k=>{const d=parseYmd(k);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;return SHIFTS.some(sh=>getCell(wk,dow+'_'+sh.id).some(a=>a.length));});}
+function clearDays(days){const byWk={};days.forEach(k=>{const d=parseYmd(k);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;byWk[wk]=byWk[wk]||{};SHIFTS.forEach(sh=>{byWk[wk][dow+'_'+sh.id]=[[],[],[],[],[]];byWk[wk]['L'+dow+'_'+sh.id]=[];});});Object.entries(byWk).forEach(([wk,patch])=>store.cells(wk,patch));}
+$('holForm').addEventListener('submit',e=>{
+  e.preventDefault();if(!canWrite)return;
+  const from=$('holFrom').value;const to=$('holTo').value||from;const name=$('holName').value.trim();
+  if(!from){toast('請選擇日期。','warn');return;}
+  if(to<from){toast('結束日期不能早於開始日期。','warn');return;}
+  const dates=[];for(let d=parseYmd(from);ymd(d)<=to&&dates.length<60;d.setDate(d.getDate()+1))dates.push(ymd(d));
+  const busy=busyDays(dates);
+  const apply=()=>{
+    const n=clone(cfg);n.holidays=n.holidays||{};dates.forEach(k=>n.holidays[k]={name});store.cfg(n);
+    clearDays(busy);
+    $('holFrom').value='';$('holTo').value='';$('holName').value='';
+    toast(`已新增 ${dates.length} 天休假日。`);
+  };
+  if(busy.length)dialog(`<h3>新增休假日</h3><p>${busy.map(k=>k.slice(5).replace('-','/')).join('、')} 已經有人排班，設為休假日後會清除這些排班。</p>`,apply,'新增並清除',true);
+  else apply();
+});
+$('holTable').addEventListener('click',e=>{
+  const ed=e.target.closest('[data-edithol]');if(ed){editingHol=ed.dataset.edithol;renderAll();$('holEditName')?.focus();return;}
+  if(e.target.closest('[data-holcancel]')){editingHol=null;renderAll();return;}
+  const sv=e.target.closest('[data-holsave]');
+  if(sv){
+    const old=sv.dataset.holsave;const nd=$('holEditDate').value;const name=$('holEditName').value.trim();
+    if(!nd){toast('請選擇日期。','warn');return;}
+    if(nd!==old&&holidayOf(nd)){toast(`${nd.replace(/-/g,'/')} 已經是休假日。`,'warn');return;}
+    const apply=()=>{const n=clone(cfg);n.holidays=n.holidays||{};delete n.holidays[old];n.holidays[nd]={name};editingHol=null;document.activeElement?.blur();store.cfg(n);if(nd!==old)clearDays(busyDays([nd]));toast('已變更休假日。');};
+    if(nd!==old&&busyDays([nd]).length)dialog(`<h3>變更休假日</h3><p>${nd.slice(5).replace('-','/')} 已經有人排班，改成休假日後會清除當天排班。原本 ${old.slice(5).replace('-','/')} 的排班不會自動恢復。</p>`,apply,'變更並清除',true);
+    else apply();
+    return;
+  }
+  const b=e.target.closest('[data-delhol]');if(!b)return;const n=clone(cfg);if(n.holidays)delete n.holidays[b.dataset.delhol];store.cfg(n);toast('已刪除休假日。');});
+$('nhOnlyRow').addEventListener('click',e=>{
+  const b=e.target.closest('[data-nh]');if(!b||!canWrite)return;
+  const n=clone(cfg);const cur=n.nhOnly||[];const id=b.dataset.nh;
+  n.nhOnly=cur.includes(id)?cur.filter(x=>x!==id):[...cur,id];if(!n.nhOnly.length)delete n.nhOnly;
+  store.cfg(n);
+});
+$('exclMatrix').addEventListener('click',e=>{
+  const b=e.target.closest('[data-excl]');if(!b||!canWrite)return;
+  const n=clone(cfg);n.autoExclude=n.autoExclude||{};const pi=b.dataset.excl,id=b.dataset.id;
+  const cur=n.autoExclude[pi]||[];n.autoExclude[pi]=cur.includes(id)?cur.filter(x=>x!==id):[...cur,id];
+  if(!n.autoExclude[pi].length)delete n.autoExclude[pi];
+  store.cfg(n);
+});
+$('tplMatrix').addEventListener('click',e=>{
+  const b=e.target.closest('[data-tpl]');if(!b||!canWrite)return;
+  const n=clone(cfg);n.docTpl=n.docTpl||{};const k=b.dataset.tpl,id=b.dataset.doc;
+  const cur=n.docTpl[k]||[];n.docTpl[k]=cur.includes(id)?cur.filter(x=>x!==id):[...cur,id];
+  if(!n.docTpl[k].length)delete n.docTpl[k];
+  store.cfg(n);
+});
+$('openMatrix').addEventListener('change',e=>{const k=e.target.dataset.open;if(!k)return;const n=clone(cfg);n.closed=n.closed||{};if(e.target.checked)delete n.closed[k];else n.closed[k]=true;store.cfg(n);});
+
+// export
+let downloads=null;
+(async()=>{try{downloads=window.claude?await window.claude.use('downloads'):null;}catch(e){}if(!downloads)$('exportBtn').title='這個檢視無法下載檔案';})();
+$('exportBtn').onclick=async()=>{
+  if(!window.XLSX){toast('Excel 元件還沒載入，請稍後再試。','warn');return;}
+  if(!downloads){toast('這個檢視不支援下載檔案。','warn');return;}
+  const mi=monthInfo();const counts=monthCounts(mi);
+  const nm=id=>fullName(byId(id));
+  const sched=[['日期','星期','班別','時間',...POS.map(p=>p.label),'請假']];
+  mi.dates.forEach(({d,key,wk,dow})=>SHIFTS.forEach(sh=>{
+    const lv=[...(leaveIdx.get(key+'|'+sh.id)||[])].map(nm).join('、');
+    if(closedAt(dow,sh.id,key)){const h=holidayOf(key);sched.push([key,'週'+DAYS[dow],sh.name,sh.time,h?`休診（${h.name||'休假日'}）`:'休診','','','','',lv]);return;}
+    const c=getCell(wk,dow+'_'+sh.id);
+    sched.push([key,'週'+DAYS[dow],sh.name,sh.time,...c.map((a,i)=>{let n;if(i===FOLLOW){const lk=getLink(wk,dow+'_'+sh.id);const docs=ppl(a).filter(z=>byId(z)?.role==='doctor');n=docs.map(d=>{const as=lk.filter(z=>z[1]===d&&a.includes(z[0])).map(z=>nm(z[0]));return nm(d)+(as.length?`（${as.join('、')}）`:'');});ppl(a).filter(z=>!docs.includes(z)&&!lk.some(l=>l[0]===z&&docs.includes(l[1]))).forEach(z=>n.push(nm(z)));}else n=ppl(a).map(nm);const g=gapN(a);if(g)n.push(`缺${g}`);return n.join('、');}),lv]);
+  }));
+  // 工時統計工作表依「工時統計」頁的統計期間
+  const sr=statRange(mi);const sc=sr.custom?monthCounts(sr):counts;
+  const stats=[[`統計期間：${ymd(sr.first)} ～ ${ymd(sr.last)}`],['代號','姓名','職稱','早班','午班','晚班','總班數','早+晚','全天班','主櫃','跟診','流動','工時(小時)','合理工時(小時)','單日超時(小時)','排班超時(小時)','排班總超時(小時)','請假班次']];
+  staff.slice().sort(sortStaff).filter(s=>s.role==='assistant').forEach(s=>{
+    const c=sc[s.id]||{total:0,day:0,eve:0,night:0,hours:0,ot:0,fullDays:0,dn:0,pos:[0,0,0,0,0]};
+    const lv=leaves.filter(l=>l.staffId===s.id&&l.date>=ymd(sr.first)&&l.date<=ymd(sr.last)).reduce((n,l)=>n+(l.shifts||[]).length,0);
+    if(s.active===false&&!c.total)return;
+    stats.push([s.code||'',s.name||'',ROLE[s.role],c.day,c.eve,c.night,c.total,c.dn,c.fullDays,c.pos[0],c.pos[2],c.pos[3],c.hours,reasonableDays(sr,s.id),c.ot,Math.round((c.hours-reasonableDays(sr,s.id))*10)/10,Math.round((c.ot+Math.max(0,c.hours-reasonableDays(sr,s.id)))*10)/10,lv]);
+  });
+  const lvSheet=role=>{const w=role==='doctor'?'休假':'請假';const rows=[['日期',ROLE[role],'班別',w+'類別','備註']];
+    leaves.filter(l=>byId(l.staffId)?.role===role&&l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(l=>rows.push([l.date,nm(l.staffId),SHIFTS.filter(s=>(l.shifts||[]).includes(s.id)).map(s=>s.name).join('、'),l.type||'',l.note||'']));
+    const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:12},{wch:14},{wch:16},{wch:10},{wch:20}];return ws;};
+  const wb=XLSX.utils.book_new();
+  const ws1=XLSX.utils.aoa_to_sheet(sched);ws1['!cols']=[{wch:12},{wch:6},{wch:6},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:16}];
+  const ws2=XLSX.utils.aoa_to_sheet(stats);ws2['!cols']=[{wch:8},{wch:10},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8},{wch:7},{wch:7},{wch:6},{wch:6},{wch:6},{wch:10},{wch:12},{wch:13},{wch:13},{wch:15},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws1,'班表');XLSX.utils.book_append_sheet(wb,ws2,'工時統計');XLSX.utils.book_append_sheet(wb,lvSheet('doctor'),'醫師休假');XLSX.utils.book_append_sheet(wb,lvSheet('assistant'),'助理請假');
+  const fcRows=[['日期','人員','班別','時間段','時數(小時)','備註']];
+  familyCare.filter(l=>l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(l=>fcRows.push([l.date,nm(l.staffId),SHIFTS.find(x=>x.id===l.shift)?.name||'',l.start&&l.end?`${l.start}-${l.end}`:'',l.hours,l.note||'']));
+  const ws4=XLSX.utils.aoa_to_sheet(fcRows);ws4['!cols']=[{wch:12},{wch:14},{wch:8},{wch:13},{wch:10},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws4,'家庭照顧假');
+  const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  try{await downloads.save({filename:`排班表_${mi.ym}.xlsx`,data:new Uint8Array(buf)});toast('已匯出 Excel。');}
+  catch(err){if(err&&err.code==='declined')return;if(err&&err.code==='rate_limited'){toast('已有一個下載視窗開著。','warn');return;}toast('無法匯出檔案。','warn');}
+};
+
+boot();
+})();
+</script>
+
+</body>
+</html>
