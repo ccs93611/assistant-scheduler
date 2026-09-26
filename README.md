@@ -26,7 +26,8 @@ HTML（7 個 <section id="tab-*">）
   狀態     staff, cfg, weeks, leaves, familyCare, privateInfo, accessLinks
   日期     monthInfo(), mondayOf(), ymd()
   存取     store.*（先更新記憶體 → renderAll() → 寫入 DB 或 localStorage）
-  啟動     boot()：有 window.claude 就用共用 DB，否則改用 localStorage
+  啟動     boot()：有 FIREBASE_CONFIG 就走 Google 登入 + Firestore，否則改用 localStorage
+  薪資     payCfg(), calcPay(), renderPay(), openAdj()
   畫面     renderAll() → renderWeeks / renderLeave / renderStats / renderSettings / renderRules / renderHolidays
   排班     autoSchedule(fillOnly), undoAuto()
   匯出     exportBtn → SheetJS (xlsx 0.18.5, CDN)
@@ -60,22 +61,48 @@ HTML（7 個 <section id="tab-*">）
 
 **合理工時** ＝（期間天數 − 週日數 − 休假日天數）× 8 − 請假天數 × 7
 
-## 放在 GitHub 上要注意
+## 線上部署（GitHub Pages + Firebase）
 
-這個檔案原本跑在 Claude Artifact 裡，會用到 `window.claude` 提供的平台功能：
+- **網站**：GitHub Pages 直接提供 `index.html`，推上 `main` 就會更新。
+- **登入**：Firebase Authentication（Google 帳號）。
+- **資料**：Cloud Firestore，所有人即時同步。
+- **權限**：由 [`firestore.rules`](firestore.rules) 在伺服器端檢查，前端的按鈕停用只是介面提示。
 
-| 功能 | Artifact 內 | 一般瀏覽器 / GitHub Pages |
-|---|---|---|
-| 多人共用資料庫（`claude.use('db')`） | ✅ 即時同步 | ❌ 自動改成 **localStorage**，只存在該瀏覽器 |
-| 使用者身分與權限（`claude.use('user')`） | ✅ | ❌ 所有人都是管理者 |
-| 匯出 Excel（`claude.use('downloads')`） | ✅ | ❌ 會顯示「這個檢視不支援下載檔案」 |
+`index.html` 開頭的 `window.FIREBASE_CONFIG` 設為 `null` 時，會退回本機 localStorage 模式，方便離線開發。
 
-之後可以考慮的方向：
+### 權限
 
-- [ ] 匯出 Excel 在沒有 `downloads` 時，改用 `XLSX.writeFile()` 或 `<a download>` 下載
-- [ ] 資料庫改接 Firebase／Supabase（`store.*` 與 `boot()` 的介面和 Firestore 很像，改起來比較容易）
-- [ ] 加上 JSON 匯出／匯入，方便在 localStorage 模式下備份
-- [ ] 把 CSS／JS 拆成獨立檔案
+| 等級 | 可以做什麼 |
+|---|---|
+| 僅檢視 `view` | 看班表、請假、休假日、統計 |
+| 登記本人請假 `self` | 上述 + 登記／變更自己的請假與家庭照顧假 + 看自己的薪資 |
+| 排班管理 `manage` | 排班、所有人的請假、休假日、規則、所有人的薪資 |
+| 超級管理員 `super` | 上述 + 個資 + 設定權限 |
+
+- `OWNER_EMAILS`（`index.html`）與 `firestore.rules` 裡列出的 Gmail 不必綁定，一律是超級管理員；兩邊要一致。
+- 其他人要由超級管理員到「人員名單 → 權限」填入 Gmail 並選擇權限，才能登入。
+
+### Firestore 資料結構
+
+| 路徑 | 內容 |
+|---|---|
+| `weeks/{週一日期}` | `c.{dow}_{shift}` 等欄位，值是 JSON 字串（因為 Firestore 不接受巢狀陣列） |
+| `staff/{id}`、`leaves/{id}`、`familyCare/{id}`、`config/main` | 同上方資料模型 |
+| `salary/{staffId}` | `{base}` 月薪 |
+| `payAdj/{staffId}_{YYYY-MM}` | `{staffId, ym, items:[{label, amount}]}` 當月加減項 |
+| `data/private/people/{staffId}` | 個資 |
+| `access/{Gmail}` | `{staffId, perm}` 帳號綁定與權限 |
+
+### 薪資（月薪制）
+
+- 時薪 = 月薪 ÷ 時薪基數（預設 240）
+- 請假扣款 = 請假時數 × 時薪 × 假別扣薪比例
+  - 每班算 3.5 小時，一筆請假最多算 8 小時
+  - 家庭照顧假依登記的時數計算
+  - 預設比例：事假、家庭照顧假 1；病假、生理假 0.5；其他假別 0
+- 加班費 = 排班總超時 × 時薪 × 加班倍率（預設 1.34）
+- 實發 = 月薪 − 請假扣款 + 加班費 + 加減項
+- 以上參數都可以在「薪資」分頁調整，存在 `config/main.pay`
 
 ## 本機使用
 

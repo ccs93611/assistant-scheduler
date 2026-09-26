@@ -10,6 +10,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// Firebase 專案設定（Firebase 主控台 → 專案設定 → 你的應用程式）。設為 null 時改用本機 localStorage 模式。
+window.FIREBASE_CONFIG = null;
+// 最高管理者的 Gmail：不需要綁定人員就擁有全部權限（要和 firestore.rules 裡的 OWNERS 一致）
+window.OWNER_EMAILS = ['ccs93611@gmail.com'];
+</script>
 <style>
 :root{
   --bg:#F3F1EC; --panel:#FFFFFF; --ink:#1F2A24; --sub:#5C6B63; --faint:#8B968E;
@@ -252,6 +261,23 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .toast button{background:transparent; color:inherit; border-color:currentColor; padding:3px 10px; font-size:.78rem;}
 .empty{color:var(--faint); text-align:center; padding:22px 10px !important; font-size:.85rem;}
 
+.gate{position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:40; padding:16px;}
+.gate .card{max-width:380px; width:100%; text-align:center; padding:28px 24px;}
+.gate h1{margin-bottom:6px;}
+.gate p{color:var(--sub); font-size:.88rem; margin:0 0 18px;}
+.gate .who{font-weight:500; color:var(--ink); word-break:break-all;}
+.gate .acts{display:flex; flex-direction:column; gap:8px;}
+.gate[hidden],.me[hidden],.card[hidden]{display:none;}
+.me{font-size:.75rem; color:var(--sub); display:flex; align-items:center; gap:6px;}
+.pay-table input{width:110px; text-align:right;}
+.pay-table td:first-child,.pay-table td.num{white-space:nowrap;}
+.pay-table td.net{font-weight:700;}
+.pay-rules{display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px;}
+.pay-rules input{width:100%;}
+.adj-row{display:flex; gap:8px; margin-bottom:8px;}
+.adj-row input{flex:1;}
+.adj-row input[type=number]{flex:0 0 110px; text-align:right;}
+
 @media (max-width:860px){
   .sched{flex-direction:column;}
   .pool{width:100%; position:static;}
@@ -268,6 +294,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
       <div class="month-label" id="monthLabel"></div>
     </div>
     <div class="ctrl">
+      <span class="me" id="me" hidden><span id="meEmail"></span><button class="small" id="signOut">登出</button></span>
       <span class="sync" id="sync"><i></i><span>連線中…</span></span>
       <button id="prevMonth" aria-label="上個月">◀ 上個月</button>
       <button id="thisMonth">本月</button>
@@ -283,6 +310,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
     <button role="tab" data-tab="leave">助理請假</button>
     <button role="tab" data-tab="holidays">休假日</button>
     <button role="tab" data-tab="stats">工時統計</button>
+    <button role="tab" data-tab="pay" id="payTabBtn">薪資</button>
     <button role="tab" data-tab="settings">人員名單</button>
     <button role="tab" data-tab="rules">排班規則</button>
   </nav>
@@ -416,6 +444,26 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
       </div>
     </section>
 
+    <section id="tab-pay" hidden>
+      <div class="stack">
+        <div class="card">
+          <h2 id="payTitle">薪資</h2>
+          <p class="desc" id="payDesc"></p>
+          <div class="scroll-x"><table class="list pay-table" id="payTable"></table></div>
+        </div>
+        <div class="card" id="payRulesCard">
+          <h2>薪資計算規則</h2>
+          <p class="desc">時薪＝月薪 ÷ 時薪基數。請假扣款＝請假時數 × 時薪 × 扣薪比例（每班 3.5 小時，同一天最多以 8 小時計；家庭照顧假依登記的時數）。加班費＝「排班總超時」時數 × 時薪 × 加班倍率。實發＝月薪－請假扣款＋加班費＋加減項。</p>
+          <div class="form-row" style="margin-bottom:14px">
+            <div class="field" style="width:130px"><label for="payDivisor">時薪基數（小時）</label><input id="payDivisor" type="number" min="1" step="1"></div>
+            <div class="field" style="width:130px"><label for="payOtRate">加班倍率</label><input id="payOtRate" type="number" min="0" step="0.01"></div>
+          </div>
+          <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:6px">各假別扣薪比例（1＝全扣、0.5＝扣一半、0＝不扣）</div>
+          <div class="pay-rules" id="payDeduct"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="tab-settings" hidden>
       <div class="stack">
         <div class="card">
@@ -493,6 +541,11 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
   </main>
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="gate" id="gate" hidden><div class="card">
+  <h1>新海美學牙醫診所</h1>
+  <p id="gateMsg">排班系統</p>
+  <div class="acts" id="gateActs"></div>
+</div></div>
 
 <script>
 (function(){
@@ -514,6 +567,7 @@ const PREF_KEY='clinic_roster_prefs_v1';
 // ---------- state ----------
 let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, userNs=null, accessLinks={};
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], privateInfo={}, isAdmin=true;
+let salary={}, payAdj={}; // salary[staffId]={base}；payAdj[staffId_ym]={staffId,ym,items:[{label,amount}]}
 let prefs=loadPrefs();
 let selectedId=null, lastUndo=null, editingHol=null, editingLeave=null, editingFc=null, editingStaff=null;
 
@@ -584,28 +638,37 @@ function queue(path,fn){
 }
 function handleWriteError(e){
   console.error(e);
-  if(e&&e.code==='invalid_argument'&&mode==='live'){platformWrite=false;renderAll();toast('你沒有編輯權限，目前為唯讀模式。','warn');return;}
+  if(e&&(e.code==='invalid_argument'||e.code==='permission-denied')&&mode==='live'){toast('你沒有權限做這個修改。','warn');return;}
   if(e&&e.code==='quota_exceeded'){toast('資料庫已滿，請刪除舊的請假紀錄後再試。','warn');return;}
   toast('儲存失敗，請稍後再試一次。','warn');
 }
-function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};}}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,salary,payAdj}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};salary=d.salary||{};payAdj=d.payAdj||{};}}catch(e){}}
+// Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
+function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
+function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
 
 const store={
   async cells(wk,patch){ // patch: {ck: arrs}
     weeks[wk]=Object.assign({},weeks[wk]||{},patch);
     renderAll();
     if(!db){saveLocal();return;}
-    const ref=db.doc('weeks/'+wk);
-    return queue('weeks/'+wk,async()=>{
-      if(weeksExist.has(wk)) await ref.update({cells:patch});
-      else {await ref.set({cells:weeks[wk]});weeksExist.add(wk);}
-    });
+    return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({c:encCells(patch)},{merge:true});weeksExist.add(wk);});
   },
   async week(wk,cells){ // full replace
     weeks[wk]=cells;renderAll();
     if(!db){saveLocal();return;}
-    return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({cells});weeksExist.add(wk);});
+    return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({c:encCells(cells)});weeksExist.add(wk);});
+  },
+  async salary(id,obj){
+    salary[id]=obj;renderAll();
+    if(!db){saveLocal();return;}
+    return queue('salary/'+id,()=>db.doc('salary/'+id).set(obj));
+  },
+  async payAdj(key,obj){
+    if(obj)payAdj[key]=obj;else delete payAdj[key];renderAll();
+    if(!db){saveLocal();return;}
+    return queue('payAdj/'+key,()=>obj?db.doc('payAdj/'+key).set(obj):db.doc('payAdj/'+key).delete());
   },
   async staff(s){
     const i=staff.findIndex(x=>x.id===s.id);if(i>=0)staff[i]=s;else staff.push(s);renderAll();
@@ -657,10 +720,14 @@ const store={
     if(!db){saveLocal();return;}
     return queue('priv/'+id,()=>db.doc('data/private/people/'+id).set(obj));
   },
-  async link(id,obj){
+  async link(id,obj){ // obj: {account: Gmail, perm}；Firestore 以 access/{Gmail} 儲存，方便安全規則查權限
+    const old=accessLinks[id]?.account;
     if(obj)accessLinks[id]=obj;else delete accessLinks[id];renderAll();
     if(!db){saveLocal();return;}
-    return queue('link/'+id,()=>obj?db.doc('data/access/links/'+id).set(obj):db.doc('data/access/links/'+id).delete());
+    return queue('link/'+id,async()=>{
+      if(old&&old!==obj?.account)await db.doc('access/'+old).delete();
+      if(obj)await db.doc('access/'+obj.account).set({staffId:id,perm:obj.perm});
+    });
   },
   async delPriv(id){
     delete privateInfo[id];
@@ -675,41 +742,86 @@ const store={
 };
 
 // ---------- boot ----------
+let fbAuth=null;
 async function boot(){
   renderAll();
-  let dbNs=null;
-  try{dbNs=window.claude?await window.claude.use('db'):null;}catch(e){dbNs=null;}
-  if(!dbNs){mode='local';loadLocal();buildLeaveIdx();renderAll();return;}
-  db=dbNs;
-  try{
-    const user=await window.claude.use('user');
-    if(user&&typeof user.can==='function'){const c=await user.can('data.write');if(c===false)platformWrite=false;}
-    if(user){userNs=user;try{myId=await user.id();}catch(e){}}
-    if(user&&typeof user.canEdit==='function'){const a=await user.canEdit();isAdmin=a!==false;}
-  }catch(e){}
+  if(!window.FIREBASE_CONFIG||!window.firebase){mode='local';loadLocal();buildLeaveIdx();renderAll();return;}
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  const fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true});
+  fbAuth=firebase.auth();
+  showGate('loading');
+  fbAuth.onAuthStateChanged(async u=>{
+    if(!u){showGate('signin');return;}
+    const email=(u.email||'').toLowerCase();
+    myId=email;$('meEmail').textContent=email;$('me').hidden=false;
+    isAdmin=(window.OWNER_EMAILS||[]).some(x=>x.toLowerCase()===email);
+    let acc=null;
+    try{const s=await fs.doc('access/'+email).get();acc=s.exists?s.data():null;}catch(e){console.error(e);}
+    if(!isAdmin&&!acc){showGate('pending',email);fs.doc('access/'+email).onSnapshot(s=>{if(s.exists)location.reload();},()=>{});return;}
+    $('gate').hidden=true;
+    db=fs;start(acc);
+  });
+}
+function start(acc){
+  const email=myId;
+  if(acc)accessLinks={[acc.staffId]:{account:email,perm:acc.perm}};
+  const perm=isAdmin?'super':acc.perm, sup=perm==='super', mng=sup||perm==='manage', sid=acc?.staffId;
   let loaded={staff:false,weeks:false,leaves:false,cfg:false,fc:false};
   const done=k=>{loaded[k]=true;if(Object.values(loaded).every(Boolean))mode='live';renderAll();};
-  const onErr=e=>{console.error(e);if(e&&e.code==='revoked'){platformWrite=false;}renderAll();};
+  const onErr=e=>{console.error(e);if(e&&e.code==='permission-denied')toast('你沒有權限讀取部分資料，請洽診所管理者。','warn');renderAll();};
+  const docsTo=snap=>{const m={};snap.docs.forEach(d=>m[d.id]=clone(d.data()));return m;};
   db.collection('staff').onSnapshot(snap=>{staff=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('staff');},onErr);
   db.collection('weeks').onSnapshot(snap=>{
     const w={};weeksExist=new Set();
-    snap.docs.forEach(d=>{w[d.id]=clone(d.data().cells||{});weeksExist.add(d.id);});
+    snap.docs.forEach(d=>{w[d.id]=decCells(d.data());weeksExist.add(d.id);});
     weeks=w;done('weeks');
   },onErr);
   db.collection('leaves').onSnapshot(snap=>{leaves=snap.docs.map(d=>Object.assign({id:d.id},d.data()));buildLeaveIdx();done('leaves');},onErr);
-  db.collection('data/private/people').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=clone(d.data()));privateInfo=m;renderAll();},e=>console.warn(e));
-  db.collection('data/access/links').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=clone(d.data()));accessLinks=m;renderAll();},e=>console.warn(e));
   db.collection('familyCare').onSnapshot(snap=>{familyCare=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('fc');},onErr);
   db.doc('config/main').onSnapshot(snap=>{cfg=Object.assign(clone(DEFAULT_CFG),snap.exists?clone(snap.data()):{});done('cfg');},onErr);
+  // 自己的權限被改掉時重新載入，讓畫面與資料讀取範圍跟著更新
+  const recheck=d=>{if(isAdmin)return;if(!d||d.perm!==acc.perm||d.staffId!==acc.staffId)location.reload();};
+  if(sup){
+    db.collection('data/private/people').onSnapshot(snap=>{privateInfo=docsTo(snap);renderAll();},e=>console.warn(e));
+    db.collection('access').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();if(v.staffId)m[v.staffId]={account:d.id,perm:v.perm};if(d.id===email)recheck(v);});if(!isAdmin&&!snap.docs.some(d=>d.id===email))recheck(null);accessLinks=m;renderAll();},e=>console.warn(e));
+  }else db.doc('access/'+email).onSnapshot(s=>recheck(s.exists?s.data():null),e=>console.warn(e));
+  if(mng){
+    db.collection('salary').onSnapshot(snap=>{salary=docsTo(snap);renderAll();},e=>console.warn(e));
+    db.collection('payAdj').onSnapshot(snap=>{payAdj=docsTo(snap);renderAll();},e=>console.warn(e));
+  }else if(sid){
+    db.doc('salary/'+sid).onSnapshot(s=>{salary=s.exists?{[sid]:clone(s.data())}:{};renderAll();},e=>console.warn(e));
+    db.collection('payAdj').where('staffId','==',sid).onSnapshot(snap=>{payAdj=docsTo(snap);renderAll();},e=>console.warn(e));
+  }
 }
+function showGate(kind,email){
+  $('gate').hidden=false;const acts=$('gateActs'),msg=$('gateMsg');
+  if(kind==='loading'){msg.textContent='連線中…';acts.innerHTML='';return;}
+  if(kind==='signin'){
+    msg.textContent='請用 Google 帳號登入。';
+    acts.innerHTML='<button class="primary" id="gSignIn">使用 Google 登入</button>';
+    $('gSignIn').onclick=signIn;return;
+  }
+  msg.innerHTML=`你的帳號 <span class="who">${esc(email)}</span> 還沒開通。<br>請把這個 Gmail 告訴診所管理者，開通後這個頁面會自動進入。`;
+  acts.innerHTML='<button id="gOther">改用其他帳號登入</button>';
+  $('gOther').onclick=signOutAndReload;
+}
+async function signIn(){
+  const pr=new firebase.auth.GoogleAuthProvider();pr.setCustomParameters({prompt:'select_account'});
+  try{await fbAuth.signInWithPopup(pr);}
+  catch(e){
+    if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-environment')return fbAuth.signInWithRedirect(pr);
+    if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast('登入失敗：'+(e.code||e.message),'warn');
+  }
+}
+function signOutAndReload(){if(fbAuth)fbAuth.signOut().then(()=>location.reload());}
 
 // ---------- rendering ----------
 const $=id=>document.getElementById(id);
 const PERMS={view:'僅檢視',self:'登記本人請假',manage:'排班管理',super:'超級管理員'};
-const superOK=()=>isAdmin||effPerm()==='super';
+const superOK=()=>{const p=effPerm();return p==='admin'||p==='super';};
 function myStaffId(){if(!myId)return null;const e=Object.entries(accessLinks).find(([,v])=>v&&v.account===myId);return e?e[0]:null;}
-function effPerm(){ // admin = 擁有者/編輯者；其他人依綁定的權限，未綁定視為僅檢視
-  if(mode!=='live'||isAdmin)return 'admin';
+function effPerm(){ // admin = 本機模式或最高管理者（OWNER_EMAILS）；其他人依綁定的權限，未綁定視為僅檢視
+  if(mode==='local'||(isAdmin&&myId))return 'admin';
   const sid=myStaffId();return sid?(accessLinks[sid].perm||'view'):'view';
 }
 function canLeaveFor(sid){if(!platformWrite)return false;const p=effPerm();return p==='admin'||p==='super'||p==='manage'||(p==='self'&&sid&&sid===myStaffId());}
@@ -727,8 +839,10 @@ function renderAll(){
   else if(mode==='local') b.innerHTML='<div class="banner">目前無法連到共用資料庫，資料只會存在這台裝置的瀏覽器裡。</div>';
   else b.innerHTML='';
   document.querySelectorAll('[data-w]').forEach(el=>el.disabled=!canWrite);
+  $('payTabBtn').hidden=!canSeePay();
+  if(prefs.tab==='pay'&&!canSeePay())prefs.tab='schedule';
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
-  ['schedule','docleave','leave','holidays','stats','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
+  ['schedule','docleave','leave','holidays','stats','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
   if(prefs.tab==='schedule') renderWeeks(mi);
@@ -738,6 +852,7 @@ function renderAll(){
   if(prefs.tab==='settings') renderSettings();
   if(prefs.tab==='rules') renderRules();
   if(prefs.tab==='holidays') renderHolidays();
+  if(prefs.tab==='pay') renderPay(mi,counts);
 }
 
 const otMax=()=>Number.isFinite(cfg.otMax)?cfg.otMax:3;
@@ -980,6 +1095,73 @@ function renderStats(mi,counts){
     }).join(''):`<tr><td colspan="18" class="empty">尚未建立助理。</td></tr>`)+'</tbody>';
 }
 
+// ---------- 薪資（月薪制） ----------
+const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產假','陪產假','生理假','補休','颱風假','不可上班','其他','家庭照顧假'];
+const DEFAULT_DEDUCT={事假:1,病假:0.5,生理假:0.5,家庭照顧假:1};
+function payCfg(){const p=cfg.pay||{};return {divisor:p.divisor>0?p.divisor:240,otRate:Number.isFinite(p.otRate)?p.otRate:1.34,deduct:Object.assign({},DEFAULT_DEDUCT,p.deduct||{})};}
+const canSeePay=()=>canWrite||!!(myStaffId()&&byId(myStaffId())?.role==='assistant');
+const money=n=>Math.round(n).toLocaleString('zh-TW');
+const r1=n=>Math.round(n*10)/10;
+function calcPay(mi,counts,s){
+  const P=payCfg(),base=Number(salary[s.id]?.base)||0,hourly=base/P.divisor;
+  const a=ymd(mi.first),z=ymd(mi.last),hrs={};
+  leaves.forEach(l=>{if(l.staffId!==s.id||l.date<a||l.date>z)return;const t=l.type||'其他';hrs[t]=(hrs[t]||0)+Math.min(8,(l.shifts||[]).length*3.5);});
+  familyCare.forEach(l=>{if(l.staffId===s.id&&l.date>=a&&l.date<=z)hrs['家庭照顧假']=(hrs['家庭照顧假']||0)+(Number(l.hours)||0);});
+  const deduction=Object.entries(hrs).reduce((n,[t,h])=>n+h*hourly*(P.deduct[t]||0),0);
+  const c=counts[s.id]||{hours:0,ot:0};
+  const ot=r1((c.ot||0)+Math.max(0,c.hours-reasonableDays(mi,s.id)));
+  const otPay=ot*hourly*P.otRate;
+  const items=payAdj[s.id+'_'+mi.ym]?.items||[];
+  const adj=items.reduce((n,x)=>n+(Number(x.amount)||0),0);
+  return {base,hourly,hrs,deduction:Math.round(deduction),ot,otPay:Math.round(otPay),adj,items,net:Math.round(base-deduction+otPay+adj)};
+}
+function renderPay(mi,counts){
+  const P=payCfg();
+  $('payTitle').textContent=`${mi.label} 薪資`;
+  $('payDesc').textContent=canWrite
+    ?'月薪可以直接在表格裡修改。「加減項」可以加入全勤獎金、勞健保自付額等，扣款請填負數。只有排班管理與超級管理員看得到所有人的薪資，一般助理只看得到自己的。'
+    :'這是你這個月的薪資試算，實際金額以診所發放為準。';
+  const list=canWrite?staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])):[byId(myStaffId())].filter(Boolean);
+  const editing=document.activeElement?.dataset?.base;
+  if(!editing){
+    let tot={base:0,deduction:0,otPay:0,adj:0,net:0};
+    const rows=list.map(s=>{
+      const p=calcPay(mi,counts,s);Object.keys(tot).forEach(k=>tot[k]+=p[k]);
+      const lvTip=Object.entries(p.hrs).map(([t,h])=>`${t} ${r1(h)} 小時 × ${P.deduct[t]||0}`).join('\n')||'沒有請假';
+      const adjTip=p.items.map(x=>`${x.label||'（未命名）'} ${money(x.amount)}`).join('\n');
+      return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}</td>
+        <td class="num">${canWrite?`<input type="number" min="0" step="100" data-base="${s.id}" value="${p.base||''}" placeholder="0" aria-label="${esc(fullName(s))} 月薪">`:money(p.base)}</td>
+        <td class="num">${p.hourly?Math.round(p.hourly*10)/10:'—'}</td>
+        <td class="num" title="${esc(lvTip)}">${p.deduction?'−'+money(p.deduction):'<span style="color:var(--faint)">0</span>'}</td>
+        <td class="num">${p.ot?p.ot.toFixed(1):'<span style="color:var(--faint)">0</span>'}</td>
+        <td class="num">${p.otPay?money(p.otPay):'<span style="color:var(--faint)">0</span>'}</td>
+        <td class="num" title="${esc(adjTip)}">${p.adj?money(p.adj):'<span style="color:var(--faint)">0</span>'}${canWrite?` <button class="small" data-adj="${s.id}">編輯</button>`:''}</td>
+        <td class="num net">${p.base?money(p.net):'<span style="color:var(--faint)">未設定月薪</span>'}</td></tr>`;
+    }).join('');
+    $('payTable').innerHTML=`<thead><tr><th>人員</th><th class="num">月薪</th><th class="num">時薪</th><th class="num" title="滑過數字可以看明細">請假扣款</th><th class="num" title="排班總超時">加班時數</th><th class="num">加班費</th><th class="num">加減項</th><th class="num">實發</th></tr></thead><tbody>`+
+      (rows||`<tr><td colspan="8" class="empty">${canWrite?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
+      (canWrite&&list.length>1?`<tfoot><tr><td><b>合計</b></td><td class="num">${money(tot.base)}</td><td></td><td class="num">${tot.deduction?'−'+money(tot.deduction):'0'}</td><td></td><td class="num">${money(tot.otPay)}</td><td class="num">${money(tot.adj)}</td><td class="num net">${money(tot.net)}</td></tr></tfoot>`:'');
+  }
+  $('payRulesCard').hidden=!canWrite;
+  if(canWrite&&!$('payRulesCard').contains(document.activeElement)){
+    $('payDivisor').value=P.divisor;$('payOtRate').value=P.otRate;
+    $('payDeduct').innerHTML=PAY_TYPES.map(t=>`<div class="field"><label for="ded-${t}">${t}</label><input id="ded-${t}" type="number" min="0" max="1" step="0.1" data-ded="${t}" value="${P.deduct[t]||0}"></div>`).join('');
+  }
+}
+function openAdj(s){
+  const mi=monthInfo(),key=s.id+'_'+mi.ym;const items=clone(payAdj[key]?.items||[]);
+  const rowH=(x={})=>`<div class="adj-row"><input data-al placeholder="項目，例如：全勤獎金" value="${esc(x.label||'')}"><input type="number" data-aa step="1" placeholder="金額" value="${x.amount??''}"></div>`;
+  dialog(`<h3>${esc(fullName(s))}・${mi.label} 加減項</h3><p>加項填正數，扣項（例如勞健保自付額）填負數。留空的列不會儲存。</p>
+    <div id="adjRows">${(items.length?items:[{}]).map(rowH).join('')}</div>
+    <button type="button" class="small" id="adjAdd" style="margin-bottom:14px">＋ 新增一列</button>`,
+    ov=>{
+      const out=[];ov.querySelectorAll('.adj-row').forEach(r=>{const label=r.querySelector('[data-al]').value.trim();const v=r.querySelector('[data-aa]').value;if(v==='')return;out.push({label,amount:Number(v)});});
+      store.payAdj(key,out.length?{staffId:s.id,ym:mi.ym,items:out}:null);toast('已儲存加減項。');
+    },'儲存');
+  const ov=document.querySelector('.overlay:last-of-type');
+  ov.querySelector('#adjAdd').onclick=()=>ov.querySelector('#adjRows').insertAdjacentHTML('beforeend',rowH());
+}
+
 function renderHolidays(){
   const dis=canWrite?'':' disabled';
   const active=document.activeElement;
@@ -1079,7 +1261,7 @@ function renderSettings(){
     :`<tr class="${s.active===false?'inactive':''}" data-srow="${s.id}">
       <td><b>${esc(s.code||'')}</b></td>
       <td>${esc(s.name||'')||'<span style="color:var(--faint)">—</span>'}</td>
-      <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有擁有者、編輯者與超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有擁有者、編輯者與超級管理員可以設定權限"'}>權限</button>${accessLinks[s.id]?.account?` <span class="pill">${PERMS[accessLinks[s.id].perm]||PERMS.view}</span>`:''}</td>
+      <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有超級管理員可以設定權限"'}>權限</button>${accessLinks[s.id]?.account?` <span class="pill">${PERMS[accessLinks[s.id].perm]||PERMS.view}</span>`:''}</td>
       <td class="num" style="white-space:nowrap"><button class="small" data-toggle${dis}>${s.active===false?'恢復在職':'停用'}</button> <button class="small danger" data-delstaff${dis}>刪除</button></td></tr>`).join('')
       :`<tr><td colspan="4" class="empty">${q?`找不到符合「${esc(q)}」的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
     {const max=role==='assistant'?10:6;const n=limitRows($('staffScroll-'+role),max);$('staffHint-'+role).hidden=n<=max;}
@@ -1597,39 +1779,29 @@ function seniority(hire,resign){
   if(m<0)return '—';return `${Math.floor(m/12)} 年 ${m%12} 個月`;
 }
 async function openPerm(s){
-  if(!superOK()){toast('只有擁有者、編輯者與超級管理員可以設定權限。','warn');return;}
-  const cur=accessLinks[s.id]||{};let account=cur.account||null;
-  const nameOf=async id=>{if(!id)return '';if(!userNs)return '（已綁定）';const ps=await userNs.profiles([id]);return ps[id]?.name||'（無法顯示名稱的帳號）';};
-  dialog(`<h3>${esc(fullName(s))} 的權限</h3><p>把這位人員綁定到他的 claude.ai 帳號，並設定他打開這份班表時可以做什麼。擁有者與編輯者一律可以做所有事。${isAdmin?'':'<br><b style="color:var(--warn)">你在 Share 裡不是編輯者，權限設定可能無法儲存，請洽擁有者。</b>'}</p>
-    <div class="field" style="margin-bottom:10px"><span class="lb">綁定帳號</span>
-      <div id="pmCur" style="padding-block:4px;font-weight:500"></div>
-      ${userNs&&mode==='live'?`<input id="pmSearch" placeholder="輸入姓名搜尋同事…" autocomplete="off"><div id="pmHits" class="pm-hits"></div>`:'<div class="hint" style="margin:0">目前無法連到共用資料庫，無法搜尋帳號。</div>'}
+  if(!superOK()){toast('只有超級管理員可以設定權限。','warn');return;}
+  const cur=accessLinks[s.id]||{};
+  dialog(`<h3>${esc(fullName(s))} 的權限</h3><p>填入這位人員登入用的 Gmail，並設定他登入後可以做什麼。清空 Gmail 就是解除綁定，對方將無法再登入。</p>
+    <div class="field" style="margin-bottom:10px"><label for="pmEmail">登入用的 Gmail</label>
+      <input id="pmEmail" type="email" placeholder="name@gmail.com" autocomplete="off" value="${esc(cur.account||'')}">
     </div>
-    <div class="opts">${Object.entries({view:'只能查看班表、休假與統計，不能修改。',self:'可以查看，並登記、變更自己的請假或休假（助理含家庭照顧假）。',manage:'可以排班、登記所有人的請假、設定休假日與規則，但不能看個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。對方在 Share 裡也必須是「編輯者」，個資與權限才存得進去。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${(cur.perm||'view')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
+    <div class="opts">${Object.entries({view:'只能查看班表、休假與統計，不能修改。',self:'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休假日與規則、查看與設定所有人的薪資，但不能看個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${(cur.perm||'self')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
     ov=>{
       const perm=ov.querySelector('input[name=pm]:checked').value;
-      if(!account){store.link(s.id,null);toast('已解除綁定。');return;}
+      const account=ov.querySelector('#pmEmail').value.trim().toLowerCase();
+      if(!account){if(cur.account){store.link(s.id,null);toast('已解除綁定。');}return;}
+      if(!/^[^@\s\/]+@[^@\s\/]+\.[^@\s\/]+$/.test(account)){toast('Gmail 格式不正確。','warn');return false;}
       const other=Object.entries(accessLinks).find(([sid,v])=>sid!==s.id&&v&&v.account===account);
       if(other){toast(`這個帳號已經綁定給 ${codeOf(other[0])}，請先解除。`,'warn');return false;}
       store.link(s.id,{account,perm});toast(`已設定 ${codeOf(s.id)} 的權限：${PERMS[perm]}。`);
     },'儲存');
   const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
-  const paintCur=async()=>{const el=ov.querySelector('#pmCur');if(!account){el.innerHTML='<span style="color:var(--faint)">尚未綁定</span>';return;}
-    el.textContent=await nameOf(account)+' ';const b=document.createElement('button');b.type='button';b.className='small';b.textContent='解除綁定';b.onclick=()=>{account=null;paintCur();};el.appendChild(b);};
-  paintCur();
-  const inp=ov.querySelector('#pmSearch');
-  if(inp){
-    const hits=ov.querySelector('#pmHits');
-    const paint=list=>{hits.innerHTML='';list.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='pm-hit';const img=document.createElement('img');img.src=p.avatarUrl;img.alt='';b.appendChild(img);b.appendChild(document.createTextNode(p.name||'（未命名）'));b.onclick=()=>{account=p.id;hits.innerHTML='';inp.value='';paintCur();};hits.appendChild(b);});
-      if(!list.length&&inp.value.trim())hits.innerHTML='<div class="hint" style="margin:4px 0">找不到符合的同事。</div>';};
-    inp.addEventListener('focus',async()=>paint(await userNs.search('')));
-    inp.addEventListener('input',async()=>paint(await userNs.search(inp.value.trim())));
-  }
+  ov.querySelector('#pmEmail').focus();
 }
 function openPrivate(s){
-  if(!superOK()){toast('只有擁有者、編輯者與超級管理員可以查看個資。','warn');return;}
+  if(!superOK()){toast('只有超級管理員可以查看個資。','warn');return;}
   const d=privateInfo[s.id]||{};const ro=canWrite?'':' disabled';
-  dialog(`<h3>${esc(fullName(s))} 的個資</h3><p>只有擁有者、編輯者與超級管理員看得到，其他人看不到。${isAdmin?'':'<br><b style="color:var(--warn)">你在 Share 裡不是編輯者，個資可能無法讀取或儲存，請洽擁有者。</b>'}</p>
+  dialog(`<h3>${esc(fullName(s))} 的個資</h3><p>只有超級管理員看得到，其他人看不到。</p>
     <div class="priv-grid">${PRIV_FIELDS.map(f=>`<div class="field${f.wide?' wide':''}"><label for="pv-${f.k}">${f.label}</label><input id="pv-${f.k}" data-pv="${f.k}" type="${f.type||'text'}" value="${esc(d[f.k]||'')}"${ro}></div>`).join('')}
     <div class="field"><span class="lb">總年資</span><div id="pvSen" style="padding-block:6px;font-weight:500">${seniority(d.hireDate,d.resignDate)}</div></div></div>`,
     ov=>{
@@ -2001,12 +2173,28 @@ $('tplMatrix').addEventListener('click',e=>{
 });
 $('openMatrix').addEventListener('change',e=>{const k=e.target.dataset.open;if(!k)return;const n=clone(cfg);n.closed=n.closed||{};if(e.target.checked)delete n.closed[k];else n.closed[k]=true;store.cfg(n);});
 
+// 薪資
+$('payTable').addEventListener('change',e=>{
+  const id=e.target.dataset.base;if(!id||!canWrite)return;
+  store.salary(id,Object.assign({},salary[id]||{},{base:Math.max(0,Number(e.target.value)||0)}));
+  e.target.blur();
+});
+$('payTable').addEventListener('click',e=>{const b=e.target.closest('[data-adj]');if(b&&canWrite)openAdj(byId(b.dataset.adj));});
+$('payRulesCard').addEventListener('change',e=>{
+  if(!canWrite)return;const n=clone(cfg);n.pay=Object.assign({},n.pay||{});const v=Number(e.target.value);
+  if(e.target.id==='payDivisor'){if(!(v>0)){toast('時薪基數要大於 0。','warn');return;}n.pay.divisor=v;}
+  else if(e.target.id==='payOtRate'){if(!(v>=0)){toast('加班倍率不能是負數。','warn');return;}n.pay.otRate=v;}
+  else if(e.target.dataset.ded){if(!(v>=0&&v<=1)){toast('扣薪比例要介於 0 到 1。','warn');return;}n.pay.deduct=Object.assign({},n.pay.deduct||{},{[e.target.dataset.ded]:v});}
+  else return;
+  e.target.blur();store.cfg(n);
+});
+$('signOut').onclick=signOutAndReload;
+
 // export
 let downloads=null;
-(async()=>{try{downloads=window.claude?await window.claude.use('downloads'):null;}catch(e){}if(!downloads)$('exportBtn').title='這個檢視無法下載檔案';})();
+(async()=>{try{downloads=window.claude?await window.claude.use('downloads'):null;}catch(e){}})();
 $('exportBtn').onclick=async()=>{
   if(!window.XLSX){toast('Excel 元件還沒載入，請稍後再試。','warn');return;}
-  if(!downloads){toast('這個檢視不支援下載檔案。','warn');return;}
   const mi=monthInfo();const counts=monthCounts(mi);
   const nm=id=>fullName(byId(id));
   const sched=[['日期','星期','班別','時間',...POS.map(p=>p.label),'請假']];
@@ -2036,8 +2224,16 @@ $('exportBtn').onclick=async()=>{
   familyCare.filter(l=>l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(l=>fcRows.push([l.date,nm(l.staffId),SHIFTS.find(x=>x.id===l.shift)?.name||'',l.start&&l.end?`${l.start}-${l.end}`:'',l.hours,l.note||'']));
   const ws4=XLSX.utils.aoa_to_sheet(fcRows);ws4['!cols']=[{wch:12},{wch:14},{wch:8},{wch:13},{wch:10},{wch:20}];
   XLSX.utils.book_append_sheet(wb,ws4,'家庭照顧假');
+  if(canWrite){
+    const pr=[['代號','姓名','月薪','時薪','請假扣款','加班時數','加班費','加減項','加減項明細','實發']];
+    staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])).forEach(s=>{const p=calcPay(mi,counts,s);pr.push([s.code||'',s.name||'',p.base,Math.round(p.hourly*10)/10,-p.deduction,p.ot,p.otPay,p.adj,p.items.map(x=>`${x.label} ${x.amount}`).join('、'),p.net]);});
+    const ws5=XLSX.utils.aoa_to_sheet(pr);ws5['!cols']=[{wch:8},{wch:10},{wch:10},{wch:8},{wch:10},{wch:10},{wch:10},{wch:10},{wch:24},{wch:10}];
+    XLSX.utils.book_append_sheet(wb,ws5,'薪資');
+  }
+  const fname=`排班表_${mi.ym}.xlsx`;
+  if(!downloads){XLSX.writeFile(wb,fname);toast('已匯出 Excel。');return;}
   const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
-  try{await downloads.save({filename:`排班表_${mi.ym}.xlsx`,data:new Uint8Array(buf)});toast('已匯出 Excel。');}
+  try{await downloads.save({filename:fname,data:new Uint8Array(buf)});toast('已匯出 Excel。');}
   catch(err){if(err&&err.code==='declined')return;if(err&&err.code==='rate_limited'){toast('已有一個下載視窗開著。','warn');return;}toast('無法匯出檔案。','warn');}
 };
 

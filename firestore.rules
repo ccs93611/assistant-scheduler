@@ -1,0 +1,72 @@
+rules_version = '2';
+
+// 新海排班系統 — Firestore 安全規則
+// 權限等級（存在 access/{Gmail}.perm）：
+//   view   僅檢視：看班表、請假、休假日、規則
+//   self   登記本人請假：view + 登記/變更自己的請假與家庭照顧假 + 看自己的薪資
+//   manage 排班管理：可以改班表、所有人的請假、規則、薪資
+//   super  超級管理員：manage + 個資 + 設定權限
+// OWNERS 裡的 Gmail 不需要綁定，一律是 super（要和 index.html 的 OWNER_EMAILS 一致）。
+// 更新方式：Firebase 主控台 → Firestore Database → 規則 → 貼上整份 → 發布。
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function email() { return request.auth.token.email.lower(); }
+    function isOwner() {
+      return signedIn() && email() in ['ccs93611@gmail.com'];
+    }
+    function accPath() { return /databases/$(database)/documents/access/$(email()); }
+    function hasAcc() { return signedIn() && exists(accPath()); }
+    function perm() {
+      return isOwner() ? 'super' : (hasAcc() ? get(accPath()).data.perm : 'none');
+    }
+    function mySid() { return hasAcc() ? get(accPath()).data.staffId : ''; }
+
+    function canView()   { return perm() in ['view', 'self', 'manage', 'super']; }
+    function canManage() { return perm() in ['manage', 'super']; }
+    function isSuper()   { return perm() == 'super'; }
+    function isSelf(sid) { return perm() in ['self', 'manage', 'super'] && sid == mySid(); }
+
+    // 班表、人員、設定：所有已開通的人可看，排班管理以上可改
+    match /weeks/{wk}      { allow read: if canView(); allow write: if canManage(); }
+    match /staff/{id}      { allow read: if canView(); allow write: if canManage(); }
+    match /config/{id}     { allow read: if canView(); allow write: if canManage(); }
+
+    // 請假、家庭照顧假：排班管理以上可改所有人；一般助理只能新增/變更/刪除自己的
+    match /leaves/{id} {
+      allow read: if canView();
+      allow create: if canManage() || isSelf(request.resource.data.staffId);
+      allow update: if canManage() || (isSelf(resource.data.staffId) && isSelf(request.resource.data.staffId));
+      allow delete: if canManage() || isSelf(resource.data.staffId);
+    }
+    match /familyCare/{id} {
+      allow read: if canView();
+      allow create: if canManage() || isSelf(request.resource.data.staffId);
+      allow update: if canManage() || (isSelf(resource.data.staffId) && isSelf(request.resource.data.staffId));
+      allow delete: if canManage() || isSelf(resource.data.staffId);
+    }
+
+    // 薪資：排班管理以上可看可改所有人；其他人只能看自己的
+    match /salary/{sid} {
+      allow read: if canManage() || (signedIn() && sid == mySid());
+      allow write: if canManage();
+    }
+    match /payAdj/{id} {
+      allow read: if canManage() || (signedIn() && resource.data.staffId == mySid());
+      allow write: if canManage();
+    }
+
+    // 個資：只有超級管理員
+    match /data/private/people/{id} { allow read, write: if isSuper(); }
+
+    // 帳號綁定與權限：超級管理員可管理；每個人可以讀自己的那一筆
+    match /access/{mail} {
+      allow read: if isSuper() || (signedIn() && mail == email());
+      allow write: if isSuper();
+    }
+  }
+}
