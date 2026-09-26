@@ -404,7 +404,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
         </div>
         <div class="card">
           <h2 id="yearLeaveTitle">年度假別統計</h2>
-          <p class="desc">以日曆年計算，有請假的日子算 1 天。事假每年上限 14 天、病假 30 天、生理假 3 天；生理假第 4 天起視同病假，計入病假天數並套用病假的扣薪規則。</p>
+          <p class="desc">以日曆年計算，兩診算 1 天。事假每年上限 14 天、病假 30 天、生理假 3 天；生理假第 4 天起視同病假，計入病假天數並套用病假的扣薪規則。</p>
           <div class="scroll-x"><table class="list" id="yearLeaveTable"></table></div>
         </div>
         <div class="card">
@@ -1127,7 +1127,7 @@ function renderLeave(mi,roles){
             <td><input data-e="note" value="${esc(l.note||'')}" aria-label="備註"></td><td></td>
             <td class="num" style="white-space:nowrap"><button class="small primary" data-lvsave="${l.id}">儲存</button> <button class="small" data-lvcancel>取消</button></td></tr>`;
         }
-        return `<tr data-date="${l.date}"><td>${md(d)}（${DAYS[dow]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&isMenAsSick(l)?' <span class="pill warn">視同病假</span>':''}</td><td>${esc(l.note||'')}</td>
+        return `<tr data-date="${l.date}"><td>${md(d)}（${DAYS[dow]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&l.type==='生理假'?(s=>s?` <span class="pill warn">${s>=(l.shifts||[]).length?'視同病假':`${s} 診視同病假`}</span>`:'')(menSickShifts(l)):''}</td><td>${esc(l.note||'')}</td>
           <td>${clash.length?`<span class="pill warn">已排${SHIFTS.filter(s=>clash.includes(s.id)).map(s=>s.short).join('、')}班</span>`:'<span class="pill">無衝突</span>'}</td>
           <td class="num" style="white-space:nowrap">${canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
       }).join(''):`<tr><td colspan="7" class="empty">這個月還沒有${ROLE[role]}${word}紀錄。</td></tr>`)+'</tbody>';
@@ -1199,24 +1199,29 @@ function payRec(sid,ym){
   r.saved=!!saved;return r;
 }
 // ---------- 年度假別上限 ----------
-// 以日曆年計，一天一筆請假紀錄算 1 天。生理假每年前 3 天另計，第 4 天起視同病假，並計入病假 30 天。
+// 以日曆年計，兩診算一天。生理假每年前 3 天（6 診）另計，超過的診數視同病假，並計入病假 30 天。
 const LEAVE_LIMITS={事假:14,病假:30,生理假:3};
+const PER_DAY=2; // 兩診＝一天
 function yearLeave(sid,year,extra=[]){
   const ex=new Set(extra.map(x=>x.date));
   const recs=leaves.filter(l=>l.staffId===sid&&l.date.startsWith(year)&&!ex.has(l.date)).concat(extra.filter(x=>x.date.startsWith(year)))
     .sort((a,b)=>a.date.localeCompare(b.date));
-  let per=0,sick=0,men=0;const asSick=new Set();
-  recs.forEach(l=>{if(l.type==='事假')per++;else if(l.type==='病假')sick++;else if(l.type==='生理假'){men++;if(men>LEAVE_LIMITS.生理假)asSick.add(l.date);}});
-  return {per,sick,men:Math.min(men,LEAVE_LIMITS.生理假),menAsSick:asSick.size,sickTotal:sick+asSick.size,asSick};
+  let per=0,sick=0,men=0,menSick=0;const asSick=new Map(); // asSick: 日期 → 該日視同病假的診數
+  const cap=LEAVE_LIMITS.生理假*PER_DAY;
+  recs.forEach(l=>{const n=(l.shifts||[]).length;
+    if(l.type==='事假')per+=n;else if(l.type==='病假')sick+=n;
+    else if(l.type==='生理假'){const ok=Math.max(0,Math.min(n,cap-men));men+=ok;if(n>ok){asSick.set(l.date,n-ok);menSick+=n-ok;}}});
+  const d=x=>x/PER_DAY;
+  return {per:d(per),sick:d(sick),men:d(men),menAsSick:d(menSick),sickTotal:d(sick+menSick),asSick};
 }
-const isMenAsSick=l=>l.type==='生理假'&&yearLeave(l.staffId,l.date.slice(0,4)).asSick.has(l.date);
+const menSickShifts=l=>l.type==='生理假'?(yearLeave(l.staffId,l.date.slice(0,4)).asSick.get(l.date)||0):0;
 function leaveLimitIssues(sid,extra){
   const over=[],info=[];
   [...new Set(extra.map(x=>x.date.slice(0,4)))].forEach(y=>{
     const b=yearLeave(sid,y),a=yearLeave(sid,y,extra);
     if(a.per>LEAVE_LIMITS.事假&&a.per>b.per)over.push(`${codeOf(sid)} ${y} 年事假將達 ${a.per} 天，超過 ${LEAVE_LIMITS.事假} 天`);
     if(a.sickTotal>LEAVE_LIMITS.病假&&a.sickTotal>b.sickTotal)over.push(`${codeOf(sid)} ${y} 年病假（含生理假視同病假）將達 ${a.sickTotal} 天，超過 ${LEAVE_LIMITS.病假} 天`);
-    if(a.menAsSick>b.menAsSick)info.push(`生理假已超過每年 ${LEAVE_LIMITS.生理假} 天，超過的 ${a.menAsSick-b.menAsSick} 天視同病假。`);
+    if(a.menAsSick>b.menAsSick)info.push(`生理假已超過每年 ${LEAVE_LIMITS.生理假} 天，超過的 ${(a.menAsSick-b.menAsSick)*PER_DAY} 診視同病假。`);
   });
   return {over,info};
 }
@@ -1224,9 +1229,9 @@ function leaveLimitIssues(sid,extra){
 // 請假扣款：各假別當月請假診數（一個班＝一診）× 每診薪資 × 扣薪比例；生理假第 4 天起算作病假
 function leaveShiftsByType(mi,sid){
   const a=ymd(mi.first),z=ymd(mi.last),n={};const years={};
-  leaves.forEach(l=>{if(l.staffId!==sid||l.date<a||l.date>z)return;let t=l.type||'其他';
-    if(t==='生理假'){const y=l.date.slice(0,4);years[y]=years[y]||yearLeave(sid,y);if(years[y].asSick.has(l.date))t='病假';}
-    n[t]=(n[t]||0)+(l.shifts||[]).length;});
+  leaves.forEach(l=>{if(l.staffId!==sid||l.date<a||l.date>z)return;const t=l.type||'其他';let c=(l.shifts||[]).length;
+    if(t==='生理假'){const y=l.date.slice(0,4);years[y]=years[y]||yearLeave(sid,y);const s=years[y].asSick.get(l.date)||0;if(s){n['病假']=(n['病假']||0)+s;c-=s;}}
+    if(c)n[t]=(n[t]||0)+c;});
   return n;
 }
 // 事假診數、補班診數：當月紀錄的班數加總（一個班＝一診）
@@ -2135,7 +2140,8 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
   }
   if(!dates.length){toast(`週日與休假日不需要登記${word}。`,'warn');return;}
   // 年度上限：事假 14 天、病假 30 天（含生理假第 4 天起視同病假）
-  const chk=role==='assistant'?leaveLimitIssues(sid,dates.map(date=>({date,type}))):{over:[],info:[]};
+  const mergedOf=key=>{const dup=leaves.find(l=>l.staffId===sid&&l.date===key);return SHIFTS.map(s=>s.id).filter(s=>shifts.includes(s)||(dup?.shifts||[]).includes(s));};
+  const chk=role==='assistant'?leaveLimitIssues(sid,dates.map(date=>({date,type,shifts:mergedOf(date)}))):{over:[],info:[]};
   const apply=()=>{
     dates.forEach(key=>{
       const dup=leaves.find(l=>l.staffId===sid&&l.date===key);
