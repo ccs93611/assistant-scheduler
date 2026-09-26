@@ -293,6 +293,24 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .gate .card{max-width:380px; width:100%; box-sizing:border-box; margin:auto; text-align:center; padding:28px 20px;}
 .gate .acts button{width:100%; white-space:normal;}
 body.gated .shell{display:none;}
+/* 匯出圖檔／PDF 用：畫面外的白底版面，固定用淺色配色、不橫向捲動 */
+.export-sheet{
+  position:fixed; left:-20000px; top:0; width:1400px; padding:16px; background:#fff;
+  --bg:#F3F1EC; --panel:#FFFFFF; --ink:#1F2A24; --sub:#5C6B63; --faint:#8B968E;
+  --line:#DAD8CE; --accent:#3B5D52; --accent-ink:#FFFFFF; --accent-soft:#DDE7E1;
+  --doc:#B8895A; --doc-soft:rgba(184,137,90,.10); --warn:#B4432E; --warn-soft:#F6E1DB;
+  --slot:#EFEDE5; --chip:#E4E9E2; --extra:#DCE6F6; --extra-bd:#8FA9D6; --extra-ink:#23406E;
+  color:var(--ink);
+}
+.export-sheet h2{margin:0; padding:4px 2px 8px; font-size:1.3rem;}
+.export-sheet .week{margin-bottom:0;}
+.export-sheet .table-wrap{overflow:visible;}
+.export-sheet .item.ph,.export-sheet .gap:not(.manual){visibility:hidden;}
+.export-sheet .item{font-size:.74rem; padding:2px 1px;}
+/* html2canvas 不支援 color-mix()，匯出版面改用固定色碼 */
+.export-sheet .pos.doc .item{border-color:rgba(184,137,90,.45);}
+.export-sheet .gap{border-color:rgba(180,67,46,.55);}
+.export-sheet .pos.target{background:transparent;}
 .gate h1{margin-bottom:6px;}
 .gate p{color:var(--sub); font-size:.88rem; margin:0 0 18px;}
 .gate .who{font-weight:500; color:var(--ink); word-break:break-all;}
@@ -2460,7 +2478,61 @@ $('signOut').onclick=signOutAndReload;
 // export
 let downloads=null;
 (async()=>{try{downloads=window.claude?await window.claude.use('downloads'):null;}catch(e){}})();
-$('exportBtn').onclick=async()=>{
+// 匯出班表：JPG 圖檔、PDF、Excel
+$('exportBtn').onclick=()=>{
+  const mi=monthInfo();
+  dialog(`<h3>匯出班表・${mi.label}</h3>
+    <div class="opts"><label><input type="radio" name="ex" value="jpg" checked><span>JPG 圖檔<small>整個月的班表輸出成一張圖片，方便傳到 LINE</small></span></label>
+    <label><input type="radio" name="ex" value="pdf"><span>PDF 檔<small>A4 橫式，一週一段，適合列印</small></span></label>
+    <label><input type="radio" name="ex" value="xlsx"><span>Excel 檔<small>班表、工時統計、請假、薪資等工作表</small></span></label></div>`,
+    ov=>{const v=ov.querySelector('input[name=ex]:checked').value;(v==='xlsx'?exportExcel:()=>exportImage(v))();},'匯出');
+};
+const libs={};
+function loadLib(src){return libs[src]||(libs[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>{delete libs[src];rej(new Error('load '+src));};document.head.appendChild(s);}));}
+const H2C='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+const JSPDF='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+// 把本月班表複製到畫面外的白底區塊（固定寬度、不橫向捲動），再逐週截圖
+async function scheduleCanvases(){
+  await loadLib(H2C);
+  const mi=monthInfo();
+  const box=document.createElement('div');box.className='export-sheet';
+  box.innerHTML=`<h2>新海美學牙醫診所・${mi.label} 班表</h2>`+$('weeks').innerHTML;
+  box.querySelectorAll('.week-head > span:last-child:not(:first-child), .rm').forEach(x=>x.remove());
+  box.querySelectorAll('.hl,.today').forEach(x=>x.classList.remove('hl','today'));
+  document.body.appendChild(box);
+  try{
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const out=[];
+    for(const el of [box.querySelector('h2'),...box.querySelectorAll('.week')])out.push(await html2canvas(el,{scale:2,backgroundColor:'#ffffff',logging:false}));
+    return out;
+  }finally{box.remove();}
+}
+function saveBlobUrl(url,name){const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();}
+async function exportImage(kind){
+  const mi=monthInfo();const name=`班表_${mi.ym}.${kind}`;
+  toast(kind==='pdf'?'正在產生 PDF…':'正在產生圖片…');
+  try{
+    const cs=await scheduleCanvases();
+    if(kind==='jpg'){
+      const gap=24,w=Math.max(...cs.map(c=>c.width)),h=cs.reduce((n,c)=>n+c.height,0)+gap*(cs.length+1);
+      const all=document.createElement('canvas');all.width=w+gap*2;all.height=h;
+      const g=all.getContext('2d');g.fillStyle='#ffffff';g.fillRect(0,0,all.width,all.height);
+      let y=gap;cs.forEach(c=>{g.drawImage(c,gap,y);y+=c.height+gap;});
+      all.toBlob(b=>{const u=URL.createObjectURL(b);saveBlobUrl(u,name);setTimeout(()=>URL.revokeObjectURL(u),10000);toast('已匯出 JPG 圖檔。');},'image/jpeg',0.92);
+    }else{
+      await loadLib(JSPDF);
+      const pdf=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+      const W=297,H=210,m=8,cw=W-m*2;let y=m,first=true;
+      cs.forEach(c=>{
+        let w=cw,h=c.height*cw/c.width;if(h>H-m*2){h=H-m*2;w=c.width*h/c.height;}
+        if(!first&&y+h>H-m){pdf.addPage();y=m;}
+        pdf.addImage(c.toDataURL('image/jpeg',0.92),'JPEG',m,y,w,h);y+=h+4;first=false;
+      });
+      const u=URL.createObjectURL(pdf.output('blob'));saveBlobUrl(u,name);setTimeout(()=>URL.revokeObjectURL(u),10000);toast('已匯出 PDF 檔。');
+    }
+  }catch(e){console.error(e);toast('匯出失敗，請檢查網路後再試一次。','warn');}
+}
+async function exportExcel(){
   if(!window.XLSX){toast('Excel 元件還沒載入，請稍後再試。','warn');return;}
   const mi=monthInfo();const counts=monthCounts(mi);
   const nm=id=>fullName(byId(id));
@@ -2502,11 +2574,11 @@ $('exportBtn').onclick=async()=>{
     XLSX.utils.book_append_sheet(wb,ws5,'薪資');
   }
   const fname=`排班表_${mi.ym}.xlsx`;
-  if(!downloads){XLSX.writeFile(wb,fname);toast('已匯出班表。');return;}
+  if(!downloads){XLSX.writeFile(wb,fname);toast('已匯出 Excel 檔。');return;}
   const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
-  try{await downloads.save({filename:fname,data:new Uint8Array(buf)});toast('已匯出班表。');}
+  try{await downloads.save({filename:fname,data:new Uint8Array(buf)});toast('已匯出 Excel 檔。');}
   catch(err){if(err&&err.code==='declined')return;if(err&&err.code==='rate_limited'){toast('已有一個下載視窗開著。','warn');return;}toast('無法匯出檔案。','warn');}
-};
+}
 
 boot();
 })();
