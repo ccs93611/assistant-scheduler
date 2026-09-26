@@ -332,7 +332,8 @@ body.gated .shell{display:none;}
       <button id="nextMonth" aria-label="下個月">下個月 ▶</button>
       <button id="tplBtn" data-w>帶入醫師班表</button>
       <button id="autoBtn" class="primary" data-w>自動排班</button>
-      <button id="exportBtn">匯出 Excel</button>
+      <button id="clearMonthBtn" class="danger" data-w>清空本月</button>
+      <button id="exportBtn">匯出班表</button>
     </div>
   </header>
   <nav class="tabs" role="tablist">
@@ -904,6 +905,8 @@ function renderAll(){
   else b.innerHTML='';
   document.querySelectorAll('[data-w]').forEach(el=>el.disabled=!canWrite);
   $('payTabBtn').hidden=!canSeePay();
+  // 排班相關按鈕只在「排班表」分頁顯示
+  ['tplBtn','autoBtn','clearMonthBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'?'':'none');
   if(prefs.tab==='pay'&&!canSeePay())prefs.tab='schedule';
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
   ['schedule','docleave','leave','holidays','stats','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
@@ -2108,6 +2111,17 @@ $('autoBtn').onclick=()=>{
     <label><input type="radio" name="am" value="all"><span>整月重新排<small>清除本月所有助理的排班後重新產生；醫師保留不動</small></span></label></div>`,
     ov=>autoSchedule(ov.querySelector('input[name=am]:checked').value==='fill'),'開始排班');
 };
+// 清空本月：只清除本月日期的排班（跨月的週只動本月那幾天），可復原
+$('clearMonthBtn').onclick=()=>{
+  if(!canWrite)return;
+  const mi=monthInfo();const days=busyDays(mi.dates.map(x=>x.key));
+  if(!days.length){toast(`${mi.label}還沒有排班。`);return;}
+  dialog(`<h3>清空 ${mi.label}？</h3><p>本月 ${days.length} 天的排班都會移除，包含醫師、助理、跟診配對與加診標記。請假、休假日與規則不受影響。清空後可以按「復原」還原。</p>`,()=>{
+    const before={};mi.mondays.forEach(m=>{const wk=ymd(m);before[wk]=weeks[wk]?clone(weeks[wk]):null;});
+    lastUndo=before;clearDays(days);
+    toast(`已清空 ${mi.label} 的排班。`,'',{label:'復原',fn:undoAuto});
+  },'清空本月',true);
+};
 
 const weeksEl=$('weeks');
 let drag=null;
@@ -2488,9 +2502,9 @@ $('exportBtn').onclick=async()=>{
     XLSX.utils.book_append_sheet(wb,ws5,'薪資');
   }
   const fname=`排班表_${mi.ym}.xlsx`;
-  if(!downloads){XLSX.writeFile(wb,fname);toast('已匯出 Excel。');return;}
+  if(!downloads){XLSX.writeFile(wb,fname);toast('已匯出班表。');return;}
   const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
-  try{await downloads.save({filename:fname,data:new Uint8Array(buf)});toast('已匯出 Excel。');}
+  try{await downloads.save({filename:fname,data:new Uint8Array(buf)});toast('已匯出班表。');}
   catch(err){if(err&&err.code==='declined')return;if(err&&err.code==='rate_limited'){toast('已有一個下載視窗開著。','warn');return;}toast('無法匯出檔案。','warn');}
 };
 
