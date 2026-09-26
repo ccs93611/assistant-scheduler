@@ -1119,7 +1119,7 @@ const PAY_FIELDS=[
   {k:'lateMin',label:'遲到',g:'sub',unit:'分鐘'},
 ];
 const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,dayDiv:30,fcPerHour:170};
-const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['dayDiv','日薪基數（本俸÷）'],['fcPerHour','家庭照顧假每小時扣（元）']];
+const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['dayDiv','日薪基數（本俸÷）']];
 const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產假','陪產假','生理假','補休','颱風假','不可上班','其他'];
 const DEFAULT_DEDUCT={事假:1,病假:0.5,不可上班:1,其他:1};
 function payCfg(){const p=cfg.pay||{};const o={};Object.keys(PAY_DEFAULTS).forEach(k=>o[k]=Number.isFinite(p[k])?p[k]:PAY_DEFAULTS[k]);if(!(o.dayDiv>0))o.dayDiv=30;o.deduct=Object.assign({},DEFAULT_DEDUCT,p.deduct||{});return o;}
@@ -1192,7 +1192,8 @@ function renderPay(mi,counts){
   $('payRulesCard').hidden=!canWrite;
   if(canWrite&&!$('payRulesCard').contains(document.activeElement)){
     $('payRules').innerHTML=PAY_RULE_FIELDS.map(([k,l])=>`<div class="field"><label for="pr-${k}">${l}</label><input id="pr-${k}" type="number" min="${k==='dayDiv'?1:0}" step="1" data-pr="${k}" value="${P[k]}"></div>`).join('');
-    $('payDeduct').innerHTML=PAY_TYPES.map(t=>`<div class="field"><label for="ded-${t}">${t}</label><input id="ded-${t}" type="number" min="0" max="1" step="0.1" data-ded="${t}" value="${P.deduct[t]||0}"></div>`).join('');
+    $('payDeduct').innerHTML=PAY_TYPES.map(t=>`<div class="field"><label for="ded-${t}">${t}</label><input id="ded-${t}" type="number" min="0" max="1" step="0.1" data-ded="${t}" value="${P.deduct[t]||0}"></div>`).join('')
+      +`<div class="field"><label for="pr-fcPerHour">家庭照顧假（每小時扣元）</label><input id="pr-fcPerHour" type="number" min="0" step="1" data-pr="fcPerHour" value="${P.fcPerHour}"></div>`;
   }
 }
 const adjRow=(x={})=>`<div class="adj-row"><input data-al placeholder="項目名稱" value="${esc(x.label||'')}"><input type="number" data-aa step="1" placeholder="金額" value="${x.amount??''}"></div>`;
