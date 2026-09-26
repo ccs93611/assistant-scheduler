@@ -403,7 +403,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
         </div>
         <div class="card">
           <h2>家庭照顧假</h2>
-          <p class="desc">僅限助理。填寫時間段後自動計算時數，以 1 小時為最小單位，未滿 1 小時的部分以 1 小時計。家庭照顧假另外記錄，不會影響排班。</p>
+          <p class="desc">僅限助理。填寫時間段後自動計算時數，以 1 小時為最小單位，未滿 1 小時的部分以 1 小時計；超過 3 小時但不超過 3.5 小時（一個診）時記 3.5 小時。家庭照顧假另外記錄，不會影響排班。</p>
           <form class="form-row" id="fcForm" style="margin-bottom:14px">
             <div class="field"><label for="fcStaff">助理</label><select id="fcStaff" required></select></div>
             <div class="field"><label for="fcDate">日期</label><input type="date" id="fcDate" required></div>
@@ -2054,13 +2054,14 @@ function fcCalc(a=$('fcStart').value,b=$('fcEnd').value){
   if(!a||!b)return null;
   const toM=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
   const mins=toM(b)-toM(a);if(mins<=0)return null;
-  return {mins,hours:Math.max(1,Math.ceil(mins/60))};
+  // 一個診 3.5 小時：超過 3 小時且不超過 3.5 小時時記 3.5 小時，其餘以 1 小時為單位進位
+  return {mins,hours:mins>180&&mins<=210?3.5:Math.max(1,Math.ceil(mins/60))};
 }
 function showFcCalc(){
   const c=fcCalc();const el=$('fcCalc');
   if(!c){el.textContent='—';el.style.color='var(--warn)';return;}
   el.style.color='';const raw=c.mins/60;
-  el.textContent=Number.isInteger(raw)?`${c.hours} 小時`:`${c.hours} 小時（實際 ${raw.toFixed(1).replace(/\.0$/,'')}）`;
+  el.textContent=raw===c.hours?`${c.hours} 小時`:`${c.hours} 小時（實際 ${raw.toFixed(1).replace(/\.0$/,'')}）`;
 }
 ['fcStart','fcEnd'].forEach(id=>$(id).addEventListener('input',showFcCalc));
 $('fcShift').addEventListener('change',()=>{const sh=SHIFTS.find(x=>x.id===$('fcShift').value);if(!sh)return;const [a]=sh.time.split('-');$('fcStart').value=a;const [h,m]=a.split(':').map(Number);const e=h*60+m+60;$('fcEnd').value=`${pad(Math.floor(e/60))}:${pad(e%60)}`;showFcCalc();});
