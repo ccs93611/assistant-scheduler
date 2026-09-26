@@ -403,12 +403,6 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
           <p class="hint" id="leaveHint-assistant" hidden>上下捲動可查看其他請假日期。</p>
         </div>
         <div class="card">
-          <h2 id="yearLeaveTitle">年度假別統計</h2>
-          <p class="desc">以日曆年計算，兩診算 1 天。事假每年上限 14 天（家庭照顧假 3.5 小時算一診，與事假合計）、病假 30 天、生理假 3 天；生理假第 4 天起視同病假，計入病假天數並套用病假的扣薪規則。</p>
-          <div class="field" id="ylPick" style="max-width:220px;margin-bottom:10px"><label for="ylStaff">助理代號</label><select id="ylStaff"></select></div>
-          <div class="scroll-x"><table class="list" id="yearLeaveTable"></table></div>
-        </div>
-        <div class="card">
           <h2>家庭照顧假</h2>
           <p class="desc">僅限助理。填寫時間段後自動計算時數，以 1 小時為最小單位，未滿 1 小時的部分以 1 小時計；超過 3 小時但不超過 3.5 小時（一個診）時記 3.5 小時。家庭照顧假另外記錄，不會影響排班。</p>
           <form class="form-row" id="fcForm" style="margin-bottom:14px">
@@ -424,6 +418,12 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
           <div class="hol-scroll" id="fcScroll"><table class="list" id="fcTable"></table></div>
           <p class="hint" id="fcHint" hidden>上下捲動可查看其他家庭照顧假日期。</p>
           <div class="scroll-x" style="margin-top:14px"><table class="list" id="fcSummary"></table></div>
+        </div>
+        <div class="card">
+          <h2 id="yearLeaveTitle">年度假別統計</h2>
+          <p class="desc">以日曆年計算，兩診算 1 天。事假每年上限 14 天（家庭照顧假 3.5 小時算一診，與事假合計）、病假 30 天、生理假 3 天；生理假第 4 天起視同病假，計入病假天數並套用病假的扣薪規則。</p>
+          <div class="field" id="ylPick" style="max-width:220px;margin-bottom:10px"><label for="ylStaff">助理代號</label><select id="ylStaff"></select></div>
+          <div class="scroll-x"><table class="list" id="yearLeaveTable"></table></div>
         </div>
         <div class="card">
           <h2>事假補班</h2>
