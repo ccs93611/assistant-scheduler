@@ -1188,7 +1188,7 @@ function renderPay(mi,counts){
     $('payDeduct').innerHTML=PAY_TYPES.map(t=>`<div class="field"><label for="ded-${t}">${t}</label><input id="ded-${t}" type="number" min="0" max="1" step="0.1" data-ded="${t}" value="${P.deduct[t]||0}"></div>`).join('');
   }
 }
-const adjRow=(x={})=>`<div class="adj-row"><input data-al placeholder="項目，例如：全勤獎金" value="${esc(x.label||'')}"><input type="number" data-aa step="1" placeholder="金額" value="${x.amount??''}"></div>`;
+const adjRow=(x={})=>`<div class="adj-row"><input data-al placeholder="項目名稱" value="${esc(x.label||'')}"><input type="number" data-aa step="1" placeholder="金額" value="${x.amount??''}"></div>`;
 function readAdj(ov){const out=[];ov.querySelectorAll('.adj-row').forEach(r=>{const v=r.querySelector('[data-aa]').value;if(v==='')return;out.push({label:r.querySelector('[data-al]').value.trim(),amount:Number(v)||0});});return out;}
 function openPay(s){
   const mi=monthInfo(),key=s.id+'_'+mi.ym,counts=monthCounts(mi),r=payRec(s.id,mi.ym);
