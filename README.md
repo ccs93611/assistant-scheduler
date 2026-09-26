@@ -88,7 +88,7 @@ HTML（7 個 <section id="tab-*">）
 |---|---|
 | `weeks/{週一日期}` | `c.{dow}_{shift}` 等欄位，值是 JSON 字串（因為 Firestore 不接受巢狀陣列） |
 | `staff/{id}`、`leaves/{id}`、`familyCare/{id}`、`config/main` | 同上方資料模型 |
-| `pay/{staffId}_{YYYY-MM}` | `{staffId, ym, base, attend, perf, skill, otMin, selfInd, selfTeam, stars, labor, health, dependents, lateMin}` 當月薪資項目 |
+| `pay/{staffId}_{YYYY-MM}` | `{staffId, ym, base, attend, perf, skill, otMin, selfInd, selfTeam, stars, labor, health, dependents, lateMin, items}` 當月薪資項目 |
 | `data/private/people/{staffId}` | 個資 |
 | `access/{Gmail}` | `{staffId, perm}` 帳號綁定與權限 |
 
@@ -112,8 +112,11 @@ HTML（7 個 <section id="tab-*">）
 | 勞保費 | 每人每月填寫 |
 | 健保費 | 本人健保費 ×（1 ＋ 眷屬人數） |
 | 遲到 | 遲到分鐘數 × 每分鐘 4 元 |
+| 請假扣款 | 請假時數 × 時薪（本俸 ÷ 240）× 假別扣薪比例。每班算 3.5 小時，一筆最多 8 小時；家庭照顧假依登記的時數。預設比例：事假、家庭照顧假 1，病假、生理假 0.5，其他 0 |
 
-實發 = 應發 − 扣除。每分鐘金額、每則金額與三項津貼的預設值都存在 `config/main.pay`，可在「薪資」分頁調整。
+加減項（`items:[{label, amount}]`）只屬於當月，不帶入下個月。
+
+實發 = 應發 − 扣除 + 加減項。每分鐘金額、每則金額與三項津貼的預設值都存在 `config/main.pay`，可在「薪資」分頁調整。
 
 ## 本機使用
 
