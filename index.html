@@ -490,7 +490,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
           <h2>薪資計算規則</h2>
           <p class="desc">應發＝本俸＋出勤津貼＋績效獎金＋技能津貼＋加班薪資＋自費獎金（個人、團體）＋五星好評。加班薪資＝（排班總超時換算分鐘＋另計加班分鐘數）× 每分鐘金額；五星好評＝則數 × 每則金額。扣除＝勞保費＋健保費 ×（1＋眷屬人數）＋遲到分鐘數 × 每分鐘金額。實發＝應發－扣除。下方的預設值只用在還沒填過的月份。</p>
           <div class="pay-rules" id="payRules" style="margin-bottom:16px"></div>
-          <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:6px">請假扣款：日薪＝本俸 ÷ 日薪基數（預設 30），扣款＝請假天數 × 日薪 × 扣薪比例。當天有請假就算 1 天（同一天有多種假別時依班數分攤）。家庭照顧假另計：時數 × 每小時金額。各假別扣薪比例：1＝全扣、0.5＝扣一半、0＝不扣。</div>
+          <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:6px">請假扣款＝請假診數 × 每診設定薪資 × 扣薪比例（一個班算 1 診）。家庭照顧假另計：時數 × 每小時金額。各假別扣薪比例：1＝全扣、0.5＝扣一半、0＝不扣。</div>
           <div class="pay-rules" id="payDeduct"></div>
         </div>
       </div>
@@ -1167,11 +1167,11 @@ const PAY_FIELDS=[
   {k:'dependents',label:'健保眷屬',carry:true,g:'sub',unit:'人'},
   {k:'lateMin',label:'遲到',g:'sub',unit:'分鐘'},
 ];
-const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,dayDiv:30,fcPerHour:170};
-const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['dayDiv','日薪基數（本俸÷）']];
+const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,shiftPay:600,fcPerHour:170};
+const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['shiftPay','每診設定薪資（元）']];
 const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產假','陪產假','生理假','補休','颱風假','不可上班','其他'];
 const DEFAULT_DEDUCT={事假:1,病假:0.5,不可上班:1,其他:1};
-function payCfg(){const p=cfg.pay||{};const o={};Object.keys(PAY_DEFAULTS).forEach(k=>o[k]=Number.isFinite(p[k])?p[k]:PAY_DEFAULTS[k]);if(!(o.dayDiv>0))o.dayDiv=30;o.deduct=Object.assign({},DEFAULT_DEDUCT,p.deduct||{});return o;}
+function payCfg(){const p=cfg.pay||{};const o={};Object.keys(PAY_DEFAULTS).forEach(k=>o[k]=Number.isFinite(p[k])?p[k]:PAY_DEFAULTS[k]);o.deduct=Object.assign({},DEFAULT_DEDUCT,p.deduct||{});return o;}
 const canSeePay=()=>canWrite||!!(myStaffId()&&byId(myStaffId())?.role==='assistant');
 const money=n=>Math.round(n).toLocaleString('zh-TW');
 function payRec(sid,ym){
@@ -1182,13 +1182,11 @@ function payRec(sid,ym){
   r.items=clone(saved?.items||[]); // 加減項只屬於當月，不帶入下個月
   r.saved=!!saved;return r;
 }
-// 請假扣款：日薪＝本俸÷日薪基數（預設 30）；當天有請假就算 1 天（同一天多種假別依班數分攤）
-function leaveDays(mi,sid){
-  const a=ymd(mi.first),z=ymd(mi.last),days={},byDate={};
-  leaves.forEach(l=>{if(l.staffId!==sid||l.date<a||l.date>z)return;const t=l.type||'其他';const m=(byDate[l.date]=byDate[l.date]||{});m[t]=(m[t]||0)+Math.max(1,(l.shifts||[]).length);});
-  Object.values(byDate).forEach(m=>{const n=Object.values(m).reduce((x,y)=>x+y,0);Object.entries(m).forEach(([t,c])=>days[t]=(days[t]||0)+c/n);});
-  Object.keys(days).forEach(t=>days[t]=Math.round(days[t]*100)/100);
-  return days;
+// 請假扣款：各假別當月請假診數（一個班＝一診）× 每診薪資 × 扣薪比例
+function leaveShiftsByType(mi,sid){
+  const a=ymd(mi.first),z=ymd(mi.last),n={};
+  leaves.forEach(l=>{if(l.staffId!==sid||l.date<a||l.date>z)return;const t=l.type||'其他';n[t]=(n[t]||0)+(l.shifts||[]).length;});
+  return n;
 }
 // 事假診數、補班診數：當月紀錄的班數加總（一個班＝一診）
 function monthShifts(list,mi,sid,filter=()=>true){const a=ymd(mi.first),z=ymd(mi.last);return list.reduce((n,x)=>n+(x.staffId===sid&&x.date>=a&&x.date<=z&&filter(x)?(x.shifts||[]).length:0),0);}
@@ -1201,7 +1199,7 @@ function calcPay(mi,counts,s,rec){
   const c=counts[s.id]||{hours:0,ot:0};
   const schedOtMin=Math.round(((c.ot||0)+Math.max(0,c.hours-reasonableDays(mi,s.id)))*60);
   const otMin=schedOtMin+(r.otMin||0),otPay=otMin*P.otPerMin,starPay=(r.stars||0)*P.starUnit;
-  const daily=r.base/P.dayDiv,days=leaveDays(mi,s.id);
+  const lvN=leaveShiftsByType(mi,s.id);
   // 事假補班：當月補班診數少於事假診數時，不發出勤津貼
   const shiN=personalLeaveShifts(mi,s.id),mkN=makeupShifts(mi,s.id),attendLost=shiN>0&&mkN<shiN;
   const attendPaid=attendLost?0:r.attend;
@@ -1209,13 +1207,13 @@ function calcPay(mi,counts,s,rec){
   const gross=r.base+allow+otPay+bonus+starPay;
   const healthTotal=r.health*(1+(r.dependents||0)),late=(r.lateMin||0)*P.latePerMin;
   const fcHours=fcHoursOf(mi,s.id),fcDeduct=fcHours*P.fcPerHour;
-  const leaveDeduct=Math.round(Object.entries(days).reduce((n,[t,d])=>n+d*daily*(P.deduct[t]||0),0)+fcDeduct);
+  const leaveDeduct=Math.round(Object.entries(lvN).reduce((n,[t,c])=>n+c*P.shiftPay*(P.deduct[t]||0),0)+fcDeduct);
   const adj=(r.items||[]).reduce((n,x)=>n+(Number(x.amount)||0),0);
   const deduct=r.labor+healthTotal+late+leaveDeduct;
   // 請假明細文字（表格提示與編輯視窗共用）
-  const lvParts=Object.entries(days).map(([t,d])=>`${t} ${d} 天 × ${P.deduct[t]||0}`);
+  const lvParts=Object.entries(lvN).map(([t,c])=>`${t} ${c} 診 × ${P.deduct[t]||0}`);
   if(fcHours)lvParts.push(`家庭照顧假 ${fcHours} 小時 × ${P.fcPerHour} 元`);
-  return {r,schedOtMin,otMin,otPay,starPay,allow,attendPaid,attendLost,shiN,mkN,bonus,gross,healthTotal,late,daily,days,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
+  return {r,schedOtMin,otMin,otPay,starPay,allow,attendPaid,attendLost,shiN,mkN,bonus,gross,healthTotal,late,lvN,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
 }
 function renderPay(mi,counts){
   $('payTitle').textContent=`${mi.label} 薪資`;
@@ -1247,7 +1245,7 @@ function renderPay(mi,counts){
     (canWrite&&list.length>1?`<tfoot><tr><td><b>合計</b></td><td colspan="5"></td><td class="num"><b>${money(tot.gross)}</b></td><td colspan="4" class="num">扣除 ${money(tot.deduct)}</td><td class="num">${money(tot.adj)}</td><td class="num net">${money(tot.net)}</td><td></td></tr></tfoot>`:'');
   $('payRulesCard').hidden=!canWrite;
   if(canWrite&&!$('payRulesCard').contains(document.activeElement)){
-    $('payRules').innerHTML=PAY_RULE_FIELDS.map(([k,l])=>`<div class="field"><label for="pr-${k}">${l}</label><input id="pr-${k}" type="number" min="${k==='dayDiv'?1:0}" step="1" data-pr="${k}" value="${P[k]}"></div>`).join('');
+    $('payRules').innerHTML=PAY_RULE_FIELDS.map(([k,l])=>`<div class="field"><label for="pr-${k}">${l}</label><input id="pr-${k}" type="number" min="0" step="1" data-pr="${k}" value="${P[k]}"></div>`).join('');
     $('payDeduct').innerHTML=PAY_TYPES.map(t=>`<div class="field"><label for="ded-${t}">${t}</label><input id="ded-${t}" type="number" min="0" max="1" step="0.1" data-ded="${t}" value="${P.deduct[t]||0}"></div>`).join('')
       +`<div class="field"><label for="pr-fcPerHour">家庭照顧假（每小時扣元）</label><input id="pr-fcPerHour" type="number" min="0" step="1" data-pr="fcPerHour" value="${P.fcPerHour}"></div>`;
   }
@@ -1281,7 +1279,7 @@ function openPay(s){
     const rr={};PAY_FIELDS.forEach(f=>rr[f.k]=Number(ov.querySelector(`[data-pf=${f.k}]`).value)||0);rr.items=readAdj(ov);
     const p=calcPay(mi,counts,s,rr),P=payCfg();
     ov.querySelector('#pfLeave').textContent=p.lvParts.length
-      ?`日薪 ${money(p.daily)} 元。`+p.lvParts.join('、')+`，共扣 ${money(p.leaveDeduct)} 元。`
+      ?`每診 ${money(payCfg().shiftPay)} 元。`+p.lvParts.join('、')+`，共扣 ${money(p.leaveDeduct)} 元。`
       :'這個月沒有請假紀錄。';
     ov.querySelector('#pfSum').innerHTML=(p.attendLost?`<b style="color:var(--warn)">事假 ${p.shiN} 診、補班 ${p.mkN} 診，補班不足，本月不發出勤津貼。</b><br>`:'')+`加班 ${p.schedOtMin}＋${rr.otMin} 分＝${money(p.otPay)} 元・好評 ${money(p.starPay)} 元・健保 ${money(p.healthTotal)} 元・遲到 ${money(p.late)} 元・請假 ${money(p.leaveDeduct)} 元<br>應發 <b>${money(p.gross)}</b> － 扣除 <b>${money(p.deduct)}</b> ${p.adj<0?'－':'＋'} 加減項 <b>${money(Math.abs(p.adj))}</b> ＝ 實發 <b>${money(p.net)}</b>`;
   };
@@ -2317,7 +2315,7 @@ $('payTable').addEventListener('click',e=>{const b=e.target.closest('[data-payed
 $('payRulesCard').addEventListener('change',e=>{
   const k=e.target.dataset.pr,t=e.target.dataset.ded;if((!k&&!t)||!canWrite)return;const v=Number(e.target.value);
   const n=clone(cfg);n.pay=Object.assign({},n.pay||{});
-  if(k){if(!(v>=0)||(k==='dayDiv'&&!(v>0))){toast(k==='dayDiv'?'日薪基數要大於 0。':'金額不能是負數。','warn');return;}n.pay[k]=v;}
+  if(k){if(!(v>=0)){toast('金額不能是負數。','warn');return;}n.pay[k]=v;}
   else{if(!(v>=0&&v<=1)){toast('扣薪比例要介於 0 到 1。','warn');return;}n.pay.deduct=Object.assign({},n.pay.deduct||{},{[t]:v});}
   e.target.blur();store.cfg(n);
 });
