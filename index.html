@@ -23,6 +23,13 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "325806157772",
   appId: "1:325806157772:web:9c8912c3659c31b2823769"
 };
+// 正式網域透過 vercel.json 把 /__/auth/ 轉給 Firebase，登入流程留在同一個網域，
+// 避免 iPhone Safari 等封鎖跨網域儲存的瀏覽器出現「missing initial state」。
+if (location.hostname === 'assistant-scheduler-five.vercel.app') window.FIREBASE_CONFIG.authDomain = location.hostname;
+// LINE 內建瀏覽器不能用 Google 登入：自動改用手機預設瀏覽器開啟
+if (/\bLine\//i.test(navigator.userAgent) && !/openExternalBrowser=1/.test(location.search)) {
+  location.replace(location.pathname + (location.search ? location.search + '&' : '?') + 'openExternalBrowser=1' + location.hash);
+}
 // 最高管理者的 Gmail：不需要綁定人員就擁有全部權限（要和 firestore.rules 裡的 OWNERS 一致）
 window.OWNER_EMAILS = ['ccs93611@gmail.com'];
 </script>
@@ -804,7 +811,9 @@ function showGate(kind,email){
   $('gate').hidden=false;const acts=$('gateActs'),msg=$('gateMsg');
   if(kind==='loading'){msg.textContent='連線中…';acts.innerHTML='';return;}
   if(kind==='signin'){
-    msg.textContent='請用 Google 帳號登入。';
+    msg.textContent=/FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent)
+      ?'App 內建的瀏覽器無法使用 Google 登入，請點右上角「⋯」選擇用 Safari 或 Chrome 開啟。'
+      :'請用 Google 帳號登入。';
     acts.innerHTML='<button class="primary" id="gSignIn">使用 Google 登入</button>';
     $('gSignIn').onclick=signIn;return;
   }
