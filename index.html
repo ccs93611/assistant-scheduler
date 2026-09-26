@@ -488,7 +488,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
         </div>
         <div class="card" id="payRulesCard">
           <h2>薪資計算規則</h2>
-          <p class="desc">應發＝本俸＋出勤津貼＋績效獎金＋技能津貼＋加班薪資＋自費獎金（個人、團體）＋五星好評。加班薪資＝（排班總超時換算分鐘＋另計加班分鐘數）× 每分鐘金額；五星好評＝則數 × 每則金額。扣除＝勞保費＋健保費 ×（1＋眷屬人數）＋遲到分鐘數 × 每分鐘金額。實發＝應發－扣除。下方的預設值只用在還沒填過的月份。</p>
+          <p class="desc">應發＝本俸＋出勤津貼＋績效獎金＋技能津貼＋加班薪資＋自費獎金（個人、團體）＋五星好評。加班薪資＝（排班總超時換算分鐘＋另計加班分鐘數）× 每分鐘金額；五星好評＝則數 × 每則金額。扣除＝勞保費＋健保費 ×（1＋眷屬人數）＋遲到分鐘數 × 每分鐘金額。實發＝應發－扣除＋加減項。當月遲到超過設定分鐘數，或事假補班診數不足時，不發出勤津貼。下方的預設值只用在還沒填過的月份。</p>
           <div class="pay-rules" id="payRules" style="margin-bottom:16px"></div>
           <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:6px">請假扣款＝請假診數 × 每診設定薪資 × 扣薪比例（一個班算 1 診）。家庭照顧假另計：時數 × 每小時金額。各假別扣薪比例：1＝全扣、0.5＝扣一半、0＝不扣。</div>
           <div class="pay-rules" id="payDeduct"></div>
@@ -1167,8 +1167,8 @@ const PAY_FIELDS=[
   {k:'dependents',label:'健保眷屬',carry:true,g:'sub',unit:'人'},
   {k:'lateMin',label:'遲到',g:'sub',unit:'分鐘'},
 ];
-const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,shiftPay:595,fcPerHour:170};
-const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['shiftPay','每診設定薪資（元）']];
+const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,shiftPay:595,fcPerHour:170,lateLimit:30};
+const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['lateLimit','遲到超過幾分鐘不發出勤津貼'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['shiftPay','每診設定薪資（元）']];
 const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產假','陪產假','生理假','補休','颱風假','不可上班','其他'];
 const DEFAULT_DEDUCT={事假:1,病假:0.5,生理假:0.5,不可上班:1,其他:1};
 function payCfg(){const p=cfg.pay||{};const o={};Object.keys(PAY_DEFAULTS).forEach(k=>o[k]=Number.isFinite(p[k])?p[k]:PAY_DEFAULTS[k]);o.deduct=Object.assign({},DEFAULT_DEDUCT,p.deduct||{});return o;}
@@ -1201,7 +1201,12 @@ function calcPay(mi,counts,s,rec){
   const otMin=schedOtMin+(r.otMin||0),otPay=otMin*P.otPerMin,starPay=(r.stars||0)*P.starUnit;
   const lvN=leaveShiftsByType(mi,s.id);
   // 事假補班：當月補班診數少於事假診數時，不發出勤津貼
-  const shiN=personalLeaveShifts(mi,s.id),mkN=makeupShifts(mi,s.id),attendLost=shiN>0&&mkN<shiN;
+  // 遲到：當月遲到總分鐘數超過上限（預設 30 分鐘）時，也不發出勤津貼
+  const shiN=personalLeaveShifts(mi,s.id),mkN=makeupShifts(mi,s.id);
+  const lostReasons=[];
+  if(shiN>0&&mkN<shiN)lostReasons.push(`事假 ${shiN} 診、補班 ${mkN} 診，補班不足`);
+  if((r.lateMin||0)>P.lateLimit)lostReasons.push(`遲到 ${r.lateMin} 分鐘，超過 ${P.lateLimit} 分鐘`);
+  const attendLost=lostReasons.length>0;
   const attendPaid=attendLost?0:r.attend;
   const allow=attendPaid+r.perf+r.skill,bonus=r.selfInd+r.selfTeam;
   const gross=r.base+allow+otPay+bonus+starPay;
@@ -1213,7 +1218,7 @@ function calcPay(mi,counts,s,rec){
   // 請假明細文字（表格提示與編輯視窗共用）
   const lvParts=Object.entries(lvN).map(([t,c])=>`${t} ${c} 診 × ${P.deduct[t]||0}`);
   if(fcHours)lvParts.push(`家庭照顧假 ${fcHours} 小時 × ${P.fcPerHour} 元`);
-  return {r,schedOtMin,otMin,otPay,starPay,allow,attendPaid,attendLost,shiN,mkN,bonus,gross,healthTotal,late,lvN,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
+  return {r,schedOtMin,otMin,otPay,starPay,allow,attendPaid,attendLost,lostReasons,shiN,mkN,bonus,gross,healthTotal,late,lvN,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
 }
 function renderPay(mi,counts){
   $('payTitle').textContent=`${mi.label} 薪資`;
@@ -1228,7 +1233,7 @@ function renderPay(mi,counts){
     const lvTip=p.lvParts.join('\n')||'沒有請假';
     const adjTip=r.items.map(x=>`${x.label||'（未命名）'} ${money(x.amount)}`).join('\n');
     return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}${r.saved?'':' <span class="pill">試算</span>'}</td>
-      <td class="num">${z(r.base)}</td><td class="num" title="出勤 ${money(p.attendPaid)}${p.attendLost?`（事假 ${p.shiN} 診、補班 ${p.mkN} 診，補班不足不發）`:''}＋績效 ${money(r.perf)}＋技能 ${money(r.skill)}">${z(p.allow)}${p.attendLost?' <span class="pill warn">無出勤津貼</span>':''}</td>
+      <td class="num">${z(r.base)}</td><td class="num" title="出勤 ${money(p.attendPaid)}${p.attendLost?`（${p.lostReasons.join('；')}，不發）`:''}＋績效 ${money(r.perf)}＋技能 ${money(r.skill)}">${z(p.allow)}${p.attendLost?' <span class="pill warn">無出勤津貼</span>':''}</td>
       <td class="num" title="排班超時 ${p.schedOtMin} 分＋另計 ${r.otMin||0} 分＝${p.otMin} 分">${z(p.otPay)}</td>
       <td class="num" title="個人 ${money(r.selfInd)}＋團體 ${money(r.selfTeam)}">${z(p.bonus)}</td>
       <td class="num" title="${r.stars||0} 則">${z(p.starPay)}</td>
@@ -1281,7 +1286,7 @@ function openPay(s){
     ov.querySelector('#pfLeave').textContent=p.lvParts.length
       ?`每診 ${money(payCfg().shiftPay)} 元。`+p.lvParts.join('、')+`，共扣 ${money(p.leaveDeduct)} 元。`
       :'這個月沒有請假紀錄。';
-    ov.querySelector('#pfSum').innerHTML=(p.attendLost?`<b style="color:var(--warn)">事假 ${p.shiN} 診、補班 ${p.mkN} 診，補班不足，本月不發出勤津貼。</b><br>`:'')+`加班 ${p.schedOtMin}＋${rr.otMin} 分＝${money(p.otPay)} 元・好評 ${money(p.starPay)} 元・健保 ${money(p.healthTotal)} 元・遲到 ${money(p.late)} 元・請假 ${money(p.leaveDeduct)} 元<br>應發 <b>${money(p.gross)}</b> － 扣除 <b>${money(p.deduct)}</b> ${p.adj<0?'－':'＋'} 加減項 <b>${money(Math.abs(p.adj))}</b> ＝ 實發 <b>${money(p.net)}</b>`;
+    ov.querySelector('#pfSum').innerHTML=(p.attendLost?`<b style="color:var(--warn)">${p.lostReasons.join('；')}，本月不發出勤津貼。</b><br>`:'')+`加班 ${p.schedOtMin}＋${rr.otMin} 分＝${money(p.otPay)} 元・好評 ${money(p.starPay)} 元・健保 ${money(p.healthTotal)} 元・遲到 ${money(p.late)} 元・請假 ${money(p.leaveDeduct)} 元<br>應發 <b>${money(p.gross)}</b> － 扣除 <b>${money(p.deduct)}</b> ${p.adj<0?'－':'＋'} 加減項 <b>${money(Math.abs(p.adj))}</b> ＝ 實發 <b>${money(p.net)}</b>`;
   };
   ov.addEventListener('input',sum);ov.querySelector('#adjAdd').addEventListener('click',sum);sum();
 }
