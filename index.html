@@ -288,8 +288,11 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .toast button{background:transparent; color:inherit; border-color:currentColor; padding:3px 10px; font-size:.78rem;}
 .empty{color:var(--faint); text-align:center; padding:22px 10px !important; font-size:.85rem;}
 
-.gate{position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:40; padding:16px;}
-.gate .card{max-width:380px; width:100%; text-align:center; padding:28px 24px;}
+/* 登入畫面：顯示時隱藏後方系統，避免後方內容撐寬頁面；內容超出螢幕時可以捲動 */
+.gate{position:fixed; inset:0; background:var(--bg); display:flex; align-items:safe center; justify-content:center; z-index:40; padding:16px; overflow-y:auto;}
+.gate .card{max-width:380px; width:100%; box-sizing:border-box; margin:auto; text-align:center; padding:28px 20px;}
+.gate .acts button{width:100%; white-space:normal;}
+body.gated .shell{display:none;}
 .gate h1{margin-bottom:6px;}
 .gate p{color:var(--sub); font-size:.88rem; margin:0 0 18px;}
 .gate .who{font-weight:500; color:var(--ink); word-break:break-all;}
@@ -819,7 +822,7 @@ async function boot(){
     let acc=null;
     try{const s=await fs.doc('access/'+email).get();acc=s.exists?s.data():null;}catch(e){console.error(e);}
     if(!isAdmin&&!acc){showGate('pending',email);fs.doc('access/'+email).onSnapshot(s=>{if(s.exists)location.reload();},()=>{});return;}
-    $('gate').hidden=true;
+    $('gate').hidden=true;document.body.classList.remove('gated');
     db=fs;start(acc);
   });
 }
@@ -851,7 +854,7 @@ function start(acc){
   else if(sid)db.collection('pay').where('staffId','==',sid).onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
 }
 function showGate(kind,email){
-  $('gate').hidden=false;const acts=$('gateActs'),msg=$('gateMsg');
+  $('gate').hidden=false;document.body.classList.add('gated');const acts=$('gateActs'),msg=$('gateMsg');
   if(kind==='loading'){msg.textContent='連線中…';acts.innerHTML='';return;}
   if(kind==='signin'){
     msg.textContent=/FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent)
