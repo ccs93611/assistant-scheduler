@@ -568,7 +568,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
           <div class="scroll-x"><table class="matrix excl" id="exclMatrix"></table></div>
         </div>
         <div class="card">
-          <h2>排班設定</h2>
+          <h2>自動排班設定</h2>
           <p class="desc">自動排班依照這些規則填入人員，並優先分配給本月班數較少的人。</p>
           <div class="form-row" id="needRow" style="margin-bottom:16px"></div>
           <div class="form-row" style="margin-bottom:18px">
@@ -1405,12 +1405,12 @@ function renderRulesDoc(){
     <ol>
       <li>崗位職稱：主櫃、副櫃、流動、健保只排助理；跟診只排醫師，助理只能排在醫師下方。</li>
       <li>排除名單：列在「不參與自動排班的助理」的人不排進該崗位${ex.length?`（目前：${esc(ex.join('；'))}）`:'（目前沒有）'}。</li>
-      <li>健保只排：${(()=>{const nh=(cfg.nhOnly||[]).filter(id=>byId(id));return nh.length?`<b>${esc(nh.map(codeOf).join('、'))}</b>（可在上方「排班設定」調整）`:'目前不限制（可在上方「排班設定」指定）';})()}。</li>
+      <li>健保只排：${(()=>{const nh=(cfg.nhOnly||[]).filter(id=>byId(id));return nh.length?`<b>${esc(nh.map(codeOf).join('、'))}</b>（可在上方「自動排班設定」調整）`:'目前不限制（可在上方「自動排班設定」指定）';})()}。</li>
       <li>請假：當班有醫師休假或助理請假（任何類別）的人不排。</li>
       <li>同一班只能擔任一個崗位。</li>
       <li>每人每天最多班數：<b>${cfg.maxPerDay||2}</b> 班。</li>
       <li>助理當天沒有請假，就一定至少排一班：一般崗位排完後，當天還沒有班的助理會加排到副櫃（空著時）或流動，挑人最少的一班。休診或休假日不算。這條優先於下面的工時與次數上限，必要時可以超過合理工時。</li>
-      <li>工時上限為合理工時：助理當月工時不超過合理工時＝（當月天數－週日數－休假日天數）× 8 －請假天數 × 7 小時；每班 3.5 小時，三班全上計 10 小時，加班不計入。超過的部分計為加班，最多 <b>${otMax()}</b> 小時（可在「排班設定」調整，設為 0 即不允許超過）。</li>
+      <li>工時上限為合理工時：助理當月工時不超過合理工時＝（當月天數－週日數－休假日天數）× 8 －請假天數 × 7 小時；每班 3.5 小時，三班全上計 10 小時，加班不計入。超過的部分計為加班，最多 <b>${otMax()}</b> 小時（可在「自動排班設定」調整，設為 0 即不允許超過）。</li>
       <li>助理工時必須排滿合理工時：一般崗位排完後，工時不足的助理會加排到副櫃（空著時）或流動，直到達到合理工時；補足時不使用超時。受請假、每日班數等條件限制而排不滿時，會在排班完成訊息列出差幾小時。</li>
       <li>助理每月全天班上限：<b>${MAXF}</b> 次。</li>
       <li>助理每月早+晚上限：<b>${MAXDN}</b> 次。</li>
