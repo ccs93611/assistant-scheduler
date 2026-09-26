@@ -420,7 +420,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
         </div>
         <div class="card">
           <h2>事假補班</h2>
-          <p class="desc">登記事假的補班日期，當天有補班就算 1 天。當月補班天數少於事假天數時，當月不發出勤津貼。補班只做紀錄，不會自動排進班表。</p>
+          <p class="desc">登記事假的補班日期與班別，每個班算 1 診。當月補班診數少於事假診數時，當月不發出勤津貼。補班只做紀錄，不會自動排進班表。</p>
           <form class="form-row" id="mkForm" style="margin-bottom:14px">
             <div class="field"><label for="mkStaff">助理</label><select id="mkStaff" required></select></div>
             <div class="field"><label for="mkDate">日期</label><input type="date" id="mkDate" required></div>
@@ -1066,9 +1066,9 @@ function renderMakeup(mi){
       return `<tr><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td><td>${esc(fullName(byId(m.staffId)))}</td><td>${sh||'—'}</td><td>${esc(m.note||'')}</td><td class="num">${canLeaveFor(m.staffId)?`<button class="small danger" data-delmk="${m.id}">刪除</button>`:''}</td></tr>`;}).join('')
     :`<tr><td colspan="5" class="empty">${mi.label}還沒有補班紀錄。</td></tr>`)+'</tbody>';
   limitRows($('mkScroll'),5);
-  const ids=activeStaff('assistant').map(s=>s.id).filter(id=>(leaveDays(mi,id)['事假']||0)>0||makeupDays(mi,id)>0);
+  const ids=activeStaff('assistant').map(s=>s.id).filter(id=>personalLeaveShifts(mi,id)>0||makeupShifts(mi,id)>0);
   $('mkSummary').innerHTML=ids.length?`<thead><tr><th>助理</th><th class="num">${mi.first.getMonth()+1}月事假</th><th class="num">補班</th><th>出勤津貼</th></tr></thead><tbody>`+
-    ids.map(id=>{const sd=leaveDays(mi,id)['事假']||0,md2=makeupDays(mi,id);return `<tr><td>${esc(fullName(byId(id)))}</td><td class="num">${sd} 天</td><td class="num">${md2} 天</td><td>${sd>0&&md2<sd?`<span class="pill warn">不發（還差 ${Math.round((sd-md2)*100)/100} 天）</span>`:'<span class="pill">照發</span>'}</td></tr>`;}).join('')+'</tbody>':'';
+    ids.map(id=>{const sn=personalLeaveShifts(mi,id),mn=makeupShifts(mi,id);return `<tr><td>${esc(fullName(byId(id)))}</td><td class="num">${sn} 診</td><td class="num">${mn} 診</td><td>${sn>0&&mn<sn?`<span class="pill warn">不發（還差 ${sn-mn} 診）</span>`:'<span class="pill">照發</span>'}</td></tr>`;}).join('')+'</tbody>':'';
 }
 function renderLeave(mi,roles){
   if(roles.includes('assistant')){renderFamilyCare(mi);renderMakeup(mi);}
@@ -1190,8 +1190,10 @@ function leaveDays(mi,sid){
   Object.keys(days).forEach(t=>days[t]=Math.round(days[t]*100)/100);
   return days;
 }
-// 補班天數：當月有補班紀錄的日期數
-function makeupDays(mi,sid){const a=ymd(mi.first),z=ymd(mi.last);return new Set(makeups.filter(m=>m.staffId===sid&&m.date>=a&&m.date<=z).map(m=>m.date)).size;}
+// 事假診數、補班診數：當月紀錄的班數加總（一個班＝一診）
+function monthShifts(list,mi,sid,filter=()=>true){const a=ymd(mi.first),z=ymd(mi.last);return list.reduce((n,x)=>n+(x.staffId===sid&&x.date>=a&&x.date<=z&&filter(x)?(x.shifts||[]).length:0),0);}
+const personalLeaveShifts=(mi,sid)=>monthShifts(leaves,mi,sid,l=>l.type==='事假');
+const makeupShifts=(mi,sid)=>monthShifts(makeups,mi,sid);
 // 家庭照顧假：登記時數 × 每小時金額（預設 170）
 function fcHoursOf(mi,sid){const a=ymd(mi.first),z=ymd(mi.last);return familyCare.reduce((n,l)=>n+(l.staffId===sid&&l.date>=a&&l.date<=z?(Number(l.hours)||0):0),0);}
 function calcPay(mi,counts,s,rec){
@@ -1200,8 +1202,8 @@ function calcPay(mi,counts,s,rec){
   const schedOtMin=Math.round(((c.ot||0)+Math.max(0,c.hours-reasonableDays(mi,s.id)))*60);
   const otMin=schedOtMin+(r.otMin||0),otPay=otMin*P.otPerMin,starPay=(r.stars||0)*P.starUnit;
   const daily=r.base/P.dayDiv,days=leaveDays(mi,s.id);
-  // 事假補班：當月補班天數少於事假天數時，不發出勤津貼
-  const shiDays=days['事假']||0,mkDays=makeupDays(mi,s.id),attendLost=shiDays>0&&mkDays<shiDays;
+  // 事假補班：當月補班診數少於事假診數時，不發出勤津貼
+  const shiN=personalLeaveShifts(mi,s.id),mkN=makeupShifts(mi,s.id),attendLost=shiN>0&&mkN<shiN;
   const attendPaid=attendLost?0:r.attend;
   const allow=attendPaid+r.perf+r.skill,bonus=r.selfInd+r.selfTeam;
   const gross=r.base+allow+otPay+bonus+starPay;
@@ -1213,7 +1215,7 @@ function calcPay(mi,counts,s,rec){
   // 請假明細文字（表格提示與編輯視窗共用）
   const lvParts=Object.entries(days).map(([t,d])=>`${t} ${d} 天 × ${P.deduct[t]||0}`);
   if(fcHours)lvParts.push(`家庭照顧假 ${fcHours} 小時 × ${P.fcPerHour} 元`);
-  return {r,schedOtMin,otMin,otPay,starPay,allow,attendPaid,attendLost,shiDays,mkDays,bonus,gross,healthTotal,late,daily,days,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
+  return {r,schedOtMin,otMin,otPay,starPay,allow,attendPaid,attendLost,shiN,mkN,bonus,gross,healthTotal,late,daily,days,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
 }
 function renderPay(mi,counts){
   $('payTitle').textContent=`${mi.label} 薪資`;
@@ -1228,7 +1230,7 @@ function renderPay(mi,counts){
     const lvTip=p.lvParts.join('\n')||'沒有請假';
     const adjTip=r.items.map(x=>`${x.label||'（未命名）'} ${money(x.amount)}`).join('\n');
     return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}${r.saved?'':' <span class="pill">試算</span>'}</td>
-      <td class="num">${z(r.base)}</td><td class="num" title="出勤 ${money(p.attendPaid)}${p.attendLost?`（事假 ${p.shiDays} 天、補班 ${p.mkDays} 天，補班不足不發）`:''}＋績效 ${money(r.perf)}＋技能 ${money(r.skill)}">${z(p.allow)}${p.attendLost?' <span class="pill warn">無出勤津貼</span>':''}</td>
+      <td class="num">${z(r.base)}</td><td class="num" title="出勤 ${money(p.attendPaid)}${p.attendLost?`（事假 ${p.shiN} 診、補班 ${p.mkN} 診，補班不足不發）`:''}＋績效 ${money(r.perf)}＋技能 ${money(r.skill)}">${z(p.allow)}${p.attendLost?' <span class="pill warn">無出勤津貼</span>':''}</td>
       <td class="num" title="排班超時 ${p.schedOtMin} 分＋另計 ${r.otMin||0} 分＝${p.otMin} 分">${z(p.otPay)}</td>
       <td class="num" title="個人 ${money(r.selfInd)}＋團體 ${money(r.selfTeam)}">${z(p.bonus)}</td>
       <td class="num" title="${r.stars||0} 則">${z(p.starPay)}</td>
@@ -1281,7 +1283,7 @@ function openPay(s){
     ov.querySelector('#pfLeave').textContent=p.lvParts.length
       ?`日薪 ${money(p.daily)} 元。`+p.lvParts.join('、')+`，共扣 ${money(p.leaveDeduct)} 元。`
       :'這個月沒有請假紀錄。';
-    ov.querySelector('#pfSum').innerHTML=(p.attendLost?`<b style="color:var(--warn)">事假 ${p.shiDays} 天、補班 ${p.mkDays} 天，補班不足，本月不發出勤津貼。</b><br>`:'')+`加班 ${p.schedOtMin}＋${rr.otMin} 分＝${money(p.otPay)} 元・好評 ${money(p.starPay)} 元・健保 ${money(p.healthTotal)} 元・遲到 ${money(p.late)} 元・請假 ${money(p.leaveDeduct)} 元<br>應發 <b>${money(p.gross)}</b> － 扣除 <b>${money(p.deduct)}</b> ${p.adj<0?'－':'＋'} 加減項 <b>${money(Math.abs(p.adj))}</b> ＝ 實發 <b>${money(p.net)}</b>`;
+    ov.querySelector('#pfSum').innerHTML=(p.attendLost?`<b style="color:var(--warn)">事假 ${p.shiN} 診、補班 ${p.mkN} 診，補班不足，本月不發出勤津貼。</b><br>`:'')+`加班 ${p.schedOtMin}＋${rr.otMin} 分＝${money(p.otPay)} 元・好評 ${money(p.starPay)} 元・健保 ${money(p.healthTotal)} 元・遲到 ${money(p.late)} 元・請假 ${money(p.leaveDeduct)} 元<br>應發 <b>${money(p.gross)}</b> － 扣除 <b>${money(p.deduct)}</b> ${p.adj<0?'－':'＋'} 加減項 <b>${money(Math.abs(p.adj))}</b> ＝ 實發 <b>${money(p.net)}</b>`;
   };
   ov.addEventListener('input',sum);ov.querySelector('#adjAdd').addEventListener('click',sum);sum();
 }
@@ -2113,7 +2115,7 @@ $('mkForm').addEventListener('submit',e=>{
   if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
   if(makeups.some(m=>m.staffId===sid&&m.date===date)){toast(`${codeOf(sid)} 在 ${date.slice(5).replace('-','/')} 已經登記過補班。`,'warn');return;}
   store.mk({id:uid('m'),staffId:sid,date,shifts,note:$('mkNote').value.trim(),createdAt:Date.now()});
-  $('mkNote').value='';toast(`已登記 ${codeOf(sid)} 補班 1 天。`);
+  $('mkNote').value='';toast(`已登記 ${codeOf(sid)} 補班 ${shifts.length} 診。`);
 });
 $('mkTable').addEventListener('click',e=>{const b=e.target.closest('[data-delmk]');if(!b)return;const m=makeups.find(x=>x.id===b.dataset.delmk);if(m&&canLeaveFor(m.staffId)){store.delMk(m.id);toast('已刪除補班紀錄。');}});
 function fcCalc(a=$('fcStart').value,b=$('fcEnd').value){
