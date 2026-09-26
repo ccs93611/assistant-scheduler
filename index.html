@@ -1295,7 +1295,7 @@ function renderPay(mi,counts){
     const lvTip=p.lvParts.join('\n')||'沒有請假';
     const adjTip=r.items.map(x=>`${x.label||'（未命名）'} ${money(x.amount)}`).join('\n');
     return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}${r.saved?'':' <span class="pill">試算</span>'}</td>
-      <td class="num">${z(r.base)}</td><td class="num" title="出勤 ${money(p.attendPaid)}${p.attendNote?`（${p.attendNote}）`:''}＋績效 ${money(r.perf)}＋技能 ${money(r.skill)}">${z(p.allow)}${p.attendLost||p.attendPaid===0&&r.attend?' <span class="pill warn">無出勤津貼</span>':p.sickCut?` <span class="pill warn">出勤 −${money(p.sickCut)}</span>`:''}</td>
+      <td class="num">${z(r.base)}</td><td class="num"${p.attendNote?` title="${esc(p.attendNote)}"`:''}>${z(p.attendPaid)}${p.attendLost||p.attendPaid===0&&r.attend?' <span class="pill warn">不發</span>':p.sickCut?` <span class="pill warn">−${money(p.sickCut)}</span>`:''}</td><td class="num">${z(r.perf)}</td><td class="num">${z(r.skill)}</td>
       <td class="num" title="排班超時 ${p.schedOtMin} 分＋另計 ${r.otMin||0} 分＝${p.otMin} 分">${z(p.otPay)}</td>
       <td class="num" title="個人 ${money(r.selfInd)}＋團體 ${money(r.selfTeam)}">${z(p.bonus)}</td>
       <td class="num" title="${r.stars||0} 則">${z(p.starPay)}</td>
@@ -1307,9 +1307,9 @@ function renderPay(mi,counts){
       <td class="num net">${money(p.net)}</td>
       ${canWrite?`<td class="num"><button class="small" data-payedit="${s.id}">編輯</button></td>`:''}</tr>`;
   }).join('');
-  $('payTable').innerHTML=`<thead><tr><th>人員</th><th class="num">本俸</th><th class="num">津貼・績效</th><th class="num">加班薪資</th><th class="num">自費獎金</th><th class="num">五星好評</th><th class="num">應發合計</th><th class="num">勞保費</th><th class="num">健保費</th><th class="num">遲到</th><th class="num" title="滑過數字可以看明細">請假扣款</th><th class="num">加減項</th><th class="num">實發</th>${canWrite?'<th></th>':''}</tr></thead><tbody>`+
-    (rows||`<tr><td colspan="14" class="empty">${canWrite?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
-    (canWrite&&list.length>1?`<tfoot><tr><td><b>合計</b></td><td colspan="5"></td><td class="num"><b>${money(tot.gross)}</b></td><td colspan="4" class="num">扣除 ${money(tot.deduct)}</td><td class="num">${money(tot.adj)}</td><td class="num net">${money(tot.net)}</td><td></td></tr></tfoot>`:'');
+  $('payTable').innerHTML=`<thead><tr><th>人員</th><th class="num">本俸</th><th class="num">出勤津貼</th><th class="num">績效獎金</th><th class="num">技能津貼</th><th class="num">加班薪資</th><th class="num">自費獎金</th><th class="num">五星好評</th><th class="num">應發合計</th><th class="num">勞保費</th><th class="num">健保費</th><th class="num">遲到</th><th class="num" title="滑過數字可以看明細">請假扣款</th><th class="num">加減項</th><th class="num">實發</th>${canWrite?'<th></th>':''}</tr></thead><tbody>`+
+    (rows||`<tr><td colspan="16" class="empty">${canWrite?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
+    (canWrite&&list.length>1?`<tfoot><tr><td><b>合計</b></td><td colspan="7"></td><td class="num"><b>${money(tot.gross)}</b></td><td colspan="4" class="num">扣除 ${money(tot.deduct)}</td><td class="num">${money(tot.adj)}</td><td class="num net">${money(tot.net)}</td><td></td></tr></tfoot>`:'');
   $('payRulesCard').hidden=!canWrite;
   if(canWrite&&!$('payRulesCard').contains(document.activeElement)){
     $('payRules').innerHTML=PAY_RULE_FIELDS.map(([k,l])=>`<div class="field"><label for="pr-${k}">${l}</label><input id="pr-${k}" type="number" min="0" step="${k==='sickAttendCut'?0.05:1}" data-pr="${k}" value="${P[k]}"></div>`).join('');
