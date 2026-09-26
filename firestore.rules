@@ -51,11 +51,8 @@ service cloud.firestore {
     }
 
     // 薪資：排班管理以上可看可改所有人；其他人只能看自己的
-    match /salary/{sid} {
-      allow read: if canManage() || (signedIn() && sid == mySid());
-      allow write: if canManage();
-    }
-    match /payAdj/{id} {
+    // pay/{staffId}_{YYYY-MM}：每人每月一筆
+    match /pay/{id} {
       allow read: if canManage() || (signedIn() && resource.data.staffId == mySid());
       allow write: if canManage();
     }

@@ -26,6 +26,8 @@ window.FIREBASE_CONFIG = {
 // 正式網域透過 vercel.json 把 /__/auth/ 轉給 Firebase，登入流程留在同一個網域，
 // 避免 iPhone Safari 等封鎖跨網域儲存的瀏覽器出現「missing initial state」。
 if (location.hostname === 'assistant-scheduler-five.vercel.app') window.FIREBASE_CONFIG.authDomain = location.hostname;
+// 開發用：本機網址加上 ?local=1 改用 localStorage，不碰雲端資料
+if (location.hostname === 'localhost' && /[?&]local=1/.test(location.search)) window.FIREBASE_CONFIG = null;
 // LINE 內建瀏覽器不能用 Google 登入：自動改用手機預設瀏覽器開啟
 if (/\bLine\//i.test(navigator.userAgent) && !/openExternalBrowser=1/.test(location.search)) {
   location.replace(location.pathname + (location.search ? location.search + '&' : '?') + 'openExternalBrowser=1' + location.hash);
@@ -467,13 +469,8 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
         </div>
         <div class="card" id="payRulesCard">
           <h2>薪資計算規則</h2>
-          <p class="desc">時薪＝月薪 ÷ 時薪基數。請假扣款＝請假時數 × 時薪 × 扣薪比例（每班 3.5 小時，同一天最多以 8 小時計；家庭照顧假依登記的時數）。加班費＝「排班總超時」時數 × 時薪 × 加班倍率。實發＝月薪－請假扣款＋加班費＋加減項。</p>
-          <div class="form-row" style="margin-bottom:14px">
-            <div class="field" style="width:130px"><label for="payDivisor">時薪基數（小時）</label><input id="payDivisor" type="number" min="1" step="1"></div>
-            <div class="field" style="width:130px"><label for="payOtRate">加班倍率</label><input id="payOtRate" type="number" min="0" step="0.01"></div>
-          </div>
-          <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:6px">各假別扣薪比例（1＝全扣、0.5＝扣一半、0＝不扣）</div>
-          <div class="pay-rules" id="payDeduct"></div>
+          <p class="desc">應發＝本俸＋出勤津貼＋績效獎金＋技能津貼＋加班薪資＋自費獎金（個人、團體）＋五星好評。加班薪資＝（排班總超時換算分鐘＋另計加班分鐘數）× 每分鐘金額；五星好評＝則數 × 每則金額。扣除＝勞保費＋健保費 ×（1＋眷屬人數）＋遲到分鐘數 × 每分鐘金額。實發＝應發－扣除。下方的預設值只用在還沒填過的月份。</p>
+          <div class="pay-rules" id="payRules"></div>
         </div>
       </div>
     </section>
@@ -581,7 +578,7 @@ const PREF_KEY='clinic_roster_prefs_v1';
 // ---------- state ----------
 let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, userNs=null, accessLinks={};
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], privateInfo={}, isAdmin=true;
-let salary={}, payAdj={}; // salary[staffId]={base}；payAdj[staffId_ym]={staffId,ym,items:[{label,amount}]}
+let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
 let prefs=loadPrefs();
 let selectedId=null, lastUndo=null, editingHol=null, editingLeave=null, editingFc=null, editingStaff=null;
 
@@ -656,8 +653,8 @@ function handleWriteError(e){
   if(e&&e.code==='quota_exceeded'){toast('資料庫已滿，請刪除舊的請假紀錄後再試。','warn');return;}
   toast('儲存失敗，請稍後再試一次。','warn');
 }
-function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,salary,payAdj}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};salary=d.salary||{};payAdj=d.payAdj||{};}}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
@@ -674,15 +671,10 @@ const store={
     if(!db){saveLocal();return;}
     return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({c:encCells(cells)});weeksExist.add(wk);});
   },
-  async salary(id,obj){
-    salary[id]=obj;renderAll();
+  async pay(key,obj){
+    pay[key]=obj;renderAll();
     if(!db){saveLocal();return;}
-    return queue('salary/'+id,()=>db.doc('salary/'+id).set(obj));
-  },
-  async payAdj(key,obj){
-    if(obj)payAdj[key]=obj;else delete payAdj[key];renderAll();
-    if(!db){saveLocal();return;}
-    return queue('payAdj/'+key,()=>obj?db.doc('payAdj/'+key).set(obj):db.doc('payAdj/'+key).delete());
+    return queue('pay/'+key,()=>db.doc('pay/'+key).set(obj));
   },
   async staff(s){
     const i=staff.findIndex(x=>x.id===s.id);if(i>=0)staff[i]=s;else staff.push(s);renderAll();
@@ -799,13 +791,8 @@ function start(acc){
     db.collection('data/private/people').onSnapshot(snap=>{privateInfo=docsTo(snap);renderAll();},e=>console.warn(e));
     db.collection('access').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();if(v.staffId)m[v.staffId]={account:d.id,perm:v.perm};if(d.id===email)recheck(v);});if(!isAdmin&&!snap.docs.some(d=>d.id===email))recheck(null);accessLinks=m;renderAll();},e=>console.warn(e));
   }else db.doc('access/'+email).onSnapshot(s=>recheck(s.exists?s.data():null),e=>console.warn(e));
-  if(mng){
-    db.collection('salary').onSnapshot(snap=>{salary=docsTo(snap);renderAll();},e=>console.warn(e));
-    db.collection('payAdj').onSnapshot(snap=>{payAdj=docsTo(snap);renderAll();},e=>console.warn(e));
-  }else if(sid){
-    db.doc('salary/'+sid).onSnapshot(s=>{salary=s.exists?{[sid]:clone(s.data())}:{};renderAll();},e=>console.warn(e));
-    db.collection('payAdj').where('staffId','==',sid).onSnapshot(snap=>{payAdj=docsTo(snap);renderAll();},e=>console.warn(e));
-  }
+  if(mng)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
+  else if(sid)db.collection('pay').where('staffId','==',sid).onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
 }
 function showGate(kind,email){
   $('gate').hidden=false;const acts=$('gateActs'),msg=$('gateMsg');
@@ -1113,71 +1100,97 @@ function renderStats(mi,counts){
     }).join(''):`<tr><td colspan="18" class="empty">尚未建立助理。</td></tr>`)+'</tbody>';
 }
 
-// ---------- 薪資（月薪制） ----------
-const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產假','陪產假','生理假','補休','颱風假','不可上班','其他','家庭照顧假'];
-const DEFAULT_DEDUCT={事假:1,病假:0.5,生理假:0.5,家庭照顧假:1};
-function payCfg(){const p=cfg.pay||{};return {divisor:p.divisor>0?p.divisor:240,otRate:Number.isFinite(p.otRate)?p.otRate:1.34,deduct:Object.assign({},DEFAULT_DEDUCT,p.deduct||{})};}
+// ---------- 薪資 ----------
+// 每人每月一筆 pay/{staffId}_{YYYY-MM}。沒存過的月份：carry 欄位帶入前一個有紀錄的月份，def 欄位用預設值，其餘為 0。
+const PAY_FIELDS=[
+  {k:'base',label:'本俸',carry:true,g:'add'},
+  {k:'attend',label:'出勤津貼',def:'attend',g:'add'},
+  {k:'perf',label:'績效獎金',def:'perf',g:'add'},
+  {k:'skill',label:'技能津貼',def:'skill',g:'add'},
+  {k:'otMin',label:'另計加班',g:'add',unit:'分鐘'},
+  {k:'selfInd',label:'自費獎金－個人',g:'add'},
+  {k:'selfTeam',label:'自費獎金－團體',g:'add'},
+  {k:'stars',label:'五星好評',g:'add',unit:'則'},
+  {k:'labor',label:'勞保費',carry:true,g:'sub'},
+  {k:'health',label:'健保費（本人）',carry:true,g:'sub'},
+  {k:'dependents',label:'健保眷屬',carry:true,g:'sub',unit:'人'},
+  {k:'lateMin',label:'遲到',g:'sub',unit:'分鐘'},
+];
+const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500};
+const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['starUnit','五星好評每則（元）'],['latePerMin','遲到每分鐘扣（元）'],['attend','出勤津貼預設'],['perf','績效獎金預設'],['skill','技能津貼預設']];
+function payCfg(){const p=cfg.pay||{};const o={};Object.keys(PAY_DEFAULTS).forEach(k=>o[k]=Number.isFinite(p[k])?p[k]:PAY_DEFAULTS[k]);return o;}
 const canSeePay=()=>canWrite||!!(myStaffId()&&byId(myStaffId())?.role==='assistant');
 const money=n=>Math.round(n).toLocaleString('zh-TW');
-const r1=n=>Math.round(n*10)/10;
-function calcPay(mi,counts,s){
-  const P=payCfg(),base=Number(salary[s.id]?.base)||0,hourly=base/P.divisor;
-  const a=ymd(mi.first),z=ymd(mi.last),hrs={};
-  leaves.forEach(l=>{if(l.staffId!==s.id||l.date<a||l.date>z)return;const t=l.type||'其他';hrs[t]=(hrs[t]||0)+Math.min(8,(l.shifts||[]).length*3.5);});
-  familyCare.forEach(l=>{if(l.staffId===s.id&&l.date>=a&&l.date<=z)hrs['家庭照顧假']=(hrs['家庭照顧假']||0)+(Number(l.hours)||0);});
-  const deduction=Object.entries(hrs).reduce((n,[t,h])=>n+h*hourly*(P.deduct[t]||0),0);
+function payRec(sid,ym){
+  const P=payCfg(),saved=pay[sid+'_'+ym];
+  const prev=Object.values(pay).filter(x=>x.staffId===sid&&x.ym<ym).sort((a,b)=>b.ym.localeCompare(a.ym))[0];
+  const r={};PAY_FIELDS.forEach(f=>r[f.k]=f.carry?(Number(prev?.[f.k])||0):f.def?P[f.def]:0);
+  if(saved)PAY_FIELDS.forEach(f=>{if(Number.isFinite(saved[f.k]))r[f.k]=saved[f.k];});
+  r.saved=!!saved;return r;
+}
+function calcPay(mi,counts,s,rec){
+  const P=payCfg(),r=rec||payRec(s.id,mi.ym);
   const c=counts[s.id]||{hours:0,ot:0};
-  const ot=r1((c.ot||0)+Math.max(0,c.hours-reasonableDays(mi,s.id)));
-  const otPay=ot*hourly*P.otRate;
-  const items=payAdj[s.id+'_'+mi.ym]?.items||[];
-  const adj=items.reduce((n,x)=>n+(Number(x.amount)||0),0);
-  return {base,hourly,hrs,deduction:Math.round(deduction),ot,otPay:Math.round(otPay),adj,items,net:Math.round(base-deduction+otPay+adj)};
+  const schedOtMin=Math.round(((c.ot||0)+Math.max(0,c.hours-reasonableDays(mi,s.id)))*60);
+  const otMin=schedOtMin+(r.otMin||0),otPay=otMin*P.otPerMin,starPay=(r.stars||0)*P.starUnit;
+  const allow=r.attend+r.perf+r.skill,bonus=r.selfInd+r.selfTeam;
+  const gross=r.base+allow+otPay+bonus+starPay;
+  const healthTotal=r.health*(1+(r.dependents||0)),late=(r.lateMin||0)*P.latePerMin;
+  const deduct=r.labor+healthTotal+late;
+  return {r,schedOtMin,otMin,otPay,starPay,allow,bonus,gross,healthTotal,late,deduct,net:gross-deduct};
 }
 function renderPay(mi,counts){
-  const P=payCfg();
   $('payTitle').textContent=`${mi.label} 薪資`;
   $('payDesc').textContent=canWrite
-    ?'月薪可以直接在表格裡修改。「加減項」可以加入全勤獎金、勞健保自付額等，扣款請填負數。只有排班管理與超級管理員看得到所有人的薪資，一般助理只看得到自己的。'
-    :'這是你這個月的薪資試算，實際金額以診所發放為準。';
+    ?'按「編輯」填寫每個人這個月的薪資項目。本俸、勞保費、健保費、眷屬人數會自動帶入前一個月的數值；還沒儲存的月份顯示為「試算」。只有排班管理與超級管理員看得到所有人的薪資，一般助理只看得到自己的。'
+    :'這是你這個月的薪資，實際金額以診所發放為準。';
   const list=canWrite?staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])):[byId(myStaffId())].filter(Boolean);
-  const editing=document.activeElement?.dataset?.base;
-  if(!editing){
-    let tot={base:0,deduction:0,otPay:0,adj:0,net:0};
-    const rows=list.map(s=>{
-      const p=calcPay(mi,counts,s);Object.keys(tot).forEach(k=>tot[k]+=p[k]);
-      const lvTip=Object.entries(p.hrs).map(([t,h])=>`${t} ${r1(h)} 小時 × ${P.deduct[t]||0}`).join('\n')||'沒有請假';
-      const adjTip=p.items.map(x=>`${x.label||'（未命名）'} ${money(x.amount)}`).join('\n');
-      return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}</td>
-        <td class="num">${canWrite?`<input type="number" min="0" step="100" data-base="${s.id}" value="${p.base||''}" placeholder="0" aria-label="${esc(fullName(s))} 月薪">`:money(p.base)}</td>
-        <td class="num">${p.hourly?Math.round(p.hourly*10)/10:'—'}</td>
-        <td class="num" title="${esc(lvTip)}">${p.deduction?'−'+money(p.deduction):'<span style="color:var(--faint)">0</span>'}</td>
-        <td class="num">${p.ot?p.ot.toFixed(1):'<span style="color:var(--faint)">0</span>'}</td>
-        <td class="num">${p.otPay?money(p.otPay):'<span style="color:var(--faint)">0</span>'}</td>
-        <td class="num" title="${esc(adjTip)}">${p.adj?money(p.adj):'<span style="color:var(--faint)">0</span>'}${canWrite?` <button class="small" data-adj="${s.id}">編輯</button>`:''}</td>
-        <td class="num net">${p.base?money(p.net):'<span style="color:var(--faint)">未設定月薪</span>'}</td></tr>`;
-    }).join('');
-    $('payTable').innerHTML=`<thead><tr><th>人員</th><th class="num">月薪</th><th class="num">時薪</th><th class="num" title="滑過數字可以看明細">請假扣款</th><th class="num" title="排班總超時">加班時數</th><th class="num">加班費</th><th class="num">加減項</th><th class="num">實發</th></tr></thead><tbody>`+
-      (rows||`<tr><td colspan="8" class="empty">${canWrite?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
-      (canWrite&&list.length>1?`<tfoot><tr><td><b>合計</b></td><td class="num">${money(tot.base)}</td><td></td><td class="num">${tot.deduction?'−'+money(tot.deduction):'0'}</td><td></td><td class="num">${money(tot.otPay)}</td><td class="num">${money(tot.adj)}</td><td class="num net">${money(tot.net)}</td></tr></tfoot>`:'');
-  }
+  const z=v=>v?money(v):'<span style="color:var(--faint)">0</span>';
+  const tot={gross:0,deduct:0,net:0};
+  const rows=list.map(s=>{
+    const p=calcPay(mi,counts,s);tot.gross+=p.gross;tot.deduct+=p.deduct;tot.net+=p.net;const r=p.r;
+    return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}${r.saved?'':' <span class="pill">試算</span>'}</td>
+      <td class="num">${z(r.base)}</td><td class="num" title="出勤 ${money(r.attend)}＋績效 ${money(r.perf)}＋技能 ${money(r.skill)}">${z(p.allow)}</td>
+      <td class="num" title="排班超時 ${p.schedOtMin} 分＋另計 ${r.otMin||0} 分＝${p.otMin} 分">${z(p.otPay)}</td>
+      <td class="num" title="個人 ${money(r.selfInd)}＋團體 ${money(r.selfTeam)}">${z(p.bonus)}</td>
+      <td class="num" title="${r.stars||0} 則">${z(p.starPay)}</td>
+      <td class="num"><b>${money(p.gross)}</b></td>
+      <td class="num">${z(r.labor)}</td><td class="num" title="${money(r.health)} × (1＋眷屬 ${r.dependents||0} 人)">${z(p.healthTotal)}</td>
+      <td class="num" title="${r.lateMin||0} 分鐘">${z(p.late)}</td>
+      <td class="num net">${money(p.net)}</td>
+      ${canWrite?`<td class="num"><button class="small" data-payedit="${s.id}">編輯</button></td>`:''}</tr>`;
+  }).join('');
+  $('payTable').innerHTML=`<thead><tr><th>人員</th><th class="num">本俸</th><th class="num">津貼・績效</th><th class="num">加班薪資</th><th class="num">自費獎金</th><th class="num">五星好評</th><th class="num">應發合計</th><th class="num">勞保費</th><th class="num">健保費</th><th class="num">遲到</th><th class="num">實發</th>${canWrite?'<th></th>':''}</tr></thead><tbody>`+
+    (rows||`<tr><td colspan="12" class="empty">${canWrite?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
+    (canWrite&&list.length>1?`<tfoot><tr><td><b>合計</b></td><td colspan="5"></td><td class="num"><b>${money(tot.gross)}</b></td><td colspan="3" class="num">扣除 ${money(tot.deduct)}</td><td class="num net">${money(tot.net)}</td><td></td></tr></tfoot>`:'');
   $('payRulesCard').hidden=!canWrite;
   if(canWrite&&!$('payRulesCard').contains(document.activeElement)){
-    $('payDivisor').value=P.divisor;$('payOtRate').value=P.otRate;
-    $('payDeduct').innerHTML=PAY_TYPES.map(t=>`<div class="field"><label for="ded-${t}">${t}</label><input id="ded-${t}" type="number" min="0" max="1" step="0.1" data-ded="${t}" value="${P.deduct[t]||0}"></div>`).join('');
+    const P=payCfg();
+    $('payRules').innerHTML=PAY_RULE_FIELDS.map(([k,l])=>`<div class="field"><label for="pr-${k}">${l}</label><input id="pr-${k}" type="number" min="0" step="1" data-pr="${k}" value="${P[k]}"></div>`).join('');
   }
 }
-function openAdj(s){
-  const mi=monthInfo(),key=s.id+'_'+mi.ym;const items=clone(payAdj[key]?.items||[]);
-  const rowH=(x={})=>`<div class="adj-row"><input data-al placeholder="項目，例如：全勤獎金" value="${esc(x.label||'')}"><input type="number" data-aa step="1" placeholder="金額" value="${x.amount??''}"></div>`;
-  dialog(`<h3>${esc(fullName(s))}・${mi.label} 加減項</h3><p>加項填正數，扣項（例如勞健保自付額）填負數。留空的列不會儲存。</p>
-    <div id="adjRows">${(items.length?items:[{}]).map(rowH).join('')}</div>
-    <button type="button" class="small" id="adjAdd" style="margin-bottom:14px">＋ 新增一列</button>`,
+function openPay(s){
+  const mi=monthInfo(),key=s.id+'_'+mi.ym,counts=monthCounts(mi),r=payRec(s.id,mi.ym);
+  const inp=f=>`<div class="field"><label for="pf-${f.k}">${f.label}${f.unit?`（${f.unit}）`:''}</label><input id="pf-${f.k}" type="number" min="0" step="1" data-pf="${f.k}" value="${r[f.k]}"></div>`;
+  dialog(`<h3>${esc(fullName(s))}・${mi.label} 薪資</h3>
+    <p>${r.saved?'':'這個月還沒儲存，下面是帶入前一個月與預設值的試算。'}系統排班超時會自動換算成分鐘，「另計加班」只填排班以外的加班。</p>
+    <div class="lb" style="font-size:.78rem;font-weight:500;margin-bottom:6px">應發</div>
+    <div class="pay-rules" style="margin-bottom:14px">${PAY_FIELDS.filter(f=>f.g==='add').map(inp).join('')}</div>
+    <div class="lb" style="font-size:.78rem;font-weight:500;margin-bottom:6px">扣除</div>
+    <div class="pay-rules" style="margin-bottom:14px">${PAY_FIELDS.filter(f=>f.g==='sub').map(inp).join('')}</div>
+    <div class="banner" id="pfSum" style="margin:0 0 14px"></div>`,
     ov=>{
-      const out=[];ov.querySelectorAll('.adj-row').forEach(r=>{const label=r.querySelector('[data-al]').value.trim();const v=r.querySelector('[data-aa]').value;if(v==='')return;out.push({label,amount:Number(v)});});
-      store.payAdj(key,out.length?{staffId:s.id,ym:mi.ym,items:out}:null);toast('已儲存加減項。');
+      const o={staffId:s.id,ym:mi.ym};
+      for(const f of PAY_FIELDS){const v=Number(ov.querySelector(`[data-pf=${f.k}]`).value);if(!(v>=0)){toast(`${f.label}不能是負數。`,'warn');return false;}o[f.k]=v;}
+      store.pay(key,o);toast(`已儲存 ${codeOf(s.id)} ${mi.label} 薪資。`);
     },'儲存');
-  const ov=document.querySelector('.overlay:last-of-type');
-  ov.querySelector('#adjAdd').onclick=()=>ov.querySelector('#adjRows').insertAdjacentHTML('beforeend',rowH());
+  const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
+  const sum=()=>{
+    const rr={};PAY_FIELDS.forEach(f=>rr[f.k]=Number(ov.querySelector(`[data-pf=${f.k}]`).value)||0);
+    const p=calcPay(mi,counts,s,rr);
+    ov.querySelector('#pfSum').innerHTML=`加班 ${p.schedOtMin}＋${rr.otMin} 分＝${money(p.otPay)} 元・好評 ${money(p.starPay)} 元・健保 ${money(p.healthTotal)} 元・遲到 ${money(p.late)} 元<br>應發 <b>${money(p.gross)}</b> － 扣除 <b>${money(p.deduct)}</b> ＝ 實發 <b>${money(p.net)}</b>`;
+  };
+  ov.addEventListener('input',sum);sum();
 }
 
 function renderHolidays(){
@@ -2192,19 +2205,11 @@ $('tplMatrix').addEventListener('click',e=>{
 $('openMatrix').addEventListener('change',e=>{const k=e.target.dataset.open;if(!k)return;const n=clone(cfg);n.closed=n.closed||{};if(e.target.checked)delete n.closed[k];else n.closed[k]=true;store.cfg(n);});
 
 // 薪資
-$('payTable').addEventListener('change',e=>{
-  const id=e.target.dataset.base;if(!id||!canWrite)return;
-  store.salary(id,Object.assign({},salary[id]||{},{base:Math.max(0,Number(e.target.value)||0)}));
-  e.target.blur();
-});
-$('payTable').addEventListener('click',e=>{const b=e.target.closest('[data-adj]');if(b&&canWrite)openAdj(byId(b.dataset.adj));});
+$('payTable').addEventListener('click',e=>{const b=e.target.closest('[data-payedit]');if(b&&canWrite)openPay(byId(b.dataset.payedit));});
 $('payRulesCard').addEventListener('change',e=>{
-  if(!canWrite)return;const n=clone(cfg);n.pay=Object.assign({},n.pay||{});const v=Number(e.target.value);
-  if(e.target.id==='payDivisor'){if(!(v>0)){toast('時薪基數要大於 0。','warn');return;}n.pay.divisor=v;}
-  else if(e.target.id==='payOtRate'){if(!(v>=0)){toast('加班倍率不能是負數。','warn');return;}n.pay.otRate=v;}
-  else if(e.target.dataset.ded){if(!(v>=0&&v<=1)){toast('扣薪比例要介於 0 到 1。','warn');return;}n.pay.deduct=Object.assign({},n.pay.deduct||{},{[e.target.dataset.ded]:v});}
-  else return;
-  e.target.blur();store.cfg(n);
+  const k=e.target.dataset.pr;if(!k||!canWrite)return;const v=Number(e.target.value);
+  if(!(v>=0)){toast('金額不能是負數。','warn');return;}
+  const n=clone(cfg);n.pay=Object.assign({},n.pay||{},{[k]:v});e.target.blur();store.cfg(n);
 });
 $('signOut').onclick=signOutAndReload;
 
@@ -2243,9 +2248,9 @@ $('exportBtn').onclick=async()=>{
   const ws4=XLSX.utils.aoa_to_sheet(fcRows);ws4['!cols']=[{wch:12},{wch:14},{wch:8},{wch:13},{wch:10},{wch:20}];
   XLSX.utils.book_append_sheet(wb,ws4,'家庭照顧假');
   if(canWrite){
-    const pr=[['代號','姓名','月薪','時薪','請假扣款','加班時數','加班費','加減項','加減項明細','實發']];
-    staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])).forEach(s=>{const p=calcPay(mi,counts,s);pr.push([s.code||'',s.name||'',p.base,Math.round(p.hourly*10)/10,-p.deduction,p.ot,p.otPay,p.adj,p.items.map(x=>`${x.label} ${x.amount}`).join('、'),p.net]);});
-    const ws5=XLSX.utils.aoa_to_sheet(pr);ws5['!cols']=[{wch:8},{wch:10},{wch:10},{wch:8},{wch:10},{wch:10},{wch:10},{wch:10},{wch:24},{wch:10}];
+    const pr=[['代號','姓名','狀態','本俸','出勤津貼','績效獎金','技能津貼','加班分鐘','加班薪資','自費獎金-個人','自費獎金-團體','五星好評(則)','五星好評','應發合計','勞保費','健保費(本人)','眷屬人數','健保費','遲到分鐘','遲到扣款','扣除合計','實發']];
+    staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])).forEach(s=>{const p=calcPay(mi,counts,s),r=p.r;pr.push([s.code||'',s.name||'',r.saved?'已儲存':'試算',r.base,r.attend,r.perf,r.skill,p.otMin,p.otPay,r.selfInd,r.selfTeam,r.stars,p.starPay,p.gross,r.labor,r.health,r.dependents,p.healthTotal,r.lateMin,p.late,p.deduct,p.net]);});
+    const ws5=XLSX.utils.aoa_to_sheet(pr);ws5['!cols']=pr[0].map(h=>({wch:Math.max(8,h.length*2)}));
     XLSX.utils.book_append_sheet(wb,ws5,'薪資');
   }
   const fname=`排班表_${mi.ym}.xlsx`;
