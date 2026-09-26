@@ -418,6 +418,25 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
           <p class="hint" id="fcHint" hidden>上下捲動可查看其他家庭照顧假日期。</p>
           <div class="scroll-x" style="margin-top:14px"><table class="list" id="fcSummary"></table></div>
         </div>
+        <div class="card">
+          <h2>事假補班</h2>
+          <p class="desc">登記事假的補班日期，當天有補班就算 1 天。當月補班天數少於事假天數時，當月不發出勤津貼。補班只做紀錄，不會自動排進班表。</p>
+          <form class="form-row" id="mkForm" style="margin-bottom:14px">
+            <div class="field"><label for="mkStaff">助理</label><select id="mkStaff" required></select></div>
+            <div class="field"><label for="mkDate">日期</label><input type="date" id="mkDate" required></div>
+            <div class="field"><span class="lb">班別</span>
+              <div class="checks">
+                <label><input type="checkbox" data-mksh="day" checked>早</label>
+                <label><input type="checkbox" data-mksh="eve">午</label>
+                <label><input type="checkbox" data-mksh="night">晚</label>
+              </div>
+            </div>
+            <div class="field" style="flex:1;min-width:140px"><label for="mkNote">備註</label><input id="mkNote" placeholder="例如：補 9/15 事假"></div>
+            <button class="primary" type="submit">登記補班</button>
+          </form>
+          <div class="hol-scroll" id="mkScroll"><table class="list" id="mkTable"></table></div>
+          <div class="scroll-x" style="margin-top:14px"><table class="list" id="mkSummary"></table></div>
+        </div>
       </div>
     </section>
 
@@ -581,6 +600,7 @@ const PREF_KEY='clinic_roster_prefs_v1';
 let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, userNs=null, accessLinks={};
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], privateInfo={}, isAdmin=true;
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
+let makeups=[]; // 事假補班 {id,staffId,date,shifts,note}
 let prefs=loadPrefs();
 let selectedId=null, lastUndo=null, editingHol=null, editingLeave=null, editingFc=null, editingStaff=null;
 
@@ -655,8 +675,8 @@ function handleWriteError(e){
   if(e&&e.code==='quota_exceeded'){toast('資料庫已滿，請刪除舊的請假紀錄後再試。','warn');return;}
   toast('儲存失敗，請稍後再試一次。','warn');
 }
-function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};}}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
@@ -672,6 +692,17 @@ const store={
     weeks[wk]=cells;renderAll();
     if(!db){saveLocal();return;}
     return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({c:encCells(cells)});weeksExist.add(wk);});
+  },
+  async mk(l){
+    makeups.push(l);renderAll();
+    if(!db){saveLocal();return;}
+    const {id,...body}=l;
+    return queue('makeups/'+id,()=>db.doc('makeups/'+id).set(body));
+  },
+  async delMk(id){
+    makeups=makeups.filter(x=>x.id!==id);renderAll();
+    if(!db){saveLocal();return;}
+    return queue('makeups/'+id,()=>db.doc('makeups/'+id).delete());
   },
   async pay(key,obj){
     pay[key]=obj;renderAll();
@@ -786,6 +817,7 @@ function start(acc){
   },onErr);
   db.collection('leaves').onSnapshot(snap=>{leaves=snap.docs.map(d=>Object.assign({id:d.id},d.data()));buildLeaveIdx();done('leaves');},onErr);
   db.collection('familyCare').onSnapshot(snap=>{familyCare=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('fc');},onErr);
+  db.collection('makeups').onSnapshot(snap=>{makeups=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
   db.doc('config/main').onSnapshot(snap=>{cfg=Object.assign(clone(DEFAULT_CFG),snap.exists?clone(snap.data()):{});done('cfg');},onErr);
   // 自己的權限被改掉時重新載入，讓畫面與資料讀取範圍跟著更新
   const recheck=d=>{if(isAdmin)return;if(!d||d.perm!==acc.perm||d.staffId!==acc.staffId)location.reload();};
@@ -1021,8 +1053,25 @@ function renderFamilyCare(mi){
   $('fcSummary').innerHTML=ids.length?`<thead><tr><th>助理</th><th class="num">${mi.first.getMonth()+1}月合計</th><th class="num">${yr}年累計</th></tr></thead><tbody>`+
     ids.map(id=>`<tr><td>${esc(fullName(byId(id)))}</td><td class="num">${tot[id].m} 小時</td><td class="num">${tot[id].y} 小時</td></tr>`).join('')+'</tbody>':'';
 }
+function renderMakeup(mi){
+  const sel=$('mkStaff');const cur=sel.value;const mine=myStaffId();
+  $('mkForm').querySelector('button[type=submit]').disabled=!(canWrite||(canLeaveFor(mine)&&byId(mine)?.role==='assistant'));
+  sel.innerHTML=activeStaff('assistant').filter(s=>canWrite||s.id===mine).map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');
+  if(cur&&byId(cur))sel.value=cur;
+  if(!$('mkDate').value){const t=new Date();const d=(t>=mi.first&&t<=mi.last)?t:mi.first;$('mkDate').value=ymd(d);}
+  const a=ymd(mi.first),z=ymd(mi.last);
+  const rows=makeups.filter(m=>m.date>=a&&m.date<=z).sort((x,y)=>x.date.localeCompare(y.date)||codeOf(x.staffId).localeCompare(codeOf(y.staffId),'en',{numeric:true}));
+  $('mkTable').innerHTML='<thead><tr><th>日期</th><th>助理</th><th>班別</th><th>備註</th><th></th></tr></thead><tbody>'+
+    (rows.length?rows.map(m=>{const d=parseYmd(m.date);const sh=(m.shifts||[]).length===3?'全天':SHIFTS.filter(s=>(m.shifts||[]).includes(s.id)).map(s=>s.short).join('、');
+      return `<tr><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td><td>${esc(fullName(byId(m.staffId)))}</td><td>${sh||'—'}</td><td>${esc(m.note||'')}</td><td class="num">${canLeaveFor(m.staffId)?`<button class="small danger" data-delmk="${m.id}">刪除</button>`:''}</td></tr>`;}).join('')
+    :`<tr><td colspan="5" class="empty">${mi.label}還沒有補班紀錄。</td></tr>`)+'</tbody>';
+  limitRows($('mkScroll'),5);
+  const ids=activeStaff('assistant').map(s=>s.id).filter(id=>(leaveDays(mi,id)['事假']||0)>0||makeupDays(mi,id)>0);
+  $('mkSummary').innerHTML=ids.length?`<thead><tr><th>助理</th><th class="num">${mi.first.getMonth()+1}月事假</th><th class="num">補班</th><th>出勤津貼</th></tr></thead><tbody>`+
+    ids.map(id=>{const sd=leaveDays(mi,id)['事假']||0,md2=makeupDays(mi,id);return `<tr><td>${esc(fullName(byId(id)))}</td><td class="num">${sd} 天</td><td class="num">${md2} 天</td><td>${sd>0&&md2<sd?`<span class="pill warn">不發（還差 ${Math.round((sd-md2)*100)/100} 天）</span>`:'<span class="pill">照發</span>'}</td></tr>`;}).join('')+'</tbody>':'';
+}
 function renderLeave(mi,roles){
-  if(roles.includes('assistant'))renderFamilyCare(mi);
+  if(roles.includes('assistant')){renderFamilyCare(mi);renderMakeup(mi);}
   roles.forEach(role=>{
     const word=role==='doctor'?'休假':'請假';
     const sel=$('lvStaff-'+role);const cur=sel.value;
@@ -1141,6 +1190,8 @@ function leaveDays(mi,sid){
   Object.keys(days).forEach(t=>days[t]=Math.round(days[t]*100)/100);
   return days;
 }
+// 補班天數：當月有補班紀錄的日期數
+function makeupDays(mi,sid){const a=ymd(mi.first),z=ymd(mi.last);return new Set(makeups.filter(m=>m.staffId===sid&&m.date>=a&&m.date<=z).map(m=>m.date)).size;}
 // 家庭照顧假：登記時數 × 每小時金額（預設 170）
 function fcHoursOf(mi,sid){const a=ymd(mi.first),z=ymd(mi.last);return familyCare.reduce((n,l)=>n+(l.staffId===sid&&l.date>=a&&l.date<=z?(Number(l.hours)||0):0),0);}
 function calcPay(mi,counts,s,rec){
@@ -1148,10 +1199,13 @@ function calcPay(mi,counts,s,rec){
   const c=counts[s.id]||{hours:0,ot:0};
   const schedOtMin=Math.round(((c.ot||0)+Math.max(0,c.hours-reasonableDays(mi,s.id)))*60);
   const otMin=schedOtMin+(r.otMin||0),otPay=otMin*P.otPerMin,starPay=(r.stars||0)*P.starUnit;
-  const allow=r.attend+r.perf+r.skill,bonus=r.selfInd+r.selfTeam;
+  const daily=r.base/P.dayDiv,days=leaveDays(mi,s.id);
+  // 事假補班：當月補班天數少於事假天數時，不發出勤津貼
+  const shiDays=days['事假']||0,mkDays=makeupDays(mi,s.id),attendLost=shiDays>0&&mkDays<shiDays;
+  const attendPaid=attendLost?0:r.attend;
+  const allow=attendPaid+r.perf+r.skill,bonus=r.selfInd+r.selfTeam;
   const gross=r.base+allow+otPay+bonus+starPay;
   const healthTotal=r.health*(1+(r.dependents||0)),late=(r.lateMin||0)*P.latePerMin;
-  const daily=r.base/P.dayDiv,days=leaveDays(mi,s.id);
   const fcHours=fcHoursOf(mi,s.id),fcDeduct=fcHours*P.fcPerHour;
   const leaveDeduct=Math.round(Object.entries(days).reduce((n,[t,d])=>n+d*daily*(P.deduct[t]||0),0)+fcDeduct);
   const adj=(r.items||[]).reduce((n,x)=>n+(Number(x.amount)||0),0);
@@ -1159,7 +1213,7 @@ function calcPay(mi,counts,s,rec){
   // 請假明細文字（表格提示與編輯視窗共用）
   const lvParts=Object.entries(days).map(([t,d])=>`${t} ${d} 天 × ${P.deduct[t]||0}`);
   if(fcHours)lvParts.push(`家庭照顧假 ${fcHours} 小時 × ${P.fcPerHour} 元`);
-  return {r,schedOtMin,otMin,otPay,starPay,allow,bonus,gross,healthTotal,late,daily,days,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
+  return {r,schedOtMin,otMin,otPay,starPay,allow,attendPaid,attendLost,shiDays,mkDays,bonus,gross,healthTotal,late,daily,days,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
 }
 function renderPay(mi,counts){
   $('payTitle').textContent=`${mi.label} 薪資`;
@@ -1174,7 +1228,7 @@ function renderPay(mi,counts){
     const lvTip=p.lvParts.join('\n')||'沒有請假';
     const adjTip=r.items.map(x=>`${x.label||'（未命名）'} ${money(x.amount)}`).join('\n');
     return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}${r.saved?'':' <span class="pill">試算</span>'}</td>
-      <td class="num">${z(r.base)}</td><td class="num" title="出勤 ${money(r.attend)}＋績效 ${money(r.perf)}＋技能 ${money(r.skill)}">${z(p.allow)}</td>
+      <td class="num">${z(r.base)}</td><td class="num" title="出勤 ${money(p.attendPaid)}${p.attendLost?`（事假 ${p.shiDays} 天、補班 ${p.mkDays} 天，補班不足不發）`:''}＋績效 ${money(r.perf)}＋技能 ${money(r.skill)}">${z(p.allow)}${p.attendLost?' <span class="pill warn">無出勤津貼</span>':''}</td>
       <td class="num" title="排班超時 ${p.schedOtMin} 分＋另計 ${r.otMin||0} 分＝${p.otMin} 分">${z(p.otPay)}</td>
       <td class="num" title="個人 ${money(r.selfInd)}＋團體 ${money(r.selfTeam)}">${z(p.bonus)}</td>
       <td class="num" title="${r.stars||0} 則">${z(p.starPay)}</td>
@@ -1227,7 +1281,7 @@ function openPay(s){
     ov.querySelector('#pfLeave').textContent=p.lvParts.length
       ?`日薪 ${money(p.daily)} 元。`+p.lvParts.join('、')+`，共扣 ${money(p.leaveDeduct)} 元。`
       :'這個月沒有請假紀錄。';
-    ov.querySelector('#pfSum').innerHTML=`加班 ${p.schedOtMin}＋${rr.otMin} 分＝${money(p.otPay)} 元・好評 ${money(p.starPay)} 元・健保 ${money(p.healthTotal)} 元・遲到 ${money(p.late)} 元・請假 ${money(p.leaveDeduct)} 元<br>應發 <b>${money(p.gross)}</b> － 扣除 <b>${money(p.deduct)}</b> ${p.adj<0?'－':'＋'} 加減項 <b>${money(Math.abs(p.adj))}</b> ＝ 實發 <b>${money(p.net)}</b>`;
+    ov.querySelector('#pfSum').innerHTML=(p.attendLost?`<b style="color:var(--warn)">事假 ${p.shiDays} 天、補班 ${p.mkDays} 天，補班不足，本月不發出勤津貼。</b><br>`:'')+`加班 ${p.schedOtMin}＋${rr.otMin} 分＝${money(p.otPay)} 元・好評 ${money(p.starPay)} 元・健保 ${money(p.healthTotal)} 元・遲到 ${money(p.late)} 元・請假 ${money(p.leaveDeduct)} 元<br>應發 <b>${money(p.gross)}</b> － 扣除 <b>${money(p.deduct)}</b> ${p.adj<0?'－':'＋'} 加減項 <b>${money(Math.abs(p.adj))}</b> ＝ 實發 <b>${money(p.net)}</b>`;
   };
   ov.addEventListener('input',sum);ov.querySelector('#adjAdd').addEventListener('click',sum);sum();
 }
@@ -2050,6 +2104,18 @@ $('fcForm').addEventListener('submit',e=>{
   $('fcNote').value='';const h=c.hours;
   toast(`已登記 ${codeOf(sid)} 家庭照顧假 ${h} 小時。`);
 });
+$('mkForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const sid=$('mkStaff').value,date=$('mkDate').value;
+  if(!sid||!date){toast('請選擇助理與日期。','warn');return;}
+  if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的補班。','warn');return;}
+  const shifts=[...document.querySelectorAll('[data-mksh]:checked')].map(c=>c.dataset.mksh);
+  if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
+  if(makeups.some(m=>m.staffId===sid&&m.date===date)){toast(`${codeOf(sid)} 在 ${date.slice(5).replace('-','/')} 已經登記過補班。`,'warn');return;}
+  store.mk({id:uid('m'),staffId:sid,date,shifts,note:$('mkNote').value.trim(),createdAt:Date.now()});
+  $('mkNote').value='';toast(`已登記 ${codeOf(sid)} 補班 1 天。`);
+});
+$('mkTable').addEventListener('click',e=>{const b=e.target.closest('[data-delmk]');if(!b)return;const m=makeups.find(x=>x.id===b.dataset.delmk);if(m&&canLeaveFor(m.staffId)){store.delMk(m.id);toast('已刪除補班紀錄。');}});
 function fcCalc(a=$('fcStart').value,b=$('fcEnd').value){
   if(!a||!b)return null;
   const toM=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
@@ -2289,9 +2355,13 @@ $('exportBtn').onclick=async()=>{
   familyCare.filter(l=>l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(l=>fcRows.push([l.date,nm(l.staffId),SHIFTS.find(x=>x.id===l.shift)?.name||'',l.start&&l.end?`${l.start}-${l.end}`:'',l.hours,l.note||'']));
   const ws4=XLSX.utils.aoa_to_sheet(fcRows);ws4['!cols']=[{wch:12},{wch:14},{wch:8},{wch:13},{wch:10},{wch:20}];
   XLSX.utils.book_append_sheet(wb,ws4,'家庭照顧假');
+  const mkRows=[['日期','人員','班別','備註']];
+  makeups.filter(m=>m.date>=ymd(mi.first)&&m.date<=ymd(mi.last)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(m=>mkRows.push([m.date,nm(m.staffId),SHIFTS.filter(s=>(m.shifts||[]).includes(s.id)).map(s=>s.name).join('、'),m.note||'']));
+  const ws6=XLSX.utils.aoa_to_sheet(mkRows);ws6['!cols']=[{wch:12},{wch:14},{wch:16},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws6,'事假補班');
   if(canWrite){
     const pr=[['代號','姓名','狀態','本俸','出勤津貼','績效獎金','技能津貼','加班分鐘','加班薪資','自費獎金-個人','自費獎金-團體','五星好評(則)','五星好評','應發合計','勞保費','健保費(本人)','眷屬人數','健保費','遲到分鐘','遲到扣款','請假扣款','扣除合計','加減項','加減項明細','實發']];
-    staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])).forEach(s=>{const p=calcPay(mi,counts,s),r=p.r;pr.push([s.code||'',s.name||'',r.saved?'已儲存':'試算',r.base,r.attend,r.perf,r.skill,p.otMin,p.otPay,r.selfInd,r.selfTeam,r.stars,p.starPay,p.gross,r.labor,r.health,r.dependents,p.healthTotal,r.lateMin,p.late,p.leaveDeduct,p.deduct,p.adj,r.items.map(x=>`${x.label} ${x.amount}`).join('、'),p.net]);});
+    staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])).forEach(s=>{const p=calcPay(mi,counts,s),r=p.r;pr.push([s.code||'',s.name||'',r.saved?'已儲存':'試算',r.base,p.attendPaid,r.perf,r.skill,p.otMin,p.otPay,r.selfInd,r.selfTeam,r.stars,p.starPay,p.gross,r.labor,r.health,r.dependents,p.healthTotal,r.lateMin,p.late,p.leaveDeduct,p.deduct,p.adj,r.items.map(x=>`${x.label} ${x.amount}`).join('、'),p.net]);});
     const ws5=XLSX.utils.aoa_to_sheet(pr);ws5['!cols']=pr[0].map(h=>({wch:Math.max(8,h.length*2)}));
     XLSX.utils.book_append_sheet(wb,ws5,'薪資');
   }

@@ -50,6 +50,14 @@ service cloud.firestore {
       allow delete: if canManage() || isSelf(resource.data.staffId);
     }
 
+    // 事假補班：規則同請假
+    match /makeups/{id} {
+      allow read: if canView();
+      allow create: if canManage() || isSelf(request.resource.data.staffId);
+      allow update: if canManage() || (isSelf(resource.data.staffId) && isSelf(request.resource.data.staffId));
+      allow delete: if canManage() || isSelf(resource.data.staffId);
+    }
+
     // 薪資：排班管理以上可看可改所有人；其他人只能看自己的
     // pay/{staffId}_{YYYY-MM}：每人每月一筆
     match /pay/{id} {
