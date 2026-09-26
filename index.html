@@ -290,6 +290,7 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .pay-table td.net{font-weight:700;}
 .pay-rules{display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px;}
 .pay-rules input{width:100%;}
+.pay-rules .field.hl input{border:2px solid var(--warn);}
 .adj-row{display:flex; gap:8px; margin-bottom:8px;}
 .adj-row input{flex:1;}
 .adj-row input[type=number]{flex:0 0 110px; text-align:right;}
@@ -1158,14 +1159,14 @@ const PAY_FIELDS=[
   {k:'attend',label:'出勤津貼',def:'attend',g:'add'},
   {k:'perf',label:'績效獎金',def:'perf',g:'add'},
   {k:'skill',label:'技能津貼',def:'skill',g:'add'},
-  {k:'otMin',label:'另計加班',g:'add',unit:'分鐘'},
-  {k:'selfInd',label:'自費獎金－個人',g:'add'},
-  {k:'selfTeam',label:'自費獎金－團體',g:'add'},
-  {k:'stars',label:'五星好評',g:'add',unit:'則'},
+  {k:'otMin',label:'另計加班',g:'add',unit:'分鐘',hl:true},
+  {k:'selfInd',label:'自費獎金－個人',g:'add',hl:true},
+  {k:'selfTeam',label:'自費獎金－團體',g:'add',hl:true},
+  {k:'stars',label:'五星好評',g:'add',unit:'則',hl:true},
   {k:'labor',label:'勞保費',carry:true,g:'sub'},
   {k:'health',label:'健保費（本人）',carry:true,g:'sub'},
   {k:'dependents',label:'健保眷屬',carry:true,g:'sub',unit:'人'},
-  {k:'lateMin',label:'遲到',g:'sub',unit:'分鐘'},
+  {k:'lateMin',label:'遲到',g:'sub',unit:'分鐘',hl:true},
 ];
 const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,shiftPay:595,fcPerHour:170,lateLimit:30};
 const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['lateLimit','遲到超過幾分鐘不發出勤津貼'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['shiftPay','每診設定薪資（元）']];
@@ -1259,7 +1260,7 @@ const adjRow=(x={})=>`<div class="adj-row"><input data-al placeholder="項目名
 function readAdj(ov){const out=[];ov.querySelectorAll('.adj-row').forEach(r=>{const v=r.querySelector('[data-aa]').value;if(v==='')return;out.push({label:r.querySelector('[data-al]').value.trim(),amount:Number(v)||0});});return out;}
 function openPay(s){
   const mi=monthInfo(),key=s.id+'_'+mi.ym,counts=monthCounts(mi),r=payRec(s.id,mi.ym);
-  const inp=f=>`<div class="field"><label for="pf-${f.k}">${f.label}${f.unit?`（${f.unit}）`:''}</label><input id="pf-${f.k}" type="number" min="0" step="1" data-pf="${f.k}" value="${r[f.k]}"></div>`;
+  const inp=f=>`<div class="field${f.hl?' hl':''}"><label for="pf-${f.k}">${f.label}${f.unit?`（${f.unit}）`:''}</label><input id="pf-${f.k}" type="number" min="0" step="1" data-pf="${f.k}" value="${r[f.k]}"></div>`;
   dialog(`<h3>${esc(fullName(s))}・${mi.label} 薪資</h3>
     <p>${r.saved?'':'這個月還沒儲存，下面是帶入前一個月與預設值的試算。'}系統排班超時會自動換算成分鐘，「另計加班」只填排班以外的加班。</p>
     <div class="lb" style="font-size:.78rem;font-weight:500;margin-bottom:6px">應發</div>
