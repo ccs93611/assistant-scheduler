@@ -27,7 +27,7 @@ window.FIREBASE_CONFIG = {
 // 避免 iPhone Safari 等封鎖跨網域儲存的瀏覽器出現「missing initial state」。
 if (location.hostname === 'assistant-scheduler-five.vercel.app') window.FIREBASE_CONFIG.authDomain = location.hostname;
 // 開發用：本機網址加上 ?local=1 改用 localStorage，不碰雲端資料
-if (location.hostname === 'localhost' && /[?&]local=1/.test(location.search)) window.FIREBASE_CONFIG = null;
+if (location.hostname === 'localhost' && /[?&]local=[\w-]+/.test(location.search)) window.FIREBASE_CONFIG = null;
 // LINE 內建瀏覽器不能用 Google 登入：自動改用手機預設瀏覽器開啟
 if (/\bLine\//i.test(navigator.userAgent) && !/openExternalBrowser=1/.test(location.search)) {
   location.replace(location.pathname + (location.search ? location.search + '&' : '?') + 'openExternalBrowser=1' + location.hash);
@@ -44,7 +44,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com'];
   --asst-bg:#CFEBD6; --asst-bd:#7FBF91; --asst-ink:#1D4A2B;
   --day-line:#A3AAA0;
   --slot:#EFEDE5; --chip:#E4E9E2; --shadow:0 8px 28px rgba(31,42,36,.18);
-  --extra:#DCE6F6; --extra-bd:#8FA9D6; --extra-ink:#23406E; /* 加診 */
+  --extra:#B3C6E7; --extra-bd:#8FA9D6; --extra-ink:#1B2F52; /* 加診：實心藍（格子外框同底色）；--extra-bd 用於按鈕等較深處 */
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -54,7 +54,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com'];
     --doc:#D8A876; --doc-soft:rgba(216,168,118,.10);
     --warn:#E6866D; --warn-soft:#3D2620; --ok:#86C29D;
     --asst-bg:#23452F; --asst-bd:#3F7D55; --asst-ink:#CDEBD6; --day-line:#5E6A5B; --slot:#262C22; --chip:#2E362A; --shadow:0 8px 28px rgba(0,0,0,.5);
-  --extra:#23324A; --extra-bd:#4F6D9E; --extra-ink:#CFDDF3;
+  --extra:#4F6D9E; --extra-bd:#4F6D9E; --extra-ink:#FFFFFF;
   }
 }
 :root[data-theme="dark"]{
@@ -64,7 +64,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com'];
   --doc:#D8A876; --doc-soft:rgba(216,168,118,.10);
   --warn:#E6866D; --warn-soft:#3D2620; --ok:#86C29D;
   --asst-bg:#23452F; --asst-bd:#3F7D55; --asst-ink:#CDEBD6; --day-line:#5E6A5B; --slot:#262C22; --chip:#2E362A; --shadow:0 8px 28px rgba(0,0,0,.5);
-  --extra:#23324A; --extra-bd:#4F6D9E; --extra-ink:#CFDDF3;
+  --extra:#4F6D9E; --extra-bd:#4F6D9E; --extra-ink:#FFFFFF;
 }
 *{box-sizing:border-box;}
 body{
@@ -133,12 +133,20 @@ main{padding-block:18px 48px;}
 .chip .cnt .ot4{color:var(--sub);}
 .chip .cnt{text-align:right;}
 .chip .cnt.over{color:var(--warn); font-weight:500;}
+.chip .cnt .hrs{margin-left:2px;}
+.chip .cnt .hrs.over{color:var(--warn); font-weight:500;}
 .hint{font-size:.72rem; color:var(--faint); margin:12px 0 0; line-height:1.55;}
 .legend{display:flex; flex-direction:column; gap:4px; margin-top:12px; font-size:.72rem; color:var(--sub);}
 .legend span{display:flex; align-items:center; gap:6px;}
 .legend b{width:14px; height:12px; border-radius:3px; display:inline-block;}
 
 .weeks{flex:1; min-width:0; display:flex; flex-direction:column; gap:16px;}
+/* 原始班表／異動班表 */
+.sched-main{flex:1; min-width:0; display:flex; flex-direction:column; gap:10px;}
+.sched-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.sched-bar .seg button{padding:5px 14px; font-size:.82rem;}
+#origNote[hidden]{display:none;}
+.weeks.orig .week{border-style:dashed;}
 .week{background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;}
 .week-head{display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-bottom:1px solid var(--line);}
 .week-head span{font-weight:500;}
@@ -198,6 +206,12 @@ td.closed{background:repeating-linear-gradient(135deg,var(--slot) 0 6px,transpar
 .pos.doc{background:var(--doc-soft);}
 .pos.over{background:var(--accent-soft);}
 .pos.bad{background:var(--warn-soft);}
+/* 拖到另一個人上準備交換：目標加外框，游標旁顯示提示 */
+.item.swap-on{outline:2px dashed var(--accent); outline-offset:1px;}
+.item.swap-on.swap-no{outline-color:var(--warn);}
+.swap-tip{position:fixed; z-index:1000; pointer-events:none; max-width:280px; padding:5px 10px; border-radius:6px;
+  background:var(--accent); color:var(--accent-ink); font-size:.8rem; font-weight:500; box-shadow:0 2px 8px rgba(0,0,0,.18); white-space:normal;}
+.swap-tip.no{background:var(--warn); color:#fff;}
 .pos.target{background:color-mix(in srgb,var(--accent-soft) 55%,transparent);}
 .q-items{display:flex; flex-wrap:nowrap; gap:2px; justify-content:center;}
 .q-items .item,.q-items .gap{flex:0 0 26px; width:26px; padding:1px 0;}
@@ -210,8 +224,11 @@ td.closed{background:repeating-linear-gradient(135deg,var(--slot) 0 6px,transpar
 }
 .pos.doc .item{border-color:color-mix(in srgb,var(--doc) 45%,transparent);}
 .item.asst,.pos.doc .item.asst{background:var(--chip); border-color:var(--chip); color:var(--ink);} /* 與左方助理名單相同的綠色 */
-.item.asst.extra,.pos.doc .item.asst.extra{background:var(--extra); border-color:var(--extra-bd); color:var(--extra-ink);} /* 加診 */
-.slot-grid .pos .item.onleave{border-color:var(--warn); color:var(--warn); background:var(--warn-soft);}
+.item.asst.extra,.pos.doc .item.asst.extra{background:var(--extra); border-color:var(--extra); color:var(--extra-ink);} /* 加診 */
+/* 異動班表：事後請假以紅色斜線劃掉（保留原本顏色） */
+.item.slashed::after{content:''; position:absolute; inset:0; pointer-events:none; border-radius:inherit;
+  background:linear-gradient(to top right,transparent calc(50% - .75px),var(--warn) calc(50% - .75px),var(--warn) calc(50% + .75px),transparent calc(50% + .75px));}
+.slot-grid .pos .item.onleave{border-color:var(--warn); color:var(--warn); background:var(--warn-soft);} /* 當班已請假：紅色，不加刪除線 */
 .slot-grid .pos .item.hl{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
 .item.onleave{border-color:var(--warn); color:var(--warn); background:var(--warn-soft);}
 .item.hl{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
@@ -294,6 +311,14 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .gate .acts button{width:100%; white-space:normal;}
 body.gated .shell{display:none;}
 /* 匯出圖檔／PDF 用：畫面外的白底版面，固定用淺色配色、不橫向捲動 */
+/* 個人假統計 */
+.pv-annual{border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--bg); font-size:.86rem;}
+.pv-annual b.big{font-size:1.1rem;}
+.pv-bar{height:6px; border-radius:3px; background:var(--slot); overflow:hidden; margin:6px 0 2px; max-width:320px;}
+.pv-bar i{display:block; height:100%; border-radius:3px; background:#2E7D32;}
+#pvForm .field[hidden]{display:none;}
+#pvTable td.num,#pvTable td:nth-child(7){white-space:nowrap;}
+#pvTable td:nth-child(2){min-width:170px;}
 /* 整月排假彈窗 */
 .dialog.ml-dialog{max-width:1180px;}
 .ml-head{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
@@ -314,6 +339,18 @@ body.gated .shell{display:none;}
 .ml-day.out{visibility:hidden;}
 .ml-date{font-size:.75rem; font-weight:500;}
 .ml-slot{min-height:26px; border:1px dashed var(--line); border-radius:4px; padding:2px 3px; display:flex; flex-wrap:wrap; gap:2px; align-items:center; cursor:pointer;}
+/* 早午晚三格緊貼成一組；整天制假別（特休、排休、婚假、喪假）的標籤上下連成一條 */
+.ml-shifts{display:flex; flex-direction:column; border:1px solid var(--line); border-radius:4px; overflow:visible;}
+.ml-shifts .ml-slot{min-height:0; height:24px; border:none; border-top:1px dashed var(--line); border-radius:0; padding:0 3px; flex-wrap:nowrap; align-items:stretch;}
+.ml-shifts .ml-slot:first-child{border-top:none;}
+.ml-shifts .ml-slot.off{border-top-style:solid;}
+.ml-shifts .ml-sh{align-self:center;}
+.ml-shifts .ml-tag{height:auto; margin:2px 0; display:flex; align-items:center; justify-content:center;}
+.ml-shifts .ml-tag.fd-top{margin-bottom:0; border-bottom-width:0; border-radius:4px 4px 0 0; position:relative; z-index:1;}
+.ml-shifts .ml-tag.fd-mid{margin:0; border-top-width:0; border-bottom-width:0; border-radius:0; position:relative; z-index:1;}
+.ml-shifts .ml-tag.fd-bot{margin-top:0; border-top-width:0; border-radius:0 0 4px 4px;}
+.ml-shifts .ml-tag.fd-top::after,.ml-shifts .ml-tag.fd-mid::after{content:''; position:absolute; left:-1px; right:-1px; bottom:-1px; height:1px; background:inherit; border-left:1px solid; border-right:1px solid; border-color:inherit;}
+.ml-shifts .ml-tag.fd-mid,.ml-shifts .ml-tag.fd-bot{color:transparent !important;} /* 代號只在最上面顯示一次 */
 .ml-slot.over{background:var(--accent-soft); border-color:var(--accent);}
 .ml-day.over{background:var(--accent-soft); border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);}
 .ml-day[data-day] .ml-date{cursor:pointer;}
@@ -322,6 +359,7 @@ body.gated .shell{display:none;}
 .ml-tag{font-size:.66rem; padding:0 1px; border-radius:4px; border:1px solid; line-height:1.5; font-weight:500; width:23px; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:clip;}
 .ml-tag{display:inline-block; box-sizing:border-box; height:18px; vertical-align:middle;}
 .ml-tag.ph{visibility:hidden;}
+.ml-tag.faded{background:var(--slot); border-color:var(--line); color:var(--faint); font-weight:400; cursor:default;}
 .ml-sh{width:12px; flex-shrink:0;}
 @media (max-width:700px){
   .ml-body{flex-direction:column;}
@@ -332,7 +370,7 @@ body.gated .shell{display:none;}
   --bg:#F3F1EC; --panel:#FFFFFF; --ink:#1F2A24; --sub:#5C6B63; --faint:#8B968E;
   --line:#DAD8CE; --accent:#3B5D52; --accent-ink:#FFFFFF; --accent-soft:#DDE7E1;
   --doc:#B8895A; --doc-soft:rgba(184,137,90,.10); --warn:#B4432E; --warn-soft:#F6E1DB;
-  --slot:#EFEDE5; --chip:#E4E9E2; --extra:#DCE6F6; --extra-bd:#8FA9D6; --extra-ink:#23406E;
+  --slot:#EFEDE5; --chip:#E4E9E2; --extra:#B3C6E7; --extra-bd:#8FA9D6; --extra-ink:#1B2F52;
   color:var(--ink);
 }
 .export-sheet h2{margin:0; padding:4px 2px 8px; font-size:1.3rem;}
@@ -351,6 +389,15 @@ body.gated .shell{display:none;}
 .gate[hidden],.me[hidden],.card[hidden],.field[hidden]{display:none;}
 .me{font-size:.75rem; color:var(--sub); display:flex; align-items:center; gap:6px;}
 .pay-table input{width:110px; text-align:right;}
+.list tr.faded td{color:var(--faint); opacity:.7;}
+.lv-head{display:flex; align-items:center; justify-content:flex-start; gap:10px; margin-bottom:4px;}
+.lv-head h2{margin:0;}
+.lv-head .seg button{padding:5px 14px; font-size:.82rem;}
+#lvWhenSeg [data-when="after"][aria-pressed="true"]{background:var(--warn); color:#fff;} /* 事後：紅色；事前維持綠色 */
+.ml-after{color:var(--warn);}
+.ml-before{color:var(--accent);} /* 與「事前」按鈕相同的綠色 */
+#lvPane-before[hidden],#lvPane-after[hidden]{display:none;}
+.list tr.faded .pill{background:var(--slot); color:var(--faint); border-color:transparent;}
 .pay-table td:first-child,.pay-table td.num{white-space:nowrap;}
 .pay-table td.net{font-weight:700;}
 .pay-rules{display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px;}
@@ -362,6 +409,7 @@ body.gated .shell{display:none;}
 
 @media (max-width:860px){
   .sched{flex-direction:column;}
+  .sched-main{width:100%;}
   .pool{width:100%; position:static;}
   .pool .chips{flex-direction:row; flex-wrap:wrap;}
   .pool .chip{flex:0 0 auto;}
@@ -381,6 +429,7 @@ body.gated .shell{display:none;}
       <button id="prevMonth" aria-label="上個月">◀ 上個月</button>
       <button id="thisMonth">本月</button>
       <button id="nextMonth" aria-label="下個月">下個月 ▶</button>
+      <button id="undoBtn" data-w title="回復上一動作（Ctrl+Z）">↶ 回復上一動作</button>
       <button id="tplBtn" data-w>帶入醫師班表</button>
       <button id="autoBtn" class="primary" data-w>自動排班</button>
       <button id="clearMonthBtn" class="danger" data-w>清空本月</button>
@@ -414,7 +463,16 @@ body.gated .shell{display:none;}
           </div>
           <p class="hint">拖曳人員到格子排班，或點一下人員再點格子。拖曳格子裡的人可以換位置，滑過去按 × 移除。</p>
         </aside>
-        <div class="weeks" id="weeks"></div>
+        <div class="sched-main">
+          <div class="sched-bar">
+            <span class="seg" id="schedViewSeg" role="group" aria-label="原始或異動班表"><button type="button" data-view="orig" aria-pressed="true">原始班表</button><button type="button" data-view="live" aria-pressed="false">異動班表</button></span>
+            <span class="hint" id="baseInfo" style="margin:0"></span>
+            <button type="button" class="small" id="baselineBtn" data-w>定案</button>
+            <span class="hint" style="margin:0">定案後可開放助理換班</span>
+          </div>
+          <div class="banner" id="origNote" hidden></div>
+          <div class="weeks" id="weeks"></div>
+        </div>
       </div>
     </section>
 
@@ -447,10 +505,11 @@ body.gated .shell{display:none;}
 
     <section id="tab-leave" hidden>
       <div class="stack">
-        <div class="card">
-          <h2>請假登記</h2>
-          <p class="desc">自動排班會避開這些時段；已經排進去的會在班表上標紅。</p>
-          <form class="form-row leave-form" data-role="assistant" style="margin-bottom:16px">
+        <div class="card" id="lvCard">
+          <div class="lv-head"><h2>請假登記</h2><span class="seg" id="lvWhenSeg" role="group" aria-label="事前或事後"><button type="button" data-when="before" aria-pressed="true">事前</button><button type="button" data-when="after" aria-pressed="false">事後</button></span></div>
+          <div id="lvPane-before">
+          <p class="desc">事先安排的請假。自動排班會避開這些時段；已經排進去的會在班表上標紅。下方列表同時以淺灰色顯示事後補登的請假，方便對照。</p>
+          <form class="form-row leave-form" data-role="assistant" data-when="before" style="margin-bottom:16px">
             <div class="field"><label for="lvStaff-assistant">助理</label><select id="lvStaff-assistant" data-n="staff" required></select></div>
             <div class="field"><label for="lvFrom-assistant">開始日期</label><input type="date" id="lvFrom-assistant" data-n="from" required></div>
             <div class="field"><label for="lvTo-assistant">結束日期</label><input type="date" id="lvTo-assistant" data-n="to"></div>
@@ -461,7 +520,7 @@ body.gated .shell{display:none;}
                 <label><input type="checkbox" data-sh="night" checked>晚</label>
               </div>
             </div>
-            <div class="field"><label for="lvType-assistant">請假類別</label><select id="lvType-assistant" data-n="type"><option>特休</option><option>排休</option><option>事假</option><option>病假</option><option>公假</option><option>婚假</option><option>喪假</option><option>產假</option><option>陪產假</option><option>生理假</option><option>補休</option><option>颱風假</option><option>不可上班</option><option>其他</option></select></div>
+            <div class="field"><label for="lvType-assistant">請假類別</label><select id="lvType-assistant" data-n="type"><option>特休</option><option>排休</option><option>事假</option><option>病假</option><option>公假</option><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>陪產假</option><option>育嬰假</option><option>生理假</option><option>補休</option><option>颱風假</option><option>不可上班</option><option>其他</option></select></div>
             <div class="field" style="flex:1;min-width:140px"><label for="lvNote-assistant">備註</label><input id="lvNote-assistant" data-n="note" placeholder="例如：家中有事…"></div>
             <button class="primary" type="submit" data-w>登記</button>
             <button type="button" id="monthLeaveBtn">整月排假</button>
@@ -469,6 +528,29 @@ body.gated .shell{display:none;}
           <h3 class="subhead" id="leaveTitle-assistant"></h3>
           <div class="hol-scroll" id="leaveScroll-assistant"><table class="list leave-table" id="leaveTable-assistant"></table></div>
           <p class="hint" id="leaveHint-assistant" hidden>上下捲動可查看其他請假日期。</p>
+          </div>
+          <div id="lvPane-after" hidden>
+          <p class="desc">事後補登的請假（例如臨時病假）。下方列表同時以淺灰色顯示事前登記的請假，方便對照；事前的紀錄請切換到「事前」修改。</p>
+          <form class="form-row leave-form" data-role="assistant" data-when="after" style="margin-bottom:16px">
+            <div class="field"><label for="lvStaff-after">助理</label><select id="lvStaff-after" data-n="staff" required></select></div>
+            <div class="field"><label for="lvFrom-after">開始日期</label><input type="date" id="lvFrom-after" data-n="from" required></div>
+            <div class="field"><label for="lvTo-after">結束日期</label><input type="date" id="lvTo-after" data-n="to"></div>
+            <div class="field"><span class="lb">班別</span>
+              <div class="checks">
+                <label><input type="checkbox" data-sh="day" checked>早</label>
+                <label><input type="checkbox" data-sh="eve" checked>午</label>
+                <label><input type="checkbox" data-sh="night" checked>晚</label>
+              </div>
+            </div>
+            <div class="field"><label for="lvType-after">請假類別</label><select id="lvType-after" data-n="type"></select></div>
+            <div class="field" style="flex:1;min-width:140px"><label for="lvNote-after">備註</label><input id="lvNote-after" data-n="note" placeholder="例如：臨時身體不適…"></div>
+            <button class="primary" type="submit">登記</button>
+            <button type="button" id="monthLeaveBtnAfter">整月排假</button>
+          </form>
+          <h3 class="subhead" id="leaveTitle-after"></h3>
+          <div class="hol-scroll" id="leaveScroll-after"><table class="list leave-table" id="leaveTable-after"></table></div>
+          <p class="hint" id="leaveHint-after" hidden>上下捲動可查看其他請假日期。</p>
+          </div>
         </div>
         <div class="card">
           <h2>家庭照顧假</h2>
@@ -489,9 +571,37 @@ body.gated .shell{display:none;}
         </div>
         <div class="card">
           <h2 id="yearLeaveTitle">年度假別統計</h2>
-          <p class="desc">以日曆年計算，兩診算 1 天。事假每年上限 14 天（家庭照顧假 3.5 小時算一診，與事假合計）、病假 30 天、生理假 3 天；生理假第 4 天起視同病假，計入病假天數並套用病假的扣薪規則。</p>
+          <p class="desc">以日曆年計算；事前請假一天算一天，事後補登兩診算一天。事假每年上限 14 天（家庭照顧假 3.5 小時算一診，與事假合計）、病假 30 天、生理假 3 天；生理假第 4 天起視同病假，計入病假天數並套用病假的扣薪規則。</p>
           <div class="field" id="ylPick" style="max-width:220px;margin-bottom:10px"><label for="ylStaff">助理代號</label><select id="ylStaff"></select></div>
           <div class="scroll-x"><table class="list" id="yearLeaveTable"></table></div>
+        </div>
+        <div class="card" id="pvCard">
+          <h2>個人假統計</h2>
+          <p class="desc">特休依到職日起算，每滿一年重新計算。婚假、喪假、產檢假、產假、流產產假、育嬰假需先登記事件日期，系統才會算出可請天數與期限；產假、流產產假、育嬰假登記後會自動把整段期間（含假日）排入全天請假。特休以小時計：額度＝天數 × 8 小時，請整天扣 7 小時（事後補登單診扣 3.5 小時）；婚假、喪假、產檢假有請假的那天算 1 天。</p>
+          <div class="form-row" style="margin-bottom:12px">
+            <div class="field" id="pvPick"><label for="pvStaff">助理</label><select id="pvStaff"></select></div>
+            <div class="field"><label for="pvHire">到職日</label><input type="date" id="pvHire"></div>
+            <div class="field"><span class="lb">年資</span><div id="pvSen" style="padding-block:6px;font-weight:500"></div></div>
+          </div>
+          <div class="pv-annual" id="pvAnnual"></div>
+          <h3 class="subhead" style="margin-top:16px">事件假</h3>
+          <form class="form-row" id="pvForm" style="margin-bottom:12px">
+            <div class="field"><label for="pvKind">假別</label><select id="pvKind"><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>育嬰假</option></select></div>
+            <div class="field"><label for="pvDate" id="pvDateLb">結婚日</label><input type="date" id="pvDate" required></div>
+            <div class="field" data-pvx="喪假"><label for="pvRel">與逝者關係</label><select id="pvRel">
+              <option value="8">父母、養父母、繼父母、配偶（8 日）</option>
+              <option value="6">祖父母、子女、配偶之父母（6 日）</option>
+              <option value="3">曾祖父母、兄弟姊妹、配偶之祖父母（3 日）</option></select></div>
+            <div class="field" data-pvx="流產產假"><label for="pvMonths">妊娠期間</label><select id="pvMonths">
+              <option value="28">3 個月以上（4 星期）</option>
+              <option value="7">2 個月以上未滿 3 個月（1 星期）</option>
+              <option value="5">未滿 2 個月（5 日）</option></select></div>
+            <div class="field" data-pvx="育嬰假"><label for="pvChild">子女生日</label><input type="date" id="pvChild"></div>
+            <div class="field" data-pvx="產假 流產產假 育嬰假"><label for="pvEnd">結束日</label><input type="date" id="pvEnd"></div>
+            <div class="field" style="flex:1;min-width:120px"><label for="pvNote">備註</label><input id="pvNote" placeholder="選填"></div>
+            <button class="primary" type="submit">登記事件</button>
+          </form>
+          <div class="scroll-x"><table class="list" id="pvTable"></table></div>
         </div>
         <div class="card">
           <h2>事假補班</h2>
@@ -548,7 +658,7 @@ body.gated .shell{display:none;}
         <div class="tiles" id="tiles"></div>
         <div class="card">
           <h2 id="statsTitle">本月工時</h2>
-          <p class="desc">只統計助理。「早+晚」「全天班」是同一天上這些班的天數；「主櫃」「跟診」「流動」是本月擔任該崗位的班數。每班 3.5 小時；助理同一天早、午、晚三班都上時，當日計 10 小時，另計單日超時 0.5 小時。「合理工時」＝（期間天數－週日數－休假日天數）× 8 － 請假天數 × 7 小時，當天有任何請假就算一天。只計算統計期間內的日期；「加診數」是排班表中以「加診」排入的診數；「排班總超時」＝單日超時＋加診數 × 3.5 小時。</p>
+          <p class="desc">只統計助理。「早+晚」「全天班」是同一天上這些班的天數；「主櫃」「跟診」「流動」是本月擔任該崗位的班數。每班 3.5 小時；助理同一天早、午、晚三班都上時，當日計 10 小時，另計單日超時 0.5 小時。「合理工時」＝可排班天數 × 8 小時；可排班天數＝期間天數－週日－診所休假日－整天休診的日子－事前請假的日子，事後請假不影響。只計算統計期間內的日期；「加診數」是排班表中以「加診」排入的診數；「排班總超時」＝單日超時＋加診數 × 3.5 小時。</p>
           <div class="scroll-x"><table class="list" id="statsTable"></table></div>
         </div>
       </div>
@@ -634,7 +744,7 @@ body.gated .shell{display:none;}
             <div class="field" style="width:190px"><label for="maxDN">助理每月早+晚上限</label><input id="maxDN" type="number" min="0" max="31"></div>
           </div>
           <div class="field" style="margin-bottom:16px"><span class="lb">健保只排這些助理（點名字切換；都不選代表不限制）</span><div class="excl-list" id="nhOnlyRow"></div></div>
-          <div class="banner" style="margin:0 0 18px">自動排班另外遵守：助理當月工時以合理工時為上限並盡量排滿（合理工時＝（當月天數－週日數－休假日天數）×8－請假天數×7），超過的部分計為加班，最多不超過上方「超時上限」。全天班與早+晚次數會盡量平均分配。同一醫師同一天盡量由同一位助理跟診。手動排班不受這些限制。</div>
+          <div class="banner" style="margin:0 0 18px">自動排班另外遵守：助理當月工時以合理工時為上限並盡量排滿（合理工時＝可排班天數×8；可排班天數＝當月天數－週日－診所休假日－整天休診的日子－事前請假的日子），超過的部分計為加班，最多不超過上方「超時上限」。全天班與早+晚次數會盡量平均分配。同一醫師同一天盡量由同一位助理跟診。手動排班不受這些限制。</div>
           <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:4px">看診時段（取消勾選代表休診，不排班）</div>
           <div class="scroll-x"><table class="matrix" id="openMatrix"></table></div>
         </div>
@@ -668,7 +778,8 @@ const POS=[
 const DAYS=['一','二','三','四','五','六','日'];
 const ROLE={doctor:'醫師',assistant:'助理',manager:'管理人員'};
 const DEFAULT_CFG={need:[1,0,0,0,0], maxPerDay:2, closed:{}};
-const LOCAL_KEY='clinic_roster_local_v1';
+// 本機模式的儲存位置；網址 ?local=名稱（非 1）時使用獨立的一份，方便多人／自動測試互不干擾
+const LOCAL_KEY='clinic_roster_local_v1'+((/[?&]local=([\w-]+)/.exec(location.search)||[])[1]&&!/[?&]local=1(\b|&|$)/.test(location.search)?'_'+/[?&]local=([\w-]+)/.exec(location.search)[1]:'');
 const PREF_KEY='clinic_roster_prefs_v1';
 
 // ---------- state ----------
@@ -676,7 +787,16 @@ let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, us
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], privateInfo={}, isAdmin=true;
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
 let makeups=[]; // 事假補班 {id,staffId,date,shifts,note}
+let pevents=[]; // 個人假事件 {id,staffId,kind,date,rel,months,end,child,note}
+let baselines={}; // 原始班表：baselines[YYYY-MM]={ym,at,by,weeks:{週一日期:cells}}，按「定案」時存下當月班表
 let prefs=loadPrefs();
+// 排班的回復紀錄：每筆是 {週一日期: 變更前的格子}，同一個動作改到的週合成一筆
+let schedHist=[], histSkip=false, histTick=false;
+function histPush(wk){
+  if(histSkip)return;
+  if(!histTick){schedHist.push({});if(schedHist.length>50)schedHist.shift();histTick=true;queueMicrotask(()=>{histTick=false;});}
+  const e=schedHist[schedHist.length-1];if(!(wk in e))e[wk]=weeks[wk]?clone(weeks[wk]):null;
+}
 let selectedId=null, lastUndo=null, editingHol=null, editingLeave=null, editingFc=null, editingStaff=null;
 
 function clone(o){return JSON.parse(JSON.stringify(o));}
@@ -729,7 +849,7 @@ const FOLLOW=2;
 function getLink(wk,ck){const v=weeks[wk]?.['L'+ck];return Array.isArray(v)?v.filter(x=>Array.isArray(x)&&x.length===2).map(x=>x.slice()):[];}
 // 加診：weeks[wk]['X'+ck] 是該班以「加診」身分排入的助理 id
 function getExtra(wk,ck){const v=weeks[wk]?.['X'+ck];return Array.isArray(v)?v.filter(x=>typeof x==='string'):[];}
-let extraMode=false; // 左方「基本／加診」切換，只影響之後新排入的助理
+let poolMode='basic'; // 左方「基本／加診」切換，只影響之後新排入的助理
 let leaveIdx=new Map();
 function buildLeaveIdx(){
   leaveIdx=new Map();
@@ -753,20 +873,25 @@ function handleWriteError(e){
   if(e&&e.code==='quota_exceeded'){toast('資料庫已滿，請刪除舊的請假紀錄後再試。','warn');return;}
   toast('儲存失敗，請稍後再試一次。','warn');
 }
-function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];}}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups,pevents,baselines}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
 
+// 助理請假：事前登記一律以日為單位；事後補登全部以診為單位（不論假別）
+const isWholeDay=l=>l.when!=='after'&&byId(l.staffId)?.role==='assistant';
+const fullDayAnnual=l=>isWholeDay(l)&&(l.shifts||[]).length!==SHIFTS.length?Object.assign({},l,{shifts:SHIFTS.map(s=>s.id)}):l;
 const store={
   async cells(wk,patch){ // patch: {ck: arrs}
+    histPush(wk);
     weeks[wk]=Object.assign({},weeks[wk]||{},patch);
     renderAll();
     if(!db){saveLocal();return;}
     return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({c:encCells(patch)},{merge:true});weeksExist.add(wk);});
   },
   async week(wk,cells){ // full replace
+    histPush(wk);
     weeks[wk]=cells;renderAll();
     if(!db){saveLocal();return;}
     return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({c:encCells(cells)});weeksExist.add(wk);});
@@ -804,13 +929,13 @@ const store={
     return queue('config/main',()=>db.doc('config/main').set(next));
   },
   async leave(l){
-    leaves.push(l);buildLeaveIdx();renderAll();
+    l=fullDayAnnual(l);leaves.push(l);buildLeaveIdx();renderAll();
     if(!db){saveLocal();return;}
     const {id,...body}=l;
     return queue('leaves/'+id,()=>db.doc('leaves/'+id).set(body));
   },
   async putLeave(l){
-    leaves=leaves.map(x=>x.id===l.id?l:x);buildLeaveIdx();renderAll();
+    l=fullDayAnnual(l);leaves=leaves.map(x=>x.id===l.id?l:x);buildLeaveIdx();renderAll();
     if(!db){saveLocal();return;}
     const {id,...body}=l;
     return queue('leaves/'+id,()=>db.doc('leaves/'+id).set(body));
@@ -819,6 +944,37 @@ const store={
     leaves=leaves.filter(x=>x.id!==id);buildLeaveIdx();renderAll();
     if(!db){saveLocal();return;}
     return queue('leaves/'+id,()=>db.doc('leaves/'+id).delete());
+  },
+  // 一次新增／刪除多筆請假（產假、育嬰假等連續假），Firestore 以批次寫入
+  async leavesBulk(adds,delIds){
+    adds=adds.map(fullDayAnnual);const del=new Set(delIds);leaves=leaves.filter(l=>!del.has(l.id)).concat(adds);buildLeaveIdx();renderAll();
+    if(!db){saveLocal();return;}
+    const ops=[...delIds.map(id=>['d',id]),...adds.map(l=>['s',l])];
+    try{
+      for(let i=0;i<ops.length;i+=400){
+        const b=db.batch();
+        ops.slice(i,i+400).forEach(([k,x])=>{if(k==='d')b.delete(db.doc('leaves/'+x));else{const {id,...body}=x;b.set(db.doc('leaves/'+id),body);}});
+        await b.commit();
+      }
+    }catch(e){handleWriteError(e);}
+  },
+  // 原始班表：Firestore 以 baselines/{YYYY-MM} 存，週班表同樣以 JSON 字串編碼（不接受巢狀陣列）
+  async baseline(ym,obj){
+    baselines[ym]=obj;renderAll();
+    if(!db){saveLocal();return;}
+    const enc={ym:obj.ym,at:obj.at,by:obj.by||'',weeks:Object.fromEntries(Object.entries(obj.weeks).map(([wk,cells])=>[wk,encCells(cells)]))};
+    return queue('baselines/'+ym,()=>db.doc('baselines/'+ym).set(enc));
+  },
+  async pev(e){
+    pevents=pevents.filter(x=>x.id!==e.id).concat([e]);renderAll();
+    if(!db){saveLocal();return;}
+    const {id,...body}=e;
+    return queue('personalEvents/'+id,()=>db.doc('personalEvents/'+id).set(body));
+  },
+  async delPev(id){
+    pevents=pevents.filter(x=>x.id!==id);renderAll();
+    if(!db){saveLocal();return;}
+    return queue('personalEvents/'+id,()=>db.doc('personalEvents/'+id).delete());
   },
   async fc(l){
     familyCare.push(l);renderAll();
@@ -896,6 +1052,8 @@ function start(acc){
   db.collection('leaves').onSnapshot(snap=>{leaves=snap.docs.map(d=>Object.assign({id:d.id},d.data()));buildLeaveIdx();done('leaves');},onErr);
   db.collection('familyCare').onSnapshot(snap=>{familyCare=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('fc');},onErr);
   db.collection('makeups').onSnapshot(snap=>{makeups=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
+  db.collection('baselines').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();m[d.id]={ym:v.ym||d.id,at:v.at,by:v.by,weeks:Object.fromEntries(Object.entries(v.weeks||{}).map(([wk,c])=>[wk,decCells({c})]))};});baselines=m;renderAll();},onErr);
+  db.collection('personalEvents').onSnapshot(snap=>{pevents=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
   db.doc('config/main').onSnapshot(snap=>{cfg=Object.assign(clone(DEFAULT_CFG),snap.exists?clone(snap.data()):{});done('cfg');},onErr);
   // 自己的權限被改掉時重新載入，讓畫面與資料讀取範圍跟著更新
   const recheck=d=>{if(isAdmin)return;if(!d||d.perm!==acc.perm||d.staffId!==acc.staffId)location.reload();};
@@ -958,13 +1116,14 @@ function renderAll(){
   document.querySelectorAll('[data-w]').forEach(el=>el.disabled=!canWrite);
   $('payTabBtn').hidden=!canSeePay();
   // 排班相關按鈕只在「排班表」分頁顯示
-  ['tplBtn','autoBtn','clearMonthBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'?'':'none');
+  ['undoBtn','tplBtn','autoBtn','clearMonthBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'?'':'none');
+  $('undoBtn').disabled=!canWrite||!schedHist.length||viewingLocked();
   if(prefs.tab==='pay'&&!canSeePay())prefs.tab='schedule';
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
   ['schedule','docleave','leave','holidays','stats','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
-  if(prefs.tab==='schedule') renderWeeks(mi);
+  if(prefs.tab==='schedule') renderSchedule(mi);
   if(prefs.tab==='leave') renderLeave(mi,['assistant']);
   if(prefs.tab==='docleave') renderLeave(mi,['doctor']);
   if(prefs.tab==='stats'){const r=statRange(mi);renderStats(r,r.custom?monthCounts(r):counts);}
@@ -986,14 +1145,18 @@ function statRange(mi){
 // 排班總超時（小時）＝單日超時＋加診數 × 3.5
 const schedOt=c=>(c?.ot||0)+(c?.extra||0)*3.5;
 const fmtHM=h=>{const m=Math.round(h*60);return `${Math.floor(m/60)}小時${m%60}分鐘`;};
-function reasonableDays(mi,id){ // 合理工時＝（期間天數－週日數－休假日天數）×8－請假天數×7 小時
-  let sun=0,hol=0,lv=0;
+// 合理工時＝可排班天數 × 8 小時
+// 可排班天數＝期間天數－週日－診所休假日－整天休診的日子－事前請假的日子（事後請假不影響）
+function reasonableDays(mi,id){
+  let n=0;
   mi.dates.forEach(({d,key})=>{
-    if(d.getDay()===0){sun++;return;}
-    if(holidayOf(key)){hol++;return;}
-    if(leaves.some(l=>l.staffId===id&&l.date===key))lv++;
+    if(d.getDay()===0||holidayOf(key))return;
+    const dow=(d.getDay()+6)%7;
+    if(SHIFTS.every(sh=>isClosed(dow,sh.id)))return;
+    if(leaves.some(l=>l.staffId===id&&l.date===key&&l.when!=='after'))return;
+    n++;
   });
-  return (mi.dates.length-sun-hol)*8-lv*7; // 小時
+  return n*8; // 小時
 }
 function fourWeekExcess(mi,id){ // 四週工時超過上限的時數（兩段取較大者）；期間不足 28 天時回傳 null
   const f=mi.first,l=mi.last;
@@ -1036,18 +1199,45 @@ function monthCounts(mi){
 
 function renderPool(counts,mi){
   const curWk=ymd(mondayOf(new Date()));
+  const showHrs=['admin','super','manage'].includes(effPerm()); // （基本工時/合理工時）只給排班管理以上看
   [['doctor','chipsDoctor'],['assistant','chipsAssistant']].forEach(([role,el])=>{
     const list=activeStaff(role);
     $(el).innerHTML=list.length?list.map(s=>{
       const n=counts[s.id]?.total||0;
       return `<div class="chip ${role}${selectedId===s.id?' sel':''}" draggable="${canWrite}" tabindex="0" data-chip="${s.id}" title="${esc(fullName(s))}">
         <span class="nm">${esc(s.code||s.name)}${s.code&&s.name?`<small>${esc(s.name)}</small>`:''}</span>
-        <span class="cnt">${role==='doctor'?`${n}班`:(()=>{const ex=counts[s.id]?.extra||0;return `<span title="本月基本 ${n-ex} 診＋加診 ${ex} 診">${n-ex}＋<span class="ex-n">${ex}</span></span>`;})()}</span></div>`;
+        <span class="cnt">${role==='doctor'?`${n}班`:(()=>{const ex=counts[s.id]?.extra||0;const h=counts[s.id]?.hours||0,rh=reasonableDays(mi,s.id),f=v=>String(Math.round(v*10)/10);return `<span title="本月基本 ${n-ex} 診＋加診 ${ex} 診">${n-ex}${showHrs?`<span class="hrs${h>rh?' over':''}" title="基本工時 ${f(h)} 小時／合理工時 ${f(rh)} 小時">(${f(h)}/${f(rh)})</span>`:''}＋<span class="ex-n">${ex}</span></span>`;})()}</span></div>`;
     }).join(''):`<div class="hint" style="margin:0">尚無${ROLE[role]}，請到「人員名單」新增。</div>`;
   });
 }
 
+// ---------- 原始班表／異動班表 ----------
+// 定案前：在「原始班表」排班（編輯的是 weeks），「異動班表」尚未產生。
+// 按「定案」後：把當月 weeks 存成原始班表（baselines，鎖定只能看），之後在「異動班表」繼續修改 weeks。
+// 工時、薪資一律依 weeks 計算，也就是定案前的原始班表、定案後的異動班表。
+const schedViewOf=()=>prefs.schedView==='live'?'live':'orig';
+// 目前畫面是否為不能編輯的狀態：已定案的原始班表，或尚未產生的異動班表
+const viewingLocked=()=>{if(prefs.tab!=='schedule')return false;const b=baselines[monthInfo().ym];return schedViewOf()==='orig'?!!b:!b;};
+const fmtAt=t=>{const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;};
+function renderSchedule(mi){
+  const view=schedViewOf(),b=baselines[mi.ym];
+  document.querySelectorAll('#schedViewSeg [data-view]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.view===view)));
+  $('baseInfo').textContent=b?`${mi.label}已於 ${fmtAt(b.at)} 定案`:`${mi.label}尚未定案`;
+  $('baselineBtn').textContent=b?'重新定案':'定案';
+  const note=view==='orig'
+    ?(b?'已定案：原始班表鎖定，只能查看；要修改請切換到「異動班表」。':'')
+    :(b?'':'這個月還沒有定案，所以還沒有異動班表。請先在「原始班表」排班，按「定案」後會複製一份到這裡。');
+  $('origNote').hidden=!note;$('origNote').textContent=note;
+  const locked=view==='orig'?!!b:!b;
+  $('weeks').classList.toggle('orig',locked);
+  if(view==='live'&&!b){$('weeks').innerHTML='';return;}
+  if(!(view==='orig'&&b)){renderWeeks(mi);return;}
+  // 已定案的原始班表：暫時以存下的資料畫出唯讀的班表
+  const sw=weeks,sc=canWrite,ss=selectedId;weeks=b.weeks;canWrite=false;selectedId=null;
+  try{renderWeeks(mi);}finally{weeks=sw;canWrite=sc;selectedId=ss;}
+}
 function renderWeeks(mi){
+  const liveView=prefs.tab==='schedule'&&schedViewOf()==='live'; // 異動班表：排入有請假的診次也維持原本顏色
   const today=ymd(new Date());
   $('weeks').innerHTML=mi.mondays.map(mon=>{
     const wk=ymd(mon);const sun=new Date(mon);sun.setDate(mon.getDate()+6);
@@ -1078,9 +1268,11 @@ function renderWeeks(mi){
         const cols=POS.map((p,pi)=>{
           const L=layout[dow][pi];const man=gapN(cell[pi]);
           const itemH=(id,cls='',note='')=>{
-            const lv=onLeave(id,x.key,sh.id);
+            const lv=!liveView&&onLeave(id,x.key,sh.id); // 異動班表不標示請假衝突
+            // 異動班表：助理事後補登的請假，以斜線劃掉
+            const slash=liveView&&byId(id)?.role==='assistant'&&leaves.some(l=>l.staffId===id&&l.date===x.key&&l.when==='after'&&(l.shifts||[]).includes(sh.id));
             const ex=xs.has(id)&&byId(id)?.role==='assistant';
-            return `<div class="item${cls}${byId(id)?.role==='assistant'?' asst':''}${ex?' extra':''}${lv?' onleave':''}${selectedId===id?' hl':''}" draggable="${canWrite}" data-item="${id}" data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" title="${esc(fullName(byId(id)))}${note}${ex?'（加診）':''}${lv?'（當班已請假）':''}"><span>${esc(codeOf(id))}</span>${canWrite?`<button class="rm" data-rm aria-label="移除">×</button>`:''}</div>`;
+            return `<div class="item${cls}${byId(id)?.role==='assistant'?' asst':''}${ex?' extra':''}${lv?' onleave':''}${slash?' slashed':''}${selectedId===id?' hl':''}" draggable="${canWrite}" data-item="${id}" data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" title="${esc(fullName(byId(id)))}${note}${ex?'（加診）':''}${lv?'（當班已請假）':''}${slash?'（事後請假）':''}"><span>${esc(codeOf(id))}</span>${canWrite?`<button class="rm" data-rm aria-label="移除">×</button>`:''}</div>`;
           };
           let here,body;
           if(pi===FOLLOW){
@@ -1153,6 +1345,80 @@ function renderYearLeave(mi){
       return `<tr><td>${esc(fullName(s))}</td>${cell(t.per,LEAVE_LIMITS.事假,t.fc?`<br><small style="color:var(--sub)">事假 ${t.perOnly}＋家庭照顧假 ${t.fc}（${t.fcHours} 小時）</small>`:'')}${cell(t.sickTotal,LEAVE_LIMITS.病假,t.menAsSick?`<br><small style="color:var(--sub)">病假 ${t.sick}＋生理假視同 ${t.menAsSick}</small>`:'')}${cell(t.men,LEAVE_LIMITS.生理假)}</tr>`;}).join('')
     :'<tr><td colspan="4" class="empty">尚未建立助理。</td></tr>')+'</tbody>';
 }
+// ---------- 個人假統計 ----------
+const addD=(s,n)=>{const d=parseYmd(s);d.setDate(d.getDate()+n);return ymd(d);};
+const addMo=(s,n)=>{const d=parseYmd(s);d.setMonth(d.getMonth()+n);return ymd(d);};
+const addYr=(s,n)=>{const d=parseYmd(s);d.setFullYear(d.getFullYear()+n);return ymd(d);};
+const dayDiff=(a,b)=>Math.round((parseYmd(b)-parseYmd(a))/864e5);
+const fmtD=s=>s?s.replace(/-/g,'/'):'—';
+const hireOf=sid=>byId(sid)?.hireDate||privateInfo[sid]?.hireDate||'';
+// 區間內某假別的已請天數：婚假／喪假／產檢假整天算 1 天；事後補登只請部分診時，兩診算一天（最多 1 天）
+const usedDays=(sid,type,from,to)=>leaves.reduce((n,l)=>{if(l.staffId!==sid||l.type!==type||l.date<from||l.date>to)return n;const c=(l.shifts||[]).length;return n+(c>=SHIFTS.length?1:Math.min(1,c/PER_DAY));},0);
+// 特休以小時計：額度＝天數 × 8 小時；只能整天請，每請一天扣 7 小時
+const ANNUAL_QUOTA_H=8,ANNUAL_TAKE_H=7;
+// 整天扣 7 小時；事後補登只請部分診時，每診 3.5 小時（同一天最多 7 小時）
+const annualHoursTaken=(sid,from,to)=>leaves.reduce((n,l)=>n+(l.staffId===sid&&l.type==='特休'&&l.date>=from&&l.date<=to?Math.min(ANNUAL_TAKE_H,(l.shifts||[]).length>=SHIFTS.length?ANNUAL_TAKE_H:(l.shifts||[]).length*3.5):0),0);
+// 特休：週年制。滿 6 個月 3 日；滿 1 年 7 日；2 年 10 日；3–4 年 14 日；5–9 年 15 日；10 年起每年加 1 日，最多 30 日
+function annualLeave(sid,ref=ymd(new Date())){
+  const h=hireOf(sid);if(!h)return null;
+  const half=addMo(h,6);if(ref<half)return {none:true,next:half};
+  let start,end,quota,n=0;
+  if(ref<addYr(h,1)){start=half;end=addD(addYr(h,1),-1);quota=3;}
+  else{n=1;while(addYr(h,n+1)<=ref)n++;start=addYr(h,n);end=addD(addYr(h,n+1),-1);
+    quota=n===1?7:n===2?10:n<5?14:n<10?15:Math.min(30,15+(n-9));}
+  const usedH=annualHoursTaken(sid,start,end);
+  return {start,end,quota,days:Math.round(usedH/ANNUAL_TAKE_H*100)/100,usedH,quotaH:quota*ANNUAL_QUOTA_H};
+}
+// 事件假：依事件日期算出額度、可請期間；產假／流產產假／育嬰假為連續假（auto），已請＝自動排入的天數
+const PEV={
+  婚假:{lb:'結婚日',info:e=>({quota:14,from:addD(e.date,-10),to:addYr(e.date,1)}),desc:e=>`結婚日 ${fmtD(e.date)}`},
+  喪假:{lb:'死亡日',info:e=>({quota:Number(e.rel)||8,from:e.date,to:addD(e.date,100)}),desc:e=>`死亡日 ${fmtD(e.date)}・${{8:'父母／配偶',6:'祖父母／子女／配偶之父母',3:'曾祖父母／兄弟姊妹／配偶之祖父母'}[e.rel]||''}`},
+  產檢假:{lb:'預產期',info:e=>({quota:7,from:addD(e.date,-280),to:e.date}),desc:e=>`預產期 ${fmtD(e.date)}`},
+  // 產假、流產產假：可請 quota 天，實際請到結束日 end（不一定請滿）
+  產假:{lb:'產假起始日',auto:true,max:()=>56,info:e=>({quota:56,from:e.date,to:e.end||addD(e.date,55)}),desc:e=>`起始日 ${fmtD(e.date)}`},
+  流產產假:{lb:'流產日（起始日）',auto:true,max:e=>Number(e.months)||5,info:e=>{const q=Number(e.months)||5;return {quota:q,from:e.date,to:e.end||addD(e.date,q-1)};},desc:e=>`流產日 ${fmtD(e.date)}・${{28:'妊娠 3 個月以上',7:'妊娠 2–3 個月',5:'妊娠未滿 2 個月'}[e.months]||''}`},
+  育嬰假:{lb:'育嬰假起始日',auto:true,info:e=>({quota:dayDiff(e.date,e.end)+1,from:e.date,to:e.end}),desc:e=>`子女生日 ${fmtD(e.child)}`},
+};
+function pevStatus(e){
+  const k=PEV[e.kind];if(!k)return null;const i=k.info(e),t=ymd(new Date());
+  const used=k.auto?leaves.filter(l=>l.eventId===e.id).length:usedDays(e.staffId,e.kind,i.from,i.to);
+  const left=Math.max(0,i.quota-used);let st;
+  if(k.auto)st=t<i.from?`${fmtD(i.from)} 開始`:t>i.to?'已結束':`進行中（還有 ${dayDiff(t,i.to)+1} 天）`;
+  else st=t>i.to?(left?`<span style="color:var(--warn)">已過期，未休 ${left} 天失效</span>`:'已休完'):left?`期限 ${fmtD(i.to)}（剩 ${dayDiff(t,i.to)} 天）`:'已休完';
+  return Object.assign(i,{used,left,st});
+}
+let pvSid=null;
+function renderPersonal(mi){
+  const all=activeStaff('assistant').filter(s=>canWrite||s.id===myStaffId());
+  if(!all.some(s=>s.id===pvSid))pvSid=all[0]?.id||null;
+  $('pvCard').hidden=!all.length;if(!pvSid)return;
+  $('pvPick').hidden=!canWrite;
+  $('pvStaff').innerHTML=all.map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');$('pvStaff').value=pvSid;
+  const h=hireOf(pvSid);
+  if(document.activeElement!==$('pvHire'))$('pvHire').value=h;
+  $('pvHire').disabled=!canWrite;
+  $('pvSen').textContent=seniority(h,null);
+  const a=annualLeave(pvSid);
+  $('pvAnnual').innerHTML=!h?'<span style="color:var(--faint)">尚未設定到職日，無法計算特休。</span>'
+    :a.none?`<b>特休</b>：到職未滿 6 個月，<b>${fmtD(a.next)}</b> 起可享 3 日。`
+    :(()=>{const left=a.quotaH-a.usedH,over=left<0;return `<b>特休</b>　本期 ${fmtD(a.start)} ～ ${fmtD(a.end)}　應有 <b class="big">${a.quota}</b> 天（${a.quotaH} 小時）・已休 <b>${a.days}</b> 天（${a.usedH} 小時）・<b style="color:${over?'var(--warn)':'var(--ok)'}">${over?`超過 ${-left} 小時`:`剩 ${left} 小時，可再請 ${Math.floor(left/ANNUAL_TAKE_H)} 天`}</b>
+      <small style="color:var(--faint)">（額度每天 8 小時；請整天扣 7 小時，事後補登單診扣 3.5 小時）</small>
+      <div class="pv-bar"><i style="width:${Math.min(100,a.usedH/a.quotaH*100)}%${over?';background:var(--warn)':''}"></i></div>`;})();
+  $('pvForm').querySelector('button[type=submit]').disabled=!canLeaveFor(pvSid);
+  const list=pevents.filter(e=>e.staffId===pvSid).sort((x,y)=>y.date.localeCompare(x.date));
+  $('pvTable').innerHTML='<thead><tr><th>假別</th><th>事件</th><th class="num">可請</th><th>期間</th><th class="num">已請</th><th class="num">剩餘</th><th>狀態</th><th></th></tr></thead><tbody>'+
+    (list.length?list.map(e=>{const s=pevStatus(e);if(!s)return '';const [bg,fg]=leaveColor(e.kind);
+      return `<tr><td><span class="pill" style="background:${bg};color:${fg}">${esc(e.kind)}</span></td><td>${esc(PEV[e.kind].desc(e))}${e.note?`<br><small style="color:var(--faint)">${esc(e.note)}</small>`:''}</td>
+        <td class="num">${s.quota} 天</td><td style="white-space:nowrap">${fmtD(s.from)} ～ ${fmtD(s.to)}</td><td class="num">${s.used} 天</td><td class="num"><b>${s.left} 天</b></td><td>${s.st}</td>
+        <td class="num">${canLeaveFor(e.staffId)?`<button class="small danger" data-delpev="${e.id}">刪除</button>`:''}</td></tr>`;}).join('')
+    :'<tr><td colspan="8" class="empty">還沒有登記事件假。</td></tr>')+'</tbody>';
+}
+function syncPvForm(e){
+  const k=$('pvKind').value;$('pvDateLb').textContent=PEV[k].lb;
+  document.querySelectorAll('#pvForm [data-pvx]').forEach(f=>f.hidden=!f.dataset.pvx.split(' ').includes(k));
+  // 產假／流產產假：結束日預設為請滿的最後一天，可再改短
+  if((k==='產假'||k==='流產產假')&&$('pvDate').value&&e?.target?.id!=='pvEnd')$('pvEnd').value=addD($('pvDate').value,PEV[k].max({months:$('pvMonths').value})-1);
+}
 function renderMakeup(mi){
   const sel=$('mkStaff');const cur=sel.value;const mine=myStaffId();
   $('mkForm').querySelector('button[type=submit]').disabled=!(canWrite||(canLeaveFor(mine)&&byId(mine)?.role==='assistant'));
@@ -1175,53 +1441,66 @@ function renderMakeup(mi){
   $('mkSummary').innerHTML=ids.length?`<thead><tr><th>助理</th><th class="num">${mi.first.getMonth()+1}月事假</th><th class="num">補班</th><th>出勤津貼</th></tr></thead><tbody>`+
     ids.map(id=>{const sn=personalLeaveShifts(mi,id),mn=makeupShifts(mi,id);return `<tr><td>${esc(fullName(byId(id)))}</td><td class="num">${sn} 診</td><td class="num">${mn} 診</td><td>${sn>0&&mn<sn?`<span class="pill warn">不發（還差 ${sn-mn} 診）</span>`:'<span class="pill">照發</span>'}</td></tr>`;}).join('')+'</tbody>':'';
 }
+// 助理請假分成兩個面板：assistant＝事前、after＝事後（事後列表也以淺灰色列出事前紀錄，只供對照）
+const whenOf=l=>l.when==='after'?'after':'before';
 function renderLeave(mi,roles){
-  if(roles.includes('assistant')){renderFamilyCare(mi);renderMakeup(mi);renderYearLeave(mi);}
-  roles.forEach(role=>{
+  if(roles.includes('assistant')){
+    renderFamilyCare(mi);renderMakeup(mi);renderYearLeave(mi);renderPersonal(mi);
+    // 請假登記：事前／事後切換
+    const w=prefs.lvWhen==='after'?'after':'before';
+    $('lvPane-before').hidden=w!=='before';$('lvPane-after').hidden=w!=='after';
+    document.querySelectorAll('#lvWhenSeg [data-when]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.when===w)));
+  }
+  const panels=roles.flatMap(r=>r==='assistant'?['assistant','after']:[r]);
+  panels.forEach(pk=>{
+    const role=pk==='doctor'?'doctor':'assistant';
     const word=role==='doctor'?'休假':'請假';
-    const sel=$('lvStaff-'+role);const cur=sel.value;
+    const sel=$('lvStaff-'+pk);const cur=sel.value;
     const selfOnly=!canWrite&&canLeaveFor(myStaffId())&&byId(myStaffId())?.role===role;
-    document.querySelector(`.leave-form[data-role=${role}] button[type=submit]`).disabled=!(canWrite||selfOnly);
-    if(role==='assistant')$('monthLeaveBtn').disabled=!(canWrite||selfOnly);
+    $('leaveTable-'+pk).closest('.card').querySelector('.leave-form button[type=submit]').disabled=!(canWrite||selfOnly);
+    if(pk!=='doctor')$(pk==='after'?'monthLeaveBtnAfter':'monthLeaveBtn').disabled=!(canWrite||selfOnly);
+    if(pk==='after'&&!$('lvType-after').options.length)$('lvType-after').innerHTML=$('lvType-assistant').innerHTML;
     sel.innerHTML=activeStaff(role).filter(s=>canWrite||s.id===myStaffId()).map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');
     if(cur&&byId(cur))sel.value=cur;
-    const fromEl=$('lvFrom-'+role);
+    const fromEl=$('lvFrom-'+pk);
     if(!fromEl.value){const t=new Date();const d=(t>=mi.first&&t<=mi.last)?t:mi.first;fromEl.value=ymd(d);}
-    $('leaveTitle-'+role).textContent=`${mi.label} ${ROLE[role]}${word}`;
-    const tb=$('leaveTable-'+role);
+    $('leaveTitle-'+pk).textContent=`${mi.label} ${ROLE[role]}${word}${pk==='assistant'?'（事前；淺灰色為事後）':pk==='after'?'（事後；淺灰色為事前）':''}`;
+    const tb=$('leaveTable-'+pk);
     if(editingLeave&&tb.contains(document.activeElement)&&document.activeElement.tagName!=='BUTTON')return;
     const clashOf=l=>{const d=parseYmd(l.date);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;return (l.shifts||[]).filter(sh=>getCell(wk,dow+'_'+sh).some(a=>a.includes(l.staffId)));};
     const byDate=(a,b)=>a.date.localeCompare(b.date)||codeOf(a.staffId).localeCompare(codeOf(b.staffId),'en',{numeric:true});
+    // 事前、事後兩個列表都列出全部助理請假；不屬於目前這一邊的以淺灰色顯示、不能修改
     let rows=leaves.filter(l=>byId(l.staffId)?.role===role&&l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).sort(byDate);
+    const faded=l=>(pk==='after'&&whenOf(l)!=='after')||(pk==='assistant'&&whenOf(l)==='after');
     let head=`<th>日期</th><th>${ROLE[role]}</th><th>班別</th><th>${word}類別</th><th>備註</th><th>狀態</th><th></th>`;
     {
-      const lvSort=lvSorts[role];
+      const lvSort=lvSorts[pk];
       const shKey=l=>{const x=l.shifts||[];return (x.length===3?'0':'1'+SHIFTS.map(s=>x.includes(s.id)?'0':'1').join(''));};
       const KEYS={date:null,staff:(a,b)=>codeOf(a.staffId).localeCompare(codeOf(b.staffId),'en',{numeric:true}),shift:(a,b)=>shKey(a).localeCompare(shKey(b)),type:(a,b)=>(a.type||'').localeCompare(b.type||'','zh-Hant'),status:(a,b)=>(clashOf(b).length>0)-(clashOf(a).length>0)};
       const k=KEYS[lvSort.key]||byDate;
       rows.sort((a,b)=>(k(a,b)*lvSort.dir)||byDate(a,b));
-      const th=(key,label)=>`<th><button type="button" class="th-btn${lvSort.key===key?' on':''}" data-lvsort="${key}" data-role="${role}" aria-label="依${label}排序">${label}<span>${lvSort.key===key?(lvSort.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
+      const th=(key,label)=>`<th><button type="button" class="th-btn${lvSort.key===key?' on':''}" data-lvsort="${key}" data-role="${pk}" aria-label="依${label}排序">${label}<span>${lvSort.key===key?(lvSort.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
       head=th('date','日期')+th('staff',ROLE[role])+th('shift','班別')+th('type',word+'類別')+'<th>備註</th>'+th('status','狀態')+'<th></th>';
     }
-    $('leaveTable-'+role).innerHTML=`<thead><tr>${head}</tr></thead><tbody>`+
+    $('leaveTable-'+pk).innerHTML=`<thead><tr>${head}</tr></thead><tbody>`+
       (rows.length?rows.map(l=>{
         const d=parseYmd(l.date);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;
         const clash=clashOf(l);
         const shTxt=(l.shifts||[]).length===3?'全天':SHIFTS.filter(s=>l.shifts.includes(s.id)).map(s=>s.short).join('、');
-        if(editingLeave===l.id){
+        if(editingLeave===l.id&&!faded(l)){
           const types=[...document.querySelectorAll(`#lvType-${role} option`)].map(o=>o.value);
           if(l.type&&!types.includes(l.type))types.push(l.type);
           return `<tr data-lvrow="${l.id}"><td><input type="date" data-e="date" value="${l.date}" aria-label="日期"></td><td>${esc(fullName(byId(l.staffId)))}</td>
-            <td><div class="checks" style="padding:0">${SHIFTS.map(s=>`<label><input type="checkbox" data-esh="${s.id}"${(l.shifts||[]).includes(s.id)?' checked':''}>${s.short}</label>`).join('')}</div></td>
+            <td><div class="checks" style="padding:0">${SHIFTS.map(s=>`<label><input type="checkbox" data-esh="${s.id}"${(l.shifts||[]).includes(s.id)?' checked':''}${role==='assistant'&&whenOf(l)==='before'?' disabled':''}>${s.short}</label>`).join('')}</div></td>
             <td><select data-e="type" aria-label="類別">${types.map(t=>`<option${t===l.type?' selected':''}>${esc(t)}</option>`).join('')}</select></td>
             <td><input data-e="note" value="${esc(l.note||'')}" aria-label="備註"></td><td></td>
             <td class="num" style="white-space:nowrap"><button class="small primary" data-lvsave="${l.id}">儲存</button> <button class="small" data-lvcancel>取消</button></td></tr>`;
         }
-        return `<tr data-date="${l.date}"><td>${md(d)}（${DAYS[dow]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&l.type==='生理假'?(s=>s?` <span class="pill warn">${s>=(l.shifts||[]).length?'視同病假':`${s} 診視同病假`}</span>`:'')(menSickShifts(l)):''}</td><td>${esc(l.note||'')}</td>
+        return `<tr data-date="${l.date}"${faded(l)?` class="faded" title="${whenOf(l)==='after'?'事後':'事前'}登記的請假，請切換到「${whenOf(l)==='after'?'事後':'事前'}」修改"`:''}><td>${md(d)}（${DAYS[dow]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&l.type==='生理假'?(s=>s?` <span class="pill warn">${s>=(l.shifts||[]).length?'視同病假':`${s} 診視同病假`}</span>`:'')(menSickShifts(l)):''}</td><td>${esc(l.note||'')}</td>
           <td>${clash.length?`<span class="pill warn">已排${SHIFTS.filter(s=>clash.includes(s.id)).map(s=>s.short).join('、')}班</span>`:'<span class="pill">無衝突</span>'}</td>
-          <td class="num" style="white-space:nowrap">${canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
+          <td class="num" style="white-space:nowrap">${faded(l)?`<span class="pill">${whenOf(l)==='after'?'事後':'事前'}</span>`:canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
       }).join(''):`<tr><td colspan="7" class="empty">這個月還沒有${ROLE[role]}${word}紀錄。</td></tr>`)+'</tbody>';
-    {const n=limitRows($('leaveScroll-'+role),10);$('leaveHint-'+role).hidden=n<=10;if(role==='assistant'&&!leaveScrolled.lv)leaveScrolled.lv=scrollToUpcoming($('leaveScroll-assistant'));}
+    {const n=limitRows($('leaveScroll-'+pk),10);$('leaveHint-'+pk).hidden=n<=10;if(pk!=='doctor'&&!leaveScrolled[pk])leaveScrolled[pk]=scrollToUpcoming($('leaveScroll-'+pk));}
   });
 }
 
@@ -1246,7 +1525,7 @@ function renderStats(mi,counts){
     <div class="tile"><div class="k">請假</div><div class="v">${leaveShifts}<small>班次</small></div></div>`;
   const list=staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id]));
   const maxH=Math.max(1,...list.map(s=>(counts[s.id]?.total||0)));
-  $('statsTable').innerHTML=`<thead><tr><th>人員</th><th>職稱</th><th class="num">早</th><th class="num">午</th><th class="num">晚</th><th class="num">總班數</th><th class="num combo">早+晚</th><th class="num combo">全天班</th><th class="num posc">主櫃</th><th class="num posc">跟診</th><th class="num posc">流動</th><th class="num">工時</th><th class="num" title="（期間天數－週日數－休假日天數）× 8 － 請假天數 × 7 小時">合理工時</th><th class="num">單日超時</th><th class="num" title="排班表中以「加診」排入的診數">加診數</th><th class="num" title="單日超時＋加診數 × 3.5 小時">排班總超時</th><th style="width:18%"></th><th class="num">請假班次</th></tr></thead><tbody>`+
+  $('statsTable').innerHTML=`<thead><tr><th>人員</th><th>職稱</th><th class="num">早</th><th class="num">午</th><th class="num">晚</th><th class="num">總班數</th><th class="num combo">早+晚</th><th class="num combo">全天班</th><th class="num posc">主櫃</th><th class="num posc">跟診</th><th class="num posc">流動</th><th class="num">基本工時</th><th class="num" title="可排班天數 × 8 小時（可排班天數＝期間天數－週日－診所休假日－整天休診的日子－事前請假的日子；事後請假不影響）">合理工時</th><th class="num">單日超時</th><th class="num" title="排班表中以「加診」排入的診數">加診數</th><th class="num" title="單日超時＋加診數 × 3.5 小時">排班總超時</th><th style="width:18%"></th><th class="num">請假班次</th></tr></thead><tbody>`+
     (list.length?list.map(s=>{
       const c=counts[s.id]||{total:0,day:0,eve:0,night:0,hours:0,ot:0,fullDays:0,dn:0,extra:0,pos:[0,0,0,0,0]};
       const lv=leaves.filter(l=>l.staffId===s.id&&l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).reduce((n,l)=>n+(l.shifts||[]).length,0);
@@ -1275,7 +1554,7 @@ const PAY_FIELDS=[
 ];
 const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,shiftPay:595,fcPerHour:170,lateLimit:30,sickAttendCut:0.25};
 const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['lateLimit','遲到超過幾分鐘不發出勤津貼'],['sickAttendCut','病假每診扣出勤津貼比例'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['shiftPay','每診設定薪資（元）']];
-const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產假','陪產假','生理假','補休','颱風假','不可上班','其他'];
+const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產檢假','產假','流產產假','陪產假','育嬰假','生理假','補休','颱風假','不可上班','其他'];
 const DEFAULT_DEDUCT={事假:1,病假:0.5,生理假:0.5,不可上班:1,其他:1};
 function payCfg(){const p=cfg.pay||{};const o={};Object.keys(PAY_DEFAULTS).forEach(k=>o[k]=Number.isFinite(p[k])?p[k]:PAY_DEFAULTS[k]);o.deduct=Object.assign({},DEFAULT_DEDUCT,p.deduct||{});return o;}
 const canSeePay=()=>canWrite||!!(myStaffId()&&byId(myStaffId())?.role==='assistant');
@@ -1298,14 +1577,17 @@ function yearLeave(sid,year,extra=[],extraFcHours=0){
   const ex=new Set(extra.map(x=>x.date));
   const recs=leaves.filter(l=>l.staffId===sid&&l.date.startsWith(year)&&!ex.has(l.date)).concat(extra.filter(x=>x.date.startsWith(year)))
     .sort((a,b)=>a.date.localeCompare(b.date));
+  // 以「天」累計：事前登記一天算一天；事後補登兩診算一天
   let per=0,sick=0,men=0,menSick=0;const asSick=new Map(); // asSick: 日期 → 該日視同病假的診數
-  const cap=LEAVE_LIMITS.生理假*PER_DAY;
-  recs.forEach(l=>{const n=(l.shifts||[]).length;
-    if(l.type==='事假')per+=n;else if(l.type==='病假')sick+=n;
-    else if(l.type==='生理假'){const ok=Math.max(0,Math.min(n,cap-men));men+=ok;if(n>ok){asSick.set(l.date,n-ok);menSick+=n-ok;}}});
+  const cap=LEAVE_LIMITS.生理假;
+  recs.forEach(l=>{const n=(l.shifts||[]).length;if(!n)return;
+    const dv=l.when==='after'?n/PER_DAY:1;
+    if(l.type==='事假')per+=dv;else if(l.type==='病假')sick+=dv;
+    else if(l.type==='生理假'){const ok=Math.max(0,Math.min(dv,cap-men));men+=ok;const over=dv-ok;
+      if(over>1e-9){asSick.set(l.date,Math.round(n*over/dv));menSick+=over;}}});
   const fcH=familyCare.reduce((n,l)=>n+(l.staffId===sid&&l.date.startsWith(year)?(Number(l.hours)||0):0),0)+extraFcHours;
-  const d=x=>Math.round(x/PER_DAY*100)/100,fcShifts=fcH/FC_HOURS_PER_SHIFT;
-  return {per:d(per+fcShifts),perOnly:d(per),fc:d(fcShifts),fcHours:fcH,sick:d(sick),men:d(men),menAsSick:d(menSick),sickTotal:d(sick+menSick),asSick};
+  const r=x=>Math.round(x*100)/100,fcDays=fcH/FC_HOURS_PER_SHIFT/PER_DAY;
+  return {per:r(per+fcDays),perOnly:r(per),fc:r(fcDays),fcHours:fcH,sick:r(sick),men:r(men),menAsSick:r(menSick),sickTotal:r(sick+menSick),asSick};
 }
 function fcLimitIssue(sid,date,hours){
   const y=date.slice(0,4),b=yearLeave(sid,y),a=yearLeave(sid,y,[],hours);
@@ -1318,7 +1600,7 @@ function leaveLimitIssues(sid,extra){
     const b=yearLeave(sid,y),a=yearLeave(sid,y,extra);
     if(a.per>LEAVE_LIMITS.事假&&a.per>b.per)over.push(`${codeOf(sid)} ${y} 年事假${a.fc?'＋家庭照顧假':''}將達 ${a.per} 天，超過 ${LEAVE_LIMITS.事假} 天`);
     if(a.sickTotal>LEAVE_LIMITS.病假&&a.sickTotal>b.sickTotal)over.push(`${codeOf(sid)} ${y} 年病假（含生理假視同病假）將達 ${a.sickTotal} 天，超過 ${LEAVE_LIMITS.病假} 天`);
-    if(a.menAsSick>b.menAsSick)info.push(`生理假已超過每年 ${LEAVE_LIMITS.生理假} 天，超過的 ${(a.menAsSick-b.menAsSick)*PER_DAY} 診視同病假。`);
+    if(a.menAsSick>b.menAsSick)info.push(`生理假已超過每年 ${LEAVE_LIMITS.生理假} 天，超過的 ${Math.round((a.menAsSick-b.menAsSick)*100)/100} 天視同病假。`);
   });
   return {over,info};
 }
@@ -1474,7 +1756,7 @@ function renderRulesDoc(){
       <li>同一班只能擔任一個崗位。</li>
       <li>每人每天最多班數：<b>${cfg.maxPerDay||2}</b> 班。</li>
       <li>助理當天沒有請假，就一定至少排一班：一般崗位排完後，當天還沒有班的助理會加排到副櫃（空著時）或流動，挑人最少的一班。休診或休假日不算。這條優先於下面的工時與次數上限，必要時可以超過合理工時。</li>
-      <li>工時上限為合理工時：助理當月工時不超過合理工時＝（當月天數－週日數－休假日天數）× 8 －請假天數 × 7 小時；每班 3.5 小時，三班全上計 10 小時，加班不計入。超過的部分計為加班，最多 <b>${otMax()}</b> 小時（可在「自動排班設定」調整，設為 0 即不允許超過）。</li>
+      <li>工時上限為合理工時：助理當月工時不超過合理工時＝可排班天數 × 8 小時（可排班天數＝當月天數－週日－診所休假日－整天休診的日子－事前請假的日子）；每班 3.5 小時，三班全上計 10 小時，加班不計入。超過的部分計為加班，最多 <b>${otMax()}</b> 小時（可在「自動排班設定」調整，設為 0 即不允許超過）。</li>
       <li>助理工時必須排滿合理工時：一般崗位排完後，工時不足的助理會加排到副櫃（空著時）或流動，直到達到合理工時；補足時不使用超時。受請假、每日班數等條件限制而排不滿時，會在排班完成訊息列出差幾小時。</li>
       <li>助理每月全天班上限：<b>${MAXF}</b> 次。</li>
       <li>助理每月早+晚上限：<b>${MAXDN}</b> 次。</li>
@@ -1545,11 +1827,20 @@ function renderSettings(){
 }
 
 // ---------- scheduling actions ----------
+const origBlocked=()=>{
+  if(!viewingLocked())return false;
+  toast(schedViewOf()==='orig'?'已定案，原始班表只能查看；要修改請切換到「異動班表」。':'這個月還沒有定案，請先在「原始班表」排班。','warn');return true;
+};
 function assign(id,t,from){
-  if(!canWrite)return;
+  if(!canWrite||origBlocked())return;
   const isGap=id===GAP;
   const p=isGap?{role:POS[t.pi].role}:byId(id);if(!p)return;
   const pos=POS[t.pi];
+  // 原始班表（定案前）不能把人排進他已請假的診次；異動班表不受此限（只提醒）
+  if(!isGap&&schedViewOf()==='orig'&&onLeave(id,t.date,t.sh)){
+    const l=leaves.find(x=>x.staffId===id&&x.date===t.date);
+    toast(`${codeOf(id)} ${t.date.slice(5).replace('-','/')} ${SHIFTS.find(s=>s.id===t.sh)?.name||''}已請${l?.type||'假'}，原始班表不能排入有請假的診次。`,'warn');return;
+  }
   const asstFollow=t.pi===FOLLOW&&p.role==='assistant';
   if(p.role!==pos.role&&!asstFollow){toast(`${pos.label}只能排${ROLE[pos.role]}。`,'warn');return;}
   const patches={};
@@ -1590,15 +1881,54 @@ function assign(id,t,from){
   tgt[t.pi].push(id);
   if(docFor)tl.push([id,docFor]);
   put(t.wk,t.ck,tgt,tl);
-  {const ex=from?wasExtra:(extraMode&&p.role==='assistant');const tx=getX(t.wk,t.ck).filter(x=>x!==id);if(ex)tx.push(id);putX(t.wk,t.ck,tx);}
+  const mode=from?(wasExtra?'extra':'basic'):(p.role==='assistant'?poolMode:'basic');
+  {const tx=getX(t.wk,t.ck).filter(x=>x!==id);if(mode==='extra')tx.push(id);putX(t.wk,t.ck,tx);}
   Object.entries(patches).forEach(([wk,patch])=>store.cells(wk,patch));
   const dow=Number(t.ck.split('_')[0]);
   if(dropped.length) toast(`已一併移除 ${codeOf(id)} 的跟診助理 ${dropped.map(codeOf).join('、')}。`);
-  if(onLeave(id,t.date,t.sh)) toast(`${codeOf(id)} 在這個時段已請假。`,'warn');
+  if(schedViewOf()!=='live'&&onLeave(id,t.date,t.sh)) toast(`${codeOf(id)} 在這個時段已請假。`,'warn'); // 異動班表不提醒
   else if(dayCount(t.wk,dow,id)>(cfg.maxPerDay||2)) toast(`${codeOf(id)} 當天已超過 ${cfg.maxPerDay} 班。`,'warn');
 }
+// 拖曳一個人到同職務的另一個人上：兩人交換位置（跟診配對跟著位置走，基本／加診身分跟著人走）
+// 回傳無法交換的原因；可以交換時回傳空字串
+function swapProblem(a,b){
+  const lbl=x=>`${x.date.slice(5).replace('-','/')} ${SHIFTS.find(s=>s.id===x.sh)?.name||''}`;
+  if(schedViewOf()==='orig'){ // 原始班表不能換進有請假的診次
+    for(const [id,to] of [[a.id,b],[b.id,a]]){
+      if(onLeave(id,to.date,to.sh)){const l=leaves.find(x=>x.staffId===id&&x.date===to.date);
+        return `${codeOf(id)} ${lbl(to)}已請${l?.type||'假'}，原始班表不能排入有請假的診次，無法交換。`;}
+    }
+  }
+  if(!(a.wk===b.wk&&a.ck===b.ck)){
+    for(const [id,to] of [[a.id,b],[b.id,a]])
+      if(getCell(to.wk,to.ck).some(x=>x.includes(id)))return `${codeOf(id)} ${lbl(to)}已經有排班，無法交換。`;
+  }
+  return '';
+}
+function swapItems(a,b){
+  if(!canWrite||origBlocked())return;
+  const bad=swapProblem(a,b);if(bad){toast(bad,'warn');return;}
+  const same=a.wk===b.wk&&a.ck===b.ck;
+  const exA=getExtra(a.wk,a.ck).includes(a.id),exB=getExtra(b.wk,b.ck).includes(b.id);
+  const sub=(v,map)=>map[v]||v;
+  const patches={};
+  const edit=(wk,ck,map,xOut,xIn)=>{
+    const arr=getCell(wk,ck).map(p=>p.map(v=>sub(v,map)));
+    const lk=getLink(wk,ck).map(z=>[sub(z[0],map),sub(z[1],map)]);
+    const x=getExtra(wk,ck).filter(v=>!xOut.includes(v)).concat(xIn);
+    patches[wk]=Object.assign(patches[wk]||{},{[ck]:arr,['L'+ck]:lk,['X'+ck]:[...new Set(x)]});
+  };
+  if(same)edit(a.wk,a.ck,{[a.id]:b.id,[b.id]:a.id},[],[]);
+  else{
+    edit(a.wk,a.ck,{[a.id]:b.id},[a.id],exB?[b.id]:[]);
+    edit(b.wk,b.ck,{[b.id]:a.id},[b.id],exA?[a.id]:[]);
+  }
+  Object.entries(patches).forEach(([wk,patch])=>store.cells(wk,patch));
+  selectedId=null;
+  toast(`已交換 ${codeOf(a.id)} 和 ${codeOf(b.id)}。`);
+}
 function removeFrom(id,wk,ck,pi){
-  if(!canWrite)return;
+  if(!canWrite||origBlocked())return;
   const a=getCell(wk,ck);let lk=getLink(wk,ck);
   if(pi===FOLLOW&&id!==GAP){
     if(byId(id)?.role==='doctor'){const ds=lk.filter(z=>z[1]===id).map(z=>z[0]);a[FOLLOW]=a[FOLLOW].filter(z=>!ds.includes(z));if(ds.length)toast(`已一併移除跟診助理 ${ds.map(codeOf).join('、')}。`);}
@@ -1652,7 +1982,7 @@ function autoSchedule(fillOnly){
   }
   leaves.forEach(l=>{if(l.type!=='排休'&&OFF[l.staffId]){const i=idxOf(l.date);if(i>=0&&i<N)OFF[l.staffId][i]=1;}});
   const OTMAX=otMax();
-  // 工時上限＝合理工時：（當月天數－週日數－休假日天數）×8－請假天數×7
+  // 工時上限＝合理工時：可排班天數×8（見 reasonableDays）
   const I0=idxOf(ymd(mi.first)),I1=idxOf(ymd(mi.last));
   const CAP={};assts.forEach(a=>CAP[a.id]=reasonableDays(mi,a.id));
   const monthSum=id=>{let x=0;for(let t=I0;t<=I1;t++)x+=H[id][t];return x;};
@@ -2041,6 +2371,18 @@ function autoSchedule(fillOnly){
   Object.entries(work).forEach(([wk,cells])=>store.week(wk,cells));
   toast(`已排入 ${added} 個崗位${daily||topUp?`（其中 ${[daily?`${daily} 班是為讓每人每天至少一班`:'',topUp?`${topUp} 班是為補滿合理工時`:''].filter(Boolean).join('、')}而加排）`:''}${swaps||mswaps?`，並對調${' '+[swaps?`${swaps} 組流動與跟診`:'',mswaps?`${mswaps} 組流動與主櫃`:''].filter(Boolean).join('、')}，讓跟診與主櫃更連貫`:''}${fullSwaps?`；另有 ${fullSwaps} 位全天班醫師改由流動的全天班助理整天跟診`:''}${fullMain?`；${fullMain} 天的主櫃改由流動的全天班助理整天擔任`:''}${pairMain?`；${pairMain} 天的主櫃和流動互換，讓早午或午晚由同一人擔任`:''}${lastFix?`；最後再調整 ${lastFix} 位醫師的跟診，讓跟診助理更連貫`:''}${subToFlow?`；${subToFlow} 位副櫃助理調到缺人的流動`:''}${shortage?`，還有 ${shortage} 個缺口找不到符合規則的人員`:''}${forcedDays.length?`。為了每天至少一班而超過合理工時：${forcedDays.slice(0,6).join('、')}${forcedDays.length>6?` 等 ${forcedDays.length} 天`:''}`:''}${missDay.length?`。無法排入當天任何一班：${missDay.slice(0,8).join('、')}${missDay.length>8?` 等 ${missDay.length} 天`:''}`:''}${short.length?`。未能排滿合理工時：${short.join('、')}`:''}。`,(shortage||short.length||missDay.length||forcedDays.length)?'warn':'',{label:'復原',fn:undoAuto});
 }
+function undoSched(){
+  if(!canWrite||origBlocked())return;
+  const e=schedHist.pop();if(!e){toast('沒有可以回復的動作。');renderAll();return;}
+  histSkip=true;try{Object.entries(e).forEach(([wk,c])=>store.week(wk,c||{}));}finally{histSkip=false;}
+  selectedId=null;renderAll();toast('已回復上一動作。');
+}
+$('undoBtn').onclick=undoSched;
+document.addEventListener('keydown',e=>{
+  if(!(e.ctrlKey||e.metaKey)||e.shiftKey||e.altKey||e.key.toLowerCase()!=='z'||prefs.tab!=='schedule')return;
+  if(document.querySelector('.overlay')||e.target.closest?.('input,textarea,select,[contenteditable]'))return;
+  e.preventDefault();undoSched();
+});
 function undoAuto(){
   if(!lastUndo)return;const u=lastUndo;lastUndo=null;
   Object.entries(u).forEach(([wk,cells])=>store.week(wk,cells||{}));
@@ -2112,7 +2454,7 @@ function toast(msg,kind='',action){
 }
 
 // ---------- events ----------
-document.querySelector('nav.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(b.dataset.tab==='holidays'&&prefs.tab!=='holidays')holScrolled=false;if(b.dataset.tab==='leave'&&prefs.tab!=='leave')leaveScrolled={lv:false,fc:false};prefs.tab=b.dataset.tab;savePrefs();renderAll();});
+document.querySelector('nav.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(b.dataset.tab==='holidays'&&prefs.tab!=='holidays')holScrolled=false;if(b.dataset.tab==='leave'&&prefs.tab!=='leave')leaveScrolled={assistant:false,after:false,fc:false};prefs.tab=b.dataset.tab;savePrefs();renderAll();});
 $('rangeForm').addEventListener('submit',e=>{
   e.preventDefault();const a=$('stFrom').value,b=$('stTo').value;
   if(!a||!b){toast('請選擇開始與結束日期。','warn');return;}
@@ -2124,7 +2466,7 @@ $('stReset').onclick=()=>{statCustom=null;renderAll();};
 $('prevMonth').onclick=()=>{prefs.monthOffset--;savePrefs();document.querySelectorAll('[data-n=from]').forEach(x=>x.value='');renderAll();};
 $('nextMonth').onclick=()=>{prefs.monthOffset++;savePrefs();document.querySelectorAll('[data-n=from]').forEach(x=>x.value='');renderAll();};
 $('thisMonth').onclick=()=>{prefs.monthOffset=0;savePrefs();document.querySelectorAll('[data-n=from]').forEach(x=>x.value='');renderAll();};
-$('tplBtn').onclick=()=>{
+$('tplBtn').onclick=()=>{if(origBlocked())return;
   const tpl=cfg.docTpl||{};
   if(!Object.values(tpl).some(a=>a&&a.length)){toast('還沒設定預設醫師班表，請先到「排班規則」設定。','warn');return;}
   dialog(`<h3>帶入醫師班表・${monthInfo().label}</h3><p>依「排班規則」裡的預設醫師班表，把醫師排進本月每一天的跟診。休診、休假日與醫師休假的時段會自動跳過。</p>
@@ -2162,7 +2504,7 @@ function applyDocTemplate(overwrite,dates){
   Object.entries(patches).forEach(([wk,p])=>store.cells(wk,p));
   toast(`已帶入 ${added} 個醫師時段${removed?`，移除 ${removed} 個`:''}${skipped?`，${skipped} 個因醫師休假跳過`:''}。`,'',{label:'復原',fn:undoAuto});
 }
-$('autoBtn').onclick=()=>{
+$('autoBtn').onclick=()=>{if(origBlocked())return;
   if(!activeStaff().length){toast('請先到「人員名單」新增人員。','warn');return;}
   dialog(`<h3>自動排班・${monthInfo().label}</h3><p>依需求人數、請假、每日上限與工時規則排班，並讓每個人的班數盡量平均。</p>
     <div class="opts"><label><input type="radio" name="am" value="fill" checked><span>只補空缺<small>保留已經排好的人，只填入空的崗位</small></span></label>
@@ -2170,8 +2512,23 @@ $('autoBtn').onclick=()=>{
     ov=>autoSchedule(ov.querySelector('input[name=am]:checked').value==='fill'),'開始排班');
 };
 // 清空本月：只清除本月日期的排班（跨月的週只動本月那幾天），可復原
-$('clearMonthBtn').onclick=()=>{
+// 原始／異動班表切換、定案
+$('schedViewSeg').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;prefs.schedView=b.dataset.view;savePrefs();selectedId=null;renderAll();});
+$('baselineBtn').onclick=()=>{
   if(!canWrite)return;
+  const mi=monthInfo(),exists=baselines[mi.ym];
+  dialog(`<h3>${exists?'重新定案':'定案'}・${mi.label}</h3><p>${exists
+      ?`本月已於 ${fmtAt(exists.at)} 定案。<br><b style="color:var(--warn)">重新定案會用目前的異動班表覆蓋原始班表，原本的原始班表將無法復原。</b>`
+      :`${mi.label}原始班表將鎖定，並複製一份到「異動班表」；之後的排班修改都在異動班表進行。`}</p>`,()=>{
+    const w={};mi.mondays.forEach(m=>{const wk=ymd(m);w[wk]=clone(weeks[wk]||{});});
+    store.baseline(mi.ym,{ym:mi.ym,at:Date.now(),by:myId||'',weeks:w});
+    schedHist=[]; // 定案後從異動班表重新開始記錄
+    prefs.schedView='live';savePrefs();selectedId=null;renderAll();
+    toast(exists?`已重新定案 ${mi.label} 班表。`:`已定案 ${mi.label} 班表，接下來請在「異動班表」修改。`);
+  },exists?'重新定案':'定案',!!exists);
+};
+$('clearMonthBtn').onclick=()=>{
+  if(!canWrite||origBlocked())return;
   const mi=monthInfo();const days=busyDays(mi.dates.map(x=>x.key));
   if(!days.length){toast(`${mi.label}還沒有排班。`);return;}
   dialog(`<h3>清空 ${mi.label}？</h3><p>本月 ${days.length} 天的排班都會移除，包含醫師、助理、跟診配對與加診標記。請假、休假日與規則不受影響。清空後可以按「復原」還原。</p>`,()=>{
@@ -2185,27 +2542,49 @@ const weeksEl=$('weeks');
 let drag=null;
 weeksEl.addEventListener('dragstart',e=>{
   const it=e.target.closest('[data-item]');if(!it||!canWrite)return;
-  drag={id:it.dataset.item,from:{wk:it.dataset.wk,ck:it.dataset.ck,pi:Number(it.dataset.pi)}};
+  const hp=it.closest('[data-pos]');
+  drag={id:it.dataset.item,from:{wk:it.dataset.wk,ck:it.dataset.ck,pi:Number(it.dataset.pi),date:hp?.dataset.date,sh:hp?.dataset.sh}};
   e.dataTransfer.setData('text/plain',drag.id);e.dataTransfer.effectAllowed='move';
 });
 document.querySelector('.pool').addEventListener('dragstart',e=>{
   const c=e.target.closest('[data-chip]');if(!c||!canWrite)return;
   drag={id:c.dataset.chip,from:null};e.dataTransfer.setData('text/plain',drag.id);e.dataTransfer.effectAllowed='copy';
 });
-document.addEventListener('dragend',()=>{drag=null;document.querySelectorAll('.pos.over,.pos.bad').forEach(x=>x.classList.remove('over','bad'));});
+document.addEventListener('dragend',()=>{drag=null;hideSwapTip?.();document.querySelectorAll('.pos.over,.pos.bad').forEach(x=>x.classList.remove('over','bad'));});
+// 拖到同職務的另一個人上時，游標旁顯示「放開即可交換」提示（不能交換時顯示原因）
+const swapTarget=e=>{
+  const on=e.target.closest?.('[data-item]'),p=e.target.closest?.('[data-pos]');
+  if(!drag?.from||!on||!p||drag.id===GAP||on.dataset.item===GAP||on.dataset.item===drag.id||byId(on.dataset.item)?.role!==byId(drag.id)?.role)return null;
+  return {on,a:Object.assign({id:drag.id},drag.from),b:{id:on.dataset.item,wk:on.dataset.wk,ck:on.dataset.ck,pi:Number(on.dataset.pi),date:p.dataset.date,sh:p.dataset.sh}};
+};
+const swapTip=document.createElement('div');swapTip.className='swap-tip';swapTip.hidden=true;document.body.appendChild(swapTip);
+const hideSwapTip=()=>{swapTip.hidden=true;document.querySelectorAll('.item.swap-on').forEach(x=>x.classList.remove('swap-on','swap-no'));};
 weeksEl.addEventListener('dragover',e=>{
-  const p=e.target.closest('[data-pos]');if(!p||!drag)return;
+  const p=e.target.closest('[data-pos]');if(!p||!drag){hideSwapTip();return;}
   e.preventDefault();
+  const sw=swapTarget(e);
+  if(sw){
+    const bad=swapProblem(sw.a,sw.b);
+    document.querySelectorAll('.item.swap-on').forEach(x=>{if(x!==sw.on)x.classList.remove('swap-on','swap-no');});
+    sw.on.classList.add('swap-on');sw.on.classList.toggle('swap-no',!!bad);
+    swapTip.textContent=bad||`放開即可交換 ${codeOf(sw.a.id)} ⇄ ${codeOf(sw.b.id)}`;
+    swapTip.classList.toggle('no',!!bad);swapTip.hidden=false;
+    swapTip.style.left=Math.min(e.clientX+14,innerWidth-swapTip.offsetWidth-8)+'px';swapTip.style.top=Math.max(8,e.clientY-38)+'px';
+    p.classList.remove('over','bad');return;
+  }
+  hideSwapTip();
   const r=byId(drag.id)?.role;const pi=Number(p.dataset.pi);
   const ok=drag.id===GAP||r===POS[pi].role||(pi===FOLLOW&&r==='assistant'&&!!p.querySelector('.dstack[data-doc]'));
   p.classList.add(ok?'over':'bad');
 });
-weeksEl.addEventListener('dragleave',e=>{const p=e.target.closest('[data-pos]');if(p&&!p.contains(e.relatedTarget))p.classList.remove('over','bad');});
+weeksEl.addEventListener('dragleave',e=>{const p=e.target.closest('[data-pos]');if(p&&!p.contains(e.relatedTarget))p.classList.remove('over','bad');if(!weeksEl.contains(e.relatedTarget))hideSwapTip();});
 weeksEl.addEventListener('drop',e=>{
   const p=e.target.closest('[data-pos]');if(!p||!drag)return;e.preventDefault();
   p.classList.remove('over','bad');
   const t={wk:p.dataset.wk,ck:p.dataset.ck,pi:Number(p.dataset.pi),date:p.dataset.date,sh:p.dataset.sh,doc:e.target.closest('[data-doc]')?.dataset.doc};
   const f=drag.from;
+  const sw=swapTarget(e);hideSwapTip();
+  if(sw){swapItems(sw.a,sw.b);drag=null;return;}
   if(f&&f.wk===t.wk&&f.ck===t.ck&&f.pi===t.pi&&!(t.pi===FOLLOW&&t.doc&&t.doc!==drag.id)){drag=null;return;}
   assign(drag.id,t,f);drag=null;
 });
@@ -2234,6 +2613,12 @@ document.querySelector('.pool').addEventListener('click',e=>{
 });
 document.querySelector('.pool').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const c=e.target.closest('[data-chip]');if(c){e.preventDefault();c.click();}}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&selectedId){selectedId=null;renderAll();}});
+// 排班表中點擊空白處取消人員選取（班表格子、人員、按鈕、輸入框、彈窗與提示訊息不算空白處）
+document.addEventListener('click',e=>{
+  if(!selectedId||prefs.tab!=='schedule')return;
+  if(e.target.closest('[data-pos],[data-chip],[data-item],button,input,select,label,a,.overlay,.toasts'))return;
+  selectedId=null;renderAll();
+});
 
 // leave
 document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('submit',e=>{
@@ -2253,19 +2638,29 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
     dates.push(key);
   }
   if(!dates.length){toast(`週日與休假日不需要登記${word}。`,'warn');return;}
+  // 事前、事後各自管理：這些日期已有另一邊登記的請假時，不能在這裡更動
+  if(role==='assistant'){
+    const when=form.dataset.when||'before',other=leaves.filter(l=>l.staffId===sid&&dates.includes(l.date)&&whenOf(l)!==when);
+    if(other.length){const o=when==='after'?'事前':'事後';toast(`${other.map(l=>l.date.slice(5).replace('-','/')).join('、')} 已有${o}登記的請假，請切換到「${o}」修改。`,'warn');return;}
+    // 不得與家庭照顧假同時段（事前一律整天）
+    const want=when==='before'?SHIFTS.map(s=>s.id):shifts;
+    for(const d of dates){const clash=leaveVsFc(sid,d,want);if(clash){toast(clash,'warn');return;}}
+  }
+  // 個人假統計需要的資料（到職日、結婚日、死亡日…）缺少時先詢問；補齊後重新送出
+  if(role==='assistant'&&askLeaveInfo(sid,type,dates,()=>form.requestSubmit(),()=>{f('note').value='';f('to').value='';}))return;
   // 年度上限：事假 14 天、病假 30 天（含生理假第 4 天起視同病假）
   const mergedOf=key=>{const dup=leaves.find(l=>l.staffId===sid&&l.date===key);return SHIFTS.map(s=>s.id).filter(s=>shifts.includes(s)||(dup?.shifts||[]).includes(s));};
-  const chk=role==='assistant'?leaveLimitIssues(sid,dates.map(date=>({date,type,shifts:mergedOf(date)}))):{over:[],info:[]};
+  const chk=role==='assistant'?leaveLimitIssues(sid,dates.map(date=>({date,type,shifts:mergedOf(date),when:form.dataset.when||'before'}))):{over:[],info:[]};
   const apply=()=>{
     dates.forEach(key=>{
       const dup=leaves.find(l=>l.staffId===sid&&l.date===key);
       if(dup)store.delLeave(dup.id);
       const merged=dup?[...new Set([...(dup.shifts||[]),...shifts])]:shifts;
-      store.leave({id:uid('l'),staffId:sid,date:key,shifts:SHIFTS.map(s=>s.id).filter(s=>merged.includes(s)),type,note:note||dup?.note||'',createdAt:Date.now()});
+      store.leave({id:uid('l'),staffId:sid,date:key,shifts:SHIFTS.map(s=>s.id).filter(s=>merged.includes(s)),type,note:note||dup?.note||'',when:form.dataset.when||'before',createdAt:Date.now()});
     });
     f('note').value='';f('to').value='';
     const skip=[sun?`${sun} 個週日`:'',hol?`${hol} 個休假日`:''].filter(Boolean).join('、');
-    toast(`已登記 ${codeOf(sid)} ${dates.length} 天${word}${skip?`（已略過 ${skip}）`:''}。${chk.info.join('')}`);
+    toast(`已登記 ${codeOf(sid)} ${dates.length} 天${word}${skip?`（已略過 ${skip}）`:''}。${shifts.length<SHIFTS.length&&role==='assistant'&&(form.dataset.when||'before')==='before'?'事前請假以日為單位，已登記為全天。':''}${chk.info.join('')}`);
   };
   if(!chk.over.length)return apply();
   if(!canWrite){toast(`無法登記：${chk.over.join('；')}。請洽診所管理者。`,'warn');return;}
@@ -2274,15 +2669,15 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
 // ---------- 整月排假 ----------
 // 月曆彈窗：上方選假別、左方選助理，把助理拖到某天的早／午／晚格子即登記請假（手機可先點助理再點格子），點格子裡的代號取消該班
 // 每種假別一個固定顏色（背景, 文字），月曆標籤與上方假別按鈕共用
-const LEAVE_COLORS={特休:['#2E7D32','#fff'],排休:['#C0CA33','#263238'],事假:['#C62828','#fff'],病假:['#EF6C00','#fff'],公假:['#1565C0','#fff'],婚假:['#D81B60','#fff'],喪假:['#455A64','#fff'],產假:['#6A1B9A','#fff'],陪產假:['#3949AB','#fff'],生理假:['#FBC02D','#3E2723'],補休:['#00897B','#fff'],颱風假:['#0288D1','#fff'],不可上班:['#212121','#fff'],其他:['#8D6E63','#fff']};
+const LEAVE_COLORS={特休:['#2E7D32','#fff'],排休:['#C0CA33','#263238'],事假:['#C62828','#fff'],病假:['#EF6C00','#fff'],公假:['#1565C0','#fff'],婚假:['#D81B60','#fff'],喪假:['#455A64','#fff'],產假:['#6A1B9A','#fff'],陪產假:['#3949AB','#fff'],生理假:['#FBC02D','#3E2723'],補休:['#00897B','#fff'],颱風假:['#0288D1','#fff'],不可上班:['#212121','#fff'],其他:['#8D6E63','#fff'],產檢假:['#BA68C8','#fff'],流產產假:['#4E342E','#fff'],育嬰假:['#90A4AE','#263238']};
 const leaveColor=t=>LEAVE_COLORS[t]||['#757575','#fff'];
 const leaveTagStyle=t=>{const [bg,fg]=leaveColor(t);return `background:${bg};border-color:${bg};color:${fg}`;};
-$('monthLeaveBtn').onclick=()=>{
+function openMonthLeave(when){ // when：'before' 事前／'after' 事後
   const types=[...document.querySelectorAll('#lvType-assistant option')].map(o=>o.value);
   let off=prefs.monthOffset,type=types.includes('事假')?'事假':types[0],sel=null,dragSid=null;
   const ov=document.createElement('div');ov.className='overlay';
   ov.innerHTML=`<div class="dialog ml-dialog" role="dialog" aria-modal="true">
-    <div class="ml-head"><h3 id="mlTitle"></h3><span style="display:flex;gap:6px"><button class="small" data-mlnav="-1" aria-label="上個月">◀</button><button class="small" data-mlnav="1" aria-label="下個月">▶</button><button class="small" data-mlclose>關閉</button></span></div>
+    <div class="ml-head"><h3 id="mlTitle"></h3><span style="display:flex;gap:6px"><button class="small" data-mlundo disabled title="復原這個視窗裡的上一次排假或取消" style="margin-right:28px">↶ 回復前一動作</button><button class="small" data-mlnav="-1" aria-label="上個月">◀</button><button class="small" data-mlnow>本月</button><button class="small" data-mlnav="1" aria-label="下個月">▶</button><button class="small" data-mlclose>關閉</button></span></div>
     <div class="ml-types" id="mlTypes" role="group" aria-label="請假類別"></div>
     <div class="ml-body"><div class="ml-staff" id="mlStaff"></div><div class="ml-cal-wrap"><div class="ml-cal" id="mlCal"></div></div></div>
     <p class="hint">選好假別後，把助理代號拖到要請假的班次；拖到日期上則整天（早午晚）都請假。手機可以先點助理、再點班次或日期。點班次裡的代號可以取消那一班。</p></div>`;
@@ -2293,7 +2688,7 @@ $('monthLeaveBtn').onclick=()=>{
   document.addEventListener('keydown',onKey);
   const paint=()=>{
     const mi=monthInfo(off),inMonth=new Set(mi.dates.map(x=>x.key));
-    q('#mlTitle').textContent=`${mi.label} 整月排假`;
+    q('#mlTitle').innerHTML=`${esc(mi.label)} 整月排假（${when==='after'?'<span class="ml-after">事後</span>':'<span class="ml-before">事前</span>'}）`;
     q('#mlTypes').innerHTML=types.map(t=>`<button type="button" data-mltype="${esc(t)}" aria-pressed="${t===type}"${t===type?` style="${leaveTagStyle(t)}"`:''}><i class="ml-dot" style="background:${leaveColor(t)[0]}"></i>${esc(t)}</button>`).join('');
     const list=activeStaff('assistant').filter(s=>canWrite||s.id===myStaffId());
     if(sel&&!list.some(s=>s.id===sel))sel=null;
@@ -2308,27 +2703,42 @@ $('monthLeaveBtn').onclick=()=>{
       // 當天有請假的人依代號 A→Z 排出固定欄位，早午晚三格共用，讓同一人上下對齊
       const dayLv=leaves.filter(l=>l.date===key&&byId(l.staffId)?.role==='assistant'&&(canWrite||shown.has(l.staffId)))
         .sort((a,b)=>codeOf(a.staffId).localeCompare(codeOf(b.staffId),'en',{numeric:true,sensitivity:'base'}));
-      html+=`<div class="ml-day"${openSh.length?` data-day="${key}" data-open="${openSh.join(',')}"`:''}><div class="ml-date" title="${openSh.length?'拖到這裡：整天請假':''}">${md(d)}${hol?` <small style="color:var(--faint)">${esc(hol.name||'休假日')}</small>`:''}</div>`+SHIFTS.map(sh=>{
+      // 整天制假別：依上下相鄰的看診班次決定標籤是頂端、中段或底端，讓三格連成一條
+      const isOpen=si=>si>=0&&si<SHIFTS.length&&openSh.includes(SHIFTS[si].id);
+      const fdCls=(l,si)=>{
+        if(!isWholeDay(l))return '';
+        const has=j=>isOpen(j)&&(l.shifts||[]).includes(SHIFTS[j].id),p=has(si-1),n=has(si+1);
+        return p&&n?' fd-mid':!p&&n?' fd-top':p&&!n?' fd-bot':'';
+      };
+      html+=`<div class="ml-day"${openSh.length?` data-day="${key}" data-open="${openSh.join(',')}"`:''}><div class="ml-date" title="${openSh.length?'拖到這裡：整天請假':''}">${md(d)}${hol?` <small style="color:var(--faint)">${esc(hol.name||'休假日')}</small>`:''}</div><div class="ml-shifts">`+SHIFTS.map((sh,si)=>{
         if(dow===6||closedAt(dow,sh.id,key))return `<div class="ml-slot off"><span class="ml-sh">${sh.short}</span></div>`;
         const tags=dayLv.map(l=>(l.shifts||[]).includes(sh.id)
-          ?`<button type="button" class="ml-tag" style="${leaveTagStyle(l.type)}" data-mldel="${l.id}" data-sh="${sh.id}" title="${esc(fullName(byId(l.staffId)))}・${esc(l.type||'')}（點一下取消）">${esc(codeOf(l.staffId))}</button>`
+          ?(whenOf(l)!==when // 另一邊（事前／事後）登記的假：淺灰色，只能看
+            ?`<span class="ml-tag faded${fdCls(l,si)}" title="${esc(fullName(byId(l.staffId)))}・${esc(l.type||'')}（${whenOf(l)==='after'?'事後':'事前'}登記，請切換到「${whenOf(l)==='after'?'事後':'事前'}」的整月排假修改）">${esc(codeOf(l.staffId))}</span>`
+            :`<button type="button" class="ml-tag${fdCls(l,si)}" style="${leaveTagStyle(l.type)}" data-mldel="${l.id}" data-sh="${sh.id}" title="${esc(fullName(byId(l.staffId)))}・${esc(l.type||'')}（點一下取消）">${esc(codeOf(l.staffId))}</button>`)
           :'<span class="ml-tag ph" aria-hidden="true"></span>').join('');
         return `<div class="ml-slot" data-date="${key}" data-sh="${sh.id}"><span class="ml-sh">${sh.short}</span>${tags}</div>`;
-      }).join('')+'</div>';
+      }).join('')+'</div></div>';
     }});
     q('#mlCal').innerHTML=html;
+    q('[data-mlundo]').disabled=!history.length;
   };
   // shs：要請假的班次（拖到格子是一班；拖到日期是當天所有看診班次）
   const addLeave=(sid,date,shs)=>{
     if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的請假。','warn');return;}
     const dup=leaves.find(l=>l.staffId===sid&&l.date===date);
+    // 事前、事後各自管理：當天已有另一邊登記的請假時，不能在這裡更動
+    if(dup&&whenOf(dup)!==when){const o=whenOf(dup)==='after'?'事後':'事前';toast(`${codeOf(sid)} ${date.slice(5).replace('-','/')} 已有${o}登記的${dup.type||'請假'}，請切換到「${o}」修改。`,'warn');return;}
+    {const clash=leaveVsFc(sid,date,when==='before'?SHIFTS.map(s=>s.id):shs);if(clash){toast(clash,'warn');return;}}
+    if(askLeaveInfo(sid,type,[date],()=>addLeave(sid,date,shs),paint))return;
     if(dup&&shs.every(s=>(dup.shifts||[]).includes(s))&&dup.type===type)return;
     const shifts=SHIFTS.map(s=>s.id).filter(s=>shs.includes(s)||(dup?.shifts||[]).includes(s));
-    const chk=leaveLimitIssues(sid,[{date,type,shifts}]);
+    const chk=leaveLimitIssues(sid,[{date,type,shifts,when}]);
     const apply=()=>{
-      if(dup)store.putLeave(Object.assign({},dup,{shifts,type}));
-      else store.leave({id:uid('l'),staffId:sid,date,shifts,type,note:'',createdAt:Date.now()});
-      const sn=shs.length===3?'全天':SHIFTS.filter(s=>shs.includes(s.id)).map(s=>s.name).join('、');
+      remember(sid,date);
+      if(dup)store.putLeave(Object.assign({},dup,{shifts,type,when}));
+      else store.leave({id:uid('l'),staffId:sid,date,shifts,type,note:'',when,createdAt:Date.now()});
+      const sn=shs.length===3||when==='before'?'全天':SHIFTS.filter(s=>shs.includes(s.id)).map(s=>s.name).join('、');
       toast(`已登記 ${codeOf(sid)} ${date.slice(5).replace('-','/')} ${sn}${type}。${dup&&dup.type!==type?`當天其他班次也一併改為${type}。`:''}${chk.info.join('')}`);
       paint();
     };
@@ -2336,18 +2746,33 @@ $('monthLeaveBtn').onclick=()=>{
     if(!canWrite){toast(`無法登記：${chk.over.join('；')}。請洽診所管理者。`,'warn');return;}
     dialog(`<h3>超過年度請假上限</h3><p>${chk.over.map(esc).join('<br>')}</p><p>確定仍要登記嗎？</p>`,apply,'仍要登記',true);
   };
+  // 回復前一動作：每次排假／取消前，記下該人員當天原本的請假紀錄；復原時換回原本的紀錄
+  const history=[];
+  const remember=(sid,date)=>history.push({sid,date,prev:leaves.filter(l=>l.staffId===sid&&l.date===date).map(clone)});
+  const undo=()=>{
+    const h=history.pop();if(!h){toast('沒有可以回復的動作。');return;}
+    const cur=leaves.filter(l=>l.staffId===h.sid&&l.date===h.date);
+    store.leavesBulk(h.prev.map(clone),cur.map(l=>l.id));
+    toast(`已回復 ${codeOf(h.sid)} ${h.date.slice(5).replace('-','/')} 的上一個動作。`);paint();
+  };
   const removeShift=(id,sh)=>{
     const l=leaves.find(x=>x.id===id);if(!l)return;
     if(!canLeaveFor(l.staffId)){toast('你沒有權限取消這筆請假。','warn');return;}
-    const rest=(l.shifts||[]).filter(s=>s!==sh);
+    // 特休、排休、婚假、喪假只能整天，取消其中一班就取消當天全部
+    const whole=isWholeDay(l);
+    const rest=whole?[]:(l.shifts||[]).filter(s=>s!==sh);
+    remember(l.staffId,l.date);
     if(rest.length)store.putLeave(Object.assign({},l,{shifts:rest}));else store.delLeave(l.id);
-    toast(`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} ${SHIFTS.find(s=>s.id===sh).name}的請假。`);paint();
+    toast(whole?`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} 全天${l.type}。`:`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} ${SHIFTS.find(s=>s.id===sh).name}的請假。`);paint();
   };
   ov.addEventListener('click',e=>{
     if(e.target===ov||e.target.closest('[data-mlclose]')){close();return;}
     const nav=e.target.closest('[data-mlnav]');if(nav){off+=Number(nav.dataset.mlnav);paint();return;}
+    if(e.target.closest('[data-mlundo]')){undo();return;}
+    if(e.target.closest('[data-mlnow]')){off=0;paint();return;} // 跳回今天所在的月份
     const tb=e.target.closest('[data-mltype]');if(tb){type=tb.dataset.mltype;paint();return;}
     const tag=e.target.closest('[data-mldel]');if(tag){removeShift(tag.dataset.mldel,tag.dataset.sh);return;}
+    if(e.target.closest('.ml-tag.faded')){const o=when==='after'?'事前':'事後';toast(`這是${o}登記的請假，請切換到「${o}」的整月排假修改。`);return;}
     const chip=e.target.closest('[data-mlsid]');if(chip){sel=sel===chip.dataset.mlsid?null:chip.dataset.mlsid;paint();return;}
     const tg=targetOf(e);
     if(tg){if(!sel){toast('請先點選左邊的助理，或直接把助理拖到班次或日期。');return;}addLeave(sel,tg.date,tg.shs);}
@@ -2365,7 +2790,13 @@ $('monthLeaveBtn').onclick=()=>{
   ov.addEventListener('drop',e=>{if(!dragSid)return;const tg=targetOf(e);clearOver();if(!tg)return;e.preventDefault();const sid=dragSid;dragSid=null;addLeave(sid,tg.date,tg.shs);});
   ov.addEventListener('dragend',()=>{dragSid=null;clearOver();});
   paint();
-};
+}
+$('lvWhenSeg').addEventListener('click',e=>{
+  const b=e.target.closest('[data-when]');if(!b)return;
+  prefs.lvWhen=b.dataset.when;savePrefs();leaveScrolled[b.dataset.when==='after'?'after':'assistant']=false;renderAll();
+});
+$('monthLeaveBtn').onclick=()=>openMonthLeave('before');
+$('monthLeaveBtnAfter').onclick=()=>openMonthLeave('after');
 $('fcForm').addEventListener('submit',e=>{
   e.preventDefault();
   const sid=$('fcStaff').value;if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的家庭照顧假。','warn');return;}const date=$('fcDate').value;
@@ -2374,6 +2805,7 @@ $('fcForm').addEventListener('submit',e=>{
   if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休假日不需要登記家庭照顧假。','warn');return;}
   const c=fcCalc();
   if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
+  {const clash=fcVsLeave(sid,date,{start:$('fcStart').value,end:$('fcEnd').value,shift:$('fcShift').value||null});if(clash){toast(clash,'warn');return;}}
   const apply=()=>{
     store.fc({id:uid('f'),staffId:sid,date,shift:$('fcShift').value||null,start:$('fcStart').value,end:$('fcEnd').value,hours:c.hours,note:$('fcNote').value.trim(),createdAt:Date.now()});
     $('fcNote').value='';toast(`已登記 ${codeOf(sid)} 家庭照顧假 ${c.hours} 小時。`);
@@ -2396,13 +2828,117 @@ $('mkForm').addEventListener('submit',e=>{
   $('mkNote').value='';toast(`已登記 ${codeOf(sid)} 補班 ${shifts.length} 診。`);
 });
 $('ylStaff').addEventListener('change',renderAll);
+// 個人假統計
+$('pvStaff').addEventListener('change',e=>{pvSid=e.target.value;renderAll();});
+$('pvHire').addEventListener('change',e=>{
+  const s=byId(pvSid);if(!s||!canWrite)return;
+  store.staff(Object.assign(clone(s),{hireDate:e.target.value||''}));e.target.blur();toast(`已設定 ${codeOf(s.id)} 的到職日。`);
+});
+['pvKind','pvDate','pvMonths'].forEach(id=>$(id).addEventListener('change',syncPvForm));syncPvForm();
+// 從一組欄位（個人假統計表單或登記請假時的詢問彈窗）組出事件；資料不完整時提示並回傳 null
+function readEvent(sid,kind,get){
+  const date=get('date');if(!date){toast(`請填寫${PEV[kind].lb}。`,'warn');return null;}
+  const ev={id:uid('e'),staffId:sid,kind,date,note:(get('note')||'').trim(),createdAt:Date.now()};
+  if(kind==='喪假')ev.rel=get('rel');
+  if(kind==='流產產假')ev.months=get('months');
+  if(kind==='產假'||kind==='流產產假'){
+    const max=PEV[kind].max(ev),last=addD(date,max-1),end=get('end')||last;
+    if(end<date){toast('結束日不能早於起始日。','warn');return null;}
+    if(end>last){toast(`${kind}最多 ${max} 天，結束日最晚 ${fmtD(last)}。`,'warn');return null;}
+    ev.end=end;
+  }
+  if(kind==='育嬰假'){
+    const child=get('child'),end=get('end');
+    if(!child||!end){toast('請填寫子女生日與育嬰假結束日。','warn');return null;}
+    if(end<date){toast('結束日不能早於起始日。','warn');return null;}
+    if(end>addD(addYr(date,2),-1)){toast('育嬰假最長 2 年。','warn');return null;}
+    if(end>=addYr(child,3)){toast(`育嬰假須在子女滿 3 歲（${fmtD(addYr(child,3))}）前結束。`,'warn');return null;}
+    Object.assign(ev,{child,end});
+  }
+  return ev;
+}
+// 登記事件；連續假（產假／流產產假／育嬰假）確認後把整段期間（含假日）每天全天排入請假，取代當天原本的請假
+function registerEvent(ev,done){
+  const sid=ev.staffId,kind=ev.kind;
+  const fin=()=>{toast(`已登記 ${codeOf(sid)} ${kind}。`);done&&done(ev);};
+  if(!PEV[kind].auto){store.pev(ev);fin();return;}
+  const {from,to,quota}=PEV[kind].info(ev);
+  const dates=[];for(let d=from;d<=to;d=addD(d,1))dates.push(d);
+  const clash=leaves.filter(l=>l.staffId===sid&&l.date>=from&&l.date<=to);
+  dialog(`<h3>登記${kind}</h3><p>將自動把 ${fmtD(from)} ～ ${fmtD(to)} 共 ${dates.length} 天（含假日${dates.length<quota?`；可請 ${quota} 天，未請的 ${quota-dates.length} 天不排入`:''}）排入 ${esc(codeOf(sid))} 的全天${kind}。${clash.length?`<br>這段期間原本已有 ${clash.length} 筆請假，會被取代。`:''}</p>`,()=>{
+    store.pev(ev);
+    store.leavesBulk(dates.map(date=>({id:uid('l'),staffId:sid,date,shifts:SHIFTS.map(s=>s.id),type:kind,note:`${kind}（自動）`,eventId:ev.id,createdAt:Date.now()})),clash.map(l=>l.id));
+    fin();
+  },'登記並排假');
+}
+// 登記請假前檢查個人假統計需要的資料：回傳 'hire'（特休缺到職日）、'event'（缺事件）或 null
+const skipHire=new Set();
+function missingInfo(sid,type,dates){
+  if(type==='特休')return !hireOf(sid)&&canWrite&&!skipHire.has(sid)?'hire':null;
+  if(!PEV[type])return null;
+  const covered=pevents.some(e=>{if(e.staffId!==sid||e.kind!==type)return false;const i=PEV[type].info(e);return dates.every(d=>d>=i.from&&d<=i.to);});
+  return covered?null:'event';
+}
+// 跳出彈窗詢問缺少的資料。retry：資料補齊後重新登記原本的請假；連續假改由事件自動排假，完成後呼叫 after
+function askLeaveInfo(sid,type,dates,retry,after){
+  const need=missingInfo(sid,type,dates);if(!need)return false;
+  const who=esc(fullName(byId(sid)));
+  if(need==='hire'){
+    dialog(`<h3>特休需要到職日</h3><p>${who} 還沒有設定到職日，填入後才能計算特休天數。不知道的話可以留空，直接登記。</p>
+      <div class="field"><label for="aqHire">到職日</label><input type="date" id="aqHire"></div>`,ov=>{
+      const v=ov.querySelector('#aqHire').value;
+      if(v)store.staff(Object.assign(clone(byId(sid)),{hireDate:v}));
+      else skipHire.add(sid); // 這次開啟頁面期間不再詢問
+      setTimeout(retry,0);
+    },'登記');
+    return true;
+  }
+  const k=PEV[type],first=dates.slice().sort()[0];
+  const opt=(id,html)=>`<div class="field" style="margin-bottom:8px"><label for="${id}">`+html;
+  dialog(`<h3>${esc(type)}需要的資料</h3><p>${who} 的${esc(type)}要先登記${k.lb}，系統才能計算可請天數與期限。${k.auto?`<br>登記後會自動排入整段${esc(type)}（含假日），取代這次選的日期。`:''}</p>
+    ${opt('aqDate',`${k.lb}</label><input type="date" id="aqDate" value="${k.auto?first:''}"></div>`)}
+    ${type==='喪假'?opt('aqRel',`與逝者關係</label>`+$('pvRel').outerHTML.replace('id="pvRel"','id="aqRel"')+'</div>'):''}
+    ${type==='流產產假'?opt('aqMonths',`妊娠期間</label>`+$('pvMonths').outerHTML.replace('id="pvMonths"','id="aqMonths"')+'</div>'):''}
+    ${type==='育嬰假'?opt('aqChild','子女生日</label><input type="date" id="aqChild"></div>')+opt('aqEnd','育嬰假結束日</label><input type="date" id="aqEnd"></div>'):''}
+    ${type==='產假'||type==='流產產假'?opt('aqEnd',`結束日</label><input type="date" id="aqEnd" value="${addD(first,k.max({months:'28'})-1)}"><small style="color:var(--faint)">預設請滿；不一定要請完所有天數，可以改短</small></div>`):''}
+    ${opt('aqNote','備註</label><input id="aqNote" placeholder="選填"></div>')}`,ov=>{
+    const map={date:'aqDate',rel:'aqRel',months:'aqMonths',child:'aqChild',end:'aqEnd',note:'aqNote'};
+    const ev=readEvent(sid,type,f=>ov.querySelector('#'+map[f])?.value||'');if(!ev)return false;
+    if(!k.auto){
+      const i=k.info(ev),out=dates.filter(d=>d<i.from||d>i.to);
+      if(out.length){toast(`${out.map(fmtD).join('、')} 不在${type}可請期間（${fmtD(i.from)}～${fmtD(i.to)}）內，請確認${k.lb}。`,'warn');return false;}
+      registerEvent(ev,()=>setTimeout(retry,0));
+    }else setTimeout(()=>registerEvent(ev,after),0);
+  },'下一步');
+  if(type==='產假'||type==='流產產假'){ // 改起始日或妊娠期間時，結束日跟著改成請滿的最後一天
+    const aov=document.querySelector('.overlay:last-of-type');
+    aov.addEventListener('change',x=>{if(x.target.id!=='aqDate'&&x.target.id!=='aqMonths')return;const d=aov.querySelector('#aqDate').value;if(d)aov.querySelector('#aqEnd').value=addD(d,k.max({months:aov.querySelector('#aqMonths')?.value})-1);});
+  }
+  return true;
+}
+$('pvForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const sid=pvSid,kind=$('pvKind').value;
+  if(!sid||!canLeaveFor(sid)){toast('你沒有權限登記這位人員的假。','warn');return;}
+  const map={date:'pvDate',rel:'pvRel',months:'pvMonths',child:'pvChild',end:'pvEnd',note:'pvNote'};
+  const ev=readEvent(sid,kind,f=>$(map[f]).value);if(!ev)return;
+  registerEvent(ev,()=>{$('pvNote').value='';});
+});
+$('pvTable').addEventListener('click',e=>{
+  const b=e.target.closest('[data-delpev]');if(!b)return;const ev=pevents.find(x=>x.id===b.dataset.delpev);if(!ev||!canLeaveFor(ev.staffId))return;
+  const auto=leaves.filter(l=>l.eventId===ev.id);
+  dialog(`<h3>刪除${esc(ev.kind)}事件？</h3><p>${esc(PEV[ev.kind]?.desc(ev)||'')}${auto.length?`<br>系統自動排入的 ${auto.length} 天${esc(ev.kind)}也會一併刪除。`:''}</p>`,()=>{
+    if(auto.length)store.leavesBulk([],auto.map(l=>l.id));
+    store.delPev(ev.id);toast('已刪除事件。');
+  },'刪除',true);
+});
 // 基本／加診切換
 document.querySelector('.pool .seg').addEventListener('click',e=>{
   const b=e.target.closest('[data-mode]');if(!b)return;
-  extraMode=b.dataset.mode==='extra';
+  poolMode=b.dataset.mode;
   document.querySelectorAll('.pool .seg [data-mode]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
-  document.querySelector('.pool').classList.toggle('extra-mode',extraMode);
-  toast(extraMode?'加診模式：之後排入的助理都算加診。':'基本模式。');
+  document.querySelector('.pool').classList.toggle('extra-mode',poolMode==='extra');
+  toast(poolMode==='extra'?'加診模式：之後排入的助理都算加診。':'基本模式。');
 });
 $('mkTable').addEventListener('click',e=>{
   const so=e.target.closest('[data-mksort]');if(so){const k=so.dataset.mksort;mkSort=mkSort.key===k?{key:k,dir:-mkSort.dir}:{key:k,dir:1};renderAll();$('mkScroll').scrollTop=0;return;}
@@ -2422,6 +2958,25 @@ function showFcCalc(){
 }
 ['fcStart','fcEnd'].forEach(id=>$(id).addEventListener('input',showFcCalc));
 $('fcShift').addEventListener('change',()=>{const sh=SHIFTS.find(x=>x.id===$('fcShift').value);if(!sh)return;const [a]=sh.time.split('-');$('fcStart').value=a;const [h,m]=a.split(':').map(Number);const e=h*60+m+60;$('fcEnd').value=`${pad(Math.floor(e/60))}:${pad(e%60)}`;showFcCalc();});
+// ---------- 家庭照顧假與請假不得同時段 ----------
+const hm=t=>{const [h,m]=String(t).split(':').map(Number);return h*60+m;};
+// 家庭照顧假佔用的班次：依時間段與各班看診時間（例：早班 08:30-12:00）是否重疊；沒填時間時以指定班別為準
+function fcShiftsOf(f){
+  if(f.start&&f.end)return SHIFTS.filter(sh=>{const [a,b]=sh.time.split('-').map(hm);return hm(f.start)<b&&hm(f.end)>a;}).map(s=>s.id);
+  return f.shift?[f.shift]:[];
+}
+const shNames=ids=>SHIFTS.filter(s=>ids.includes(s.id)).map(s=>s.name).join('、');
+// 登記家庭照顧假前：當天同時段已有請假就回傳說明文字
+function fcVsLeave(sid,date,f,exceptLeaveId){
+  const shs=fcShiftsOf(f),l=leaves.find(x=>x.staffId===sid&&x.date===date&&x.id!==exceptLeaveId);
+  const both=l?(l.shifts||[]).filter(s=>shs.includes(s)):[];
+  return both.length?`${codeOf(sid)} ${date.slice(5).replace('-','/')} ${shNames(both)}已請${l.type||'假'}，家庭照顧假不能與請假同時段。`:'';
+}
+// 登記請假前：當天同時段已有家庭照顧假就回傳說明文字
+function leaveVsFc(sid,date,shifts,exceptFcId){
+  const hits=familyCare.filter(f=>f.staffId===sid&&f.date===date&&f.id!==exceptFcId&&fcShiftsOf(f).some(s=>shifts.includes(s)));
+  return hits.length?`${codeOf(sid)} ${date.slice(5).replace('-','/')} 已有家庭照顧假（${hits.map(f=>f.start&&f.end?`${f.start}–${f.end}`:shNames([f.shift])).join('、')}），不能在同時段請假。`:'';
+}
 $('fcTable').addEventListener('click',e=>{
   const so=e.target.closest('[data-fcsort]');if(so){const k=so.dataset.fcsort;fcSort=fcSort.key===k?{key:k,dir:-fcSort.dir}:{key:k,dir:1};renderAll();$('fcScroll').scrollTop=0;return;}
   const fcId=(e.target.closest('[data-editfc],[data-fcsave],[data-delfc]')||{}).dataset;const fcRec=fcId&&familyCare.find(x=>x.id===(fcId.editfc||fcId.fcsave||fcId.delfc));
@@ -2436,6 +2991,7 @@ $('fcTable').addEventListener('click',e=>{
     if(parseYmd(q('date')).getDay()===0||holidayOf(q('date'))){toast('週日與休假日不需要登記家庭照顧假。','warn');return;}
     const c=fcCalc(q('start'),q('end'));
     if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
+    {const clash=fcVsLeave(old.staffId,q('date'),{start:q('start'),end:q('end'),shift:q('shift')||null});if(clash){toast(clash,'warn');return;}}
     editingFc=null;
     store.putFc(Object.assign({},old,{date:q('date'),shift:q('shift')||null,start:q('start'),end:q('end'),hours:c.hours,note:q('note').trim()}));
     toast(`已變更家庭照顧假，共 ${c.hours} 小時。`);return;
@@ -2447,6 +3003,18 @@ $('fcTable').addEventListener('input',e=>{
   const c=fcCalc(row.querySelector('[data-e=start]').value,row.querySelector('[data-e=end]').value);
   row.querySelector('[data-e=calc]').textContent=c?`${c.hours} 小時`:'—';
 });
+// 特休、排休、婚假、喪假只能請全天：選到這些假別或點任一班次時，早午晚三個班自動全部勾選
+const syncFullDay=()=>{}; // 事前表單與變更列的班別已鎖定全勾；事後不論假別都可按診請，不自動勾選
+document.querySelectorAll('.leave-form[data-role=assistant]').forEach(lf=>
+  lf.addEventListener('change',e=>{if(e.target.matches('[data-n=type],[data-sh]'))syncFullDay(lf.querySelector('[data-n=type]'),lf.querySelectorAll('[data-sh]'));}));
+// 事前登記一律以日為單位：班別固定全勾、不能取消
+{const bf=document.querySelector('.leave-form[data-when=before]');
+  bf.querySelectorAll('[data-sh]').forEach(c=>{c.checked=true;c.disabled=true;});
+  bf.querySelector('.checks').insertAdjacentHTML('beforeend','<small style="color:var(--faint)">事前以日為單位</small>');}
+document.querySelectorAll('.leave-table').forEach(tb=>tb.addEventListener('change',e=>{
+  const row=e.target.closest('[data-lvrow]');if(!row||!e.target.matches('[data-e=type],[data-esh]'))return;
+  syncFullDay(row.querySelector('[data-e=type]'),row.querySelectorAll('[data-esh]'));
+}));
 document.querySelectorAll('.leave-table').forEach(tb=>tb.addEventListener('click',e=>{
   const so=e.target.closest('[data-lvsort]');if(so){const k=so.dataset.lvsort,r=so.dataset.role,cur=lvSorts[r];lvSorts[r]=cur.key===k?{key:k,dir:-cur.dir}:{key:k,dir:1};renderAll();$('leaveScroll-'+r).scrollTop=0;return;}
   const lvId=(e.target.closest('[data-editleave],[data-lvsave],[data-delleave]')||{}).dataset;const lvRec=lvId&&leaves.find(x=>x.id===(lvId.editleave||lvId.lvsave||lvId.delleave));
@@ -2462,6 +3030,7 @@ document.querySelectorAll('.leave-table').forEach(tb=>tb.addEventListener('click
     if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休假日不需要登記'+(byId(old.staffId)?.role==='doctor'?'休假':'請假')+'。','warn');return;}
     if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
     if(leaves.some(x=>x.id!==old.id&&x.staffId===old.staffId&&x.date===date)){toast(`${codeOf(old.staffId)} 在 ${date.slice(5).replace('-','/')} 已經有${byId(old.staffId)?.role==='doctor'?'休假':'請假'}紀錄。`,'warn');return;}
+    if(byId(old.staffId)?.role==='assistant'){const clash=leaveVsFc(old.staffId,date,isWholeDay(old)?SHIFTS.map(s=>s.id):shifts);if(clash){toast(clash,'warn');return;}}
     editingLeave=null;
     store.putLeave(Object.assign({},old,{date,shifts,type:row.querySelector('[data-e=type]').value,note:row.querySelector('[data-e=note]').value.trim()}));
     toast(byId(old.staffId)?.role==='doctor'?'已變更休假。':'已變更請假。');return;
@@ -2498,11 +3067,13 @@ document.querySelectorAll('.staff-table').forEach(tb=>tb.addEventListener('click
   if(e.target.closest('[data-toggle]')){store.staff(Object.assign(clone(s),{active:s.active===false}));return;}
   if(e.target.closest('[data-delstaff]')){
     dialog(`<h3>刪除 ${esc(fullName(s))}？</h3><p>會同時從所有班表中移除這個人，無法復原。如果只是離職，建議改用「停用」。</p>`,()=>{
+      histSkip=true;schedHist=[];
       Object.keys(weeks).forEach(wk=>{
         const w=weeks[wk];let changed=false;const nw={};
         Object.keys(w).forEach(ck=>{if(ck[0]==='X'){const v=getExtra(wk,ck.slice(1));const nv=v.filter(i=>i!==s.id);if(nv.length!==v.length)changed=true;nw[ck]=nv;return;}if(ck[0]==='L'){const v=getLink(wk,ck.slice(1));const nv=v.filter(z=>z[0]!==s.id&&z[1]!==s.id);if(nv.length!==v.length)changed=true;nw[ck]=nv;return;}const a=getCell(wk,ck);nw[ck]=a.map(x=>{const y=x.filter(i=>i!==s.id);if(y.length!==x.length)changed=true;return y;});});
         if(changed)store.week(wk,nw);
       });
+      histSkip=false;
       leaves.filter(l=>l.staffId===s.id).forEach(l=>store.delLeave(l.id));
       store.delPriv(s.id);
       if(accessLinks[s.id])store.link(s.id,null);
@@ -2515,9 +3086,9 @@ $('otMax').addEventListener('change',e=>{const n=clone(cfg);const v=parseFloat(e
 [['maxFull','maxFullDays',10],['maxDN','maxDN',2]].forEach(([el,k,def])=>$(el).addEventListener('change',e=>{const n=clone(cfg);const v=parseInt(e.target.value,10);n[k]=Number.isFinite(v)&&v>=0?Math.min(31,v):def;e.target.blur();store.cfg(n);toast('已儲存。');}));
 $('maxPerDay').addEventListener('change',e=>{const n=clone(cfg);n.maxPerDay=Math.max(1,Math.min(3,Number(e.target.value)||2));e.target.blur();store.cfg(n);toast('已儲存。');});
 const HOL_ROWS=10;
-let leaveScrolled={lv:false,fc:false};
+let leaveScrolled={assistant:false,after:false,fc:false};
 let stSorts={manager:{key:'code',dir:1},doctor:{key:'code',dir:1},assistant:{key:'code',dir:1}};
-let lvSorts={doctor:{key:'date',dir:1},assistant:{key:'date',dir:1}};
+let lvSorts={doctor:{key:'date',dir:1},assistant:{key:'date',dir:1},after:{key:'date',dir:1}};
 let fcSort={key:'date',dir:1};
 let mkSort={key:'date',dir:1}; // 事假補班表格排序
 function scrollToUpcoming(box){ // 捲到今天之後最近的一筆
@@ -2683,7 +3254,7 @@ async function exportExcel(){
   }));
   // 工時統計工作表依「工時統計」頁的統計期間
   const sr=statRange(mi);const sc=sr.custom?monthCounts(sr):counts;
-  const stats=[[`統計期間：${ymd(sr.first)} ～ ${ymd(sr.last)}`],['代號','姓名','職稱','早班','午班','晚班','總班數','早+晚','全天班','主櫃','跟診','流動','工時(小時)','合理工時(小時)','單日超時(小時)','加診數','排班總超時','請假班次']];
+  const stats=[[`統計期間：${ymd(sr.first)} ～ ${ymd(sr.last)}`],['代號','姓名','職稱','早班','午班','晚班','總班數','早+晚','全天班','主櫃','跟診','流動','基本工時(小時)','合理工時(小時)','單日超時(小時)','加診數','排班總超時','請假班次']];
   staff.slice().sort(sortStaff).filter(s=>s.role==='assistant').forEach(s=>{
     const c=sc[s.id]||{total:0,day:0,eve:0,night:0,hours:0,ot:0,fullDays:0,dn:0,extra:0,pos:[0,0,0,0,0]};
     const lv=leaves.filter(l=>l.staffId===s.id&&l.date>=ymd(sr.first)&&l.date<=ymd(sr.last)).reduce((n,l)=>n+(l.shifts||[]).length,0);

@@ -33,6 +33,8 @@ service cloud.firestore {
 
     // 班表、人員、設定：所有已開通的人可看，排班管理以上可改
     match /weeks/{wk}      { allow read: if canView(); allow write: if canManage(); }
+    // 原始班表（定案時的當月班表）：所有已開通的人可看，排班管理以上可定案
+    match /baselines/{ym}  { allow read: if canView(); allow write: if canManage(); }
     match /staff/{id}      { allow read: if canView(); allow write: if canManage(); }
     match /config/{id}     { allow read: if canView(); allow write: if canManage(); }
 
@@ -52,6 +54,14 @@ service cloud.firestore {
 
     // 事假補班：規則同請假
     match /makeups/{id} {
+      allow read: if canView();
+      allow create: if canManage() || isSelf(request.resource.data.staffId);
+      allow update: if canManage() || (isSelf(resource.data.staffId) && isSelf(request.resource.data.staffId));
+      allow delete: if canManage() || isSelf(resource.data.staffId);
+    }
+
+    // 個人假事件（結婚日、死亡日、預產期、產假／育嬰假起訖等）：規則同請假
+    match /personalEvents/{id} {
       allow read: if canView();
       allow create: if canManage() || isSelf(request.resource.data.staffId);
       allow update: if canManage() || (isSelf(resource.data.staffId) && isSelf(request.resource.data.staffId));
