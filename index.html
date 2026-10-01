@@ -2553,7 +2553,7 @@ async function openPerm(s){
     <div class="field" style="margin-bottom:10px"><label for="pmEmail">登入用的 Gmail</label>
       <input id="pmEmail" type="email" placeholder="name@gmail.com" autocomplete="off" value="${esc(cur.account||'')}">
     </div>
-    <div class="opts">${Object.entries({view:'只能查看班表、休假與統計，不能修改。',self:'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休診日與規則、查看與設定所有人的薪資，但不能看個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${(cur.perm||'self')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
+    <div class="opts">${Object.entries({view:'只能查看班表、休假與統計，不能修改。',self:'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休診日與規則、查看與設定所有人的薪資，但不能看個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${(cur.perm||'view')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
     ov=>{
       const perm=ov.querySelector('input[name=pm]:checked').value;
       const account=ov.querySelector('#pmEmail').value.trim().toLowerCase();

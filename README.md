@@ -82,7 +82,7 @@ HTML（7 個 <section id="tab-*">）
 | 超級管理員 `super` | 上述 + 個資 + 設定權限 |
 
 - `OWNER_EMAILS`（`index.html`）與 `firestore.rules` 裡列出的 Gmail 不必綁定，一律是超級管理員；兩邊要一致。
-- 其他人要由超級管理員到「人員名單 → 權限」填入 Gmail 並選擇權限，才能登入。
+- 其他人要由超級管理員到「人員名單 → 權限」填入 Gmail 並選擇權限，才能登入。新設定時預設為「僅檢視」。
 
 ### Firestore 資料結構
 
