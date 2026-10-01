@@ -658,7 +658,7 @@ body.gated .shell{display:none;}
         <div class="tiles" id="tiles"></div>
         <div class="card">
           <h2 id="statsTitle">本月工時</h2>
-          <p class="desc">只統計助理。「早+晚」「全天班」是同一天上這些班的天數；「主櫃」「跟診」「流動」是本月擔任該崗位的班數。每班 3.5 小時；助理同一天早、午、晚三班都上時，當日計 10 小時，另計單日超時 0.5 小時。「合理工時」＝可排班天數 × 8 小時；可排班天數＝期間天數－週日－診所休假日－整天休診的日子－事前請假的日子，事後請假不影響。只計算統計期間內的日期；「加診數」是排班表中以「加診」排入的診數；「排班總超時」＝單日超時＋加診數 × 3.5 小時。</p>
+          <p class="desc">只統計助理。「早+晚」「全天班」是同一天上這些班的天數；「主櫃」「跟診」「流動」是本月擔任該崗位的班數。「基本工時」只算基本診次（加診不計），每班 3.5 小時；助理同一天早、午、晚三班都是基本診時，當日計 10 小時；同一天上滿三班（含加診）另計單日超時 0.5 小時。「合理工時」＝可排班天數 × 8 小時；可排班天數＝期間天數－週日－診所休假日－整天休診的日子－事前請假的日子，事後請假不影響。只計算統計期間內的日期；「加診數」是排班表中以「加診」排入的診數；「排班總超時」＝單日超時＋加診數 × 3.5 小時。</p>
           <div class="scroll-x"><table class="list" id="statsTable"></table></div>
         </div>
       </div>
@@ -1183,15 +1183,17 @@ function monthCounts(mi){
     cell.forEach((a,pi)=>ppl(a).forEach(id=>c[id].pos[pi]++));
     getExtra(wk,dow+'_'+sh.id).forEach(id=>{if(seen.has(id))c[id].extra++;}); // 加診數
   }));
-  // 工時：每班 3.5 小時；助理同一天早午晚三班都上，當日計 10 小時，另計加班 0.5 小時
+  // 基本工時：只算「基本」診次（加診不計），每班 3.5 小時；助理同一天三班都是基本診，當日計 10 小時
+  // 全天班、早+晚仍依當天實際上的班（含加診）計算
   mi.dates.forEach(({wk,dow})=>{
-    const per={},who={};
-    SHIFTS.forEach(sh=>{const seen=new Set();getCell(wk,dow+'_'+sh.id).forEach(a=>ppl(a).forEach(id=>seen.add(id)));seen.forEach(id=>{per[id]=(per[id]||0)+1;(who[id]=who[id]||[]).push(sh.id);});});
+    const per={},who={},basic={};
+    SHIFTS.forEach(sh=>{const ck=dow+'_'+sh.id,ex=getExtra(wk,ck);const seen=new Set();getCell(wk,ck).forEach(a=>ppl(a).forEach(id=>seen.add(id)));seen.forEach(id=>{per[id]=(per[id]||0)+1;(who[id]=who[id]||[]).push(sh.id);if(!ex.includes(id))basic[id]=(basic[id]||0)+1;});});
     Object.entries(per).forEach(([id,n])=>{
-      const x=c[id];if(!x)return;
+      const x=c[id];if(!x)return;const b=basic[id]||0;
       if(n===2&&who[id].join('+')==='day+night')x.dn++; // 同一天只上早班與晚班
-      if(n===3&&byId(id)?.role==='assistant'){x.hours+=10;x.ot+=0.5;x.fullDays++;}
-      else x.hours+=n*3.5;
+      if(n===3&&byId(id)?.role==='assistant'){x.fullDays++;x.ot+=0.5;} // 上滿三班（含加診）就計單日超時 0.5 小時
+      if(b===3&&byId(id)?.role==='assistant')x.hours+=10;
+      else x.hours+=b*3.5;
     });
   });
   return c;
@@ -1959,6 +1961,8 @@ function autoSchedule(fillOnly){
   const inCell=(wk,ck,id)=>cellOf(wk,ck).some(a=>a.includes(id));
   const setOn=(wk,dow,id)=>SHIFTS.filter(sh=>inCell(wk,dow+'_'+sh.id,id)).map(x=>x.id);
   const dCount=(wk,dow,id)=>setOn(wk,dow,id).length;
+  const isX=(wk,ck,id)=>{const v=W(wk)['X'+ck];return Array.isArray(v)&&v.includes(id);};
+  const basicOn=(wk,dow,id)=>setOn(wk,dow,id).filter(s=>!isX(wk,dow+'_'+s,id)).length; // 基本工時不含加診
   // 只看本月（每週班數計算只含本月內的日子）
   const wCount=(wk,id)=>{let n=0;const m=parseYmd(wk);for(let d=0;d<7;d++){const x=new Date(m);x.setDate(m.getDate()+d);if(inMonth.has(ymd(x)))n+=dCount(wk,d,id);}return n;};
   const month={},posN={}; // posN[id][pi]：本月擔任各崗位的班數，用來讓跟診次數接近
@@ -1977,7 +1981,7 @@ function autoSchedule(fillOnly){
   for(let i=0;i<N;i++){
     const key=keyAt(i);const d=parseYmd(key);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;
     if(holidayOf(key))holi[i]=1;
-    const per={};SHIFTS.forEach(sh=>{const seen=new Set();cellOf(wk,dow+'_'+sh.id).forEach(a=>ppl(a).forEach(id=>seen.add(id)));seen.forEach(id=>per[id]=(per[id]||0)+1);});
+    const per={};SHIFTS.forEach(sh=>{const seen=new Set();cellOf(wk,dow+'_'+sh.id).forEach(a=>ppl(a).forEach(id=>seen.add(id)));seen.forEach(id=>{if(!isX(wk,dow+'_'+sh.id,id))per[id]=(per[id]||0)+1;});}); // 基本工時不含加診
     Object.entries(per).forEach(([id,n])=>{if(H[id])H[id][i]=dayHours(n);});
   }
   leaves.forEach(l=>{if(l.type!=='排休'&&OFF[l.staffId]){const i=idxOf(l.date);if(i>=0&&i<N)OFF[l.staffId][i]=1;}});
@@ -2017,7 +2021,7 @@ function autoSchedule(fillOnly){
     if(!cnt[id])return;
     const c0=comboOf(cur),c1=comboOf(setOn(wk,dow,id));
     if(c0)cnt[id][c0]--;if(c1)cnt[id][c1]++;
-    H[id][idxOf(key)]=dayHours(setOn(wk,dow,id).length);
+    H[id][idxOf(key)]=dayHours(basicOn(wk,dow,id));
   };
   const baseOk=(s,cell,wk,dow,key,sh)=>!cell.some(a=>a.includes(s.id))&&!onLeave(s.id,key,sh.id)&&
     dCount(wk,dow,s.id)<(cfg.maxPerDay||2)&&
