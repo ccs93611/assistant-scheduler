@@ -444,7 +444,7 @@ body.gated .shell{display:none;}
     <button role="tab" data-tab="schedule">排班表</button>
     <button role="tab" data-tab="leave">助理請假</button>
     <button role="tab" data-tab="docleave">醫師休假</button>
-    <button role="tab" data-tab="holidays">診所休假</button>
+    <button role="tab" data-tab="holidays">診所休診</button>
     <button role="tab" data-tab="stats">工時統計</button>
     <button role="tab" data-tab="pay" id="payTabBtn">薪資</button>
     <button role="tab" data-tab="settings">人員名單</button>
@@ -605,16 +605,16 @@ body.gated .shell{display:none;}
     <section id="tab-holidays" hidden>
       <div class="stack">
         <div class="card">
-          <h2>休假日</h2>
-          <p class="desc">休假日當天全天休診，班表不排班。新增時如果當天已經有人排班，會一併清除。</p>
+          <h2>休診日</h2>
+          <p class="desc">休診日當天全天休診，班表不排班。新增時如果當天已經有人排班，會一併清除。</p>
           <form class="form-row" id="holForm" style="margin-bottom:14px">
             <div class="field"><label for="holFrom">日期</label><input type="date" id="holFrom" required></div>
             <div class="field"><label for="holTo">結束日期（選填）</label><input type="date" id="holTo"></div>
             <div class="field" style="flex:1;min-width:140px"><label for="holName">名稱</label><input id="holName" placeholder="國慶日、中秋節、院內旅遊…"></div>
-            <button class="primary" type="submit" data-w>新增休假日</button>
+            <button class="primary" type="submit" data-w>新增休診日</button>
           </form>
           <div class="hol-scroll" id="holScroll"><table class="list" id="holTable"></table></div>
-          <p class="hint" id="holHint" hidden>上下捲動可查看其他休假日。</p>
+          <p class="hint" id="holHint" hidden>上下捲動可查看其他休診日。</p>
         </div>
       </div>
     </section>
@@ -635,7 +635,7 @@ body.gated .shell{display:none;}
         <div class="tiles" id="tiles"></div>
         <div class="card">
           <h2 id="statsTitle">本月工時</h2>
-          <p class="desc">只統計助理。「早+晚」「全天班」是同一天上這些班的天數；「主櫃」「跟診」「流動」是本月擔任該崗位的班數。「基本工時」只算基本診次（加診不計），每班 3.5 小時；助理同一天早、午、晚三班都是基本診時，當日計 10 小時；同一天上滿三班（含加診）另計單日超時 0.5 小時。「合理工時」＝可排班天數 × 8 小時；可排班天數＝期間天數－週日－診所休假日－整天休診的日子－事前請假的日子，事後請假不影響。只計算統計期間內的日期；「加診數」是排班表中以「加診」排入的診數；「排班總超時」＝單日超時＋加診數 × 3.5 小時。</p>
+          <p class="desc">只統計助理。「早+晚」「全天班」是同一天上這些班的天數；「主櫃」「跟診」「流動」是本月擔任該崗位的班數。「基本工時」只算基本診次（加診不計），每班 3.5 小時；助理同一天早、午、晚三班都是基本診時，當日計 10 小時；同一天上滿三班（含加診）另計單日超時 0.5 小時。「合理工時」＝可排班天數 × 8 小時；可排班天數＝期間天數－週日－診所休診日－非營業日－事前請假的日子，事後請假不影響。只計算統計期間內的日期；「加診數」是排班表中以「加診」排入的診數；「排班總超時」＝單日超時＋加診數 × 3.5 小時。</p>
           <div class="scroll-x"><table class="list" id="statsTable"></table></div>
         </div>
       </div>
@@ -721,8 +721,8 @@ body.gated .shell{display:none;}
             <div class="field" style="width:190px"><label for="maxDN">助理每月早+晚上限</label><input id="maxDN" type="number" min="0" max="31"></div>
           </div>
           <div class="field" style="margin-bottom:16px"><span class="lb">健保只排這些助理（點名字切換；都不選代表不限制）</span><div class="excl-list" id="nhOnlyRow"></div></div>
-          <div class="banner" style="margin:0 0 18px">自動排班另外遵守：助理當月工時以合理工時為上限並盡量排滿（合理工時＝可排班天數×8；可排班天數＝當月天數－週日－診所休假日－整天休診的日子－事前請假的日子），超過的部分計為加班，最多不超過上方「超時上限」。全天班與早+晚次數會盡量平均分配。同一醫師同一天盡量由同一位助理跟診。手動排班不受這些限制。</div>
-          <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:4px">看診時段（取消勾選代表休診，不排班）</div>
+          <div class="banner" style="margin:0 0 18px">自動排班另外遵守：助理當月工時以合理工時為上限並盡量排滿（合理工時＝可排班天數×8；可排班天數＝當月天數－週日－診所休診日－非營業日－事前請假的日子），超過的部分計為加班，最多不超過上方「超時上限」。全天班與早+晚次數會盡量平均分配。同一醫師同一天盡量由同一位助理跟診。手動排班不受這些限制。</div>
+          <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:4px">營業時段（打勾＝營業時段；取消勾選＝非營業時段，不排班）</div>
           <div class="scroll-x"><table class="matrix" id="openMatrix"></table></div>
         </div>
         <div class="card">
@@ -1123,7 +1123,7 @@ function statRange(mi){
 const schedOt=c=>(c?.ot||0)+(c?.extra||0)*3.5;
 const fmtHM=h=>{const m=Math.round(h*60);return `${Math.floor(m/60)}小時${m%60}分鐘`;};
 // 合理工時＝可排班天數 × 8 小時
-// 可排班天數＝期間天數－週日－診所休假日－整天休診的日子－事前請假的日子（事後請假不影響）
+// 可排班天數＝期間天數－週日－診所休診日－非營業日－事前請假的日子（事後請假不影響）
 function reasonableDays(mi,id){
   let n=0;
   mi.dates.forEach(({d,key})=>{
@@ -1225,7 +1225,7 @@ function renderWeeks(mi){
     const head=days.map((x,i)=>{
       const ids=new Set();SHIFTS.forEach(sh=>leaveIdx.get(x.key+'|'+sh.id)?.forEach(id=>ids.add(id)));
       const lv=ids.size?`<div class="day-leave">假 ${[...ids].map(codeOf).map(esc).join('、')}</div>`:'';
-      const hd=holidayOf(x.key);return `<th class="${x.out?'out':''}${x.key===today?' today':''}${hd?' hol':''}">週${DAYS[i]}<br>${md(x.d)}${hd?`<div class="day-hol">休假日${hd.name?'・'+esc(hd.name):''}</div>`:''}${lv}</th>`;
+      const hd=holidayOf(x.key);return `<th class="${x.out?'out':''}${x.key===today?' today':''}${hd?' hol':''}">週${DAYS[i]}<br>${md(x.d)}${hd?`<div class="day-hol">休診日${hd.name?'・'+esc(hd.name):''}</div>`:''}${lv}</th>`;
     }).join('');
     // 每天、每個崗位的固定欄位順序：先依最早出現的班（早>午>晚），同班再依代號 A-Z；三班共用，讓同一人上下對齊
     const layout=days.map((x,dow)=>POS.map((p,pi)=>{
@@ -1242,7 +1242,7 @@ function renderWeeks(mi){
     }));
     const body=SHIFTS.map(sh=>{
       const tds=days.map((x,dow)=>{
-        if(closedAt(dow,sh.id,x.key)){const h=holidayOf(x.key);return `<td class="closed${h?' holiday':''}">休診${h&&h.name?`<br><small>${esc(h.name)}</small>`:''}</td>`;}
+        if(closedAt(dow,sh.id,x.key)){const h=holidayOf(x.key);return `<td class="closed${h?' holiday':''}">${h?'休診':'非營業時段'}${h&&h.name?`<br><small>${esc(h.name)}</small>`:''}</td>`;}
         const ck=dow+'_'+sh.id;const cell=getCell(wk,ck);const xs=new Set(getExtra(wk,ck));
         const cols=POS.map((p,pi)=>{
           const L=layout[dow][pi];const man=gapN(cell[pi]);
@@ -1543,7 +1543,7 @@ function renderStats(mi,counts){
     <div class="tile"><div class="k">請假</div><div class="v">${leaveShifts}<small>班次</small></div></div>`;
   const list=staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id]));
   const maxH=Math.max(1,...list.map(s=>(counts[s.id]?.total||0)));
-  $('statsTable').innerHTML=`<thead><tr><th>人員</th><th>職稱</th><th class="num">早</th><th class="num">午</th><th class="num">晚</th><th class="num">總班數</th><th class="num combo">早+晚</th><th class="num combo">全天班</th><th class="num posc">主櫃</th><th class="num posc">跟診</th><th class="num posc">流動</th><th class="num">基本工時</th><th class="num" title="可排班天數 × 8 小時（可排班天數＝期間天數－週日－診所休假日－整天休診的日子－事前請假的日子；事後請假不影響）">合理工時</th><th class="num">單日超時</th><th class="num" title="排班表中以「加診」排入的診數">加診數</th><th class="num" title="單日超時＋加診數 × 3.5 小時">排班總超時</th><th style="width:18%"></th><th class="num">請假班次</th></tr></thead><tbody>`+
+  $('statsTable').innerHTML=`<thead><tr><th>人員</th><th>職稱</th><th class="num">早</th><th class="num">午</th><th class="num">晚</th><th class="num">總班數</th><th class="num combo">早+晚</th><th class="num combo">全天班</th><th class="num posc">主櫃</th><th class="num posc">跟診</th><th class="num posc">流動</th><th class="num">基本工時</th><th class="num" title="可排班天數 × 8 小時（可排班天數＝期間天數－週日－診所休診日－非營業日－事前請假的日子；事後請假不影響）">合理工時</th><th class="num">單日超時</th><th class="num" title="排班表中以「加診」排入的診數">加診數</th><th class="num" title="單日超時＋加診數 × 3.5 小時">排班總超時</th><th style="width:18%"></th><th class="num">請假班次</th></tr></thead><tbody>`+
     (list.length?list.map(s=>{
       const c=counts[s.id]||{total:0,day:0,eve:0,night:0,hours:0,ot:0,fullDays:0,dn:0,extra:0,pos:[0,0,0,0,0]};
       const lv=leaves.filter(l=>l.staffId===s.id&&l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).reduce((n,l)=>n+(l.shifts||[]).length,0);
@@ -1747,8 +1747,8 @@ function renderHolidays(){
   $('holTable').innerHTML=`<thead><tr><th>日期</th><th>名稱</th><th></th></tr></thead><tbody>`+
     (hols.length?hols.map(([d,h])=>{const dt=parseYmd(d);
       if(editingHol===d)return `<tr data-holrow="${d}"><td><input type="date" id="holEditDate" value="${d}" aria-label="日期"></td><td><input id="holEditName" value="${esc(h.name||'')}" placeholder="名稱" aria-label="名稱"></td><td class="num" style="white-space:nowrap"><button class="small primary" data-holsave="${d}">儲存</button> <button class="small" data-holcancel>取消</button></td></tr>`;
-      return `<tr class="${d<todayK?'inactive':''}"><td>${d.replace(/-/g,'/')}（${DAYS[(dt.getDay()+6)%7]}）${d===nextHol?' <span class="pill doc">最近</span>':''}</td><td>${esc(h.name||'休假日')}</td><td class="num" style="white-space:nowrap">${canWrite?`<button class="small" data-edithol="${d}">變更</button> <button class="small danger" data-delhol="${d}">刪除</button>`:''}</td></tr>`;}).join('')
-    :`<tr><td colspan="3" class="empty">尚未設定休假日。</td></tr>`)+'</tbody>';
+      return `<tr class="${d<todayK?'inactive':''}"><td>${d.replace(/-/g,'/')}（${DAYS[(dt.getDay()+6)%7]}）${d===nextHol?' <span class="pill doc">最近</span>':''}</td><td>${esc(h.name||'休診日')}</td><td class="num" style="white-space:nowrap">${canWrite?`<button class="small" data-edithol="${d}">變更</button> <button class="small danger" data-delhol="${d}">刪除</button>`:''}</td></tr>`;}).join('')
+    :`<tr><td colspan="3" class="empty">尚未設定休診日。</td></tr>`)+'</tbody>';
   fitHolList(hols);
 }
 const EXCL_POS=[0,1,2,3]; // 主櫃、副櫃、跟診、流動
@@ -1760,7 +1760,7 @@ function renderRulesDoc(){
   const ex=Object.entries(cfg.autoExclude||{}).filter(([,a])=>a&&a.length).map(([pi,a])=>`${POS[pi].label}：${a.map(codeOf).join('、')}`);
   $('rulesDoc').innerHTML=`
     <h3>排班範圍</h3>
-    <ul><li>只排目前所選月份，跨月的日子不動，休診時段和休假日會跳過。</li><li>可以選「只補空缺」或「整月重新排」；整月重新排只清除本月助理的排班，醫師和手動缺口保留。</li></ul>
+    <ul><li>只排目前所選月份，跨月的日子不動，非營業時段和休診日會跳過。</li><li>可以選「只補空缺」或「整月重新排」；整月重新排只清除本月助理的排班，醫師和手動缺口保留。</li></ul>
     <h3>一、崗位的人力優先順序</h3>
     <ol><li>主櫃</li><li>跟診（幫跟診醫師配助理）</li><li>健保</li><li>流動（人手不足時先排晚班，其次午班，最後早班）</li><li>副櫃（人手不足時先排午班，其次晚班，最後早班）</li></ol>
     <p class="note">每一項會先排完整個月才輪到下一項，所以人手不足時，缺口會先出現在順序較後面的崗位。</p>
@@ -1773,8 +1773,8 @@ function renderRulesDoc(){
       <li>請假：當班有醫師休假或助理請假（任何類別）的人不排。</li>
       <li>同一班只能擔任一個崗位。</li>
       <li>每人每天最多班數：<b>${cfg.maxPerDay||2}</b> 班。</li>
-      <li>助理當天沒有請假，就一定至少排一班：一般崗位排完後，當天還沒有班的助理會加排到副櫃（空著時）或流動，挑人最少的一班。休診或休假日不算。這條優先於下面的工時與次數上限，必要時可以超過合理工時。</li>
-      <li>工時上限為合理工時：助理當月工時不超過合理工時＝可排班天數 × 8 小時（可排班天數＝當月天數－週日－診所休假日－整天休診的日子－事前請假的日子）；每班 3.5 小時，三班全上計 10 小時，加班不計入。超過的部分計為加班，最多 <b>${otMax()}</b> 小時（可在「自動排班設定」調整，設為 0 即不允許超過）。</li>
+      <li>助理當天沒有請假，就一定至少排一班：一般崗位排完後，當天還沒有班的助理會加排到副櫃（空著時）或流動，挑人最少的一班。休診或休診日不算。這條優先於下面的工時與次數上限，必要時可以超過合理工時。</li>
+      <li>工時上限為合理工時：助理當月工時不超過合理工時＝可排班天數 × 8 小時（可排班天數＝當月天數－週日－診所休診日－非營業日－事前請假的日子）；每班 3.5 小時，三班全上計 10 小時，加班不計入。超過的部分計為加班，最多 <b>${otMax()}</b> 小時（可在「自動排班設定」調整，設為 0 即不允許超過）。</li>
       <li>助理工時必須排滿合理工時：一般崗位排完後，工時不足的助理會加排到副櫃（空著時）或流動，直到達到合理工時；補足時不使用超時。受請假、每日班數等條件限制而排不滿時，會在排班完成訊息列出差幾小時。</li>
       <li>助理每月全天班上限：<b>${MAXF}</b> 次。</li>
       <li>助理每月早+晚上限：<b>${MAXDN}</b> 次。</li>
@@ -1803,7 +1803,7 @@ function renderRules(){
   {const docs=activeStaff('doctor');const tpl=cfg.docTpl||{};
    $('tplMatrix').innerHTML=`<thead><tr><th></th>${DAYS.map(d=>`<th>週${d}</th>`).join('')}</tr></thead><tbody>`+
     SHIFTS.map(sh=>`<tr><td>${sh.name}<br><span style="color:var(--faint);font-size:.7rem">${sh.time}</span></td>${DAYS.map((_,dow)=>{
-      if(isClosed(dow,sh.id))return '<td class="off">休診</td>';
+      if(isClosed(dow,sh.id))return '<td class="off">非營業時段</td>';
       const on=tpl[dow+'_'+sh.id]||[];
       return `<td><div class="tpl-cell">${docs.length?docs.map(d=>`<button type="button" class="tpl-doc${on.includes(d.id)?' on':''}" data-tpl="${dow}_${sh.id}" data-doc="${d.id}" aria-pressed="${on.includes(d.id)}"${dis}>${esc(d.code||d.name)}</button>`).join(''):'<span class="hint" style="margin:0">尚無醫師</span>'}</div></td>`;}).join('')}</tr>`).join('')+'</tbody>';}
   const active=document.activeElement;
@@ -1814,7 +1814,7 @@ function renderRules(){
   $('maxDN').value=Number.isFinite(cfg.maxDN)?cfg.maxDN:2;$('maxDN').disabled=!canWrite;
   $('otMax').value=otMax();$('otMax').disabled=!canWrite;
   $('openMatrix').innerHTML=`<thead><tr><th></th>${DAYS.map(d=>`<th>週${d}</th>`).join('')}</tr></thead><tbody>`+
-    SHIFTS.map(sh=>`<tr><td>${sh.name} <span style="color:var(--faint)">${sh.time}</span></td>${DAYS.map((_,dow)=>`<td><input type="checkbox" data-open="${dow}_${sh.id}" aria-label="週${DAYS[dow]}${sh.name}看診"${isClosed(dow,sh.id)?'':' checked'}${dis}></td>`).join('')}</tr>`).join('')+'</tbody>';
+    SHIFTS.map(sh=>`<tr><td>${sh.name} <span style="color:var(--faint)">${sh.time}</span></td>${DAYS.map((_,dow)=>`<td><input type="checkbox" data-open="${dow}_${sh.id}" aria-label="週${DAYS[dow]}${sh.name}營業"${isClosed(dow,sh.id)?'':' checked'}${dis}></td>`).join('')}</tr>`).join('')+'</tbody>';
 }
 function renderSettings(){
   const dis=canWrite?'':' disabled';
@@ -2428,7 +2428,7 @@ async function openPerm(s){
     <div class="field" style="margin-bottom:10px"><label for="pmEmail">登入用的 Gmail</label>
       <input id="pmEmail" type="email" placeholder="name@gmail.com" autocomplete="off" value="${esc(cur.account||'')}">
     </div>
-    <div class="opts">${Object.entries({view:'只能查看班表、休假與統計，不能修改。',self:'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休假日與規則、查看與設定所有人的薪資，但不能看個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${(cur.perm||'self')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
+    <div class="opts">${Object.entries({view:'只能查看班表、休假與統計，不能修改。',self:'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休診日與規則、查看與設定所有人的薪資，但不能看個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${(cur.perm||'self')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
     ov=>{
       const perm=ov.querySelector('input[name=pm]:checked').value;
       const account=ov.querySelector('#pmEmail').value.trim().toLowerCase();
@@ -2489,7 +2489,7 @@ $('thisMonth').onclick=()=>{prefs.monthOffset=0;savePrefs();document.querySelect
 $('tplBtn').onclick=()=>{if(origBlocked())return;
   const tpl=cfg.docTpl||{};
   if(!Object.values(tpl).some(a=>a&&a.length)){toast('還沒設定預設醫師班表，請先到「排班規則」設定。','warn');return;}
-  dialog(`<h3>帶入醫師班表・${monthInfo().label}</h3><p>依「排班規則」裡的預設醫師班表，把醫師排進本月每一天的跟診。休診、休假日與醫師休假的時段會自動跳過。</p>
+  dialog(`<h3>帶入醫師班表・${monthInfo().label}</h3><p>依「排班規則」裡的預設醫師班表，把醫師排進本月每一天的跟診。休診、休診日與醫師休假的時段會自動跳過。</p>
     <div class="opts"><label><input type="radio" name="tm" value="fill" checked><span>只補沒有醫師的時段<small>已經排了醫師的時段保持不動</small></span></label>
     <label><input type="radio" name="tm" value="all"><span>覆蓋本月醫師<small>以預設班表為準；不在預設裡的醫師會移除，他們的跟診助理也一併移除</small></span></label></div>`,
     ov=>applyDocTemplate(ov.querySelector('input[name=tm]:checked').value==='all'),'帶入');
@@ -2551,7 +2551,7 @@ $('clearMonthBtn').onclick=()=>{
   if(!canWrite||origBlocked())return;
   const mi=monthInfo();const days=busyDays(mi.dates.map(x=>x.key));
   if(!days.length){toast(`${mi.label}還沒有排班。`);return;}
-  dialog(`<h3>清空 ${mi.label}？</h3><p>本月 ${days.length} 天的排班都會移除，包含醫師、助理、跟診配對與加診標記。請假、休假日與規則不受影響。清空後可以按「復原」還原。</p>`,()=>{
+  dialog(`<h3>清空 ${mi.label}？</h3><p>本月 ${days.length} 天的排班都會移除，包含醫師、助理、跟診配對與加診標記。請假、休診日與規則不受影響。清空後可以按「復原」還原。</p>`,()=>{
     const before={};mi.mondays.forEach(m=>{const wk=ymd(m);before[wk]=weeks[wk]?clone(weeks[wk]):null;});
     lastUndo=before;clearDays(days);
     toast(`已清空 ${mi.label} 的排班。`,'',{label:'復原',fn:undoAuto});
@@ -2654,10 +2654,10 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
   for(let d=parseYmd(from);ymd(d)<=to&&dates.length<62;d.setDate(d.getDate()+1)){
     const key=ymd(d);
     if(d.getDay()===0){sun++;continue;} // 週日不需請假
-    if(holidayOf(key)){hol++;continue;} // 休假日不需請假
+    if(holidayOf(key)){hol++;continue;} // 休診日不需請假
     dates.push(key);
   }
-  if(!dates.length){toast(`週日與休假日不需要登記${word}。`,'warn');return;}
+  if(!dates.length){toast(`週日與休診日不需要登記${word}。`,'warn');return;}
   // 事前、事後各自管理：這些日期已有另一邊登記的請假時，不能在這裡更動
   if(role==='assistant'){
     const when=form.dataset.when||'before',other=leaves.filter(l=>l.staffId===sid&&dates.includes(l.date)&&whenOf(l)!==when);
@@ -2679,7 +2679,7 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
       store.leave({id:uid('l'),staffId:sid,date:key,shifts:SHIFTS.map(s=>s.id).filter(s=>merged.includes(s)),type,note:note||dup?.note||'',when:form.dataset.when||'before',createdAt:Date.now()});
     });
     f('note').value='';f('to').value='';
-    const skip=[sun?`${sun} 個週日`:'',hol?`${hol} 個休假日`:''].filter(Boolean).join('、');
+    const skip=[sun?`${sun} 個週日`:'',hol?`${hol} 個休診日`:''].filter(Boolean).join('、');
     toast(`已登記 ${codeOf(sid)} ${dates.length} 天${word}${skip?`（已略過 ${skip}）`:''}。${shifts.length<SHIFTS.length&&role==='assistant'&&(form.dataset.when||'before')==='before'?'事前請假以日為單位，已登記為全天。':''}${chk.info.join('')}`);
   };
   if(!chk.over.length)return apply();
@@ -2730,7 +2730,7 @@ function openMonthLeave(when){ // when：'before' 事前／'after' 事後
         const has=j=>isOpen(j)&&(l.shifts||[]).includes(SHIFTS[j].id),p=has(si-1),n=has(si+1);
         return p&&n?' fd-mid':!p&&n?' fd-top':p&&!n?' fd-bot':'';
       };
-      html+=`<div class="ml-day"${openSh.length?` data-day="${key}" data-open="${openSh.join(',')}"`:''}><div class="ml-date" title="${openSh.length?'拖到這裡：整天請假':''}">${md(d)}${hol?` <small style="color:var(--faint)">${esc(hol.name||'休假日')}</small>`:''}</div><div class="ml-shifts">`+SHIFTS.map((sh,si)=>{
+      html+=`<div class="ml-day"${openSh.length?` data-day="${key}" data-open="${openSh.join(',')}"`:''}><div class="ml-date" title="${openSh.length?'拖到這裡：整天請假':''}">${md(d)}${hol?` <small style="color:var(--faint)">${esc(hol.name||'休診日')}</small>`:''}</div><div class="ml-shifts">`+SHIFTS.map((sh,si)=>{
         if(dow===6||closedAt(dow,sh.id,key))return `<div class="ml-slot off"><span class="ml-sh">${sh.short}</span></div>`;
         const tags=dayLv.map(l=>(l.shifts||[]).includes(sh.id)
           ?(whenOf(l)!==when // 另一邊（事前／事後）登記的假：淺灰色，只能看
@@ -2822,7 +2822,7 @@ $('fcForm').addEventListener('submit',e=>{
   const sid=$('fcStaff').value;if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的家庭照顧假。','warn');return;}const date=$('fcDate').value;
   if(!sid||!date){toast('請選擇助理與日期。','warn');return;}
   if(byId(sid)?.role!=='assistant'){toast('家庭照顧假僅限助理。','warn');return;}
-  if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休假日不需要登記家庭照顧假。','warn');return;}
+  if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休診日不需要登記家庭照顧假。','warn');return;}
   const c=fcCalc();
   if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
   {const clash=fcVsLeave(sid,date,{start:$('fcStart').value,end:$('fcEnd').value,shift:$('fcShift').value||null});if(clash){toast(clash,'warn');return;}}
@@ -2981,7 +2981,7 @@ $('fcTable').addEventListener('click',e=>{
     const row=sv.closest('[data-fcrow]');const old=familyCare.find(x=>x.id===sv.dataset.fcsave);if(!old)return;
     const q=k=>row.querySelector(`[data-e=${k}]`).value;
     if(!q('date')){toast('請選擇日期。','warn');return;}
-    if(parseYmd(q('date')).getDay()===0||holidayOf(q('date'))){toast('週日與休假日不需要登記家庭照顧假。','warn');return;}
+    if(parseYmd(q('date')).getDay()===0||holidayOf(q('date'))){toast('週日與休診日不需要登記家庭照顧假。','warn');return;}
     const c=fcCalc(q('start'),q('end'));
     if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
     {const clash=fcVsLeave(old.staffId,q('date'),{start:q('start'),end:q('end'),shift:q('shift')||null});if(clash){toast(clash,'warn');return;}}
@@ -3020,7 +3020,7 @@ document.querySelectorAll('.leave-table').forEach(tb=>tb.addEventListener('click
     const date=row.querySelector('[data-e=date]').value;
     const shifts=SHIFTS.map(s=>s.id).filter(id=>row.querySelector(`[data-esh="${id}"]`).checked);
     if(!date){toast('請選擇日期。','warn');return;}
-    if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休假日不需要登記'+(byId(old.staffId)?.role==='doctor'?'休假':'請假')+'。','warn');return;}
+    if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休診日不需要登記'+(byId(old.staffId)?.role==='doctor'?'休假':'請假')+'。','warn');return;}
     if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
     if(leaves.some(x=>x.id!==old.id&&x.staffId===old.staffId&&x.date===date)){toast(`${codeOf(old.staffId)} 在 ${date.slice(5).replace('-','/')} 已經有${byId(old.staffId)?.role==='doctor'?'休假':'請假'}紀錄。`,'warn');return;}
     if(byId(old.staffId)?.role==='assistant'){const clash=leaveVsFc(old.staffId,date,isWholeDay(old)?SHIFTS.map(s=>s.id):shifts);if(clash){toast(clash,'warn');return;}}
@@ -3135,7 +3135,7 @@ function fitHolList(hols){
   if(!box.offsetParent)return;
   const head=box.querySelector('thead').offsetHeight;
   const tenth=rows[HOL_ROWS-1];box.style.maxHeight=(head+tenth.offsetTop+tenth.offsetHeight-rows[0].offsetTop+2)+'px';
-  if(!holScrolled&&box.offsetParent){ // 第一次顯示時，捲到今天之後的第一個休假日
+  if(!holScrolled&&box.offsetParent){ // 第一次顯示時，捲到今天之後的第一個休診日
     holScrolled=true;const t=ymd(new Date());const i=hols.findIndex(([d])=>d>=t);
     box.scrollTop=i<0?box.scrollHeight:rows[i].offsetTop-rows[0].offsetTop;
   }
@@ -3153,9 +3153,9 @@ $('holForm').addEventListener('submit',e=>{
     const n=clone(cfg);n.holidays=n.holidays||{};dates.forEach(k=>n.holidays[k]={name});store.cfg(n);
     clearDays(busy);
     $('holFrom').value='';$('holTo').value='';$('holName').value='';
-    toast(`已新增 ${dates.length} 天休假日。`);
+    toast(`已新增 ${dates.length} 天休診日。`);
   };
-  if(busy.length)dialog(`<h3>新增休假日</h3><p>${busy.map(k=>k.slice(5).replace('-','/')).join('、')} 已經有人排班，設為休假日後會清除這些排班。</p>`,apply,'新增並清除',true);
+  if(busy.length)dialog(`<h3>新增休診日</h3><p>${busy.map(k=>k.slice(5).replace('-','/')).join('、')} 已經有人排班，設為休診日後會清除這些排班。</p>`,apply,'新增並清除',true);
   else apply();
 });
 $('holTable').addEventListener('click',e=>{
@@ -3165,13 +3165,13 @@ $('holTable').addEventListener('click',e=>{
   if(sv){
     const old=sv.dataset.holsave;const nd=$('holEditDate').value;const name=$('holEditName').value.trim();
     if(!nd){toast('請選擇日期。','warn');return;}
-    if(nd!==old&&holidayOf(nd)){toast(`${nd.replace(/-/g,'/')} 已經是休假日。`,'warn');return;}
-    const apply=()=>{const n=clone(cfg);n.holidays=n.holidays||{};delete n.holidays[old];n.holidays[nd]={name};editingHol=null;document.activeElement?.blur();store.cfg(n);if(nd!==old)clearDays(busyDays([nd]));toast('已變更休假日。');};
-    if(nd!==old&&busyDays([nd]).length)dialog(`<h3>變更休假日</h3><p>${nd.slice(5).replace('-','/')} 已經有人排班，改成休假日後會清除當天排班。原本 ${old.slice(5).replace('-','/')} 的排班不會自動恢復。</p>`,apply,'變更並清除',true);
+    if(nd!==old&&holidayOf(nd)){toast(`${nd.replace(/-/g,'/')} 已經是休診日。`,'warn');return;}
+    const apply=()=>{const n=clone(cfg);n.holidays=n.holidays||{};delete n.holidays[old];n.holidays[nd]={name};editingHol=null;document.activeElement?.blur();store.cfg(n);if(nd!==old)clearDays(busyDays([nd]));toast('已變更休診日。');};
+    if(nd!==old&&busyDays([nd]).length)dialog(`<h3>變更休診日</h3><p>${nd.slice(5).replace('-','/')} 已經有人排班，改成休診日後會清除當天排班。原本 ${old.slice(5).replace('-','/')} 的排班不會自動恢復。</p>`,apply,'變更並清除',true);
     else apply();
     return;
   }
-  const b=e.target.closest('[data-delhol]');if(!b)return;const n=clone(cfg);if(n.holidays)delete n.holidays[b.dataset.delhol];store.cfg(n);toast('已刪除休假日。');});
+  const b=e.target.closest('[data-delhol]');if(!b)return;const n=clone(cfg);if(n.holidays)delete n.holidays[b.dataset.delhol];store.cfg(n);toast('已刪除休診日。');});
 $('nhOnlyRow').addEventListener('click',e=>{
   const b=e.target.closest('[data-nh]');if(!b||!canWrite)return;
   const n=clone(cfg);const cur=n.nhOnly||[];const id=b.dataset.nh;
@@ -3274,7 +3274,7 @@ async function exportExcel(){
   const sched=[['日期','星期','班別','時間',...POS.map(p=>p.label),'請假']];
   mi.dates.forEach(({d,key,wk,dow})=>SHIFTS.forEach(sh=>{
     const lv=[...(leaveIdx.get(key+'|'+sh.id)||[])].map(nm).join('、');
-    if(closedAt(dow,sh.id,key)){const h=holidayOf(key);sched.push([key,'週'+DAYS[dow],sh.name,sh.time,h?`休診（${h.name||'休假日'}）`:'休診','','','','',lv]);return;}
+    if(closedAt(dow,sh.id,key)){const h=holidayOf(key);sched.push([key,'週'+DAYS[dow],sh.name,sh.time,h?`休診（${h.name||'休診日'}）`:'非營業時段','','','','',lv]);return;}
     const c=getCell(wk,dow+'_'+sh.id);
     sched.push([key,'週'+DAYS[dow],sh.name,sh.time,...c.map((a,i)=>{let n;if(i===FOLLOW){const lk=getLink(wk,dow+'_'+sh.id);const docs=ppl(a).filter(z=>byId(z)?.role==='doctor');n=docs.map(d=>{const as=lk.filter(z=>z[1]===d&&a.includes(z[0])).map(z=>nm(z[0]));return nm(d)+(as.length?`（${as.join('、')}）`:'');});ppl(a).filter(z=>!docs.includes(z)&&!lk.some(l=>l[0]===z&&docs.includes(l[1]))).forEach(z=>n.push(nm(z)));}else n=ppl(a).map(nm);const g=gapN(a);if(g)n.push(`缺${g}`);return n.join('、');}),lv]);
   }));
