@@ -3191,8 +3191,8 @@ let downloads=null;
 $('exportBtn').onclick=()=>{
   const mi=monthInfo();
   dialog(`<h3>匯出班表・${mi.label}</h3>
-    <div class="opts"><label><input type="radio" name="ex" value="jpg" checked><span>JPG 圖檔<small>整個月的班表輸出成一張圖片，方便傳到 LINE</small></span></label>
-    <label><input type="radio" name="ex" value="pdf"><span>PDF 檔<small>A4 橫式，一週一段，適合列印</small></span></label>
+    <div class="opts"><label><input type="radio" name="ex" value="jpg" checked><span>JPG 圖檔<small>A4 橫式，整個月放在同一張圖片，方便傳到 LINE</small></span></label>
+    <label><input type="radio" name="ex" value="pdf"><span>PDF 檔<small>A4 橫式，整個月放在同一頁，適合列印</small></span></label>
     <label><input type="radio" name="ex" value="xlsx"><span>Excel 檔<small>班表、工時統計、請假、薪資等工作表</small></span></label></div>`,
     ov=>{const v=ov.querySelector('input[name=ex]:checked').value;(v==='xlsx'?exportExcel:()=>exportImage(v))();},'匯出');
 };
@@ -3211,33 +3211,38 @@ async function scheduleCanvases(){
   document.body.appendChild(box);
   try{
     if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    // 班表比預設寬度寬時（同一格人數多），把整個區塊加寬到最寬的那一週，避免後面的日期被截掉；各週同寬，之後整體等比例縮進 A4
+    const tw=Math.max(...[...box.querySelectorAll('.week table')].map(t=>t.scrollWidth),0);
+    if(tw+34>box.offsetWidth)box.style.width=(tw+34)+'px';
     const out=[];
     for(const el of [box.querySelector('h2'),...box.querySelectorAll('.week')])out.push(await html2canvas(el,{scale:2,backgroundColor:'#ffffff',logging:false}));
     return out;
   }finally{box.remove();}
+}
+// 把標題與每週的截圖等比例縮放，排進一張 A4 橫式（300dpi：3508×2480）頁面，整個月放在同一頁
+function a4Page(cs){
+  const PW=3508,PH=2480,m=90,gap=18;
+  const w=Math.max(...cs.map(c=>c.width)),h=cs.reduce((n,c)=>n+c.height,0)+gap*(cs.length-1);
+  const k=Math.min((PW-m*2)/w,(PH-m*2)/h);
+  const page=document.createElement('canvas');page.width=PW;page.height=PH;
+  const g=page.getContext('2d');g.fillStyle='#ffffff';g.fillRect(0,0,PW,PH);g.imageSmoothingQuality='high';
+  const x=(PW-w*k)/2;let y=(PH-h*k)/2; // 置中
+  cs.forEach(c=>{g.drawImage(c,x,y,c.width*k,c.height*k);y+=(c.height+gap)*k;});
+  return page;
 }
 function saveBlobUrl(url,name){const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();}
 async function exportImage(kind){
   const mi=monthInfo();const name=`班表_${mi.ym}.${kind}`;
   toast(kind==='pdf'?'正在產生 PDF…':'正在產生圖片…');
   try{
-    const cs=await scheduleCanvases();
+    const page=a4Page(await scheduleCanvases());
     if(kind==='jpg'){
-      const gap=24,w=Math.max(...cs.map(c=>c.width)),h=cs.reduce((n,c)=>n+c.height,0)+gap*(cs.length+1);
-      const all=document.createElement('canvas');all.width=w+gap*2;all.height=h;
-      const g=all.getContext('2d');g.fillStyle='#ffffff';g.fillRect(0,0,all.width,all.height);
-      let y=gap;cs.forEach(c=>{g.drawImage(c,gap,y);y+=c.height+gap;});
-      all.toBlob(b=>{const u=URL.createObjectURL(b);saveBlobUrl(u,name);setTimeout(()=>URL.revokeObjectURL(u),10000);toast('已匯出 JPG 圖檔。');},'image/jpeg',0.92);
+      page.toBlob(b=>{const u=URL.createObjectURL(b);saveBlobUrl(u,name);setTimeout(()=>URL.revokeObjectURL(u),10000);toast('已匯出 JPG 圖檔（A4 橫式）。');},'image/jpeg',0.92);
     }else{
       await loadLib(JSPDF);
       const pdf=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-      const W=297,H=210,m=8,cw=W-m*2;let y=m,first=true;
-      cs.forEach(c=>{
-        let w=cw,h=c.height*cw/c.width;if(h>H-m*2){h=H-m*2;w=c.width*h/c.height;}
-        if(!first&&y+h>H-m){pdf.addPage();y=m;}
-        pdf.addImage(c.toDataURL('image/jpeg',0.92),'JPEG',m,y,w,h);y+=h+4;first=false;
-      });
-      const u=URL.createObjectURL(pdf.output('blob'));saveBlobUrl(u,name);setTimeout(()=>URL.revokeObjectURL(u),10000);toast('已匯出 PDF 檔。');
+      pdf.addImage(page.toDataURL('image/jpeg',0.92),'JPEG',0,0,297,210);
+      const u=URL.createObjectURL(pdf.output('blob'));saveBlobUrl(u,name);setTimeout(()=>URL.revokeObjectURL(u),10000);toast('已匯出 PDF 檔（A4 橫式）。');
     }
   }catch(e){console.error(e);toast('匯出失敗，請檢查網路後再試一次。','warn');}
 }
