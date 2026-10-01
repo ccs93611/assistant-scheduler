@@ -1554,15 +1554,14 @@ function renderStats(mi,counts){
     <div class="tile"><div class="k">請假</div><div class="v">${leaveShifts}<small>班次</small></div></div>`;
   const list=staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id]));
   const maxH=Math.max(1,...list.map(s=>(counts[s.id]?.total||0)));
-  $('statsTable').innerHTML=`<thead><tr><th>人員</th><th>職稱</th><th class="num">早</th><th class="num">午</th><th class="num">晚</th><th class="num">總班數</th><th class="num combo">早+晚</th><th class="num combo">全天班</th><th class="num posc">主櫃</th><th class="num posc">跟診</th><th class="num posc">流動</th><th class="num">基本工時</th><th class="num" title="可排班天數 × 8 小時（可排班天數＝期間天數－週日－診所休診日－非營業日－事前請假的日子；事後請假不影響）">合理工時</th><th class="num">單日超時</th><th class="num" title="排班表中以「加診」排入的診數">加診數</th><th class="num" title="單日超時＋加診數 × 3.5 小時">排班總超時</th><th style="width:18%"></th><th class="num">請假班次</th></tr></thead><tbody>`+
+  $('statsTable').innerHTML=`<thead><tr><th>人員</th><th>職稱</th><th class="num">早</th><th class="num">午</th><th class="num">晚</th><th class="num">總班數</th><th class="num combo">早+晚</th><th class="num combo">全天班</th><th class="num posc">主櫃</th><th class="num posc">跟診</th><th class="num posc">流動</th><th class="num">基本工時</th><th class="num" title="可排班天數 × 8 小時（可排班天數＝期間天數－週日－診所休診日－非營業日－事前請假的日子；事後請假不影響）">合理工時</th><th class="num">單日超時</th><th class="num" title="排班表中以「加診」排入的診數">加診數</th><th class="num" title="單日超時＋加診數 × 3.5 小時">排班總超時</th><th style="width:18%"></th></tr></thead><tbody>`+
     (list.length?list.map(s=>{
       const c=counts[s.id]||{total:0,day:0,eve:0,night:0,hours:0,ot:0,fullDays:0,dn:0,extra:0,pos:[0,0,0,0,0]};
-      const lv=leaves.filter(l=>l.staffId===s.id&&l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).reduce((n,l)=>n+(l.shifts||[]).length,0);
       return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}</td><td><span class="pill${s.role==='doctor'?' doc':''}">${ROLE[s.role]}</span></td>
         <td class="num">${c.day}</td><td class="num">${c.eve}</td><td class="num">${c.night}</td><td class="num"><b>${c.total}</b></td>${[c.dn,c.fullDays].map(v=>`<td class="num combo">${v||'<span style="color:var(--faint)">0</span>'}</td>`).join('')}${[0,2,3].map(pi=>`<td class="num posc">${c.pos[pi]||'<span style="color:var(--faint)">0</span>'}</td>`).join('')}
         <td class="num">${c.hours.toFixed(1)}</td><td class="num">${reasonableDays(mi,s.id).toFixed(1)}</td><td class="num">${c.ot?`<span class="pill warn">${c.ot.toFixed(1)}</span>`:'<span style="color:var(--faint)">0</span>'}</td>${(()=>{const x=Math.round((c.hours-reasonableDays(mi,s.id))*10)/10,t=Math.round((Math.max(0,x)+(c.ot||0))*10)/10;const cell=v=>v>0?`<span class="pill warn">${v.toFixed(1)}</span>`:v<0?`<span style="color:var(--faint)">${v.toFixed(1)}</span>`:'<span style="color:var(--faint)">0</span>';const ot=schedOt(c);return `<td class="num">${c.extra?`<span class="pill" style="background:var(--extra);color:var(--extra-ink)">${c.extra}</span>`:'<span style="color:var(--faint)">0</span>'}</td><td class="num" style="white-space:nowrap"><b>${ot?`<span class="pill warn">${fmtHM(ot)}</span>`:'<span style="color:var(--faint)">0</span>'}</b></td>`;})()}<td><div class="bar${s.role==='doctor'?' doc':''}"><b style="width:${c.total/maxH*100}%"></b></div></td>
-        <td class="num">${lv}</td></tr>`;
-    }).join(''):`<tr><td colspan="18" class="empty">尚未建立助理。</td></tr>`)+'</tbody>';
+        </tr>`;
+    }).join(''):`<tr><td colspan="17" class="empty">尚未建立助理。</td></tr>`)+'</tbody>';
 }
 
 // ---------- 薪資 ----------
@@ -3304,12 +3303,11 @@ async function exportExcel(){
   }));
   // 工時統計工作表依「工時統計」頁的統計期間
   const sr=statRange(mi);const sc=sr.custom?monthCounts(sr):counts;
-  const stats=[[`統計期間：${ymd(sr.first)} ～ ${ymd(sr.last)}`],['代號','姓名','職稱','早班','午班','晚班','總班數','早+晚','全天班','主櫃','跟診','流動','基本工時(小時)','合理工時(小時)','單日超時(小時)','加診數','排班總超時','請假班次']];
+  const stats=[[`統計期間：${ymd(sr.first)} ～ ${ymd(sr.last)}`],['代號','姓名','職稱','早班','午班','晚班','總班數','早+晚','全天班','主櫃','跟診','流動','基本工時(小時)','合理工時(小時)','單日超時(小時)','加診數','排班總超時']];
   staff.slice().sort(sortStaff).filter(s=>s.role==='assistant').forEach(s=>{
     const c=sc[s.id]||{total:0,day:0,eve:0,night:0,hours:0,ot:0,fullDays:0,dn:0,extra:0,pos:[0,0,0,0,0]};
-    const lv=leaves.filter(l=>l.staffId===s.id&&l.date>=ymd(sr.first)&&l.date<=ymd(sr.last)).reduce((n,l)=>n+(l.shifts||[]).length,0);
     if(s.active===false&&!c.total)return;
-    stats.push([s.code||'',s.name||'',ROLE[s.role],c.day,c.eve,c.night,c.total,c.dn,c.fullDays,c.pos[0],c.pos[2],c.pos[3],c.hours,reasonableDays(sr,s.id),c.ot,c.extra||0,fmtHM(schedOt(c)),lv]);
+    stats.push([s.code||'',s.name||'',ROLE[s.role],c.day,c.eve,c.night,c.total,c.dn,c.fullDays,c.pos[0],c.pos[2],c.pos[3],c.hours,reasonableDays(sr,s.id),c.ot,c.extra||0,fmtHM(schedOt(c))]);
   });
   const lvSheet=role=>{const w=role==='doctor'?'休假':'請假';const rows=[['日期',ROLE[role],'班別',w+'類別','備註']];
     leaves.filter(l=>byId(l.staffId)?.role===role&&l.date>=ymd(mi.first)&&l.date<=ymd(mi.last)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(l=>rows.push([l.date,nm(l.staffId),SHIFTS.filter(s=>(l.shifts||[]).includes(s.id)).map(s=>s.name).join('、'),l.type||'',l.note||'']));
