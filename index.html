@@ -420,6 +420,7 @@ body.gated .shell{display:none;}
 .adj-row{display:flex; gap:8px; margin-bottom:8px;}
 .adj-row input{flex:1;}
 .adj-row input[type=number]{flex:0 0 110px; text-align:right;}
+.adj-row button{flex:0 0 auto;}
 
 @media (max-width:860px){
   .sched{flex-direction:column;}
@@ -1795,7 +1796,7 @@ function renderPay(mi,counts){
       +`<div class="field"><label for="pr-fcPerHour">家庭照顧假（每小時扣元）</label><input id="pr-fcPerHour" type="number" min="0" step="1" data-pr="fcPerHour" value="${P.fcPerHour}"></div>`;
   }
 }
-const adjRow=(x={})=>`<div class="adj-row"><input data-al placeholder="項目名稱" value="${esc(x.label||'')}"><input type="number" data-aa step="1" placeholder="金額" value="${x.amount??''}"></div>`;
+const adjRow=(x={})=>`<div class="adj-row"><input data-al placeholder="項目名稱" value="${esc(x.label||'')}"><input type="number" data-aa step="1" placeholder="金額" value="${x.amount??''}"><button type="button" class="small danger" data-adjdel aria-label="刪除這一列">刪除</button></div>`;
 function readAdj(ov){const out=[];ov.querySelectorAll('.adj-row').forEach(r=>{const v=r.querySelector('[data-aa]').value;if(v==='')return;out.push({label:r.querySelector('[data-al]').value.trim(),amount:Number(v)||0});});return out;}
 // 集體編輯：一個表格同時填所有助理本月的薪資項目（加減項請用個別「編輯」）；只儲存有改動的人
 function openPayBulk(){
@@ -1856,7 +1857,9 @@ function openPay(s){
       :'這個月沒有請假紀錄。';
     ov.querySelector('#pfSum').innerHTML=(p.attendLost?`<b style="color:var(--warn)">${p.lostReasons.join('；')}，本月不發出勤津貼。</b><br>`:p.sickCut?`<b style="color:var(--warn)">${p.attendNote}，出勤津貼實發 ${money(p.attendPaid)} 元。</b><br>`:'')+`加診 ${money(p.extraPay)} 元・All班 ${p.allDays} 天 ${money(p.allPay)} 元・加班/拖診 ${rr.otMin} 分 ${money(p.otPay)} 元・${p.holShifts?`國定假日上班加給 ${p.holShifts} 診 ${money(p.holPay)} 元・`:''}好評 ${money(p.starPay)} 元・${p.giftPay?`${esc(p.autoNote)}・`:''}健保 ${money(p.healthTotal)} 元・遲到 ${money(p.late)} 元・請假 ${money(p.leaveDeduct)} 元<br>應發 <b>${money(p.gross)}</b> － 扣除 <b>${money(p.deduct)}</b> ${p.adj<0?'－':'＋'} 加減項 <b>${money(Math.abs(p.adj))}</b> ＝ 實發 <b>${money(p.net)}</b>`;
   };
-  ov.addEventListener('input',sum);ov.querySelector('#adjAdd').addEventListener('click',sum);sum();
+  ov.addEventListener('input',sum);ov.querySelector('#adjAdd').addEventListener('click',sum);
+  ov.querySelector('#adjRows').addEventListener('click',e=>{const b=e.target.closest('[data-adjdel]');if(!b)return;b.closest('.adj-row').remove();if(!ov.querySelector('#adjRows .adj-row'))ov.querySelector('#adjRows').insertAdjacentHTML('beforeend',adjRow());sum();});
+  sum();
 }
 
 function renderHolidays(){
