@@ -91,7 +91,7 @@ HTML（7 個 <section id="tab-*">）
 | `weeks/{週一日期}` | `c.{dow}_{shift}` 等欄位，值是 JSON 字串（因為 Firestore 不接受巢狀陣列） |
 | `baselines/{YYYY-MM}` | 原始班表（定案時的當月班表） |
 | `staff/{id}`、`leaves/{id}`、`familyCare/{id}`、`config/main` | 同上方資料模型 |
-| `pay/{staffId}_{YYYY-MM}` | `{staffId, ym, base, attend, perf, skill, otMin, selfInd, selfTeam, stars, labor, health, dependents, lateMin, items, note}` 當月薪資項目 |
+| `pay/{staffId}_{YYYY-MM}` | `{staffId, ym, base, attend, perf, skill, duty, otMin, selfInd, selfTeam, stars, labor, health, dependents, lateMin, items, note}` 當月薪資項目 |
 | `personalEvents/{id}` | 個人事件假（婚假、喪假、產檢假、產假、流產產假、育嬰假）的事件日期 |
 | `data/private/people/{staffId}` | 個資 |
 | `access/{Gmail}` | `{staffId, perm}` 帳號綁定與權限 |
@@ -107,11 +107,13 @@ HTML（7 個 <section id="tab-*">）
 |---|---|
 | 本俸 | 每人每月填寫 |
 | 出勤津貼 / 績效獎金 / 技能津貼 | 預設 1000 / 1000 / 3500 |
+| 職務津貼 | 每人每月填寫，帶入前一個月的金額（沒有職務填 0） |
 | 加診薪資 | 加診數 × 3.5 小時 × 60 × 加班每分鐘 4 元（每診 840 元） |
-| All班津貼 | 同一天上滿三班（含加診）的天數 × 30 分鐘 × 加班每分鐘 4 元（每天 120 元） |
+| All班加給 | 同一天上滿三班（含加診）的天數 × 30 分鐘 × 加班每分鐘 4 元（每天 120 元） |
 | 加班薪資 | 加班/拖診分鐘數 × 加班每分鐘 4 元 |
 | 自費獎金 | 個人、團體各一欄 |
 | 五星好評 | 則數 × 每則 30 元 |
+| 禮金／獎金 | 生日當月加發生日禮金 1000 元；春節、端午、中秋所在月份各加發三節獎金 1000 元（金額可在薪資計算規則調整）。自動寫在備註欄。生日月份由個資的生日同步到 `staff.birthMonth`（只存月份）；三節日期在程式內建 2024–2035 年的對照表 `FESTIVALS`，之後的年份需要補上 |
 
 | 扣除 | 算法 |
 |---|---|
