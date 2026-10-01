@@ -91,7 +91,7 @@ HTML（7 個 <section id="tab-*">）
 | `weeks/{週一日期}` | `c.{dow}_{shift}` 等欄位，值是 JSON 字串（因為 Firestore 不接受巢狀陣列） |
 | `baselines/{YYYY-MM}` | 原始班表（定案時的當月班表） |
 | `staff/{id}`、`leaves/{id}`、`familyCare/{id}`、`config/main` | 同上方資料模型 |
-| `pay/{staffId}_{YYYY-MM}` | `{staffId, ym, base, attend, perf, skill, otMin, selfInd, selfTeam, stars, labor, health, dependents, lateMin, items}` 當月薪資項目 |
+| `pay/{staffId}_{YYYY-MM}` | `{staffId, ym, base, attend, perf, skill, otMin, selfInd, selfTeam, stars, labor, health, dependents, lateMin, items, note}` 當月薪資項目 |
 | `personalEvents/{id}` | 個人事件假（婚假、喪假、產檢假、產假、流產產假、育嬰假）的事件日期 |
 | `data/private/people/{staffId}` | 個資 |
 | `access/{Gmail}` | `{staffId, perm}` 帳號綁定與權限 |
@@ -121,7 +121,9 @@ HTML（7 個 <section id="tab-*">）
 | 請假扣款 | 請假診數 × 每診設定薪資（預設 595，可調整）× 假別扣薪比例。一個班算 1 診。預設比例：事假、不可上班、其他 1，病假、生理假 0.5，其餘 0 |
 | 家庭照顧假 | 登記時數 × 每小時 170 元 |
 
-加減項（`items:[{label, amount}]`）只屬於當月，不帶入下個月。
+加減項（`items:[{label, amount}]`）只屬於當月，不帶入下個月。薪資備註（`note`）同樣只屬於當月，可在「編輯」或「集體編輯」填寫，員工本人在薪資頁也看得到。
+
+薪資表「編輯」欄最上方的「集體編輯」可以在一個表格裡同時填所有助理當月的薪資項目（不含加減項），即時顯示實發，儲存時只寫入有改動的人。
 
 **不發出勤津貼**的條件（任一成立）：當月遲到總分鐘數超過 30 分鐘（可調整）；當月加診診數少於事假診數。
 
