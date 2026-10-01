@@ -535,7 +535,7 @@ body.gated .shell{display:none;}
                 <label><input type="checkbox" data-sh="night" checked>晚</label>
               </div>
             </div>
-            <div class="field"><label for="lvType-assistant">請假類別</label><select id="lvType-assistant" data-n="type"><option>特休</option><option>排休</option><option>事假</option><option>病假</option><option>公假</option><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>陪產假</option><option>育嬰假</option><option>生理假</option><option>補休</option><option>颱風假</option><option>不可上班</option><option>其他</option></select></div>
+            <div class="field"><label for="lvType-assistant">請假類別</label><select id="lvType-assistant" data-n="type"><option>特休</option><option>排休</option><option>事假</option><option>病假</option><option>公假</option><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>陪產假</option><option>育嬰假</option><option>生理假</option><option>補休</option><option>颱風假</option><option>原住民族歲時祭儀</option><option>不可上班</option><option>其他</option></select></div>
             <div class="field" style="flex:1;min-width:140px"><label for="lvNote-assistant">備註</label><input id="lvNote-assistant" data-n="note" placeholder="例如：家中有事…"></div>
             <button class="primary" type="submit" data-w>登記</button>
             <button type="button" id="monthLeaveBtn">整月排假</button>
@@ -1639,7 +1639,7 @@ const festivalsIn=ym=>Object.entries(FESTIVALS[ym.slice(0,4)]||{}).filter(([,d])
 // 個資的生日改變時，把月份同步到人員資料（只寫月份）
 function syncBirthMonth(sid,birthday){const s=byId(sid);if(!s||!canWrite)return;const bm=birthday?Number(birthday.slice(5,7)):0;if((Number(s.birthMonth)||0)===bm)return;const n=clone(s);if(bm)n.birthMonth=bm;else delete n.birthMonth;store.staff(n);}
 const birthMonthOf=sid=>{const b=privateInfo[sid]?.birthday;return b?Number(b.slice(5,7)):Number(byId(sid)?.birthMonth)||0;};
-const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產檢假','產假','流產產假','陪產假','育嬰假','生理假','補休','颱風假','不可上班','其他'];
+const PAY_TYPES=['特休','排休','事假','病假','公假','婚假','喪假','產檢假','產假','流產產假','陪產假','育嬰假','生理假','補休','颱風假','原住民族歲時祭儀','不可上班','其他'];
 const DEFAULT_DEDUCT={事假:1,病假:0.5,生理假:0.5,不可上班:1,其他:1};
 // 薪資計算規則可依月份不同：cfg.payByMonth[YYYY-MM] 從該月起生效，之後沒有另外設定的月份沿用；更早的月份用 cfg.pay（舊版共用設定）
 const payRuleMonth=ym=>Object.keys(cfg.payByMonth||{}).filter(k=>k<=ym).sort().pop()||null;
@@ -2827,7 +2827,7 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
 // ---------- 整月排假 ----------
 // 月曆彈窗：上方選假別、左方選助理，把助理拖到某天的早／午／晚格子即登記請假（手機可先點助理再點格子），點格子裡的代號取消該班
 // 每種假別一個固定顏色（背景, 文字），月曆標籤與上方假別按鈕共用
-const LEAVE_COLORS={特休:['#2E7D32','#fff'],排休:['#C0CA33','#263238'],事假:['#C62828','#fff'],病假:['#EF6C00','#fff'],公假:['#1565C0','#fff'],婚假:['#D81B60','#fff'],喪假:['#455A64','#fff'],產假:['#6A1B9A','#fff'],陪產假:['#3949AB','#fff'],生理假:['#FBC02D','#3E2723'],補休:['#00897B','#fff'],颱風假:['#0288D1','#fff'],不可上班:['#212121','#fff'],其他:['#8D6E63','#fff'],產檢假:['#BA68C8','#fff'],流產產假:['#4E342E','#fff'],育嬰假:['#90A4AE','#263238']};
+const LEAVE_COLORS={特休:['#2E7D32','#fff'],排休:['#C0CA33','#263238'],事假:['#C62828','#fff'],病假:['#EF6C00','#fff'],公假:['#1565C0','#fff'],婚假:['#D81B60','#fff'],喪假:['#455A64','#fff'],產假:['#6A1B9A','#fff'],陪產假:['#3949AB','#fff'],生理假:['#FBC02D','#3E2723'],補休:['#00897B','#fff'],颱風假:['#0288D1','#fff'],原住民族歲時祭儀:['#AD1457','#fff'],不可上班:['#212121','#fff'],其他:['#8D6E63','#fff'],產檢假:['#BA68C8','#fff'],流產產假:['#4E342E','#fff'],育嬰假:['#90A4AE','#263238']};
 const leaveColor=t=>LEAVE_COLORS[t]||['#757575','#fff'];
 const leaveTagStyle=t=>{const [bg,fg]=leaveColor(t);return `background:${bg};border-color:${bg};color:${fg}`;};
 function openMonthLeave(when){ // when：'before' 事前／'after' 事後
