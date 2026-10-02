@@ -1259,7 +1259,10 @@ function renderWeeks(mi){
         pc.forEach(id=>{if(!first.has(id))first.set(id,si);});
         extra=Math.max(extra,gapN(c)+(x.out?0:Math.max(0,need(pi)-pc.length)));
       });
-      const order=[...first.keys()].sort((a,b)=>first.get(a)-first.get(b)||codeOf(a).localeCompare(codeOf(b),'en',{numeric:true,sensitivity:'base'}));
+      // 跟診欄的醫師依代號 A–Z 由左到右排列（忽略開頭的 Dr.）；其他崗位依當天最早出現的班次排列
+      const drKey=id=>codeOf(id).replace(/^dr\.?\s*/i,'');
+      const byCode=(a,b)=>drKey(a).localeCompare(drKey(b),'en',{numeric:true,sensitivity:'base'});
+      const order=[...first.keys()].sort((a,b)=>pi===FOLLOW?byCode(a,b):(first.get(a)-first.get(b)||byCode(a,b)));
       return {order,extra:Math.max(0,extra)};
     }));
     const body=SHIFTS.map(sh=>{
