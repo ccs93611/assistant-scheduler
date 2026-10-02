@@ -498,7 +498,7 @@ body.gated .shell{display:none;}
           <p class="desc">自動排班會避開這些時段；已經排進去的會在班表上標紅。</p>
           <form class="form-row leave-form" data-role="doctor" style="margin-bottom:16px">
             <div class="field"><label for="lvStaff-doctor">醫師</label><select id="lvStaff-doctor" data-n="staff" required></select></div>
-            <div class="field"><label for="lvFrom-doctor">開始日期</label><input type="date" id="lvFrom-doctor" data-n="from" required></div>
+            <div class="field"><label for="lvFrom-doctor">開始日期</label><input type="date" id="lvFrom-doctor" data-n="from"></div>
             <div class="field"><label for="lvTo-doctor">結束日期</label><input type="date" id="lvTo-doctor" data-n="to"></div>
             <div class="field"><span class="lb">班別</span>
               <div class="checks">
@@ -526,7 +526,7 @@ body.gated .shell{display:none;}
           <p class="desc">事先安排的請假。自動排班會避開這些時段；已經排進去的會在班表上標紅。下方列表同時以淺灰色顯示事後補登的請假，方便對照。</p>
           <form class="form-row leave-form" data-role="assistant" data-when="before" style="margin-bottom:16px">
             <div class="field"><label for="lvStaff-assistant">助理</label><select id="lvStaff-assistant" data-n="staff" required></select></div>
-            <div class="field"><label for="lvFrom-assistant">開始日期</label><input type="date" id="lvFrom-assistant" data-n="from" required></div>
+            <div class="field"><label for="lvFrom-assistant">開始日期</label><input type="date" id="lvFrom-assistant" data-n="from"></div>
             <div class="field"><label for="lvTo-assistant">結束日期</label><input type="date" id="lvTo-assistant" data-n="to"></div>
             <div class="field"><span class="lb">班別</span>
               <div class="checks">
@@ -548,7 +548,7 @@ body.gated .shell{display:none;}
           <p class="desc">事後補登的請假（例如臨時病假）。下方列表同時以淺灰色顯示事前登記的請假，方便對照；事前的紀錄請切換到「事前」修改。</p>
           <form class="form-row leave-form" data-role="assistant" data-when="after" style="margin-bottom:16px">
             <div class="field"><label for="lvStaff-after">助理</label><select id="lvStaff-after" data-n="staff" required></select></div>
-            <div class="field"><label for="lvFrom-after">開始日期</label><input type="date" id="lvFrom-after" data-n="from" required></div>
+            <div class="field"><label for="lvFrom-after">開始日期</label><input type="date" id="lvFrom-after" data-n="from"></div>
             <div class="field"><label for="lvTo-after">結束日期</label><input type="date" id="lvTo-after" data-n="to"></div>
             <div class="field"><span class="lb">班別</span>
               <div class="checks">
@@ -619,8 +619,8 @@ body.gated .shell{display:none;}
           <h2>休診日</h2>
           <p class="desc">休診日當天全天休診，班表不排班。新增時如果當天已經有人排班，會一併清除。</p>
           <form class="form-row" id="holForm" style="margin-bottom:14px">
-            <div class="field"><label for="holFrom">日期</label><input type="date" id="holFrom" required></div>
-            <div class="field"><label for="holTo">結束日期（選填）</label><input type="date" id="holTo"></div>
+            <div class="field"><label for="holFrom">開始日期</label><input type="date" id="holFrom"></div>
+            <div class="field"><label for="holTo">結束日期</label><input type="date" id="holTo"></div>
             <div class="field" style="flex:1;min-width:140px"><label for="holName">名稱</label><input id="holName" placeholder="國慶日、中秋節、院內旅遊…"></div>
             <button class="primary" type="submit" data-w>新增休診日</button>
           </form>
@@ -1494,8 +1494,6 @@ function renderLeave(mi,roles){
     if(pk==='after'&&!$('lvType-after').options.length)$('lvType-after').innerHTML=$('lvType-assistant').innerHTML;
     sel.innerHTML=activeStaff(role).filter(s=>canWrite||s.id===myStaffId()).map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');
     if(cur&&byId(cur))sel.value=cur;
-    const fromEl=$('lvFrom-'+pk);
-    if(!fromEl.value){const t=new Date();const d=(t>=mi.first&&t<=mi.last)?t:mi.first;fromEl.value=ymd(d);}
     // 請假／休假列表可以另外選擇查看的月份或整年（醫師與助理各自切換）
     const lr=leaveRange(mi,pk==='doctor'?'dc':'lv');
     $('leaveTitle-'+pk).textContent=`${lr.label} ${ROLE[role]}${word}${pk==='assistant'?'（事前；淺灰色為事後）':pk==='after'?'（事後；淺灰色為事前）':''}`;
@@ -2779,10 +2777,17 @@ document.addEventListener('click',e=>{
 });
 
 // leave
+// 請假、醫師休假、診所休診的日期：只填一個時另一個自動帶入同一天；結束日期不能早於開始日期
+[...document.querySelectorAll('.leave-form'),$('holForm')].forEach(form=>form.addEventListener('change',e=>{
+  const fr=form.querySelector('[data-n=from],#holFrom'),to=form.querySelector('[data-n=to],#holTo');
+  if(e.target===fr&&fr.value){if(!to.value||to.value<fr.value)to.value=fr.value;}
+  else if(e.target===to&&to.value){if(!fr.value)fr.value=to.value;else if(to.value<fr.value){toast('結束日期不能早於開始日期。','warn');to.value=fr.value;}}
+  to.min=fr.value||'';
+}));
 document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('submit',e=>{
   e.preventDefault();
   const role=form.dataset.role;const word=role==='doctor'?'休假':'請假';const f=n=>form.querySelector(`[data-n="${n}"]`);
-  const sid=f('staff').value;if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的'+word+'。','warn');return;}const from=f('from').value;const to=f('to').value||from;
+  const sid=f('staff').value;if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的'+word+'。','warn');return;}const from=f('from').value||f('to').value;const to=f('to').value||from; // 只填一個日期時，開始與結束視為同一天
   const shifts=[...form.querySelectorAll('[data-sh]')].filter(x=>x.checked).map(x=>x.dataset.sh);
   if(!sid||!from){toast(`請選擇${ROLE[role]}與日期。`,'warn');return;}
   if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
@@ -3282,7 +3287,7 @@ function busyDays(dates){return dates.filter(k=>{const d=parseYmd(k);const wk=ym
 function clearDays(days){const byWk={};days.forEach(k=>{const d=parseYmd(k);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;byWk[wk]=byWk[wk]||{};SHIFTS.forEach(sh=>{byWk[wk][dow+'_'+sh.id]=[[],[],[],[],[]];byWk[wk]['L'+dow+'_'+sh.id]=[];byWk[wk]['X'+dow+'_'+sh.id]=[];});});Object.entries(byWk).forEach(([wk,patch])=>store.cells(wk,patch));}
 $('holForm').addEventListener('submit',e=>{
   e.preventDefault();if(!canWrite)return;
-  const from=$('holFrom').value;const to=$('holTo').value||from;const name=$('holName').value.trim();
+  const from=$('holFrom').value||$('holTo').value;const to=$('holTo').value||from;const name=$('holName').value.trim();
   if(!from){toast('請選擇日期。','warn');return;}
   if(to<from){toast('結束日期不能早於開始日期。','warn');return;}
   const dates=[];for(let d=parseYmd(from);ymd(d)<=to&&dates.length<60;d.setDate(d.getDate()+1))dates.push(ymd(d));
