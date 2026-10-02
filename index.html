@@ -1202,7 +1202,7 @@ function renderPool(counts,mi){
       const n=counts[s.id]?.total||0;
       return `<div class="chip ${role}${selectedId===s.id?' sel':''}" draggable="${canWrite}" tabindex="0" data-chip="${s.id}" title="${esc(fullName(s))}">
         <span class="nm">${esc(s.code||s.name)}${s.code&&s.name?`<small>${esc(s.name)}</small>`:''}</span>
-        <span class="cnt">${role==='doctor'?`${n}班`:(()=>{const ex=counts[s.id]?.extra||0;const h=counts[s.id]?.hours||0,rh=reasonableDays(mi,s.id),f=v=>String(Math.round(v*10)/10);return `<span title="本月基本 ${n-ex} 診＋加診 ${ex} 診">${n-ex}${showHrs?`<span class="hrs${h>rh?' over':''}" title="基本工時 ${f(h)} 小時／合理工時 ${f(rh)} 小時">(${f(h)}/${f(rh)})</span>`:''}＋<span class="ex-n">${ex}</span></span>`;})()}</span></div>`;
+        <span class="cnt">${role==='doctor'?`${n}班`:(()=>{const ex=counts[s.id]?.extra||0;const h=counts[s.id]?.hours||0,rh=reasonableDays(mi,s.id),f=v=>String(Math.round(v*10)/10);return `<span title="本月基本 ${n-ex} 診＋加診 ${ex} 診">${n-ex}${showHrs?`<span class="hrs${h>rh?' over':''}" title="基本工時 ${f(h)} 小時／合理工時 ${f(rh)} 小時">(${f(h)}/${f(rh)}hr)</span>`:''}＋<span class="ex-n">${ex}</span></span>`;})()}</span></div>`;
     }).join(''):`<div class="hint" style="margin:0">尚無${ROLE[role]}，請到「人員名單」新增。</div>`;
   });
 }
