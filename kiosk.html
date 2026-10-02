@@ -59,6 +59,22 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block
 .guide.bad i{border-color:var(--warn)}
 .msg{position:absolute;left:0;right:0;bottom:0;padding:18px;text-align:center;font-size:clamp(1.05rem,3vw,1.45rem);font-weight:500;
   background:linear-gradient(transparent,rgba(0,0,0,.65))}
+.pick{position:absolute;inset:0;background:rgba(11,16,13,.9);display:flex;flex-direction:column;align-items:center;justify-content:safe center;padding:20px;gap:18px;overflow:auto}
+.pick[hidden]{display:none}
+.pick h2{margin:0;font-size:clamp(1.3rem,3.6vw,1.9rem)}
+.pick-grid{display:grid;grid-template-columns:auto repeat(2,minmax(0,1fr));gap:12px;width:min(640px,100%);align-items:center}
+.pick-grid .sh{font-size:clamp(1.1rem,3vw,1.5rem);font-weight:700;padding-right:6px;text-align:right}
+.pick-grid .sh small{display:block;color:var(--faint);font-size:.75rem;font-weight:400}
+.pick-grid button{font-size:clamp(1.15rem,3.2vw,1.6rem);font-weight:700;padding:clamp(14px,3vh,24px) 8px;border-radius:16px}
+.pick-grid button.in{border-color:var(--accent)}
+.pick-grid button.out{border-color:var(--gold)}
+.pick-grid button.sug{background:var(--accent);color:var(--accent-ink)}
+.pick-grid button.out.sug{background:var(--gold);border-color:var(--gold);color:var(--accent-ink)}
+.scanbar{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.6);border-radius:14px;padding:8px 8px 8px 16px}
+.scanbar[hidden]{display:none}
+.scanbar #scanSel{font-size:clamp(1.1rem,3vw,1.5rem);font-weight:700;flex:1}
+.scanbar .cd{color:var(--sub);font-variant-numeric:tabular-nums}
+.result .note.warn2{color:var(--warn);font-weight:700}
 .side{display:flex;flex-direction:column;gap:10px;min-height:0}
 .side h3{margin:0;font-size:.9rem;color:var(--sub);font-weight:500}
 .recent{list-style:none;margin:0;padding:0;overflow:auto;display:flex;flex-direction:column;gap:6px}
@@ -127,6 +143,12 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
       <video id="cam" playsinline muted autoplay></video>
       <div class="guide" id="guide"><i></i></div>
       <div class="msg" id="msg">準備中…</div>
+      <!-- 先選班別與上班／下班，再開始掃臉 -->
+      <div class="scanbar" id="scanBar" hidden><span id="scanSel"></span><span class="cd" id="scanCd"></span><button id="scanCancel">取消</button></div>
+      <div class="pick" id="pick">
+        <h2>請選擇班別</h2>
+        <div class="pick-grid" id="pickGrid"></div>
+      </div>
     </div>
     <aside class="side">
       <h3>今日打卡</h3>
@@ -215,7 +237,7 @@ const SAMPLES=5;            // 登錄時擷取的特徵數
 const STABLE_FRAMES=3;      // 連續幾幀辨識成同一人才確認
 const CONFIRM_MS=2500;      // 確認畫面自動打卡倒數
 const COOLDOWN_MS=60*1000;  // 同一人兩次打卡的最短間隔
-const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5};
+const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00'};
 
 // ---------- 小工具 ----------
 const $=id=>document.getElementById(id);
@@ -350,12 +372,27 @@ function guessKind(sid,ts){
   const b=bounds.reduce((x,y)=>Math.abs(y.t-min)<Math.abs(x.t-min)?y:x);
   let note='';
   if(b.k==='in'&&min-b.t>(Number(settings.graceIn)||0)&&min>b.t)note=`遲到 ${Math.floor(min-b.t)} 分鐘`;
-  if(b.k==='out'&&b.t-min>(Number(settings.graceOut)||0))note=`早退 ${Math.ceil(b.t-min)} 分鐘`;
+  // 晚班在 nightOut（預設 21:00）之後下班不算早退（與 index.html 的 outEnd 相同）
+  const end=b.k==='out'&&b.sh.id==='night'&&/^\d{1,2}:\d{2}$/.test(settings.nightOut||'')?Math.min(b.t,hm(settings.nightOut)):b.t;
+  if(b.k==='out'&&end-min>(Number(settings.graceOut)||0))note=`早退 ${Math.ceil(end-min)} 分鐘`;
   return {label:`${b.sh.name} ${b.k==='in'?'上班':'下班'}`,sh:b.sh.id,k:b.k,note};
 }
+// 依「打卡人選擇的」班別與上下班，算遲到／早退提示，並檢查當天有沒有排這一診
+function selNote(sid,sel,ts){
+  const d=new Date(ts),min=d.getHours()*60+d.getMinutes()+d.getSeconds()/60,sh=SHIFTS.find(x=>x.id===sel.sh);
+  const [a,b]=sh.time.split('-').map(hm);
+  const label=`${sh.name} ${sel.k==='in'?'上班':'下班'}`;
+  if(!scheduledShifts(sid,d).some(x=>x.id===sel.sh))return {label,note:`今天沒有排${sh.name}，確定要打這張卡嗎？`,warn:true};
+  let note='';
+  if(sel.k==='in'&&Math.floor(min-a)>(Number(settings.graceIn)||0))note=`遲到 ${Math.floor(min-a)} 分鐘`;
+  const end=sel.sh==='night'&&/^\d{1,2}:\d{2}$/.test(settings.nightOut||'')?Math.min(b,hm(settings.nightOut)):b;
+  if(sel.k==='out'&&Math.ceil(end-min-1e-9)>(Number(settings.graceOut)||0))note=`早退 ${Math.ceil(end-min-1e-9)} 分鐘`;
+  return {label,note};
+}
+const punchLabel=p=>p.sel?selNote(p.staffId,p.sel,p.ts):guessKind(p.staffId,p.ts);
 function renderRecent(){
   const list=todays.slice().sort((a,b)=>b.ts-a.ts).slice(0,40);
-  $('recent').innerHTML=list.length?list.map(p=>{const g=guessKind(p.staffId,p.ts);return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
+  $('recent').innerHTML=list.length?list.map(p=>{const g=punchLabel(p);if(g.warn)g.note='沒有排這一診';return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
 }
 
 // ---------- 相機與辨識模型 ----------
@@ -406,22 +443,54 @@ function bestMatch(emb,exclude){
   return Object.assign(best,{second});
 }
 
+// ---------- 選擇班別 ----------
+// sel=null：顯示選擇畫面；sel={sh,k}：掃臉中（SCAN_MS 內沒辨識到就回到選擇畫面）
+const SCAN_MS=30*1000;
+let sel=null, scanUntil=0;
+function suggestSel(now=new Date()){ // 依現在時間，建議最接近的「開診（上班）」或「結束（下班）」時間
+  const min=now.getHours()*60+now.getMinutes();
+  let best=null;
+  SHIFTS.forEach(sh=>{const [a,b]=sh.time.split('-').map(hm);[[a,'in'],[b,'out']].forEach(([t,k])=>{const d=Math.abs(t-min);if(!best||d<best.d)best={sh:sh.id,k,d};});});
+  return best;
+}
+function renderPick(){
+  const s=suggestSel();
+  $('pickGrid').innerHTML=SHIFTS.map(sh=>`<div class="sh">${sh.name}<small>${sh.time}</small></div>`+
+    ['in','out'].map(k=>`<button class="${k}${s&&s.sh===sh.id&&s.k===k?' sug':''}" data-sel="${sh.id}|${k}">${k==='in'?'上班卡':'下班卡'}</button>`).join('')).join('');
+}
+function startScan(v){
+  const [sh,k]=v.split('|');sel={sh,k};scanUntil=Date.now()+SCAN_MS;
+  streak={sid:null,n:0};badSince=0;
+  $('scanSel').textContent=`${SHIFTS.find(x=>x.id===sh).name}・${k==='in'?'上班卡':'下班卡'}`;
+  $('pick').hidden=true;$('scanBar').hidden=false;
+  setMsg(Object.keys(faces).length?'請站到鏡頭前，拿下口罩、正對鏡頭':'尚未登錄任何臉部，請管理者按右上角 ⚙ 登錄');
+}
+function endScan(){sel=null;$('scanBar').hidden=true;$('pick').hidden=false;renderPick();setMsg('請先選擇班別與上班／下班');}
+$('pickGrid').addEventListener('click',e=>{const b=e.target.closest('[data-sel]');if(b&&running)startScan(b.dataset.sel);});
+$('scanCancel').onclick=endScan;
+renderPick();setInterval(()=>{if(!sel)renderPick();},60*1000);
+
 // ---------- 打卡主迴圈 ----------
 let streak={sid:null,n:0}, lastPunch={}, badSince=0;
 function setMsg(t,cls=''){$('msg').textContent=t;$('guide').className='guide '+cls;}
 async function loop(){
   if(!running)return;
   try{
-    if(!paused&&!anyOverlay()&&$('cam').readyState>=2){
-      const res=await human.detect($('cam'));
-      if(!paused&&!anyOverlay())handleFrame(res.face?.[0]);
+    if(sel&&!paused&&!anyOverlay()){
+      const left=Math.ceil((scanUntil-Date.now())/1000);
+      $('scanCd').textContent=left>0?`${left} 秒`:'';
+      if(left<=0)endScan();
+      else if($('cam').readyState>=2){
+        const res=await human.detect($('cam'));
+        if(sel&&!paused&&!anyOverlay())handleFrame(res.face?.[0]);
+      }
     }
   }catch(e){console.error(e);}
   setTimeout(loop,150);
 }
 function handleFrame(f){
   const q=faceQuality(f,$('cam'));
-  if(q==='none'){streak={sid:null,n:0};badSince=0;setMsg(Object.keys(faces).length?'請站到鏡頭前打卡':'尚未登錄任何臉部，請管理者按右上角 ⚙ 登錄');return;}
+  if(q==='none'){streak={sid:null,n:0};badSince=0;setMsg(Object.keys(faces).length?'請站到鏡頭前，拿下口罩、正對鏡頭':'尚未登錄任何臉部，請管理者按右上角 ⚙ 登錄');return;}
   if(q==='far'){streak.n=0;setMsg('請再靠近一點','seen');return;}
   if(q==='turn'){streak.n=0;setMsg('請正對鏡頭','seen');return;}
   if(q==='weak'){streak.n=0;setMsg('辨識中…請拿下口罩','seen');return;}
@@ -449,27 +518,30 @@ function snapshot(box){
 let resTimer=null;
 function confirmPunch(sid,info){
   paused=true;
-  const ts=Date.now(),g=guessKind(sid,ts),photo=settings.photo?snapshot(info.box):null;
+  if(!sel)return;
+  const ts=Date.now(),chosen=Object.assign({},sel),g=selNote(sid,chosen,ts),photo=settings.photo?snapshot(info.box):null;
   $('resBox').classList.remove('done');
   $('resKind').textContent=g.label;$('resWho').textContent=nameOf(sid);$('resTime').textContent=hhmm(ts);
-  $('resNote').textContent=g.note||'';$('resNote').className='note'+(g.note?' late':'');
+  $('resNote').textContent=g.note||'';$('resNote').className='note'+(g.warn?' warn2':g.note?' late':'');
   $('resActs').hidden=false;$('resOv').hidden=false;
-  const bar=$('resBar');bar.style.transition='none';bar.style.width='0';requestAnimationFrame(()=>{bar.style.transition=`width ${CONFIRM_MS}ms linear`;bar.style.width='100%';});
+  const bar=$('resBar');bar.style.transition='none';bar.style.width='0';
+  // 沒有排這一診時不自動打卡，要本人按「確認打卡」
+  if(!g.warn)requestAnimationFrame(()=>{bar.style.transition=`width ${CONFIRM_MS}ms linear`;bar.style.width='100%';});
   const finish=ok=>{
     clearTimeout(resTimer);
-    if(!ok){$('resOv').hidden=true;setTimeout(()=>{paused=false;},1500);return;}
+    if(!ok){$('resOv').hidden=true;scanUntil=Date.now()+SCAN_MS;setTimeout(()=>{paused=false;},1500);return;} // 不是我：繼續掃臉
     const p={id:uid('p'),staffId:sid,ts,date:ymd(new Date(ts)),src:'kiosk',device:src.deviceId(),devName:device.name||'',
-      sim:Math.round(info.sim*1000)/1000,real:info.real!=null?Math.round(info.real*100)/100:null,live:info.live!=null?Math.round(info.live*100)/100:null,
-      guess:g.sh?{sh:g.sh,k:g.k}:null};
+      sel:chosen,sim:Math.round(info.sim*1000)/1000,real:info.real!=null?Math.round(info.real*100)/100:null,live:info.live!=null?Math.round(info.live*100)/100:null};
     if(photo)p.photo=photo;
     lastPunch[sid]=ts;
     src.addPunch(p).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
     $('resActs').hidden=true;$('resBox').classList.add('done');$('resKind').textContent='✓ 已打卡・'+g.label;
-    resTimer=setTimeout(()=>{$('resOv').hidden=true;paused=false;},1800);
+    if(g.warn){$('resNote').textContent='';}
+    resTimer=setTimeout(()=>{$('resOv').hidden=true;endScan();paused=false;},1800);
   };
   $('resNo').onclick=()=>finish(false);
   $('resOk').onclick=()=>finish(true);
-  resTimer=setTimeout(()=>finish(true),CONFIRM_MS);
+  if(!g.warn)resTimer=setTimeout(()=>finish(true),CONFIRM_MS);
 }
 
 // ---------- 啟動 ----------
@@ -478,7 +550,7 @@ async function beginKiosk(){
   showGate('loading','載入辨識模型中…');
   try{await openCamera();}catch(e){showGate('camera',e.name==='NotAllowedError'?'請允許這個 App 使用相機（設定 → 新海打卡 → 相機）。':(e.message||String(e)));return;}
   try{await loadModels();}catch(e){console.error(e);showGate('error','辨識模型載入失敗：'+(e.message||e));return;}
-  hideGate();running=true;paused=false;loop();
+  hideGate();running=true;paused=false;endScan();loop();
   if('wakeLock' in navigator){const lock=()=>navigator.wakeLock.request('screen').catch(()=>{});lock();document.addEventListener('visibilitychange',()=>{if(!document.hidden)lock();});}
 }
 
@@ -504,7 +576,7 @@ $('keypad').addEventListener('click',async e=>{
   if(pinBuf.length<8){pinBuf+=k;drawPin();}
 });
 $('gear').onclick=openPin;
-$('mClose').onclick=()=>{$('adminOv').hidden=true;paused=false;};
+$('mClose').onclick=()=>{$('adminOv').hidden=true;paused=false;endScan();};
 $('mReload').onclick=()=>location.reload();
 
 // ---------- 管理：登錄臉部 ----------
@@ -560,8 +632,8 @@ $('flist').addEventListener('click',async e=>{
   try{await src.delFace(sid);delete faces[sid];drawFaces();}catch(e){toast('刪除失敗：'+(e.code||e.message),'warn');}
 });
 
-// 測試用：在主控台呼叫 __kiosk.simulate(人員id) 模擬辨識成功（不經過相機）
-window.__kiosk={simulate:sid=>confirmPunch(sid,{sim:1,real:1,live:1,box:[0,0,1,1]}),state:()=>({staff,faces,settings,todays,weekCells})};
+// 測試用：在主控台呼叫 __kiosk.simulate(人員id, 班別, 'in'|'out') 模擬選好班別後辨識成功（不經過相機）
+window.__kiosk={simulate:(sid,sh='day',k='in')=>{if(!sel)startScan(sh+'|'+k);confirmPunch(sid,{sim:1,real:1,live:1,box:[0,0,1,1]});},state:()=>({staff,faces,settings,todays,weekCells,sel})};
 
 src=window.FIREBASE_CONFIG&&window.firebase?firebaseSource():localSource();
 src.init();
