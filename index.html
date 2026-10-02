@@ -170,6 +170,7 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .pay-bulk{width:max-content; min-width:100%;}
 .pay-bulk input{width:88px; min-width:88px; padding:4px 6px; text-align:right;}
 .pay-bulk input.hl{border:2px solid var(--warn);} /* 和個別編輯一樣，每月需要填的欄位加紅框 */
+.cur-month{font-weight:600; font-size:1rem; padding:0 6px; white-space:nowrap; align-self:center;}
 .pay-month-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 16px;}
 .pay-month-bar input{width:auto; font-size:1rem; padding:5px 10px;}
 .pay-bulk input.pb-note{width:360px; min-width:360px; text-align:left;}
@@ -451,8 +452,9 @@ body.gated .shell{display:none;}
       <span class="me" id="me" hidden><span id="meEmail"></span><button class="small" id="signOut">登出</button></span>
       <span class="sync" id="sync"><i></i><span>連線中…</span></span>
       <button id="prevMonth" aria-label="上個月">◀ 上個月</button>
-      <button id="thisMonth">本月</button>
+      <span id="curMonth" class="cur-month" aria-live="polite"></span>
       <button id="nextMonth" aria-label="下個月">下個月 ▶</button>
+      <button id="thisMonth">回到本月</button>
       <button id="undoBtn" data-w title="回復上一動作（Ctrl+Z）">↶ 回復上一動作</button>
       <button id="tplBtn" data-w>帶入醫師班表</button>
       <button id="autoBtn" class="primary" data-w>自動排班</button>
@@ -1124,7 +1126,8 @@ function renderAll(){
   document.querySelectorAll('[data-w]').forEach(el=>el.disabled=!canWrite);
   $('payTabBtn').hidden=!canSeePay();
   // 排班相關按鈕（含上個月／本月／下個月）只在「排班表」分頁顯示；其他分頁各自有月份或年份切換
-  ['prevMonth','thisMonth','nextMonth','undoBtn','tplBtn','autoBtn','clearMonthBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'?'':'none');
+  $('curMonth').textContent=monthInfo().label; // 上個月／下個月之間顯示目前班表的年月
+  ['prevMonth','curMonth','thisMonth','nextMonth','undoBtn','tplBtn','autoBtn','clearMonthBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'?'':'none');
   $('undoBtn').disabled=!canWrite||!schedHist.length||viewingLocked();
   if(prefs.tab==='pay'&&!canSeePay())prefs.tab='schedule';
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
@@ -1225,7 +1228,9 @@ function renderPool(counts,mi){
 // 定案前：在「原始班表」排班（編輯的是 weeks），「異動班表」尚未產生。
 // 按「定案」後：把當月 weeks 存成原始班表（baselines，鎖定只能看），之後在「異動班表」繼續修改 weeks。
 // 工時、薪資一律依 weeks 計算，也就是定案前的原始班表、定案後的異動班表。
-const schedViewOf=()=>prefs.schedView==='live'?'live':'orig';
+// 開啟時自動選擇：該月已定案（有異動班表）就顯示異動班表，否則顯示原始班表；手動切換後就照使用者的選擇
+let schedAuto=true;
+const schedViewOf=()=>schedAuto?(baselines[monthInfo().ym]?'live':'orig'):(prefs.schedView==='live'?'live':'orig');
 // 目前畫面是否為不能編輯的狀態：已定案的原始班表，或尚未產生的異動班表
 const viewingLocked=()=>{if(prefs.tab!=='schedule')return false;const b=baselines[monthInfo().ym];return schedViewOf()==='orig'?!!b:!b;};
 const fmtAt=t=>{const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;};
@@ -2713,7 +2718,7 @@ $('autoBtn').onclick=()=>{if(origBlocked())return;
 };
 // 清空本月：只清除本月日期的排班（跨月的週只動本月那幾天），可復原
 // 原始／異動班表切換、定案
-$('schedViewSeg').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;prefs.schedView=b.dataset.view;savePrefs();selectedId=null;renderAll();});
+$('schedViewSeg').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;schedAuto=false;prefs.schedView=b.dataset.view;savePrefs();selectedId=null;renderAll();});
 $('baselineBtn').onclick=()=>{
   if(!canWrite)return;
   const mi=monthInfo(),exists=baselines[mi.ym];
