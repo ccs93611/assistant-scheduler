@@ -120,7 +120,7 @@ main{padding-block:18px 48px;}
 }
 .chip.doctor{background:var(--doc-soft); border-color:color-mix(in srgb,var(--doc) 30%,transparent);}
 .chip.sel{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft);}
-.chip .nm{font-weight:500;}
+.chip .nm{font-weight:500; white-space:nowrap;} /* 名字不換行 */
 .chip .cnt .ex-n{display:inline-block; min-width:1.4em; padding:0 4px; border-radius:4px; background:var(--extra); border:1px solid var(--extra-bd); color:var(--extra-ink); text-align:center; font-weight:500;}
 .pool.extra-mode .chip.assistant{background:var(--extra); border-color:var(--extra-bd); color:var(--extra-ink);}
 .pool-h{display:flex; align-items:center; justify-content:space-between; gap:8px;}
@@ -129,11 +129,11 @@ main{padding-block:18px 48px;}
 .seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink);}
 .seg button[data-mode="extra"][aria-pressed="true"]{background:var(--extra-bd); color:#fff;}
 .chip .nm small{font-weight:400; color:var(--sub); margin-left:4px;}
-.chip .cnt{color:var(--sub); font-size:.74rem; white-space:nowrap;}
+.chip .cnt{color:var(--sub); font-size:.66rem; white-space:nowrap;}
 .chip .cnt .ot4{color:var(--sub);}
 .chip .cnt{text-align:right;}
 .chip .cnt.over{color:var(--warn); font-weight:500;}
-.chip .cnt .hrs{margin-left:2px;}
+.chip .cnt .hrs{margin-left:2px; font-size:.6rem;}
 .chip .cnt .hrs.over{color:var(--warn); font-weight:500;}
 .hint{font-size:.72rem; color:var(--faint); margin:12px 0 0; line-height:1.55;}
 .legend{display:flex; flex-direction:column; gap:4px; margin-top:12px; font-size:.72rem; color:var(--sub);}
