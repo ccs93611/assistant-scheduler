@@ -160,7 +160,7 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .grid thead th{background:var(--slot); font-weight:500; text-align:center; padding:4px 3px; font-size:.72rem; line-height:1.3;}
 .grid thead th.out{color:var(--faint);}
 .grid thead th.today{box-shadow:inset 0 -3px 0 var(--accent);}
-.hol-scroll{overflow:auto; overscroll-behavior:contain; border:1px solid var(--line); border-radius:8px;}
+.hol-scroll{overflow:auto; border:1px solid var(--line); border-radius:8px;} /* 不設 overscroll-behavior:contain，否則滑鼠在列表上時滾輪無法帶動整頁 */
 .hol-scroll thead th{position:sticky; top:0; background:var(--panel); z-index:1;}
 .subhead{font-size:.85rem; margin:0 0 6px; color:var(--sub); font-weight:500;}
 .dialog.wide{max-width:560px;}
