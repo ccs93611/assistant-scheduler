@@ -199,6 +199,8 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .excl-chip{font-size:.75rem; padding:3px 10px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--ink);}
 .excl-chip.nh.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent); text-decoration:none; font-weight:500;}
 .excl-chip.on{background:var(--warn-soft); border-color:var(--warn); color:var(--warn); text-decoration:line-through;}
+.excl-chip.dim,.excl-chip.dim.on{background:var(--slot); border-color:var(--line); color:var(--faint); text-decoration:none; opacity:.6;} /* 教育中的人在各職位列顯示淺灰 */
+.excl-chip.train.on{background:var(--extra); border-color:var(--extra-bd); color:var(--extra-ink); text-decoration:none; font-weight:500;} /* 教育中：藍色、不劃線 */
 .rules-doc{max-width:760px; line-height:1.7; font-size:.88rem;}
 .rules-doc h3{font-size:.9rem; margin:16px 0 6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
 .rules-doc h3:first-child{margin-top:0;}
@@ -231,6 +233,12 @@ td.closed{background:repeating-linear-gradient(135deg,var(--slot) 0 6px,transpar
 .q-items .gap{height:auto; min-height:14px;}
 .item.ph{visibility:hidden;}
 .pos-label{font-size:.5rem; line-height:1.2; color:var(--faint); text-align:center; white-space:nowrap; letter-spacing:.02em;}
+.item.learn{border:1px dashed var(--extra-bd) !important;} /* 教育中、排在教育者下方的學員 */
+.teach-group{display:flex; flex-direction:column; gap:2px; padding:2px; margin:-1px; border:1.5px solid var(--extra-bd); border-radius:6px; background:color-mix(in srgb,var(--extra) 25%,transparent);} /* 教育者與學員框在一起 */
+.export-sheet .teach-group{background:transparent;}
+.dstack.teach-group,.dstack .teach-group,.dstack:has(.teach-group){flex:0 0 auto; width:auto;}
+.teach-group .item{width:26px; flex:0 0 auto;}
+.q-items>.item,.q-items>.gap{align-self:flex-start;} /* 旁邊有教育框時，其他人不被拉高 */
 .item .dr-pre{font-size:.78em; font-weight:400; opacity:.55; margin-right:1px;} /* 醫師代號的 Dr. 縮小變淺 */
 .item{
   position:relative; background:var(--bg); border:1px solid var(--line); border-radius:4px; font-size:.7rem; font-weight:500;
@@ -725,7 +733,7 @@ body.gated .shell{display:none;}
         </div>
         <div class="card">
           <h2>不參與自動排班的助理</h2>
-          <p class="desc">點名字切換：標紅的助理在「自動排班」時不會被排進該崗位。手動拖曳排班不受影響。</p>
+          <p class="desc">點名字切換：標紅的助理在「自動排班」時不會被排進該崗位。標為「教育中」的助理不參與任何職位的自動排班（也不會被自動補滿合理工時）。手動拖曳排班不受影響。</p>
           <div class="scroll-x"><table class="matrix excl" id="exclMatrix"></table></div>
         </div>
         <div class="card">
@@ -842,6 +850,8 @@ function getCell(wk,ck){
 }
 const FOLLOW=2;
 function getLink(wk,ck){const v=weeks[wk]?.['L'+ck];return Array.isArray(v)?v.filter(x=>Array.isArray(x)&&x.length===2).map(x=>x.slice()):[];}
+// 教育：weeks[wk]['T'+ck] 是 [學員id, 教育者id] 配對（同一班、同一崗位）；學員顯示在教育者下方
+function getTeach(wk,ck){const v=weeks[wk]?.['T'+ck];return Array.isArray(v)?v.filter(x=>Array.isArray(x)&&x.length===2).map(x=>x.slice()):[];}
 // 加診：weeks[wk]['X'+ck] 是該班以「加診」身分排入的助理 id
 function getExtra(wk,ck){const v=weeks[wk]?.['X'+ck];return Array.isArray(v)?v.filter(x=>typeof x==='string'):[];}
 let poolMode='basic'; // 左方「基本／加診」切換，只影響之後新排入的助理
@@ -1255,7 +1265,8 @@ function renderWeeks(mi){
       SHIFTS.forEach((sh,si)=>{
         if(closedAt(dow,sh.id,x.key))return;
         const c=getCell(wk,dow+'_'+sh.id)[pi];
-        const pc=pi===FOLLOW?ppl(c).filter(id=>byId(id)?.role==='doctor'):ppl(c);
+        const tl=new Set(getTeach(wk,dow+'_'+sh.id).filter(z=>isTraining(z[0])&&ppl(c).includes(z[1])).map(z=>z[0])); // 學員排在教育者下方，不另占一欄
+        const pc=pi===FOLLOW?ppl(c).filter(id=>byId(id)?.role==='doctor'):ppl(c).filter(id=>!tl.has(id));
         pc.forEach(id=>{if(!first.has(id))first.set(id,si);});
         extra=Math.max(extra,gapN(c)+(x.out?0:Math.max(0,need(pi)-pc.length)));
       });
@@ -1279,18 +1290,21 @@ function renderWeeks(mi){
             return `<div class="item${cls}${byId(id)?.role==='assistant'?' asst':''}${ex?' extra':''}${lv?' onleave':''}${slash?' slashed':''}${selectedId===id?' hl':''}" draggable="${canWrite}" data-item="${id}" data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" title="${esc(fullName(byId(id)))}${note}${ex?'（加診）':''}${lv?'（當班已請假）':''}${slash?'（事後請假）':''}"><span>${codeHtml(id)}</span>${canWrite?`<button class="rm" data-rm aria-label="移除">×</button>`:''}</div>`;
           };
           let here,body;
+          // 教育配對（學員→教育者），只算兩人都在這一格的
+          const inPos=ppl(cell[pi]);const tch=new Map(getTeach(wk,ck).filter(z=>z[0]!==z[1]&&isTraining(z[0])&&inPos.includes(z[0])&&inPos.includes(z[1])).map(z=>[z[0],z[1]]));
+          const learnNote=a=>`（由 ${codeOf(tch.get(a))} 教育）`;
           if(pi===FOLLOW){
             const lk=getLink(wk,ck);const all=ppl(cell[pi]);
             here=new Set(all.filter(id=>byId(id)?.role==='doctor'));
             const assts=all.filter(id=>!here.has(id));
             const docOf=a=>{const l=lk.find(z=>z[0]===a);return l&&here.has(l[1])?l[1]:null;};
             body=L.order.map(d=>here.has(d)
-              ?(()=>{const mine=assts.filter(a=>docOf(a)===d);if(!mine.length)gaps++;return `<div class="dstack" data-doc="${d}">${itemH(d)}${mine.length?mine.map(a=>itemH(a,' sub',`（跟 ${codeOf(d)}）`)).join(''):`<div class="gap" title="${esc(codeOf(d))} 尚未排跟診助理"></div>`}</div>`;})()
+              ?(()=>{const m0=assts.filter(a=>docOf(a)===d);const base=m0.filter(a=>!tch.has(a)||!m0.includes(tch.get(a)));const mine=base.flatMap(a=>[a,...m0.filter(x=>tch.get(x)===a)]);if(!mine.length)gaps++;return `<div class="dstack" data-doc="${d}">${itemH(d)}${mine.length?base.map(a=>{const ls=m0.filter(x=>tch.get(x)===a);const me=itemH(a,' sub',`（跟 ${codeOf(d)}）`);return ls.length?`<div class="teach-group" title="${esc(codeOf(a))} 教育 ${esc(ls.map(codeOf).join('、'))}">${me}${ls.map(l=>itemH(l,' sub learn',learnNote(l))).join('')}</div>`:me;}).join(''):`<div class="gap" title="${esc(codeOf(d))} 尚未排跟診助理"></div>`}</div>`;})()
               :'<div class="dstack"><div class="item ph" aria-hidden="true"></div></div>').join('')
               +assts.filter(a=>!docOf(a)).map(a=>`<div class="dstack">${itemH(a,' orphan','（未對應醫師）')}</div>`).join('');
           }else{
             here=new Set(ppl(cell[pi]));
-            body=L.order.map(id=>here.has(id)?itemH(id):'<div class="item ph" aria-hidden="true"></div>').join('');
+            body=L.order.map(id=>{if(!here.has(id)||tch.has(id))return '<div class="item ph" aria-hidden="true"></div>';const ls=[...tch].filter(([,t])=>t===id).map(([l])=>l);return ls.length?`<div class="dstack teach-group" title="${esc(codeOf(id))} 教育 ${esc(ls.map(codeOf).join('、'))}">${itemH(id)}${ls.map(l=>itemH(l,' learn',learnNote(l))).join('')}</div>`:itemH(id);}).join(''); // 有學員時，教育者與學員上下疊在同一欄
           }
           const miss=x.out?0:Math.max(0,need(pi)-here.size);gaps+=miss+man;
           const items=body+`<div class="gap manual${selectedId===GAP?' hl':''}" draggable="${canWrite}" data-item="${GAP}" data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" title="待補缺口：拖入人員即可補上">${canWrite?'<button class="rm" data-rm aria-label="移除缺口">×</button>':''}</div>`.repeat(man)+'<div class="gap"></div>'.repeat(miss)+'<div class="item ph" aria-hidden="true"></div>'.repeat(Math.max(0,L.extra-miss-man));
@@ -1884,7 +1898,10 @@ function renderHolidays(){
   fitHolList(hols);
 }
 const EXCL_POS=[0,1,2,3]; // 主櫃、副櫃、跟診、流動
-function isExcluded(pi,id){return !!(cfg.autoExclude&&(cfg.autoExclude[pi]||[]).includes(id));}
+// 教育中的助理（cfg.training）：不參與任何職位的自動排班
+const isTraining=id=>(cfg.training||[]).includes(id);
+const exclOnly=(pi,id)=>!!(cfg.autoExclude&&(cfg.autoExclude[pi]||[]).includes(id)); // 只看各崗位的排除名單（畫面用）
+function isExcluded(pi,id){return isTraining(id)||exclOnly(pi,id);}
 function renderRulesDoc(){
   const nd=POS.map((p,pi)=>need(pi)?`${p.label} ${need(pi)} 人`:null).filter(Boolean);
   const zero=POS.filter((p,pi)=>!need(pi)).map(p=>p.label);
@@ -1900,7 +1917,7 @@ function renderRulesDoc(){
     <h3>二、一定要遵守的條件 <span class="pill warn">找不到符合的人就留成缺口</span></h3>
     <ol>
       <li>崗位職稱：主櫃、副櫃、流動、健保只排助理；跟診只排醫師，助理只能排在醫師下方。</li>
-      <li>排除名單：列在「不參與自動排班的助理」的人不排進該崗位${ex.length?`（目前：${esc(ex.join('；'))}）`:'（目前沒有）'}。</li>
+      <li>排除名單：列在「不參與自動排班的助理」的人不排進該崗位${ex.length?`（目前：${esc(ex.join('；'))}）`:'（目前沒有）'}。</li><li>教育中：標為「教育中」的助理不參與任何職位的自動排班${(cfg.training||[]).length?`（目前：${esc((cfg.training||[]).map(codeOf).join('、'))}）`:''}。</li>
       <li>健保只排：${(()=>{const nh=(cfg.nhOnly||[]).filter(id=>byId(id));return nh.length?`<b>${esc(nh.map(codeOf).join('、'))}</b>（可在上方「自動排班設定」調整）`:'目前不限制（可在上方「自動排班設定」指定）';})()}。</li>
       <li>請假：當班有醫師休假或助理請假（任何類別）的人不排。</li>
       <li>同一班只能擔任一個崗位。</li>
@@ -1926,11 +1943,15 @@ function renderRules(){
   renderRulesDoc();
   {const on=cfg.nhOnly||[];const as=activeStaff('assistant');
    $('nhOnlyRow').innerHTML=as.length?as.map(p=>`<button type="button" class="excl-chip nh${on.includes(p.id)?' on':''}" data-nh="${p.id}" aria-pressed="${on.includes(p.id)}" title="${esc(fullName(p))}"${dis}>${esc(p.code||p.name)}</button>`).join(''):'<span class="hint" style="margin:0">尚無助理</span>';}
-  $('exclMatrix').innerHTML='<tbody>'+EXCL_POS.map(pi=>{
+  // 第一列：教育中（不參與任何職位的自動排班）
+  const trainRow=(()=>{const tr=activeStaff('assistant'),tn=tr.filter(p=>isTraining(p.id)).length;
+   return `<tr><td style="white-space:nowrap;vertical-align:top;padding-top:10px">教育中<br><span style="color:var(--faint);font-size:.68rem">（不參與任何職位）</span>${tn?`<br><span class="pill" style="background:var(--extra);color:var(--extra-ink)">${tn} 人</span>`:''}</td>
+      <td style="text-align:left"><div class="excl-list">${tr.length?tr.map(p=>`<button type="button" class="excl-chip train${isTraining(p.id)?' on':''}" data-train="${p.id}" aria-pressed="${isTraining(p.id)}" title="${esc(fullName(p))}"${dis}>${esc(p.code||p.name)}</button>`).join(''):'<span class="hint" style="margin:0">尚無助理</span>'}</div></td></tr>`;})();
+  $('exclMatrix').innerHTML='<tbody>'+trainRow+EXCL_POS.map(pi=>{
     const people=pi===FOLLOW?[...activeStaff('assistant')]:activeStaff(POS[pi].role);
-    const n=people.filter(p=>isExcluded(pi,p.id)).length;
+    const n=people.filter(p=>exclOnly(pi,p.id)).length;
     return `<tr><td style="white-space:nowrap;vertical-align:top;padding-top:10px">不參與${POS[pi].label}${pi===FOLLOW?'<br><span style="color:var(--faint);font-size:.68rem">（跟診助理）</span>':''}${n?`<br><span class="pill warn">${n} 人</span>`:''}</td>
-      <td style="text-align:left"><div class="excl-list">${people.length?people.map(p=>`<button type="button" class="excl-chip${isExcluded(pi,p.id)?' on':''}" data-excl="${pi}" data-id="${p.id}" aria-pressed="${isExcluded(pi,p.id)}" title="${esc(fullName(p))}"${dis}>${esc(p.code||p.name)}</button>`).join(''):'<span class="hint" style="margin:0">尚無人員</span>'}</div></td></tr>`;
+      <td style="text-align:left"><div class="excl-list">${people.length?people.map(p=>`<button type="button" class="excl-chip${exclOnly(pi,p.id)?' on':''}${isTraining(p.id)?' dim':''}" data-excl="${pi}" data-id="${p.id}" aria-pressed="${exclOnly(pi,p.id)}" title="${esc(fullName(p))}${isTraining(p.id)?'（教育中，不參與任何職位）':''}"${isTraining(p.id)?' disabled':dis}>${esc(p.code||p.name)}</button>`).join(''):'<span class="hint" style="margin:0">尚無人員</span>'}</div></td></tr>`;
   }).join('')+'</tbody>';
   {const docs=activeStaff('doctor');const tpl=cfg.docTpl||{};
    $('tplMatrix').innerHTML=`<thead><tr><th></th>${DAYS.map(d=>`<th>週${d}</th>`).join('')}</tr></thead><tbody>`+
@@ -1986,10 +2007,13 @@ const origBlocked=()=>{
   if(!viewingLocked())return false;
   toast(schedViewOf()==='orig'?'已定案，原始班表只能查看；要修改請切換到「異動班表」。':'這個月還沒有定案，請先在「原始班表」排班。','warn');return true;
 };
-function assign(id,t,from){
+function assign(id,t,from,opt={}){
   if(!canWrite||origBlocked())return;
   const isGap=id===GAP;
   const p=isGap?{role:POS[t.pi].role}:byId(id);if(!p)return;
+  // 教育中的助理只能排在其他助理下方（拖到要負責教育的助理身上）
+  if(!isGap&&isTraining(id)&&!opt.teach){toast(`${codeOf(id)} 教育中，只能排在其他助理下方：請把他拖到要負責教育的助理身上。`,'warn');return;}
+  if(from&&!isGap&&(from.wk!==t.wk||from.ck!==t.ck||from.pi!==t.pi)){const ls=getTeach(from.wk,from.ck).filter(z=>z[1]===id&&isTraining(z[0])).map(z=>z[0]);if(ls.length){toast(`${codeOf(id)} 正在教育 ${ls.map(codeOf).join('、')}，請先移除或改由其他助理教育後再移動。`,'warn');return;}}
   const pos=POS[t.pi];
   // 原始班表（定案前）不能把人排進他已請假的診次；異動班表不受此限（只提醒）
   if(!isGap&&schedViewOf()==='orig'&&onLeave(id,t.date,t.sh)){
@@ -2019,6 +2043,7 @@ function assign(id,t,from){
     if(from.pi===FOLLOW)lk=detach(a,lk);
     a[from.pi]=removeOne(a[from.pi],id);put(from.wk,from.ck,a,lk);
     if(!isGap&&(from.wk!==t.wk||from.ck!==t.ck))putX(from.wk,from.ck,getX(from.wk,from.ck).filter(x=>x!==id));
+    if(!isGap){const tp=getTeach(from.wk,from.ck);if(tp.some(z=>z[0]===id||z[1]===id))(patches[from.wk]=patches[from.wk]||{})['T'+from.ck]=tp.filter(z=>z[0]!==id&&z[1]!==id);} // 移走的人解除教育配對
   }
   const tgt=get(t.wk,t.ck);let tl=getL(t.wk,t.ck);
   if(isGap){tgt[t.pi].push(GAP);put(t.wk,t.ck,tgt,tl);Object.entries(patches).forEach(([wk,patch])=>store.cells(wk,patch));return;}
@@ -2071,7 +2096,7 @@ function swapItems(a,b){
     const arr=getCell(wk,ck).map(p=>p.map(v=>sub(v,map)));
     const lk=getLink(wk,ck).map(z=>[sub(z[0],map),sub(z[1],map)]);
     const x=getExtra(wk,ck).filter(v=>!xOut.includes(v)).concat(xIn);
-    patches[wk]=Object.assign(patches[wk]||{},{[ck]:arr,['L'+ck]:lk,['X'+ck]:[...new Set(x)]});
+    patches[wk]=Object.assign(patches[wk]||{},{[ck]:arr,['L'+ck]:lk,['X'+ck]:[...new Set(x)],['T'+ck]:getTeach(wk,ck).map(z=>[sub(z[0],map),sub(z[1],map)])});
   };
   if(same)edit(a.wk,a.ck,{[a.id]:b.id,[b.id]:a.id},[],[]);
   else{
@@ -2084,12 +2109,15 @@ function swapItems(a,b){
 }
 function removeFrom(id,wk,ck,pi){
   if(!canWrite||origBlocked())return;
-  const a=getCell(wk,ck);let lk=getLink(wk,ck);
+  const a=getCell(wk,ck);let lk=getLink(wk,ck);const gone=[id];
   if(pi===FOLLOW&&id!==GAP){
-    if(byId(id)?.role==='doctor'){const ds=lk.filter(z=>z[1]===id).map(z=>z[0]);a[FOLLOW]=a[FOLLOW].filter(z=>!ds.includes(z));if(ds.length)toast(`已一併移除跟診助理 ${ds.map(codeOf).join('、')}。`);}
-    lk=lk.filter(z=>z[0]!==id&&z[1]!==id);
+    if(byId(id)?.role==='doctor'){const ds=lk.filter(z=>z[1]===id).map(z=>z[0]);a[FOLLOW]=a[FOLLOW].filter(z=>!ds.includes(z));gone.push(...ds);if(ds.length)toast(`已一併移除跟診助理 ${ds.map(codeOf).join('、')}。`);}
   }
-  a[pi]=removeOne(a[pi],id);store.cells(wk,{[ck]:a,['L'+ck]:lk,['X'+ck]:getExtra(wk,ck).filter(x=>x!==id)});
+  // 教育者被移除時，他的學員（教育中的助理只能排在其他助理下方）也一併移除
+  const tp=getTeach(wk,ck),learners=tp.filter(z=>gone.includes(z[1])&&isTraining(z[0])).map(z=>z[0]);
+  if(learners.length){a[pi]=a[pi].filter(z=>!learners.includes(z));gone.push(...learners);toast(`已一併移除由 ${codeOf(id)} 教育的 ${learners.map(codeOf).join('、')}。`);}
+  if(pi===FOLLOW&&id!==GAP)lk=lk.filter(z=>!gone.includes(z[0])&&!gone.includes(z[1]));
+  a[pi]=removeOne(a[pi],id);store.cells(wk,{[ck]:a,['L'+ck]:lk,['X'+ck]:getExtra(wk,ck).filter(x=>!gone.includes(x)),['T'+ck]:tp.filter(z=>!gone.includes(z[0])&&!gone.includes(z[1]))});
 }
 
 // 工時計算：每班 3.5 小時；同一天早午晚三班都上計 10 小時（另計加班 0.5，加班不計入四週工時）
@@ -2105,7 +2133,7 @@ function autoSchedule(fillOnly){
     if(!fillOnly){for(let dow=0;dow<7;dow++){const d=new Date(m);d.setDate(m.getDate()+dow);if(inMonth.has(ymd(d)))SHIFTS.forEach(sh=>{
       const ck=dow+'_'+sh.id;const c=w[ck];
       if(Array.isArray(c))w[ck]=c.map(a=>Array.isArray(a)?a.filter(id=>id===GAP||byId(id)?.role!=='assistant'):[]);
-      delete w['L'+ck];delete w['X'+ck];
+      delete w['L'+ck];delete w['X'+ck];delete w['T'+ck];
     });}}
     work[wk]=w;
   });
@@ -2238,6 +2266,7 @@ function autoSchedule(fillOnly){
   mi.dates.forEach(({wk,dow,key})=>{
     const open=SHIFTS.filter(sh=>!closedAt(dow,sh.id,key));if(!open.length)return;
     activeStaff('assistant').forEach(a=>{
+      if(isTraining(a.id))return; // 教育中不自動排
       if(leaves.some(l=>l.staffId===a.id&&l.date===key))return; // 當天有請假（任何類別）就不強制
       if(setOn(wk,dow,a.id).length)return;
       let best=null;
@@ -2271,7 +2300,7 @@ function autoSchedule(fillOnly){
   const sumOf=id=>monthSum(id);
   let topUp=0;const short=[];
   activeStaff('assistant').forEach(a=>{
-    if(!H[a.id])return;
+    if(!H[a.id]||isTraining(a.id))return; // 教育中不自動補工時
     for(let guard=0;guard<120;guard++){
       const defs=[limitOf(a.id)-sumOf(a.id)];
       if(Math.max(...defs)<1e-9)break;
@@ -2725,8 +2754,26 @@ document.addEventListener('dragend',()=>{drag=null;hideSwapTip?.();document.quer
 const swapTarget=e=>{
   const on=e.target.closest?.('[data-item]'),p=e.target.closest?.('[data-pos]');
   if(!drag?.from||!on||!p||drag.id===GAP||on.dataset.item===GAP||on.dataset.item===drag.id||byId(on.dataset.item)?.role!==byId(drag.id)?.role)return null;
+  if(isTraining(drag.id)||isTraining(on.dataset.item))return null; // 教育中的人不互換位置
   return {on,a:Object.assign({id:drag.id},drag.from),b:{id:on.dataset.item,wk:on.dataset.wk,ck:on.dataset.ck,pi:Number(on.dataset.pi),date:p.dataset.date,sh:p.dataset.sh}};
 };
+// 教育中的助理 A 拖到班表裡的助理 B 身上：A 排進 B 的同一格，顯示在 B 下方（由 B 教育）
+const teachTarget=e=>{
+  const on=e.target.closest?.('[data-item]'),p=e.target.closest?.('[data-pos]');
+  if(!drag||!on||!p||drag.id===GAP||!isTraining(drag.id)||on.dataset.item===GAP||on.dataset.item===drag.id)return null;
+  if(byId(on.dataset.item)?.role!=='assistant')return null;
+  return {on,a:drag.id,from:drag.from,b:{id:on.dataset.item,wk:on.dataset.wk,ck:on.dataset.ck,pi:Number(on.dataset.pi),date:p.dataset.date,sh:p.dataset.sh}};
+};
+const teachProblem=(a,b)=>isTraining(b.id)?`${codeOf(b.id)} 也在教育中，不能教育其他人。`:getTeach(b.wk,b.ck).some(z=>z[0]===b.id)?`${codeOf(b.id)} 本身是學員，不能教育其他人。`:'';
+function teachAssign(a,b,from=null){
+  const bad=teachProblem(a,b);if(bad){toast(bad,'warn');return;}
+  const lk=getLink(b.wk,b.ck),doc=b.pi===FOLLOW?(lk.find(z=>z[0]===b.id)||[])[1]:undefined;
+  assign(a,{wk:b.wk,ck:b.ck,pi:b.pi,date:b.date,sh:b.sh,doc},from,{teach:true});
+  if(!getCell(b.wk,b.ck)[b.pi].includes(a))return; // 沒排進去（例如有請假）
+  const tp=getTeach(b.wk,b.ck).filter(z=>z[0]!==a);tp.push([a,b.id]);
+  store.cells(b.wk,{['T'+b.ck]:tp});
+  toast(`已排入 ${codeOf(a)}，由 ${codeOf(b.id)} 教育。`);
+}
 const swapTip=document.createElement('div');swapTip.className='swap-tip';swapTip.hidden=true;document.body.appendChild(swapTip);
 const hideSwapTip=()=>{swapTip.hidden=true;document.querySelectorAll('.item.swap-on').forEach(x=>x.classList.remove('swap-on','swap-no'));};
 weeksEl.addEventListener('dragover',e=>{
@@ -2742,7 +2789,17 @@ weeksEl.addEventListener('dragover',e=>{
     swapTip.style.left=Math.min(e.clientX+14,innerWidth-swapTip.offsetWidth-8)+'px';swapTip.style.top=Math.max(8,e.clientY-38)+'px';
     p.classList.remove('over','bad');return;
   }
+  const tt=teachTarget(e);
+  if(tt){
+    const bad=teachProblem(tt.a,tt.b);
+    document.querySelectorAll('.item.swap-on').forEach(x=>{if(x!==tt.on)x.classList.remove('swap-on','swap-no');});
+    tt.on.classList.add('swap-on');tt.on.classList.toggle('swap-no',!!bad);
+    swapTip.textContent=bad||`放開即可排入 ${codeOf(tt.a)}，由 ${codeOf(tt.b.id)} 教育`;swapTip.classList.toggle('no',!!bad);swapTip.hidden=false;
+    swapTip.style.left=Math.min(e.clientX+14,innerWidth-swapTip.offsetWidth-8)+'px';swapTip.style.top=Math.max(8,e.clientY-38)+'px';
+    p.classList.remove('over','bad');return;
+  }
   hideSwapTip();
+  if(drag.id!==GAP&&isTraining(drag.id)){p.classList.add('bad');return;} // 教育中只能放在助理身上
   const r=byId(drag.id)?.role;const pi=Number(p.dataset.pi);
   const ok=drag.id===GAP||r===POS[pi].role||(pi===FOLLOW&&r==='assistant'&&!!p.querySelector('.dstack[data-doc]'));
   p.classList.add(ok?'over':'bad');
@@ -2753,8 +2810,9 @@ weeksEl.addEventListener('drop',e=>{
   p.classList.remove('over','bad');
   const t={wk:p.dataset.wk,ck:p.dataset.ck,pi:Number(p.dataset.pi),date:p.dataset.date,sh:p.dataset.sh,doc:e.target.closest('[data-doc]')?.dataset.doc};
   const f=drag.from;
-  const sw=swapTarget(e);hideSwapTip();
+  const sw=swapTarget(e),tt=teachTarget(e);hideSwapTip();
   if(sw){swapItems(sw.a,sw.b);drag=null;return;}
+  if(tt){teachAssign(tt.a,tt.b,tt.from);drag=null;return;}
   if(f&&f.wk===t.wk&&f.ck===t.ck&&f.pi===t.pi&&!(t.pi===FOLLOW&&t.doc&&t.doc!==drag.id)){drag=null;return;}
   assign(drag.id,t,f);drag=null;
 });
@@ -2774,6 +2832,7 @@ weeksEl.addEventListener('click',e=>{
   const it=e.target.closest('[data-item]');
   if(it&&!selectedId){selectedId=it.dataset.item;renderAll();return;}
   const p=e.target.closest('[data-pos]');
+  if(it&&selectedId&&isTraining(selectedId)&&byId(it.dataset.item)?.role==='assistant'&&it.dataset.item!==selectedId){const tp=it.closest('[data-pos]');teachAssign(selectedId,{id:it.dataset.item,wk:it.dataset.wk,ck:it.dataset.ck,pi:Number(it.dataset.pi),date:tp.dataset.date,sh:tp.dataset.sh});return;} // 點選教育中的助理後再點另一位助理
   if(p&&selectedId){assign(selectedId,{wk:p.dataset.wk,ck:p.dataset.ck,pi:Number(p.dataset.pi),date:p.dataset.date,sh:p.dataset.sh,doc:e.target.closest('[data-doc]')?.dataset.doc},null);return;}
 });
 document.querySelector('.pool').addEventListener('click',e=>{
@@ -3235,7 +3294,7 @@ document.querySelectorAll('.staff-table').forEach(tb=>tb.addEventListener('click
       histSkip=true;schedHist=[];
       Object.keys(weeks).forEach(wk=>{
         const w=weeks[wk];let changed=false;const nw={};
-        Object.keys(w).forEach(ck=>{if(ck[0]==='X'){const v=getExtra(wk,ck.slice(1));const nv=v.filter(i=>i!==s.id);if(nv.length!==v.length)changed=true;nw[ck]=nv;return;}if(ck[0]==='L'){const v=getLink(wk,ck.slice(1));const nv=v.filter(z=>z[0]!==s.id&&z[1]!==s.id);if(nv.length!==v.length)changed=true;nw[ck]=nv;return;}const a=getCell(wk,ck);nw[ck]=a.map(x=>{const y=x.filter(i=>i!==s.id);if(y.length!==x.length)changed=true;return y;});});
+        Object.keys(w).forEach(ck=>{if(ck[0]==='T'){const v=getTeach(wk,ck.slice(1));const nv=v.filter(z=>z[0]!==s.id&&z[1]!==s.id);if(nv.length!==v.length)changed=true;nw[ck]=nv;return;}if(ck[0]==='X'){const v=getExtra(wk,ck.slice(1));const nv=v.filter(i=>i!==s.id);if(nv.length!==v.length)changed=true;nw[ck]=nv;return;}if(ck[0]==='L'){const v=getLink(wk,ck.slice(1));const nv=v.filter(z=>z[0]!==s.id&&z[1]!==s.id);if(nv.length!==v.length)changed=true;nw[ck]=nv;return;}const a=getCell(wk,ck);nw[ck]=a.map(x=>{const y=x.filter(i=>i!==s.id);if(y.length!==x.length)changed=true;return y;});});
         if(changed)store.week(wk,nw);
       });
       histSkip=false;
@@ -3313,7 +3372,7 @@ function fitHolList(hols){
   }
 }
 function busyDays(dates){return dates.filter(k=>{const d=parseYmd(k);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;return SHIFTS.some(sh=>getCell(wk,dow+'_'+sh.id).some(a=>a.length));});}
-function clearDays(days){const byWk={};days.forEach(k=>{const d=parseYmd(k);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;byWk[wk]=byWk[wk]||{};SHIFTS.forEach(sh=>{byWk[wk][dow+'_'+sh.id]=[[],[],[],[],[]];byWk[wk]['L'+dow+'_'+sh.id]=[];byWk[wk]['X'+dow+'_'+sh.id]=[];});});Object.entries(byWk).forEach(([wk,patch])=>store.cells(wk,patch));}
+function clearDays(days){const byWk={};days.forEach(k=>{const d=parseYmd(k);const wk=ymd(mondayOf(d));const dow=(d.getDay()+6)%7;byWk[wk]=byWk[wk]||{};SHIFTS.forEach(sh=>{byWk[wk][dow+'_'+sh.id]=[[],[],[],[],[]];byWk[wk]['L'+dow+'_'+sh.id]=[];byWk[wk]['X'+dow+'_'+sh.id]=[];byWk[wk]['T'+dow+'_'+sh.id]=[];});});Object.entries(byWk).forEach(([wk,patch])=>store.cells(wk,patch));}
 $('holForm').addEventListener('submit',e=>{
   e.preventDefault();if(!canWrite)return;
   const from=$('holFrom').value||$('holTo').value;const to=$('holTo').value||from;const name=$('holName').value.trim();
@@ -3351,6 +3410,7 @@ $('nhOnlyRow').addEventListener('click',e=>{
   store.cfg(n);
 });
 $('exclMatrix').addEventListener('click',e=>{
+  const tb=e.target.closest('[data-train]');if(tb&&canWrite){const id=tb.dataset.train,n=clone(cfg),cur=n.training||[];n.training=cur.includes(id)?cur.filter(x=>x!==id):[...cur,id];store.cfg(n);toast(n.training.includes(id)?`${codeOf(id)} 教育中：不參與任何職位的自動排班。`:`${codeOf(id)} 已結束教育中。`);return;}
   const b=e.target.closest('[data-excl]');if(!b||!canWrite)return;
   const n=clone(cfg);n.autoExclude=n.autoExclude||{};const pi=b.dataset.excl,id=b.dataset.id;
   const cur=n.autoExclude[pi]||[];n.autoExclude[pi]=cur.includes(id)?cur.filter(x=>x!==id):[...cur,id];
