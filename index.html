@@ -535,7 +535,7 @@ body.gated .shell{display:none;}
                 <label><input type="checkbox" data-sh="night" checked>晚</label>
               </div>
             </div>
-            <div class="field"><label for="lvType-assistant">請假類別</label><select id="lvType-assistant" data-n="type"><option>排休</option><option>特休</option><option>病假</option><option>事假</option><option>公假</option><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>陪產假</option><option>育嬰假</option><option>生理假</option><option>補休</option><option>颱風假</option><option>原住民族歲時祭儀</option><option>不可上班</option><option>其他</option></select></div>
+            <div class="field"><label for="lvType-assistant">請假類別</label><select id="lvType-assistant" data-n="type"><option>排休</option><option>特休</option><option>生理假</option><option>病假</option><option>事假</option><option>公假</option><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>陪產假</option><option>育嬰假</option><option>補休</option><option>颱風假</option><option>原住民族歲時祭儀</option><option>不可上班</option><option>其他</option></select></div>
             <div class="field" style="flex:1;min-width:140px"><label for="lvNote-assistant">備註</label><input id="lvNote-assistant" data-n="note" placeholder="例如：家中有事…"></div>
             <button class="primary" type="submit" data-w>登記</button>
             <button type="button" id="monthLeaveBtn">整月排假</button>
@@ -1639,7 +1639,7 @@ const festivalsIn=ym=>Object.entries(FESTIVALS[ym.slice(0,4)]||{}).filter(([,d])
 // 個資的生日改變時，把月份同步到人員資料（只寫月份）
 function syncBirthMonth(sid,birthday){const s=byId(sid);if(!s||!canWrite)return;const bm=birthday?Number(birthday.slice(5,7)):0;if((Number(s.birthMonth)||0)===bm)return;const n=clone(s);if(bm)n.birthMonth=bm;else delete n.birthMonth;store.staff(n);}
 const birthMonthOf=sid=>{const b=privateInfo[sid]?.birthday;return b?Number(b.slice(5,7)):Number(byId(sid)?.birthMonth)||0;};
-const PAY_TYPES=['排休','特休','病假','事假','公假','婚假','喪假','產檢假','產假','流產產假','陪產假','育嬰假','生理假','補休','颱風假','原住民族歲時祭儀','不可上班','其他'];
+const PAY_TYPES=['排休','特休','生理假','病假','事假','公假','婚假','喪假','產檢假','產假','流產產假','陪產假','育嬰假','補休','颱風假','原住民族歲時祭儀','不可上班','其他'];
 const DEFAULT_DEDUCT={事假:1,病假:0.5,生理假:0.5,不可上班:1,其他:1};
 // 薪資計算規則可依月份不同：cfg.payByMonth[YYYY-MM] 從該月起生效，之後沒有另外設定的月份沿用；更早的月份用 cfg.pay（舊版共用設定）
 const payRuleMonth=ym=>Object.keys(cfg.payByMonth||{}).filter(k=>k<=ym).sort().pop()||null;
