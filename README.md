@@ -150,6 +150,50 @@ HTML（7 個 <section id="tab-*">）
 
 實發 = 應發 − 扣除 + 加減項。每分鐘金額、每則金額與三項津貼的預設值等薪資計算規則可依月份不同：在「薪資」分頁最上方選擇年月後修改，存到 `config/main.payByMonth[YYYY-MM]`，從該月起生效，之後沒有另外修改的月份沿用（更早的月份用舊版共用的 `config/main.pay`）。薪資表與薪資計算規則都依最上方選擇的年月。頁面上方的「上個月／本月／下個月」只在排班表分頁顯示。
 
+## 出勤打卡（臉部辨識）
+
+| 部分 | 檔案 | 說明 |
+|---|---|---|
+| 打卡頁 | `kiosk.html` | 放在診所平板上的打卡機。用 [Human](https://github.com/vladmandic/human) 在裝置上做臉部偵測、特徵比對與活體／防翻拍檢查（相片、螢幕翻拍會被擋），只把打卡時間寫到 Firestore |
+| 出勤分頁 | `index.html` 的「出勤」 | 排班管理以上可見。比對打卡與班表、補登／作廢打卡、把遲到分鐘帶入薪資、出勤規則、核准打卡裝置、設定裝置管理密碼 |
+| App | `kiosk-app/` | Expo（React Native）外殼，用 WebView 開啟正式網址的 `kiosk.html`；處理相機權限、全螢幕、螢幕常亮、斷線自動重試 |
+
+**流程**：平板開 App → 第一次開啟會匿名登入並顯示「裝置代碼」→ 管理者在「出勤 → 打卡裝置」核准 → 設定裝置管理密碼 → 在平板右上角 ⚙ 輸入密碼 →「登錄臉部」逐一為人員登錄（本人勾選同意，擷取 5 個角度）→ 之後站到鏡頭前就會自動辨識、顯示「早診 上班／下班」與遲到提示，2.5 秒內可按「不是我」取消。
+
+**打卡規則**：每一診都要打上班卡與下班卡。同一天的打卡依時間順序對應到當天每一診的開始與結束時間（動態規劃：先求對上最多、再求時間差總和最小；差 180 分鐘以上不對應），所以早班連午班也要在中午打下班、再打上班。
+- 遲到：上班卡晚於開診超過「遲到寬限」→ 從開診時間起算的分鐘數；早退：下班卡早於結束超過「早退寬限」。
+- 應出勤＝到今天為止、已結束、沒有請假的診次（依 `weeks`，也就是定案後的異動班表）。出勤率＝上下班卡都有的診數 ÷ 應出勤。
+- 「把遲到分鐘帶入薪資」：寫入 `pay/{staffId}_{YYYY-MM}.lateMin`（可設定是否併入早退分鐘），帶入前會列出變更讓管理者確認。
+
+**Firestore**（規則見 `firestore.rules`）：
+
+| 路徑 | 內容 |
+|---|---|
+| `devices/{匿名uid}` | `{name, approved, at, ua}`；裝置自己建立（approved 必須是 false），排班管理以上核准 |
+| `punches/{id}` | `{staffId, ts, date, src:'kiosk'\|'manual', device, devName, sim, real, live, photo?, guess, by?, note?, void?}`。裝置只能新增；補登、作廢（`void`，保留紀錄）由管理者處理 |
+| `faces/{staffId}` | `{emb: JSON 字串（5 組特徵值）, n, at, consentAt, device}`，不存照片 |
+| `kiosk/settings` | `{graceIn, graceOut, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
+
+**第一次上線要做的事**
+1. Firebase 主控台 → Authentication → 登入方式 → 啟用「匿名」。
+2. 把新版 `firestore.rules` 貼到 Firebase 主控台發布。
+3. 推上 `main`（Vercel 會部署 `kiosk.html`）。
+
+**個資**：臉部特徵值屬於生物特徵個資，登錄時需本人勾選同意；離職時到「出勤 → 人員明細 → 刪除臉部資料」刪除。打卡小照片（112×112）可在出勤規則關閉。
+
+**建置 App**（需要 Node.js LTS 與免費的 [Expo](https://expo.dev) 帳號；iOS 另需 Apple Developer Program）：
+```
+cd kiosk-app
+npm install
+npx expo install --fix
+npx eas-cli login
+npx eas-cli build -p android --profile preview   # 產出 APK，直接安裝到 Android 平板
+npx eas-cli build -p ios --profile preview       # 需 Apple Developer 帳號，先用 eas device:create 登記 iPad
+```
+平板建議開「螢幕固定」（Android）／「引導使用模式」（iPad），避免被切到其他 App。
+
+**本機測試**：`index.html?local=名稱` 與 `kiosk.html?local=名稱` 共用 localStorage（打卡資料存在 `clinic_kiosk_local_v1_名稱`）；沒有相機時可在主控台用 `__kiosk.simulate('人員id')` 模擬辨識成功。
+
 ## 本機使用
 
 直接用瀏覽器打開 `index.html` 就可以使用。如果要開 GitHub Pages：repo 的 Settings → Pages → Branch 選 `main`，路徑選 `/ (root)`。

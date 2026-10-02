@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#16201B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>新海打卡</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// 與 index.html 相同的 Firebase 專案。打卡裝置用「匿名登入」取得裝置 uid，
+// 由管理者在排班系統「出勤 → 打卡裝置」核准後才能讀寫（見 firestore.rules 的 isKiosk）。
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDVLHhcdtHGhcP3MpZZooCsx12faOZGkr4",
+  authDomain: "assistant-schedular.firebaseapp.com",
+  projectId: "assistant-schedular",
+  storageBucket: "assistant-schedular.firebasestorage.app",
+  messagingSenderId: "325806157772",
+  appId: "1:325806157772:web:9c8912c3659c31b2823769"
+};
+// 開發用：本機網址加上 ?local=名稱 時改用 localStorage（和 index.html?local=名稱 共用同一份資料），不碰雲端
+if (location.hostname === 'localhost' && /[?&]local=[\w-]+/.test(location.search)) window.FIREBASE_CONFIG = null;
+</script>
+<style>
+:root{
+  --bg:#16201B; --panel:#1F2B25; --panel2:#26352D; --ink:#F1F4F1; --sub:#A9B8AF; --faint:#7D8C83;
+  --line:#33443A; --accent:#8DB5A2; --accent-ink:#10160F; --ok:#86C29D; --warn:#E6866D; --gold:#E2C178;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;overflow:hidden;
+  -webkit-user-select:none;user-select:none}
+button,input,select{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 18px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+button.danger{color:var(--warn)}
+button:disabled{opacity:.4}
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100%;padding:max(14px,env(safe-area-inset-top)) 16px max(14px,env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;gap:14px}
+.clock{font-size:clamp(2.2rem,7vw,3.6rem);font-weight:700;letter-spacing:.02em;font-variant-numeric:tabular-nums;line-height:1}
+.date{color:var(--sub);font-size:clamp(.9rem,2.4vw,1.15rem)}
+.spacer{flex:1}
+.dev{color:var(--faint);font-size:.8rem;text-align:right}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--ok)} .dot.off{background:var(--warn)}
+.gear{width:44px;height:44px;padding:0;border-radius:50%;font-size:1.2rem;background:transparent}
+main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;min-height:0;margin-top:12px}
+@media (max-width:760px),(orientation:portrait){main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}}
+.stage{position:relative;border-radius:20px;overflow:hidden;background:#0B100D;min-height:0}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+.guide{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+.guide i{width:min(46%,46vh);aspect-ratio:3/4;border:3px dashed rgba(241,244,241,.45);border-radius:50%;transition:border-color .2s}
+.guide.seen i{border-color:var(--accent);border-style:solid}
+.guide.bad i{border-color:var(--warn)}
+.msg{position:absolute;left:0;right:0;bottom:0;padding:18px;text-align:center;font-size:clamp(1.05rem,3vw,1.45rem);font-weight:500;
+  background:linear-gradient(transparent,rgba(0,0,0,.65))}
+.side{display:flex;flex-direction:column;gap:10px;min-height:0}
+.side h3{margin:0;font-size:.9rem;color:var(--sub);font-weight:500}
+.recent{list-style:none;margin:0;padding:0;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.recent li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--panel);border-radius:10px;padding:8px 12px}
+.recent .t{font-variant-numeric:tabular-nums;font-weight:700}
+.recent .k{color:var(--sub);font-size:.8rem}
+.recent .late{color:var(--warn)}
+@media (max-width:760px),(orientation:portrait){.recent{max-height:24vh}}
+footer{color:var(--faint);font-size:.75rem;text-align:center;padding-top:8px}
+/* 疊層 */
+.ov{position:fixed;inset:0;background:rgba(8,12,10,.82);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+.ov[hidden]{display:none}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:24px;width:min(520px,100%);max-height:100%;overflow:auto}
+.box h2{margin:0 0 6px;font-size:1.3rem}
+.box p{color:var(--sub);margin:6px 0 14px;line-height:1.6}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.row>button{flex:1}
+.result{text-align:center;width:min(560px,100%)}
+.result .who{font-size:clamp(2rem,6vw,3rem);font-weight:700;margin:4px 0}
+.result .kind{font-size:clamp(1.2rem,3.6vw,1.6rem);color:var(--accent);font-weight:700}
+.result .time{font-size:clamp(2.6rem,9vw,4.2rem);font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;margin:6px 0}
+.result .note{color:var(--sub);min-height:1.5em}
+.result .note.late{color:var(--warn);font-weight:700}
+.result.done{border-color:var(--ok)}
+.bar{height:6px;border-radius:3px;background:var(--panel2);overflow:hidden;margin:16px 0 4px}
+.bar i{display:block;height:100%;width:0;background:var(--accent)}
+.pin-dots{display:flex;gap:12px;justify-content:center;margin:12px 0 18px}
+.pin-dots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--sub)}
+.pin-dots i.f{background:var(--ink);border-color:var(--ink)}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.keypad button{font-size:1.5rem;padding:16px 0}
+.menu{display:flex;flex-direction:column;gap:10px}
+.menu button{text-align:left;padding:16px 18px}
+.menu small{display:block;color:var(--sub);font-size:.8rem;margin-top:2px}
+select,input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
+label.chk{display:flex;gap:10px;align-items:flex-start;margin-top:12px;line-height:1.55;color:var(--sub);font-size:.9rem}
+label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
+.prog{display:flex;gap:8px;justify-content:center;margin:16px 0 4px}
+.prog i{width:14px;height:14px;border-radius:50%;background:var(--panel2);border:1px solid var(--line)}
+.prog i.f{background:var(--ok);border-color:var(--ok)}
+.flist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto}
+.flist li{display:flex;align-items:center;gap:10px;background:var(--panel2);border-radius:10px;padding:8px 12px}
+.flist li span{flex:1}
+.flist li small{color:var(--faint)}
+.code{font-size:2.2rem;font-weight:700;letter-spacing:.2em;text-align:center;margin:10px 0;color:var(--gold)}
+.mini-stage{position:relative;border-radius:14px;overflow:hidden;background:#0B100D;aspect-ratio:4/3;margin-top:12px}
+.mini-stage video{position:absolute;inset:0}
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);
+  padding:10px 18px;border-radius:12px;z-index:30;max-width:90vw;text-align:center}
+.toast.warn{border-color:var(--warn);color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="dev"><div><span class="dot" id="net"></span><span id="devName">新海美學牙醫診所</span></div><div id="devSub"></div></div>
+    <button class="gear" id="gear" aria-label="管理">⚙</button>
+  </header>
+  <main>
+    <div class="stage" id="stage">
+      <video id="cam" playsinline muted autoplay></video>
+      <div class="guide" id="guide"><i></i></div>
+      <div class="msg" id="msg">準備中…</div>
+    </div>
+    <aside class="side">
+      <h3>今日打卡</h3>
+      <ul class="recent" id="recent"></ul>
+    </aside>
+  </main>
+  <footer>打卡時請拿下口罩、正對鏡頭。系統只保存臉部特徵值，不保存照片以外的影像。</footer>
+</div>
+
+<!-- 狀態／配對 -->
+<div class="ov" id="gate" hidden><div class="box" id="gateBox"></div></div>
+<!-- 打卡確認 -->
+<div class="ov" id="resOv" hidden>
+  <div class="box result" id="resBox">
+    <div class="kind" id="resKind"></div>
+    <div class="who" id="resWho"></div>
+    <div class="time" id="resTime"></div>
+    <div class="note" id="resNote"></div>
+    <div class="bar"><i id="resBar"></i></div>
+    <div class="row" id="resActs"><button id="resNo">不是我</button><button class="primary" id="resOk">確認打卡</button></div>
+  </div>
+</div>
+<!-- 管理密碼 -->
+<div class="ov" id="pinOv" hidden>
+  <div class="box" style="width:min(360px,100%)">
+    <h2>管理者密碼</h2>
+    <p id="pinHint">輸入在排班系統設定的打卡裝置管理密碼。</p>
+    <div class="pin-dots" id="pinDots"></div>
+    <div class="keypad" id="keypad"></div>
+  </div>
+</div>
+<!-- 管理選單 -->
+<div class="ov" id="adminOv" hidden>
+  <div class="box">
+    <h2>裝置管理</h2>
+    <p>離開這個畫面後回到打卡模式。</p>
+    <div class="menu">
+      <button id="mEnroll">登錄臉部<small>為人員登錄或重新登錄臉部特徵</small></button>
+      <button id="mFaces">已登錄名單<small>查看、刪除已登錄的臉部特徵</small></button>
+      <button id="mReload">重新整理<small>重新載入頁面與辨識模型</small></button>
+      <button class="primary" id="mClose">回到打卡</button>
+    </div>
+  </div>
+</div>
+<!-- 臉部登錄 -->
+<div class="ov" id="enrollOv" hidden>
+  <div class="box">
+    <h2>登錄臉部</h2>
+    <div id="enrollForm">
+      <p>請本人站在鏡頭前、拿下口罩。登錄時會擷取 5 個角度的臉部特徵值（一串數字），不保存照片。</p>
+      <select id="enSid"></select>
+      <label class="chk"><input type="checkbox" id="enConsent"><span>本人已閱讀並同意：診所蒐集本人臉部特徵值，僅用於出勤打卡辨識；離職或本人要求時刪除。（依個人資料保護法，需本人同意）</span></label>
+      <div class="row"><button id="enCancel">取消</button><button class="primary" id="enStart">開始登錄</button></div>
+    </div>
+    <div id="enrollRun" hidden>
+      <p id="enMsg">請正視鏡頭…</p>
+      <div class="mini-stage"><video id="enCam" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video></div>
+      <div class="prog" id="enProg"></div>
+      <div class="row"><button id="enStop">取消</button></div>
+    </div>
+  </div>
+</div>
+<!-- 確認對話框（App 內的 WebView 不一定支援 confirm()） -->
+<div class="ov" id="askOv" hidden style="z-index:20"><div class="box"><p id="askMsg" style="color:var(--ink)"></p><div class="row"><button id="askNo">取消</button><button class="primary" id="askYes">確定</button></div></div></div>
+<!-- 已登錄名單 -->
+<div class="ov" id="facesOv" hidden>
+  <div class="box">
+    <h2>已登錄名單</h2>
+    <ul class="flist" id="flist"></ul>
+    <div class="row"><button class="primary" id="fClose">完成</button></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/dist/human.js"></script>
+<script>
+(function(){
+// ---------- 常數（與 index.html 的 SHIFTS 一致） ----------
+const SHIFTS=[
+  {id:'day',name:'早診',time:'08:30-12:00'},
+  {id:'eve',name:'午診',time:'13:50-17:20'},
+  {id:'night',name:'晚診',time:'18:00-21:30'},
+];
+const DAYS=['日','一','二','三','四','五','六'];
+const MODEL_BASE='https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/models/';
+const SAMPLES=5;            // 登錄時擷取的特徵數
+const STABLE_FRAMES=3;      // 連續幾幀辨識成同一人才確認
+const CONFIRM_MS=2500;      // 確認畫面自動打卡倒數
+const COOLDOWN_MS=60*1000;  // 同一人兩次打卡的最短間隔
+const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5};
+
+// ---------- 小工具 ----------
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const hm=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
+const hhmm=ts=>{const d=new Date(ts);return `${pad(d.getHours())}:${pad(d.getMinutes())}`;};
+const mondayOf=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x;};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+const pinHashOf=pin=>sha('xinhai-kiosk:'+pin);
+function ask(m){return new Promise(r=>{$('askMsg').textContent=m;$('askOv').hidden=false;const done=v=>{$('askOv').hidden=true;r(v);};$('askYes').onclick=()=>done(true);$('askNo').onclick=()=>done(false);});}
+let toastT=null;
+function toast(m,kind=''){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');document.body.appendChild(t);}t.className='toast '+kind;t.textContent=m;clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),3500);}
+const nameOf=sid=>{const s=staff.find(x=>x.id===sid);return s?[s.code,s.name].filter(Boolean).join(' '):'（未知人員）';};
+
+// ---------- 狀態 ----------
+let staff=[], faces={}, settings=Object.assign({},DEFAULTS), weekCells={}, todays=[], device={name:'',approved:false};
+let src=null; // 資料來源：firebase 或 local
+let human=null, running=false, paused=true;
+
+// ---------- 資料來源：Firebase ----------
+function firebaseSource(){
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  const db=firebase.firestore();
+  // 離線時打卡先存在裝置上，連線後自動上傳
+  db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('persistence',e.code));
+  const auth=firebase.auth();
+  let me=null, subs=[], weekSub=null, daySub=null, curWk='', curDay='';
+  const decCells=data=>{const o={};Object.entries(data?.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;};
+  function stopAll(){subs.forEach(u=>u());subs=[];if(weekSub)weekSub();if(daySub)daySub();weekSub=daySub=null;curWk=curDay='';}
+  function watchDay(){
+    const now=new Date(),wk=ymd(mondayOf(now)),day=ymd(now);
+    if(wk!==curWk){if(weekSub)weekSub();curWk=wk;weekSub=db.doc('weeks/'+wk).onSnapshot(s=>{weekCells=s.exists?decCells(s.data()):{};renderRecent();},e=>console.warn(e));}
+    if(day!==curDay){if(daySub)daySub();curDay=day;todays=[];daySub=db.collection('punches').where('date','==',day).onSnapshot(s=>{todays=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(p=>!p.void);renderRecent();},e=>console.warn(e));}
+  }
+  function startData(){
+    subs.push(db.collection('staff').onSnapshot(s=>{staff=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderRecent();},onErr));
+    subs.push(db.collection('faces').onSnapshot(s=>{const m={};s.docs.forEach(d=>{const v=d.data();try{m[d.id]=Object.assign({},v,{vecs:JSON.parse(v.emb||'[]')});}catch(e){}});faces=m;},onErr));
+    subs.push(db.doc('kiosk/settings').onSnapshot(s=>{settings=Object.assign({},DEFAULTS,s.exists?s.data():{});},onErr));
+    watchDay();setInterval(watchDay,30*1000);
+    beginKiosk();
+  }
+  function onErr(e){console.error(e);if(e.code==='permission-denied')showGate('revoked');}
+  return {
+    kind:'firebase',
+    init(){
+      showGate('loading','連線中…');
+      auth.onAuthStateChanged(async u=>{
+        if(!u){try{await auth.signInAnonymously();}catch(e){console.error(e);showGate('error',e.code==='auth/operation-not-allowed'?'Firebase 尚未啟用「匿名」登入方式，請管理者到 Firebase 主控台 → Authentication → 登入方式 啟用「匿名」。':'無法連線：'+(e.code||e.message));}return;}
+        me=u;
+        $('devSub').textContent='裝置代碼 '+devCode(u.uid);
+        const ref=db.doc('devices/'+u.uid);
+        let created=false;
+        ref.onSnapshot(async s=>{
+          if(!s.exists){
+            if(created)return;created=true;
+            try{await ref.set({name:'',approved:false,at:Date.now(),ua:navigator.userAgent.slice(0,200)});}
+            catch(e){console.error(e);showGate('error','無法登記裝置：'+(e.code||e.message));}
+            return;
+          }
+          const d=s.data();device=d;$('devName').textContent=d.name||'新海美學牙醫診所';
+          if(!d.approved){stopAll();paused=true;showGate('pair',u.uid);return;}
+          if(!subs.length){hideGate();startData();}
+        },e=>{console.error(e);showGate('error','無法讀取裝置狀態：'+(e.code||e.message));});
+      });
+    },
+    addPunch(p){const {id,...body}=p;todays.push(p);renderRecent();return db.doc('punches/'+id).set(body);},
+    saveFace(sid,obj){return db.doc('faces/'+sid).set({staffId:sid,emb:JSON.stringify(obj.vecs),n:obj.vecs.length,at:obj.at,consentAt:obj.consentAt,device:me.uid});},
+    delFace(sid){return db.doc('faces/'+sid).delete();},
+    deviceId(){return me?.uid||'';},
+  };
+}
+const devCode=u=>u.slice(0,6).toUpperCase();
+
+// ---------- 資料來源：本機（開發測試用，與 index.html?local=名稱 共用 localStorage） ----------
+function localSource(){
+  const name=(/[?&]local=([\w-]+)/.exec(location.search)||[])[1];
+  const suffix=name&&name!=='1'?'_'+name:'';
+  const ROSTER='clinic_roster_local_v1'+suffix, KIOSK='clinic_kiosk_local_v1'+suffix;
+  const read=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')||{};}catch(e){return {};}};
+  const write=fn=>{const d=read(KIOSK);fn(d);localStorage.setItem(KIOSK,JSON.stringify(d));};
+  function load(){
+    const r=read(ROSTER),k=read(KIOSK),now=new Date();
+    staff=r.staff||[];weekCells=(r.weeks||{})[ymd(mondayOf(now))]||{};
+    faces={};Object.entries(k.faces||{}).forEach(([sid,v])=>{try{faces[sid]=Object.assign({},v,{vecs:JSON.parse(v.emb||'[]')});}catch(e){}});
+    settings=Object.assign({},DEFAULTS,k.settings||{});
+    todays=(k.punches||[]).filter(p=>p.date===ymd(now)&&!p.void);
+    renderRecent();
+  }
+  return {
+    kind:'local',
+    init(){$('devName').textContent='本機測試模式';$('devSub').textContent='資料只存在這個瀏覽器';load();window.addEventListener('storage',load);setInterval(load,30*1000);beginKiosk();},
+    addPunch(p){todays.push(p);renderRecent();write(d=>{(d.punches=d.punches||[]).push(p);});return Promise.resolve();},
+    saveFace(sid,obj){write(d=>{(d.faces=d.faces||{})[sid]={staffId:sid,emb:JSON.stringify(obj.vecs),n:obj.vecs.length,at:obj.at,consentAt:obj.consentAt,device:'local'};});load();return Promise.resolve();},
+    delFace(sid){write(d=>{if(d.faces)delete d.faces[sid];});load();return Promise.resolve();},
+    deviceId(){return 'local';},
+  };
+}
+
+// ---------- 疊層 ----------
+function showGate(kind,arg){
+  const g=$('gate'),b=$('gateBox');g.hidden=false;
+  if(kind==='loading'){b.innerHTML=`<h2>${esc(arg||'載入中…')}</h2><p>第一次開啟需要下載辨識模型（約 10 MB），請稍候。</p>`;return;}
+  if(kind==='pair'){b.innerHTML=`<h2>這台裝置尚未核准</h2><p>請管理者登入排班系統 → 「出勤」分頁 → 「打卡裝置」，核准下面這個裝置代碼。核准後這個畫面會自動進入打卡模式。</p><div class="code">${esc(devCode(arg))}</div>`;return;}
+  if(kind==='revoked'){b.innerHTML=`<h2>這台裝置已停用</h2><p>請管理者到排班系統 → 「出勤」→ 「打卡裝置」重新核准。</p><div class="row"><button class="primary" onclick="location.reload()">重新整理</button></div>`;return;}
+  if(kind==='camera'){b.innerHTML=`<h2>無法使用相機</h2><p>${esc(arg)}</p><div class="row"><button class="primary" onclick="location.reload()">重試</button></div>`;return;}
+  b.innerHTML=`<h2>發生問題</h2><p>${esc(arg)}</p><div class="row"><button class="primary" onclick="location.reload()">重新整理</button></div>`;
+}
+function hideGate(){$('gate').hidden=true;}
+const anyOverlay=()=>['gate','resOv','pinOv','adminOv','enrollOv','facesOv'].some(id=>!$(id).hidden);
+
+// ---------- 時鐘與網路 ----------
+function tick(){
+  const d=new Date();
+  $('clock').textContent=`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  $('date').textContent=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${DAYS[d.getDay()]}）`;
+  $('net').className='dot '+(navigator.onLine?'on':'off');
+}
+setInterval(tick,1000);tick();
+
+// ---------- 班表推算：這次打卡是哪一診的上班／下班 ----------
+function scheduledShifts(sid,date=new Date()){
+  const dow=(date.getDay()+6)%7;
+  return SHIFTS.filter(sh=>{const c=weekCells[dow+'_'+sh.id];return Array.isArray(c)&&c.some(a=>Array.isArray(a)&&a.includes(sid));});
+}
+function guessKind(sid,ts){
+  const d=new Date(ts),min=d.getHours()*60+d.getMinutes()+d.getSeconds()/60;
+  const bounds=scheduledShifts(sid,d).flatMap(sh=>{const [a,b]=sh.time.split('-').map(hm);return [{sh,k:'in',t:a},{sh,k:'out',t:b}];});
+  if(!bounds.length)return {label:'打卡（今日沒有排班）',sh:null,k:null};
+  const b=bounds.reduce((x,y)=>Math.abs(y.t-min)<Math.abs(x.t-min)?y:x);
+  let note='';
+  if(b.k==='in'&&min-b.t>(Number(settings.graceIn)||0)&&min>b.t)note=`遲到 ${Math.floor(min-b.t)} 分鐘`;
+  if(b.k==='out'&&b.t-min>(Number(settings.graceOut)||0))note=`早退 ${Math.ceil(b.t-min)} 分鐘`;
+  return {label:`${b.sh.name} ${b.k==='in'?'上班':'下班'}`,sh:b.sh.id,k:b.k,note};
+}
+function renderRecent(){
+  const list=todays.slice().sort((a,b)=>b.ts-a.ts).slice(0,40);
+  $('recent').innerHTML=list.length?list.map(p=>{const g=guessKind(p.staffId,p.ts);return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
+}
+
+// ---------- 相機與辨識模型 ----------
+let stream=null;
+async function openCamera(){
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error('這個瀏覽器不支援相機。');
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:960},height:{ideal:720}},audio:false});
+  $('cam').srcObject=stream;await $('cam').play().catch(()=>{});
+}
+async function loadModels(){
+  if(!window.Human)throw new Error('辨識程式下載失敗，請確認網路連線。');
+  const H=window.Human.Human||window.Human.default;
+  human=new H({
+    // 指定 WebGL：自動選到 WebGPU 時在部分裝置會卡住；iPad／Android WebView 也以 WebGL 最穩定
+    backend:'webgl',modelBasePath:MODEL_BASE,debug:false,cacheSensitivity:0,
+    filter:{enabled:true,flip:false},
+    face:{enabled:true,
+      detector:{rotation:true,maxDetected:1,minConfidence:0.6,return:false},
+      mesh:{enabled:true},iris:{enabled:false},attention:{enabled:false},emotion:{enabled:false},
+      description:{enabled:true,skipFrames:0,skipTime:0},
+      antispoof:{enabled:true,skipFrames:0,skipTime:0},
+      liveness:{enabled:true,skipFrames:0,skipTime:0}},
+    body:{enabled:false},hand:{enabled:false},object:{enabled:false},gesture:{enabled:false},segmentation:{enabled:false},
+  });
+  await human.load();
+  // 暖機只是讓第一次辨識快一點；在背景分頁可能不會完成，最多等 8 秒
+  await Promise.race([human.warmup().catch(()=>{}),new Promise(r=>setTimeout(r,8000))]);
+}
+// 臉夠大、夠正、分數夠高才拿來比對
+function faceQuality(f,video){
+  if(!f)return 'none';
+  const w=f.box?.[2]||0,vw=video.videoWidth||1;
+  if((f.faceScore??f.score??0)<0.75)return 'weak';
+  if(w<vw*0.18)return 'far';
+  const a=f.rotation?.angle||{};
+  if(Math.abs(a.yaw||0)>0.4||Math.abs(a.pitch||0)>0.4)return 'turn';
+  if(!f.embedding||!f.embedding.length)return 'weak';
+  return 'ok';
+}
+const isLive=f=>(f.real??1)>=settings.real&&(f.live??1)>=settings.live;
+function bestMatch(emb,exclude){
+  let best={sid:null,sim:0},second=0;
+  Object.entries(faces).forEach(([sid,v])=>{
+    if(sid===exclude||!staff.some(s=>s.id===sid&&s.active!==false))return;
+    let m=0;(v.vecs||[]).forEach(x=>{const s=human.match.similarity(emb,x);if(s>m)m=s;});
+    if(m>best.sim){second=best.sim;best={sid,sim:m};}else if(m>second)second=m;
+  });
+  return Object.assign(best,{second});
+}
+
+// ---------- 打卡主迴圈 ----------
+let streak={sid:null,n:0}, lastPunch={}, badSince=0;
+function setMsg(t,cls=''){$('msg').textContent=t;$('guide').className='guide '+cls;}
+async function loop(){
+  if(!running)return;
+  try{
+    if(!paused&&!anyOverlay()&&$('cam').readyState>=2){
+      const res=await human.detect($('cam'));
+      if(!paused&&!anyOverlay())handleFrame(res.face?.[0]);
+    }
+  }catch(e){console.error(e);}
+  setTimeout(loop,150);
+}
+function handleFrame(f){
+  const q=faceQuality(f,$('cam'));
+  if(q==='none'){streak={sid:null,n:0};badSince=0;setMsg(Object.keys(faces).length?'請站到鏡頭前打卡':'尚未登錄任何臉部，請管理者按右上角 ⚙ 登錄');return;}
+  if(q==='far'){streak.n=0;setMsg('請再靠近一點','seen');return;}
+  if(q==='turn'){streak.n=0;setMsg('請正對鏡頭','seen');return;}
+  if(q==='weak'){streak.n=0;setMsg('辨識中…請拿下口罩','seen');return;}
+  if(!isLive(f)){streak.n=0;if(!badSince)badSince=Date.now();setMsg(Date.now()-badSince>2500?'無法確認為真人，請拿下口罩、靠近並正對鏡頭':'辨識中…','bad');return;}
+  badSince=0;
+  const m=bestMatch(f.embedding);
+  if(!m.sid||m.sim<settings.thr||m.sim-m.second<settings.margin){streak={sid:null,n:0};setMsg('無法辨識，請正對鏡頭；若仍無法辨識請洽管理者','bad');return;}
+  streak=streak.sid===m.sid?{sid:m.sid,n:streak.n+1}:{sid:m.sid,n:1};
+  setMsg('辨識中…','seen');
+  if(streak.n>=STABLE_FRAMES){
+    streak={sid:null,n:0};
+    if(Date.now()-(lastPunch[m.sid]||0)<COOLDOWN_MS){setMsg(`${nameOf(m.sid)} 剛剛已經打過卡了`,'seen');return;}
+    confirmPunch(m.sid,{sim:m.sim,real:f.real,live:f.live,box:f.box});
+  }
+}
+function snapshot(box){
+  try{
+    const v=$('cam'),c=document.createElement('canvas'),S=112;c.width=c.height=S;
+    const [x,y,w,h]=box,s=Math.max(w,h)*1.25,cx=x+w/2,cy=y+h/2;
+    const ctx=c.getContext('2d');ctx.translate(S,0);ctx.scale(-1,1); // 與畫面一樣左右鏡像
+    ctx.drawImage(v,cx-s/2,cy-s/2,s,s,0,0,S,S);
+    return c.toDataURL('image/jpeg',0.6);
+  }catch(e){return null;}
+}
+let resTimer=null;
+function confirmPunch(sid,info){
+  paused=true;
+  const ts=Date.now(),g=guessKind(sid,ts),photo=settings.photo?snapshot(info.box):null;
+  $('resBox').classList.remove('done');
+  $('resKind').textContent=g.label;$('resWho').textContent=nameOf(sid);$('resTime').textContent=hhmm(ts);
+  $('resNote').textContent=g.note||'';$('resNote').className='note'+(g.note?' late':'');
+  $('resActs').hidden=false;$('resOv').hidden=false;
+  const bar=$('resBar');bar.style.transition='none';bar.style.width='0';requestAnimationFrame(()=>{bar.style.transition=`width ${CONFIRM_MS}ms linear`;bar.style.width='100%';});
+  const finish=ok=>{
+    clearTimeout(resTimer);
+    if(!ok){$('resOv').hidden=true;setTimeout(()=>{paused=false;},1500);return;}
+    const p={id:uid('p'),staffId:sid,ts,date:ymd(new Date(ts)),src:'kiosk',device:src.deviceId(),devName:device.name||'',
+      sim:Math.round(info.sim*1000)/1000,real:info.real!=null?Math.round(info.real*100)/100:null,live:info.live!=null?Math.round(info.live*100)/100:null,
+      guess:g.sh?{sh:g.sh,k:g.k}:null};
+    if(photo)p.photo=photo;
+    lastPunch[sid]=ts;
+    src.addPunch(p).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
+    $('resActs').hidden=true;$('resBox').classList.add('done');$('resKind').textContent='✓ 已打卡・'+g.label;
+    resTimer=setTimeout(()=>{$('resOv').hidden=true;paused=false;},1800);
+  };
+  $('resNo').onclick=()=>finish(false);
+  $('resOk').onclick=()=>finish(true);
+  resTimer=setTimeout(()=>finish(true),CONFIRM_MS);
+}
+
+// ---------- 啟動 ----------
+async function beginKiosk(){
+  if(running)return;
+  showGate('loading','載入辨識模型中…');
+  try{await openCamera();}catch(e){showGate('camera',e.name==='NotAllowedError'?'請允許這個 App 使用相機（設定 → 新海打卡 → 相機）。':(e.message||String(e)));return;}
+  try{await loadModels();}catch(e){console.error(e);showGate('error','辨識模型載入失敗：'+(e.message||e));return;}
+  hideGate();running=true;paused=false;loop();
+  if('wakeLock' in navigator){const lock=()=>navigator.wakeLock.request('screen').catch(()=>{});lock();document.addEventListener('visibilitychange',()=>{if(!document.hidden)lock();});}
+}
+
+// ---------- 管理：密碼 ----------
+let pinBuf='';
+function openPin(){
+  if(!running)return;
+  paused=true;pinBuf='';drawPin();
+  $('pinHint').textContent=src.kind==='local'||settings.pinHash?'輸入在排班系統設定的打卡裝置管理密碼。':'尚未設定管理密碼：請先到排班系統 →「出勤」→「打卡裝置」設定。';
+  $('pinOv').hidden=false;
+}
+function drawPin(){$('pinDots').innerHTML=Array.from({length:Math.max(4,pinBuf.length)},(_,i)=>`<i class="${i<pinBuf.length?'f':''}"></i>`).join('');}
+$('keypad').innerHTML=['1','2','3','4','5','6','7','8','9','取消','0','確定'].map(k=>`<button data-k="${k}">${k}</button>`).join('');
+$('keypad').addEventListener('click',async e=>{
+  const k=e.target.closest('[data-k]')?.dataset.k;if(!k)return;
+  if(k==='取消'){$('pinOv').hidden=true;paused=false;return;}
+  if(k==='確定'){
+    const ok=src.kind==='local'&&!settings.pinHash||settings.pinHash&&await pinHashOf(pinBuf)===settings.pinHash;
+    pinBuf='';drawPin();
+    if(!ok){toast('密碼錯誤','warn');return;}
+    $('pinOv').hidden=true;$('adminOv').hidden=false;return;
+  }
+  if(pinBuf.length<8){pinBuf+=k;drawPin();}
+});
+$('gear').onclick=openPin;
+$('mClose').onclick=()=>{$('adminOv').hidden=true;paused=false;};
+$('mReload').onclick=()=>location.reload();
+
+// ---------- 管理：登錄臉部 ----------
+const roleOrder={assistant:0,doctor:1,manager:2};
+$('mEnroll').onclick=()=>{
+  const list=staff.filter(s=>s.active!==false).sort((a,b)=>(roleOrder[a.role]??3)-(roleOrder[b.role]??3)||(a.code||a.name||'').localeCompare(b.code||b.name||'','zh-Hant'));
+  $('enSid').innerHTML='<option value="">選擇人員…</option>'+list.map(s=>`<option value="${esc(s.id)}">${esc([s.code,s.name].filter(Boolean).join(' '))}${faces[s.id]?'（已登錄，將重新登錄）':''}</option>`).join('');
+  $('enConsent').checked=false;$('enrollForm').hidden=false;$('enrollRun').hidden=true;
+  $('adminOv').hidden=true;$('enrollOv').hidden=false;
+};
+$('enCancel').onclick=()=>{$('enrollOv').hidden=true;$('adminOv').hidden=false;};
+let enrolling=false;
+$('enStop').onclick=()=>{enrolling=false;};
+$('enStart').onclick=async()=>{
+  const sid=$('enSid').value;
+  if(!sid){toast('請選擇人員','warn');return;}
+  if(!$('enConsent').checked){toast('需要本人勾選同意','warn');return;}
+  $('enrollForm').hidden=true;$('enrollRun').hidden=false;
+  $('enCam').srcObject=stream;$('enCam').play().catch(()=>{});
+  const prog=()=>{$('enProg').innerHTML=Array.from({length:SAMPLES},(_,i)=>`<i class="${i<vecs.length?'f':''}"></i>`).join('');};
+  const tips=['請正視鏡頭','請稍微向左轉','請稍微向右轉','請稍微抬頭','請稍微低頭'];
+  const vecs=[];let last=0;enrolling=true;prog();
+  const t0=Date.now();
+  while(enrolling&&vecs.length<SAMPLES&&Date.now()-t0<45000){
+    $('enMsg').textContent=tips[vecs.length]||'請正視鏡頭';
+    let f=null;try{f=(await human.detect($('cam'))).face?.[0];}catch(e){}
+    const q=faceQuality(f,$('cam'));
+    if(q==='ok'&&isLive(f)&&Date.now()-last>700){vecs.push(Array.from(f.embedding));last=Date.now();prog();}
+    else if(q==='far')$('enMsg').textContent='請再靠近一點';
+    else if(q==='weak'||q==='none')$('enMsg').textContent='看不到臉，請拿下口罩、正對鏡頭';
+    await new Promise(r=>setTimeout(r,150));
+  }
+  if(vecs.length<SAMPLES){enrolling=false;toast(Date.now()-t0>=45000?'登錄逾時，請再試一次':'已取消登錄','warn');$('enrollOv').hidden=true;$('adminOv').hidden=false;return;}
+  enrolling=false;
+  // 和其他人太像時提醒（可能是雙胞胎、或登錄到別人）
+  const clash=vecs.map(v=>bestMatch(v,sid)).filter(m=>m.sid&&m.sim>=settings.thr);
+  if(clash.length&&!await ask(`這張臉和「${nameOf(clash[0].sid)}」很像（相似度 ${clash[0].sim.toFixed(2)}），確定要登錄給「${nameOf(sid)}」嗎？`)){$('enrollOv').hidden=true;$('adminOv').hidden=false;return;}
+  try{await src.saveFace(sid,{vecs:vecs.map(v=>v.map(x=>Math.round(x*1e4)/1e4)),at:Date.now(),consentAt:Date.now()});toast(`已登錄 ${nameOf(sid)} 的臉部特徵`);}
+  catch(e){console.error(e);toast('儲存失敗：'+(e.code||e.message),'warn');}
+  $('enrollOv').hidden=true;$('adminOv').hidden=false;
+};
+
+// ---------- 管理：已登錄名單 ----------
+function drawFaces(){
+  const ids=Object.keys(faces).sort((a,b)=>nameOf(a).localeCompare(nameOf(b),'zh-Hant'));
+  $('flist').innerHTML=ids.length?ids.map(sid=>{const d=new Date(faces[sid].at||0);return `<li><span>${esc(nameOf(sid))}<br><small>登錄於 ${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}</small></span><button class="danger" data-del="${esc(sid)}">刪除</button></li>`;}).join(''):'<li><span>尚未登錄任何人</span></li>';
+}
+$('mFaces').onclick=()=>{drawFaces();$('adminOv').hidden=true;$('facesOv').hidden=false;};
+$('fClose').onclick=()=>{$('facesOv').hidden=true;$('adminOv').hidden=false;};
+$('flist').addEventListener('click',async e=>{
+  const sid=e.target.closest('[data-del]')?.dataset.del;if(!sid)return;
+  if(!await ask(`刪除 ${nameOf(sid)} 的臉部特徵？刪除後需重新登錄才能打卡。`))return;
+  try{await src.delFace(sid);delete faces[sid];drawFaces();}catch(e){toast('刪除失敗：'+(e.code||e.message),'warn');}
+});
+
+// 測試用：在主控台呼叫 __kiosk.simulate(人員id) 模擬辨識成功（不經過相機）
+window.__kiosk={simulate:sid=>confirmPunch(sid,{sim:1,real:1,live:1,box:[0,0,1,1]}),state:()=>({staff,faces,settings,todays,weekCells})};
+
+src=window.FIREBASE_CONFIG&&window.firebase?firebaseSource():localSource();
+src.init();
+})();
+</script>
+</body>
+</html>

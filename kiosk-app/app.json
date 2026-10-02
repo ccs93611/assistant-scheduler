@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "新海打卡",
+    "slug": "xinhai-kiosk",
+    "owner": "shinyhi",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#16201B",
+    "ios": {
+      "bundleIdentifier": "tw.xinhai.kiosk",
+      "supportsTablet": true,
+      "requireFullScreen": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "打卡時需要使用前鏡頭辨識臉部。",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "tw.xinhai.kiosk",
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "打卡時需要使用前鏡頭辨識臉部。",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9862c279-359b-4aaf-8004-a83febf4b021"
+      }
+    }
+  }
+}

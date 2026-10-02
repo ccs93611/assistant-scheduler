@@ -26,16 +26,55 @@ service cloud.firestore {
     }
     function mySid() { return hasAcc() ? get(accPath()).data.staffId : ''; }
 
+    // 打卡裝置（kiosk.html）：匿名登入，devices/{uid} 由管理者核准（approved == true）後才算
+    function devPath() { return /databases/$(database)/documents/devices/$(request.auth.uid); }
+    function isKiosk() {
+      return request.auth != null && exists(devPath()) && get(devPath()).data.approved == true;
+    }
+
     function canView()   { return perm() in ['view', 'self', 'manage', 'super']; }
     function canManage() { return perm() in ['manage', 'super']; }
     function isSuper()   { return perm() == 'super'; }
     function isSelf(sid) { return perm() in ['self', 'manage', 'super'] && sid == mySid(); }
 
     // 班表、人員、設定：所有已開通的人可看，排班管理以上可改
-    match /weeks/{wk}      { allow read: if canView(); allow write: if canManage(); }
+    // 打卡裝置要讀班表（判斷上班／下班）與人員名單（顯示姓名）
+    match /weeks/{wk}      { allow read: if canView() || isKiosk(); allow write: if canManage(); }
     // 原始班表（定案時的當月班表）：所有已開通的人可看，排班管理以上可定案
     match /baselines/{ym}  { allow read: if canView(); allow write: if canManage(); }
-    match /staff/{id}      { allow read: if canView(); allow write: if canManage(); }
+    match /staff/{id}      { allow read: if canView() || isKiosk(); allow write: if canManage(); }
+
+    // ---- 出勤打卡 ----
+    // 打卡裝置：裝置自己建立「等待核准」的紀錄；核准、改名、停用、刪除由排班管理以上處理
+    match /devices/{uid} {
+      allow read: if canManage() || (request.auth != null && request.auth.uid == uid);
+      allow create: if canManage() || (request.auth != null && request.auth.uid == uid
+        && request.resource.data.approved == false
+        && request.resource.data.keys().hasOnly(['name', 'approved', 'at', 'ua']));
+      allow update, delete: if canManage();
+    }
+    // 打卡紀錄 punches/{id}：裝置只能新增（不能改、不能刪），且必須標明是自己這台裝置、時間不能在未來；
+    // 補登、作廢由排班管理以上處理；本人可以看自己的
+    match /punches/{id} {
+      allow read: if canManage() || isKiosk() || (signedIn() && resource.data.staffId == mySid());
+      allow create: if canManage() || (isKiosk()
+        && request.resource.data.src == 'kiosk'
+        && request.resource.data.device == request.auth.uid
+        && request.resource.data.staffId is string
+        && request.resource.data.ts is number
+        && request.resource.data.ts < request.time.toMillis() + 5 * 60 * 1000);
+      allow update, delete: if canManage();
+    }
+    // 臉部特徵值 faces/{staffId}：在打卡裝置上登錄（需裝置管理密碼）；排班管理以上可刪除
+    match /faces/{sid} {
+      allow read: if isKiosk() || canManage();
+      allow write: if isKiosk() || canManage();
+    }
+    // 出勤規則與裝置管理密碼
+    match /kiosk/{doc} {
+      allow read: if isKiosk() || canManage();
+      allow write: if canManage();
+    }
     match /config/{id}     { allow read: if canView(); allow write: if canManage(); }
 
     // 請假、家庭照顧假：排班管理以上可改所有人；一般助理只能新增/變更/刪除自己的

@@ -175,6 +175,18 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .pay-month-bar input{width:auto; font-size:1rem; padding:5px 10px;}
 .pay-bulk input.pb-note{width:360px; min-width:360px; text-align:left;}
 .pay-auto{color:var(--accent); font-weight:500;}
+/* 出勤 */
+.att-bad{color:var(--warn); font-weight:500;}
+.att-ok{color:var(--ok);}
+.att-mute{color:var(--faint);}
+.att-row{cursor:pointer;}
+.att-row:hover td{background:var(--accent-soft);}
+.att-row.sel td{background:var(--accent-soft);}
+.punch{display:inline-flex; align-items:center; gap:4px; font-variant-numeric:tabular-nums; margin-right:6px;}
+.punch.manual{font-style:italic;}
+.punch.void{text-decoration:line-through; color:var(--faint);}
+.punch img{width:28px; height:28px; border-radius:50%; object-fit:cover; cursor:zoom-in; vertical-align:middle;}
+.att-photo{display:block; width:224px; height:224px; border-radius:12px; object-fit:cover; margin:8px auto;}
 .pay-note{min-width:120px; max-width:240px; white-space:pre-wrap; font-size:.8rem; color:var(--sub);}
 #pf-note{width:100%; resize:vertical; font:inherit;}
 .pay-bulk thead th{position:sticky; top:0; background:var(--panel); z-index:1;}
@@ -469,6 +481,7 @@ body.gated .shell{display:none;}
     <button role="tab" data-tab="schedule">排班表</button>
     <button role="tab" data-tab="rules">排班規則</button>
     <button role="tab" data-tab="stats">工時統計</button>
+    <button role="tab" data-tab="att" id="attTabBtn">出勤</button>
     <button role="tab" data-tab="pay" id="payTabBtn">薪資</button>
     <button role="tab" data-tab="settings">人員名單</button>
   </nav>
@@ -663,6 +676,37 @@ body.gated .shell{display:none;}
       </div>
     </section>
 
+    <section id="tab-att" hidden>
+      <div class="stack">
+        <div class="card pay-month-bar">
+          <label for="attMonth"><b>選擇年月</b></label>
+          <input type="month" id="attMonth">
+          <span class="hint" style="margin:0">依這個月的排班表（定案後為異動班表）比對打卡紀錄。</span>
+        </div>
+        <div class="card">
+          <div class="lv-title-row"><h2 id="attTitle" style="margin:0">出勤統計</h2><span style="flex:1"></span><button class="small" id="attToPay" data-w>把遲到分鐘帶入薪資</button></div>
+          <p class="desc">每一診都要打上班卡與下班卡。「應出勤」只算到今天為止、扣除請假的診次；「完整」是上下班卡都有的診數；出勤率＝完整 ÷ 應出勤。遲到＝上班卡晚於開診時間（超過寬限才算）；早退＝下班卡早於結束時間。點人員看每天的明細、補登或作廢打卡。</p>
+          <div class="scroll-x"><table class="list" id="attTable"></table></div>
+        </div>
+        <div class="card" id="attDetail" hidden></div>
+        <div class="card">
+          <h2>出勤規則</h2>
+          <p class="desc">打卡裝置也會用這些設定顯示遲到／早退提示。</p>
+          <div class="pay-rules" id="attRules"></div>
+        </div>
+        <div class="card">
+          <h2>打卡裝置</h2>
+          <p class="desc">在診所的平板開啟「新海打卡」App（或 <code id="kioskUrl"></code>），畫面會顯示裝置代碼，在這裡核准後才能打卡。臉部登錄在打卡裝置上進行（右上角 ⚙，需要下面的管理密碼）。</p>
+          <div class="scroll-x"><table class="list" id="devTable"></table></div>
+          <form class="form-row" id="kioskPinForm" style="margin-top:12px">
+            <div class="field"><label for="kioskPin">裝置管理密碼（4–8 位數字）</label><input type="password" id="kioskPin" inputmode="numeric" pattern="\d{4,8}" autocomplete="new-password"></div>
+            <button class="primary" type="submit" data-w>設定密碼</button>
+            <span class="hint" id="kioskPinInfo" style="margin:0 0 8px"></span>
+          </form>
+        </div>
+      </div>
+    </section>
+
     <section id="tab-pay" hidden>
       <div class="stack">
         <div class="card pay-month-bar">
@@ -793,6 +837,11 @@ let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[],
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
 let makeups=[]; // 舊版手動登記的事假補班 {id,staffId,date,shifts,note}，已不再使用
 let pevents=[]; // 個人假事件 {id,staffId,kind,date,rel,months,end,child,note}
+// 出勤（打卡裝置 kiosk.html 寫入）：只有排班管理以上會載入
+let punches=[]; // 打卡紀錄 {id,staffId,ts,date,src:'kiosk'|'manual',device,photo?,by?,note?,void?}，只載入出勤分頁選擇的月份
+let faceMeta={}; // faces/{staffId} 是否已登錄臉部 {staffId:{at,n}}（特徵值本身不留在網頁）
+let devices={}; // 打卡裝置 devices/{uid}={name,approved,at}
+let kioskCfg={}; // kiosk/settings：出勤規則與裝置管理密碼
 let baselines={}; // 原始班表：baselines[YYYY-MM]={ym,at,by,weeks:{週一日期:cells}}，按「定案」時存下當月班表
 let prefs=loadPrefs();
 prefs.tab='schedule'; // 每次開啟（登入）都先顯示排班表
@@ -881,6 +930,14 @@ function handleWriteError(e){
   if(e&&e.code==='quota_exceeded'){toast('資料庫已滿，請刪除舊的請假紀錄後再試。','warn');return;}
   toast('儲存失敗，請稍後再試一次。','warn');
 }
+// 本機模式的打卡資料另外存（kiosk.html?local=名稱 也讀寫這一份），避免兩個頁面互相覆蓋
+const KIOSK_KEY=LOCAL_KEY.replace('clinic_roster_local_v1','clinic_kiosk_local_v1');
+function loadKioskLocal(){
+  try{const d=JSON.parse(localStorage.getItem(KIOSK_KEY)||'null')||{};
+    punches=d.punches||[];faceMeta=Object.fromEntries(Object.entries(d.faces||{}).map(([k,v])=>[k,{at:v.at,n:v.n}]));devices=d.devices||{};kioskCfg=d.settings||{};
+  }catch(e){}
+}
+function saveKioskLocal(fn){try{const d=JSON.parse(localStorage.getItem(KIOSK_KEY)||'null')||{};fn(d);localStorage.setItem(KIOSK_KEY,JSON.stringify(d));}catch(e){}}
 function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups,pevents,baselines}));}catch(e){}}
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
@@ -1015,6 +1072,28 @@ const store={
     if(!db){saveLocal();return;}
     return queue('priv/'+id,()=>db.doc('data/private/people/'+id).delete());
   },
+  // ---- 出勤 ----
+  async punch(p){ // 新增或修改（補登、作廢）一筆打卡
+    punches=punches.filter(x=>x.id!==p.id).concat([p]);renderAll();
+    if(!db){saveKioskLocal(d=>{d.punches=(d.punches||[]).filter(x=>x.id!==p.id).concat([p]);});return;}
+    const {id,...body}=p;
+    return queue('punches/'+id,()=>db.doc('punches/'+id).set(body));
+  },
+  async kiosk(obj){
+    kioskCfg=obj;renderAll();
+    if(!db){saveKioskLocal(d=>{d.settings=obj;});return;}
+    return queue('kiosk/settings',()=>db.doc('kiosk/settings').set(obj));
+  },
+  async device(id,obj){
+    if(obj)devices[id]=obj;else delete devices[id];renderAll();
+    if(!db){saveKioskLocal(d=>{d.devices=d.devices||{};if(obj)d.devices[id]=obj;else delete d.devices[id];});return;}
+    return queue('devices/'+id,()=>obj?db.doc('devices/'+id).set(obj):db.doc('devices/'+id).delete());
+  },
+  async delFace(sid){
+    delete faceMeta[sid];renderAll();
+    if(!db){saveKioskLocal(d=>{if(d.faces)delete d.faces[sid];});return;}
+    return queue('faces/'+sid,()=>db.doc('faces/'+sid).delete());
+  },
   async delFc(id){
     familyCare=familyCare.filter(x=>x.id!==id);renderAll();
     if(!db){saveLocal();return;}
@@ -1026,7 +1105,11 @@ const store={
 let fbAuth=null;
 async function boot(){
   renderAll();
-  if(!window.FIREBASE_CONFIG||!window.firebase){mode='local';loadLocal();buildLeaveIdx();renderAll();return;}
+  if(!window.FIREBASE_CONFIG||!window.firebase){
+    mode='local';loadLocal();loadKioskLocal();buildLeaveIdx();renderAll();
+    window.addEventListener('storage',e=>{if(e.key===KIOSK_KEY){loadKioskLocal();renderAll();}}); // 打卡頁在別的分頁打卡時更新
+    return;
+  }
   firebase.initializeApp(window.FIREBASE_CONFIG);
   const fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});
   fbAuth=firebase.auth();
@@ -1071,6 +1154,11 @@ function start(acc){
     db.collection('data/private/people').onSnapshot(snap=>{privateInfo=docsTo(snap);staff.forEach(s=>{if(privateInfo[s.id]?.birthday)syncBirthMonth(s.id,privateInfo[s.id].birthday);});renderAll();},e=>console.warn(e));
     db.collection('access').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();if(v.staffId)m[v.staffId]={account:d.id,perm:v.perm,prevPerm:v.prevPerm||null};if(d.id===email)recheck(v);});if(!isAdmin&&!snap.docs.some(d=>d.id===email))recheck(null);accessLinks=m;renderAll();},e=>console.warn(e));
   }else db.doc('access/'+email).onSnapshot(s=>recheck(s.exists?s.data():null),e=>console.warn(e));
+  if(mng){
+    db.collection('faces').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();m[d.id]={at:v.at,n:v.n};});faceMeta=m;renderAll();},e=>console.warn(e));
+    db.collection('devices').onSnapshot(snap=>{devices=docsTo(snap);renderAll();},e=>console.warn(e));
+    db.doc('kiosk/settings').onSnapshot(s=>{kioskCfg=s.exists?clone(s.data()):{};renderAll();},e=>console.warn(e));
+  }
   if(mng)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
   else if(sid)db.collection('pay').where('staffId','==',sid).onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
 }
@@ -1130,8 +1218,10 @@ function renderAll(){
   ['prevMonth','curMonth','thisMonth','nextMonth','undoBtn','tplBtn','autoBtn','clearMonthBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'?'':'none');
   $('undoBtn').disabled=!canWrite||!schedHist.length||viewingLocked();
   if(prefs.tab==='pay'&&!canSeePay())prefs.tab='schedule';
+  $('attTabBtn').hidden=!canWrite;
+  if(prefs.tab==='att'&&!canWrite)prefs.tab='schedule';
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
-  ['schedule','docleave','leave','holidays','stats','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
+  ['schedule','docleave','leave','holidays','stats','att','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
   if(prefs.tab==='schedule') renderSchedule(mi);
@@ -1142,6 +1232,7 @@ function renderAll(){
   if(prefs.tab==='rules') renderRules();
   if(prefs.tab==='holidays') renderHolidays();
   if(prefs.tab==='pay') renderPay(mi,counts);
+  if(prefs.tab==='att') renderAtt(mi);
 }
 
 const otMax=()=>Number.isFinite(cfg.otMax)?cfg.otMax:3;
@@ -2644,6 +2735,190 @@ function toast(msg,kind='',action){
   if(action){const b=document.createElement('button');b.textContent=action.label;b.onclick=()=>{action.fn();t.remove();};t.appendChild(b);}
   $('toasts').appendChild(t);setTimeout(()=>t.remove(),action?9000:4200);
 }
+
+// ---------- 出勤（打卡比對） ----------
+// 打卡裝置（kiosk.html）只記錄「誰、幾點」，這裡依排班表（weeks，定案後即異動班表）推算每一診的上下班卡。
+// 每一診有兩個時間點（上班＝開診、下班＝結束）；同一天的打卡依時間順序對應到這些時間點（動態規劃，
+// 盡量多對上、再取時間差總和最小），差距超過 ATT_WINDOW 分鐘的打卡不對應，列為「其他打卡」。
+const ATT_DEF={graceIn:0,graceOut:0,earlyAsLate:true,photo:true,thr:0.6};
+const ATT_WINDOW=180;
+const attCfg=()=>Object.assign({},ATT_DEF,kioskCfg);
+const KIOSK_URL='https://assistant-scheduler-five.vercel.app/kiosk.html';
+let attSel=null, attSubYm=null, attUnsub=null;
+const punchMin=ts=>{const d=new Date(ts);return d.getHours()*60+d.getMinutes()+d.getSeconds()/60;};
+const hhmm=ts=>{const d=new Date(ts);return `${pad(d.getHours())}:${pad(d.getMinutes())}`;};
+const shiftSpan=sh=>sh.time.split('-').map(hm); // [開始分鐘, 結束分鐘]
+function attSubscribe(mi){ // 只載入選擇月份的打卡紀錄
+  if(!db||attSubYm===mi.ym)return;
+  if(attUnsub)attUnsub();attSubYm=mi.ym;punches=[];
+  attUnsub=db.collection('punches').where('date','>=',ymd(mi.first)).where('date','<=',ymd(mi.last))
+    .onSnapshot(snap=>{punches=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},e=>{console.warn(e);if(e.code==='permission-denied')toast('沒有讀取打卡紀錄的權限（請確認 firestore.rules 已更新）。','warn');});
+}
+function attDay(sid,dk,wk,dow,ps,now=Date.now()){
+  const C=attCfg();
+  const shifts=SHIFTS.filter(sh=>getCell(wk,dow+'_'+sh.id).some(a=>a.includes(sid))&&!onLeave(sid,dk,sh.id));
+  const bounds=shifts.flatMap(sh=>{const [a,b]=shiftSpan(sh);return [{sh,k:'in',t:a},{sh,k:'out',t:b}];});
+  const list=ps.filter(p=>!p.void).sort((a,b)=>a.ts-b.ts),n=list.length,m=bounds.length;
+  // dp[i][j]：前 i 筆打卡對前 j 個時間點的最佳分數（每對上一個 +1000，再扣時間差）
+  const dp=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  const sc=(i,j)=>{const d=Math.abs(punchMin(list[i].ts)-bounds[j].t);return d<=ATT_WINDOW?1000-d:-Infinity;};
+  for(let i=1;i<=n;i++)for(let j=1;j<=m;j++)dp[i][j]=Math.max(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]+sc(i-1,j-1));
+  const hit=new Array(m).fill(null),used=new Set();
+  for(let i=n,j=m;i>0&&j>0;){
+    if(dp[i][j]===dp[i-1][j])i--;
+    else if(dp[i][j]===dp[i][j-1])j--;
+    else{hit[j-1]=list[i-1];used.add(list[i-1].id);i--;j--;}
+  }
+  const dayStart=parseYmd(dk).getTime();
+  const rows=shifts.map((sh,x)=>{
+    const [a,b]=shiftSpan(sh),pin=hit[x*2],pout=hit[x*2+1];
+    const ended=now>=dayStart+b*60000, started=now>=dayStart+a*60000;
+    let late=0,early=0;
+    if(pin){const d=Math.floor(punchMin(pin.ts)-a);if(d>C.graceIn)late=d;}
+    if(pout){const d=Math.ceil(b-punchMin(pout.ts)-1e-9);if(d>C.graceOut)early=d;}
+    return {sh,pin,pout,late,early,ended,started};
+  });
+  return {rows,stray:list.filter(p=>!used.has(p.id))};
+}
+function attMonth(mi,sid){
+  const today=ymd(new Date()),byDate={};
+  punches.forEach(p=>{if(p.staffId===sid)(byDate[p.date]=byDate[p.date]||[]).push(p);});
+  const days=[],s={due:0,full:0,lateN:0,lateMin:0,earlyN:0,earlyMin:0,missIn:0,missOut:0,absent:0,punches:0,stray:0};
+  mi.dates.forEach(({key,wk,dow})=>{
+    if(key>today)return;
+    const ps=byDate[key]||[],r=attDay(sid,key,wk,dow,ps);
+    if(!r.rows.length&&!r.stray.length)return;
+    days.push(Object.assign({key,dow},r));
+    s.punches+=ps.filter(p=>!p.void).length;s.stray+=r.stray.length;
+    r.rows.forEach(x=>{
+      if(!x.ended)return; // 還沒結束的診先不計
+      s.due++;
+      if(x.pin&&x.pout)s.full++;
+      if(!x.pin&&!x.pout)s.absent++;else{if(!x.pin)s.missIn++;if(!x.pout)s.missOut++;}
+      if(x.late){s.lateN++;s.lateMin+=x.late;}
+      if(x.early){s.earlyN++;s.earlyMin+=x.early;}
+    });
+  });
+  s.payMin=s.lateMin+(attCfg().earlyAsLate?s.earlyMin:0);
+  return {days,s};
+}
+const attPeople=mi=>staff.filter(s=>s.role==='assistant'&&s.active!==false||punches.some(p=>p.staffId===s.id&&!p.void)).sort(sortStaff);
+function punchHtml(p,editable){
+  const cls=['punch',p.src==='manual'?'manual':'',p.void?'void':''].filter(Boolean).join(' ');
+  const tip=p.src==='manual'?`補登：${p.by||''}${p.note?'，'+p.note:''}`:`${p.devName||'打卡裝置'}${p.sim?`，相似度 ${p.sim}`:''}`;
+  return `<span class="${cls}" title="${esc(tip)}">${p.photo?`<img src="${esc(p.photo)}" alt="" data-photo="${esc(p.id)}">`:''}${hhmm(p.ts)}${p.src==='manual'?'（補）':''}${editable&&!p.void?` <button class="small" data-pvoid="${esc(p.id)}" title="作廢這筆打卡">×</button>`:''}</span>`;
+}
+function renderAtt(mi){
+  attSubscribe(mi);
+  if(document.activeElement!==$('attMonth'))$('attMonth').value=mi.ym;
+  $('attTitle').textContent=`${mi.label} 出勤統計`;
+  $('kioskUrl').textContent=KIOSK_URL;
+  const C=attCfg(),pct=(a,b)=>b?Math.round(a/b*1000)/10+'%':'—';
+  const ppl=attPeople(mi),res={};ppl.forEach(s=>res[s.id]=attMonth(mi,s.id));
+  const bad=(n,t)=>n?`<span class="att-bad">${t}</span>`:`<span class="att-mute">0</span>`;
+  $('attTable').innerHTML=`<thead><tr><th>人員</th><th class="num">應出勤（診）</th><th class="num">完整</th><th class="num">出勤率</th><th class="num">遲到</th><th class="num">早退</th><th class="num">缺上班卡</th><th class="num">缺下班卡</th><th class="num">未打卡</th><th class="num">帶入薪資（分）</th><th>臉部</th></tr></thead><tbody>`+
+    (ppl.length?ppl.map(s=>{const x=res[s.id].s;return `<tr class="att-row${attSel===s.id?' sel':''}" data-attsid="${esc(s.id)}">
+      <td><b>${esc(codeOf(s.id))}</b> ${esc(s.name||'')}</td><td class="num">${x.due}</td><td class="num">${x.full}</td>
+      <td class="num">${x.due?(x.full===x.due?`<span class="att-ok">${pct(x.full,x.due)}</span>`:`<span class="att-bad">${pct(x.full,x.due)}</span>`):'—'}</td>
+      <td class="num">${bad(x.lateN,`${x.lateN} 次／${x.lateMin} 分`)}</td><td class="num">${bad(x.earlyN,`${x.earlyN} 次／${x.earlyMin} 分`)}</td>
+      <td class="num">${bad(x.missIn,x.missIn)}</td><td class="num">${bad(x.missOut,x.missOut)}</td><td class="num">${bad(x.absent,x.absent)}</td>
+      <td class="num">${s.role==='assistant'?x.payMin:'—'}</td>
+      <td>${faceMeta[s.id]?'<span class="att-ok">已登錄</span>':'<span class="att-mute">未登錄</span>'}</td></tr>`;}).join(''):'<tr><td colspan="11" class="att-mute">沒有人員</td></tr>')+'</tbody>';
+  // 明細
+  const det=$('attDetail'),s=attSel&&byId(attSel);
+  if(!s){det.hidden=true;det.innerHTML='';}
+  else{
+    const r=res[s.id]||attMonth(mi,s.id),ed=canWrite;
+    const rows=r.days.flatMap(d=>{
+      const date=`${Number(d.key.slice(5,7))}/${Number(d.key.slice(8))}（${DAYS[d.dow]}）`;
+      const out=d.rows.map((x,i)=>{
+        const st=!x.ended&&!x.pin?'<span class="att-mute">尚未結束</span>':[!x.pin&&x.ended?'缺上班卡':'',!x.pout&&x.ended?'缺下班卡':'',x.late?`遲到 ${x.late} 分`:'',x.early?`早退 ${x.early} 分`:''].filter(Boolean).map(t=>`<span class="att-bad">${t}</span>`).join('、')||(x.ended?'<span class="att-ok">正常</span>':'<span class="att-mute">進行中</span>');
+        const add=k=>ed?` <button class="small" data-padd="${d.key}|${x.sh.id}|${k}">補登</button>`:'';
+        return `<tr><td>${i===0?date:''}</td><td>${x.sh.name}<small class="att-mute"> ${x.sh.time}</small></td><td>${x.pin?punchHtml(x.pin,ed):'—'+add('in')}</td><td>${x.pout?punchHtml(x.pout,ed):'—'+add('out')}</td><td>${st}</td></tr>`;
+      });
+      if(d.stray.length)out.push(`<tr><td>${d.rows.length?'':date}</td><td class="att-mute">其他打卡</td><td colspan="2">${d.stray.map(p=>punchHtml(p,ed)).join('')}</td><td class="att-mute">${d.rows.length?'重複或離開診次時間太遠':'當天沒有排班'}</td></tr>`);
+      return out;
+    });
+    const voided=punches.filter(p=>p.staffId===s.id&&p.void).sort((a,b)=>a.ts-b.ts);
+    det.hidden=false;
+    det.innerHTML=`<div class="lv-title-row"><h2 style="margin:0">${esc(fullName(s))}・${mi.label} 出勤明細</h2><span style="flex:1"></span>
+      ${ed?`<button class="small" data-padd="">補登打卡</button> `:''}${ed&&faceMeta[s.id]?`<button class="small danger" data-delface="${esc(s.id)}">刪除臉部資料</button> `:''}<button class="small" data-attclose>關閉</button></div>
+      <p class="desc">斜體（補）是管理者補登的打卡；按 × 作廢誤打的卡（保留紀錄，不列入計算）。有照片的打卡可以點照片放大核對。</p>
+      <div class="scroll-x"><table class="list"><thead><tr><th>日期</th><th>診</th><th>上班卡</th><th>下班卡</th><th>狀態</th></tr></thead><tbody>${rows.join('')||'<tr><td colspan="5" class="att-mute">這個月到今天為止沒有排班或打卡</td></tr>'}</tbody></table></div>
+      ${voided.length?`<p class="hint">已作廢：${voided.map(p=>`${Number(p.date.slice(5,7))}/${Number(p.date.slice(8))} ${punchHtml(p,false)}`).join('、')}</p>`:''}`;
+  }
+  // 規則
+  const R=[['graceIn','遲到寬限（分鐘）','上班卡晚於開診時間超過這個分鐘數才算遲到；算遲到時從開診時間起算全部分鐘'],['graceOut','早退寬限（分鐘）','下班卡早於結束時間超過這個分鐘數才算早退'],['thr','臉部辨識門檻（0.4–0.9）','越高越嚴格：認錯人時調高，常常認不出來時調低。建議 0.55–0.65']];
+  if(!$('attRules').contains(document.activeElement))$('attRules').innerHTML=R.map(([k,l,h])=>`<div class="field"><label>${l}</label><input type="number" data-attcfg="${k}" value="${C[k]}" ${k==='thr'?'step="0.01" min="0.4" max="0.9"':'step="1" min="0"'} ${canWrite?'':'disabled'} title="${esc(h)}"></div>`).join('')+
+    `<label class="field" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-attcfg="earlyAsLate" ${C.earlyAsLate?'checked':''} ${canWrite?'':'disabled'} style="width:auto"> 早退分鐘併入薪資的遲到分鐘</label>`+
+    `<label class="field" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" data-attcfg="photo" ${C.photo?'checked':''} ${canWrite?'':'disabled'} style="width:auto"> 打卡時保存臉部小照片（供核對代打卡）</label>`;
+  // 裝置
+  const devs=Object.entries(devices).sort((a,b)=>(a[1].at||0)-(b[1].at||0));
+  $('devTable').innerHTML=`<thead><tr><th>裝置代碼</th><th>名稱</th><th>狀態</th><th>登記時間</th><th></th></tr></thead><tbody>`+
+    (devs.length?devs.map(([id,d])=>`<tr><td><b>${esc(id.slice(0,6).toUpperCase())}</b></td><td>${esc(d.name||'（未命名）')}</td>
+      <td>${d.approved?'<span class="att-ok">已核准</span>':'<span class="att-bad">等待核准</span>'}</td><td>${d.at?fmtAt(d.at):''}</td>
+      <td style="white-space:nowrap"><button class="small${d.approved?'':' primary'}" data-devok="${esc(id)}"${canWrite?'':' disabled'}>${d.approved?'停用':'核准'}</button> <button class="small" data-devname="${esc(id)}"${canWrite?'':' disabled'}>改名稱</button> <button class="small danger" data-devdel="${esc(id)}"${canWrite?'':' disabled'}>刪除</button></td></tr>`).join('')
+      :'<tr><td colspan="5" class="att-mute">還沒有裝置。在平板開啟打卡 App 後，這裡會出現等待核准的裝置。</td></tr>')+'</tbody>';
+  $('kioskPinInfo').textContent=C.pinHash?'已設定密碼，輸入新密碼可以更換。':'尚未設定密碼：設定前無法在打卡裝置上登錄臉部。';
+}
+async function kioskPinHash(pin){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('xinhai-kiosk:'+pin));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+$('attMonth').addEventListener('change',e=>{const v=e.target.value;if(!/^\d{4}-\d{2}$/.test(v))return;const [y,m]=v.split('-').map(Number);const t=new Date();prefs.monthOffset=(y-t.getFullYear())*12+(m-1-t.getMonth());savePrefs();e.target.blur();renderAll();});
+$('attRules').addEventListener('change',e=>{
+  const k=e.target.dataset.attcfg;if(!k||!canWrite)return;
+  const next=Object.assign({},kioskCfg);
+  if(e.target.type==='checkbox')next[k]=e.target.checked;
+  else{const v=Number(e.target.value);if(!(v>=0)||(k==='thr'&&(v<0.4||v>0.9))){toast('數值不正確。','warn');e.target.value=attCfg()[k];return;}next[k]=v;}
+  store.kiosk(next);toast('已更新出勤規則。');
+});
+$('kioskPinForm').addEventListener('submit',async e=>{
+  e.preventDefault();const pin=$('kioskPin').value.trim();
+  if(!/^\d{4,8}$/.test(pin)){toast('密碼請輸入 4–8 位數字。','warn');return;}
+  const h=await kioskPinHash(pin);store.kiosk(Object.assign({},kioskCfg,{pinHash:h}));$('kioskPin').value='';toast('已設定打卡裝置管理密碼。');
+});
+$('devTable').addEventListener('click',e=>{
+  const ok=e.target.closest('[data-devok]'),nm=e.target.closest('[data-devname]'),dl=e.target.closest('[data-devdel]');
+  if(ok){const id=ok.dataset.devok,d=devices[id];if(!d)return;
+    if(!d.approved&&!d.name){dialog(`<h3>核准打卡裝置</h3><p>裝置代碼 <b>${esc(id.slice(0,6).toUpperCase())}</b>。請確認和平板上顯示的代碼一樣。</p><div class="field"><label>裝置名稱</label><input id="devNm" placeholder="例如：櫃台平板"></div>`,ov=>{store.device(id,Object.assign({},d,{approved:true,name:ov.querySelector('#devNm').value.trim()||'打卡裝置',approvedBy:myId||'',approvedAt:Date.now()}));toast('已核准，裝置會自動進入打卡模式。');},'核准');return;}
+    store.device(id,Object.assign({},d,{approved:!d.approved},d.approved?{}:{approvedBy:myId||'',approvedAt:Date.now()}));toast(d.approved?'已停用這台裝置。':'已核准這台裝置。');return;}
+  if(nm){const id=nm.dataset.devname,d=devices[id];dialog(`<h3>裝置名稱</h3><div class="field"><input id="devNm" value="${esc(d.name||'')}"></div>`,ov=>{store.device(id,Object.assign({},d,{name:ov.querySelector('#devNm').value.trim()}));},'儲存');return;}
+  if(dl){const id=dl.dataset.devdel;dialog(`<h3>刪除裝置</h3><p>刪除後這台裝置無法打卡；之後重新開啟 App 會再出現在等待核准的清單。</p>`,()=>{store.device(id,null);},'刪除',true);}
+});
+$('tab-att').addEventListener('click',e=>{
+  const row=e.target.closest('[data-attsid]');
+  if(row&&!e.target.closest('button')){attSel=attSel===row.dataset.attsid?null:row.dataset.attsid;renderAll();if(attSel)$('attDetail').scrollIntoView({behavior:'smooth',block:'nearest'});return;}
+  if(e.target.closest('[data-attclose]')){attSel=null;renderAll();return;}
+  const ph=e.target.closest('[data-photo]');
+  if(ph){const p=punches.find(x=>x.id===ph.dataset.photo);if(p)dialog(`<h3>${esc(fullName(byId(p.staffId)))}・${esc(p.date)} ${hhmm(p.ts)}</h3><img class="att-photo" src="${esc(p.photo)}" alt="打卡照片"><p class="hint">${esc(p.devName||'')}${p.sim?`，相似度 ${p.sim}`:''}</p>`,()=>{},'關閉');return;}
+  const pv=e.target.closest('[data-pvoid]');
+  if(pv){const p=punches.find(x=>x.id===pv.dataset.pvoid);if(!p)return;
+    dialog(`<h3>作廢打卡</h3><p>${esc(fullName(byId(p.staffId)))} ${esc(p.date)} ${hhmm(p.ts)}。作廢後不列入出勤計算（紀錄保留）。</p><div class="field"><label>原因</label><input id="pvWhy" placeholder="例如：重複打卡、認錯人"></div>`,ov=>{store.punch(Object.assign({},p,{void:true,voidBy:myId||'',voidAt:Date.now(),voidNote:ov.querySelector('#pvWhy').value.trim()}));},'作廢',true);return;}
+  const df=e.target.closest('[data-delface]');
+  if(df){const sid=df.dataset.delface;dialog(`<h3>刪除臉部資料</h3><p>刪除 ${esc(fullName(byId(sid)))} 的臉部特徵值。刪除後需要在打卡裝置重新登錄才能打卡（離職或本人要求時使用）。</p>`,()=>{store.delFace(sid);toast('已刪除臉部資料。');},'刪除',true);return;}
+  const pa=e.target.closest('[data-padd]');
+  if(pa&&attSel){
+    const [dk,shId,k]=pa.dataset.padd.split('|'),sh=SHIFTS.find(x=>x.id===shId),def=sh?shiftSpan(sh)[k==='out'?1:0]:null;
+    const t=def!=null?`${pad(Math.floor(def/60))}:${pad(def%60)}`:'';
+    dialog(`<h3>補登打卡・${esc(fullName(byId(attSel)))}</h3>${sh?`<p>${esc(sh.name)}${k==='out'?'下班':'上班'}卡</p>`:''}
+      <div class="form-row"><div class="field"><label>日期</label><input type="date" id="paDate" value="${esc(dk||ymd(new Date()))}"></div><div class="field"><label>時間</label><input type="time" id="paTime" value="${t}"></div></div>
+      <div class="field"><label>原因（必填）</label><input id="paNote" placeholder="例如：忘記打卡，經主管確認"></div>`,ov=>{
+      const d=ov.querySelector('#paDate').value,tm=ov.querySelector('#paTime').value,note=ov.querySelector('#paNote').value.trim();
+      if(!d||!tm){toast('請填日期與時間。','warn');return false;}
+      if(!note){toast('請填補登原因。','warn');return false;}
+      const [h,mn]=tm.split(':').map(Number),ts=parseYmd(d).getTime()+(h*60+mn)*60000;
+      store.punch({id:uid('p'),staffId:attSel,ts,date:d,src:'manual',by:myId||'本機',note,at:Date.now()});toast('已補登。');
+    },'補登');
+  }
+});
+$('attToPay').addEventListener('click',()=>{
+  const mi=monthInfo(),C=attCfg();
+  const list=attPeople(mi).filter(s=>s.role==='assistant').map(s=>{const r=payRec(s.id,mi.ym),x=attMonth(mi,s.id).s;return {s,r,from:r.lateMin||0,to:x.payMin,due:x.due};}).filter(x=>x.due&&x.from!==x.to);
+  if(!list.length){toast(`${mi.label}薪資的遲到分鐘已經和出勤紀錄一致。`);return;}
+  dialog(`<h3>把遲到分鐘帶入 ${mi.label} 薪資</h3><p class="hint" style="margin:0 0 8px">依出勤紀錄計算${C.earlyAsLate?'（遲到＋早退）':'（只算遲到）'}。還沒儲存（試算中）的薪資會連同目前的試算值一起儲存。請先處理缺卡、補登後再帶入。</p>
+    <table class="list"><thead><tr><th>人員</th><th class="num">目前</th><th class="num">改為</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(fullName(x.s))}${x.r.saved?'':' <small class="att-mute">（試算）</small>'}</td><td class="num">${x.from}</td><td class="num"><b>${x.to}</b></td></tr>`).join('')}</tbody></table>`,()=>{
+    list.forEach(({s,r,to})=>{const o={staffId:s.id,ym:mi.ym};PAY_FIELDS.forEach(f=>o[f.k]=r[f.k]);o.items=r.items;o.note=r.note;o.lateMin=to;store.pay(s.id+'_'+mi.ym,o);});
+    toast(`已更新 ${list.length} 人的遲到分鐘。`);
+  },'帶入');
+});
 
 // ---------- events ----------
 document.querySelector('nav.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(b.dataset.tab==='holidays'&&prefs.tab!=='holidays')holScrolled=false;if(b.dataset.tab==='leave'&&prefs.tab!=='leave')leaveScrolled={assistant:false,after:false,fc:false};prefs.tab=b.dataset.tab;savePrefs();renderAll();});
