@@ -793,6 +793,7 @@ let makeups=[]; // 舊版手動登記的事假補班 {id,staffId,date,shifts,not
 let pevents=[]; // 個人假事件 {id,staffId,kind,date,rel,months,end,child,note}
 let baselines={}; // 原始班表：baselines[YYYY-MM]={ym,at,by,weeks:{週一日期:cells}}，按「定案」時存下當月班表
 let prefs=loadPrefs();
+prefs.tab='schedule'; // 每次開啟（登入）都先顯示排班表
 // 排班的回復紀錄：每筆是 {週一日期: 變更前的格子}，同一個動作改到的週合成一筆
 let schedHist=[], histSkip=false, histTick=false;
 function histPush(wk){
