@@ -689,8 +689,8 @@ body.gated .shell{display:none;}
           <p class="hint" id="staffHint-manager" hidden>上下捲動可查看其他管理人員。</p>
         </div>
         <div class="card">
-          <h2>醫師名單</h2>
-          <p class="desc">按「修改」編輯代號與姓名。停用的醫師保留過去班表，但不會出現在排班名單。</p>
+          <div class="lv-title-row"><h2 style="margin:0">醫師名單</h2><button type="button" class="small" data-resigned="doctor"></button></div>
+          <p class="desc">按「修改」編輯代號與姓名。離職的醫師保留過去班表，但不會出現在排班名單；按右上角按鈕查看已離職人員。</p>
           <form class="form-row staff-form" data-role="doctor" style="margin-bottom:14px">
             <div class="field" style="width:90px"><label for="nsCode-doctor">代號</label><input id="nsCode-doctor" data-n="code" required placeholder="Dr.G"></div>
             <div class="field" style="width:140px"><label for="nsName-doctor">姓名</label><input id="nsName-doctor" data-n="name" placeholder="選填"></div>
@@ -700,8 +700,8 @@ body.gated .shell{display:none;}
           <p class="hint" id="staffHint-doctor" hidden>上下捲動可查看其他醫師。</p>
         </div>
         <div class="card">
-          <h2>助理名單</h2>
-          <p class="desc">按「修改」編輯代號與姓名。停用的助理保留過去班表，但不會出現在排班名單。</p>
+          <div class="lv-title-row"><h2 style="margin:0">助理名單</h2><button type="button" class="small" data-resigned="assistant"></button></div>
+          <p class="desc">按「修改」編輯代號與姓名。離職的助理保留過去班表，但不會出現在排班名單；按右上角按鈕查看已離職人員。</p>
           <form class="form-row staff-form" data-role="assistant" style="margin-bottom:14px">
             <div class="field" style="width:90px"><label for="nsCode-assistant">代號</label><input id="nsCode-assistant" data-n="code" required placeholder="G"></div>
             <div class="field" style="width:140px"><label for="nsName-assistant">姓名</label><input id="nsName-assistant" data-n="name" placeholder="選填"></div>
@@ -993,7 +993,7 @@ const store={
     if(!db){saveLocal();return;}
     return queue('link/'+id,async()=>{
       if(old&&old!==obj?.account)await db.doc('access/'+old).delete();
-      if(obj)await db.doc('access/'+obj.account).set({staffId:id,perm:obj.perm});
+      if(obj)await db.doc('access/'+obj.account).set(Object.assign({staffId:id,perm:obj.perm},obj.prevPerm?{prevPerm:obj.prevPerm}:{}));
     });
   },
   async delPriv(id){
@@ -1025,6 +1025,8 @@ async function boot(){
     let acc=null;
     try{const s=await fs.doc('access/'+email).get();acc=s.exists?s.data():null;}catch(e){console.error(e);}
     if(!isAdmin&&!acc){showGate('pending',email);fs.doc('access/'+email).onSnapshot(s=>{if(s.exists)location.reload();},()=>{});return;}
+    // 停權：保留帳號綁定但不能進入系統（Firestore 規則也不會給任何讀寫權限）；恢復權限後自動重新載入
+    if(!isAdmin&&acc.perm==='suspended'){showGate('suspended',email);fs.doc('access/'+email).onSnapshot(s=>{if(!s.exists||s.data().perm!=='suspended')location.reload();},()=>{});return;}
     $('gate').hidden=true;document.body.classList.remove('gated');
     db=fs;start(acc);
   });
@@ -1053,7 +1055,7 @@ function start(acc){
   const recheck=d=>{if(isAdmin)return;if(!d||d.perm!==acc.perm||d.staffId!==acc.staffId)location.reload();};
   if(sup){
     db.collection('data/private/people').onSnapshot(snap=>{privateInfo=docsTo(snap);staff.forEach(s=>{if(privateInfo[s.id]?.birthday)syncBirthMonth(s.id,privateInfo[s.id].birthday);});renderAll();},e=>console.warn(e));
-    db.collection('access').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();if(v.staffId)m[v.staffId]={account:d.id,perm:v.perm};if(d.id===email)recheck(v);});if(!isAdmin&&!snap.docs.some(d=>d.id===email))recheck(null);accessLinks=m;renderAll();},e=>console.warn(e));
+    db.collection('access').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();if(v.staffId)m[v.staffId]={account:d.id,perm:v.perm,prevPerm:v.prevPerm||null};if(d.id===email)recheck(v);});if(!isAdmin&&!snap.docs.some(d=>d.id===email))recheck(null);accessLinks=m;renderAll();},e=>console.warn(e));
   }else db.doc('access/'+email).onSnapshot(s=>recheck(s.exists?s.data():null),e=>console.warn(e));
   if(mng)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
   else if(sid)db.collection('pay').where('staffId','==',sid).onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
@@ -1068,7 +1070,7 @@ function showGate(kind,email){
     acts.innerHTML='<button class="primary" id="gSignIn">使用 Google 登入</button>';
     $('gSignIn').onclick=signIn;return;
   }
-  msg.innerHTML=`你的帳號 <span class="who">${esc(email)}</span> 還沒開通。<br>請把這個 Gmail 告訴診所管理者，開通後這個頁面會自動進入。`;
+  msg.innerHTML=kind==='suspended'?`你的帳號 <span class="who">${esc(email)}</span> 已被停權，無法使用本系統。<br>如有疑問請洽診所管理者。`:`你的帳號 <span class="who">${esc(email)}</span> 還沒開通。<br>請把這個 Gmail 告訴診所管理者，開通後這個頁面會自動進入。`;
   acts.innerHTML='<button id="gOther">改用其他帳號登入</button>';
   $('gOther').onclick=signOutAndReload;
 }
@@ -1086,7 +1088,7 @@ function signOutAndReload(){if(fbAuth)fbAuth.signOut().then(()=>location.reload(
 
 // ---------- rendering ----------
 const $=id=>document.getElementById(id);
-const PERMS={view:'僅檢視',self:'登記本人請假',manage:'排班管理',super:'超級管理員'};
+const PERMS={view:'僅檢視',self:'登記本人請假',manage:'排班管理',super:'超級管理員',suspended:'已停權'};
 const superOK=()=>{const p=effPerm();return p==='admin'||p==='super';};
 function myStaffId(){if(!myId)return null;const e=Object.entries(accessLinks).find(([,v])=>v&&v.account===myId);return e?e[0]:null;}
 function effPerm(){ // admin = 本機模式或最高管理者（OWNER_EMAILS）；其他人依綁定的權限，未綁定視為僅檢視
@@ -1365,6 +1367,7 @@ const addYr=(s,n)=>{const d=parseYmd(s);d.setFullYear(d.getFullYear()+n);return 
 const dayDiff=(a,b)=>Math.round((parseYmd(b)-parseYmd(a))/864e5);
 const fmtD=s=>s?s.replace(/-/g,'/'):'—';
 const hireOf=sid=>byId(sid)?.hireDate||privateInfo[sid]?.hireDate||'';
+const resignOf=sid=>byId(sid)?.resignDate||privateInfo[sid]?.resignDate||'';
 // 區間內某假別的已請天數：婚假／喪假／產檢假整天算 1 天；事後補登只請部分診時，兩診算一天（最多 1 天）
 const usedDays=(sid,type,from,to)=>leaves.reduce((n,l)=>{if(l.staffId!==sid||l.type!==type||l.date<from||l.date>to)return n;const c=(l.shifts||[]).length;return n+(c>=SHIFTS.length?1:Math.min(1,c/PER_DAY));},0);
 // 特休以小時計：額度＝天數 × 8 小時；只能整天請，每請一天扣 7 小時
@@ -1939,6 +1942,8 @@ function renderRules(){
   $('openMatrix').innerHTML=`<thead><tr><th></th>${DAYS.map(d=>`<th>週${d}</th>`).join('')}</tr></thead><tbody>`+
     SHIFTS.map(sh=>`<tr><td>${sh.name} <span style="color:var(--faint)">${sh.time}</span></td>${DAYS.map((_,dow)=>`<td><input type="checkbox" data-open="${dow}_${sh.id}" aria-label="週${DAYS[dow]}${sh.name}營業"${isClosed(dow,sh.id)?'':' checked'}${dis}></td>`).join('')}</tr>`).join('')+'</tbody>';
 }
+let showResigned={doctor:false,assistant:false}; // 人員名單：是否改列已離職人員
+document.addEventListener('click',e=>{const b=e.target.closest('[data-resigned]');if(!b)return;const r=b.dataset.resigned;showResigned[r]=!showResigned[r];renderAll();});
 function renderSettings(){
   const dis=canWrite?'':' disabled';
   const active=document.activeElement;
@@ -1948,7 +1953,10 @@ function renderSettings(){
     const cmpCode=(a,b)=>(a.code||'').localeCompare(b.code||'','en',{numeric:true,sensitivity:'base'});
     const cmpName=(a,b)=>(!a.name)-(!b.name)||(a.name||'').localeCompare(b.name||'','zh-Hant');
     const q=role==='assistant'?($('staffSearch-assistant').value||'').trim().toLowerCase():'';
-    const list=staff.filter(x=>x.role===role&&(!q||(x.code||'').toLowerCase().includes(q)||(x.name||'').toLowerCase().includes(q))).sort((a,b)=>((a.active===false)-(b.active===false))||(st.key==='name'?(!a.name&&!b.name?cmpCode(a,b):(!a.name)-(!b.name)||cmpName(a,b)*st.dir||cmpCode(a,b)):cmpCode(a,b)*st.dir));
+    // 醫師、助理：預設只列在職；按「查看已離職人員」改列已離職
+    const sep=role!=='manager',showRes=sep&&showResigned[role];
+    if(sep){const n=staff.filter(x=>x.role===role&&x.active===false).length;const b=document.querySelector(`[data-resigned="${role}"]`);b.textContent=showRes?'返回在職名單':`查看已離職人員（${n}）`;b.classList.toggle('primary',showRes);}
+    const list=staff.filter(x=>x.role===role&&(!sep||(x.active===false)===showRes)&&(!q||(x.code||'').toLowerCase().includes(q)||(x.name||'').toLowerCase().includes(q))).sort((a,b)=>((a.active===false)-(b.active===false))||(st.key==='name'?(!a.name&&!b.name?cmpCode(a,b):(!a.name)-(!b.name)||cmpName(a,b)*st.dir||cmpCode(a,b)):cmpCode(a,b)*st.dir));
     const sth=(key,label)=>`<button type="button" class="th-btn${st.key===key?' on':''}" data-stsort="${key}" data-role="${role}" aria-label="依${label}排序">${label}<span>${st.key===key?(st.dir>0?'▲':'▼'):'↕'}</span></button>`;
     $('staffTable-'+role).innerHTML=`<thead><tr><th style="width:90px">${sth('code','代號')}</th><th>${sth('name','姓名')}</th><th>狀態</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(s=>editingStaff===s.id?`<tr data-srow="${s.id}" data-editing>
@@ -1958,10 +1966,10 @@ function renderSettings(){
       <td></td></tr>`
     :`<tr class="${s.active===false?'inactive':''}" data-srow="${s.id}">
       <td><b>${esc(s.code||'')}</b></td>
-      <td>${esc(s.name||'')||'<span style="color:var(--faint)">—</span>'}</td>
+      <td>${esc(s.name||'')||'<span style="color:var(--faint)">—</span>'}${s.active===false&&sep?`<br><small style="color:var(--sub);white-space:nowrap">到職 ${fmtD(hireOf(s.id))}・離職 ${fmtD(resignOf(s.id))}</small>`:''}</td>
       <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有超級管理員可以設定權限"'}>權限</button>${accessLinks[s.id]?.account?` <span class="pill">${PERMS[accessLinks[s.id].perm]||PERMS.view}</span>`:''}</td>
-      <td class="num" style="white-space:nowrap"><button class="small" data-toggle${dis}>${s.active===false?'恢復在職':'停用'}</button> <button class="small danger" data-delstaff${dis}>刪除</button></td></tr>`).join('')
-      :`<tr><td colspan="4" class="empty">${q?`找不到符合「${esc(q)}」的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
+      <td class="num" style="white-space:nowrap">${(a=>`<button class="small${a?.perm==='suspended'?' primary':''}" data-suspend${superOK()&&a?.account&&a.perm!=='super'?'':` disabled title="${!a?.account?'還沒綁定登入帳號':a.perm==='super'?'超級管理員暫時不能停權':'只有超級管理員可以停權'}"`}>${a?.perm==='suspended'?'恢復權限':'停權'}</button> `)(accessLinks[s.id])}<button class="small" data-toggle${dis}>${s.active===false?'恢復在職':'離職'}</button> <button class="small danger" data-delstaff${dis}>刪除</button></td></tr>`).join('')
+      :`<tr><td colspan="4" class="empty">${q?`找不到符合「${esc(q)}」的${showRes?'已離職':''}${ROLE[role]}。`:showRes?`沒有已離職的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
     {const max=role==='assistant'?10:6;const n=limitRows($('staffScroll-'+role),max);$('staffHint-'+role).hidden=n<=max;}
   });
 
@@ -2551,7 +2559,7 @@ async function openPerm(s){
     <div class="field" style="margin-bottom:10px"><label for="pmEmail">登入用的 Gmail</label>
       <input id="pmEmail" type="email" placeholder="name@gmail.com" autocomplete="off" value="${esc(cur.account||'')}">
     </div>
-    <div class="opts">${Object.entries({view:'只能查看班表、休假與統計，不能修改。',self:'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休診日與規則、查看與設定所有人的薪資，但不能看個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${(cur.perm||'view')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
+    <div class="opts">${Object.entries({view:'只能查看班表、休假與統計，不能修改。',self:'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休診日與規則、查看與設定所有人的薪資，但不能看個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${((cur.perm==='suspended'?cur.prevPerm:cur.perm)||'view')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
     ov=>{
       const perm=ov.querySelector('input[name=pm]:checked').value;
       const account=ov.querySelector('#pmEmail').value.trim().toLowerCase();
@@ -3200,9 +3208,24 @@ document.querySelectorAll('.staff-table').forEach(tb=>tb.addEventListener('click
     store.staff(Object.assign(clone(s),{code,name:q('name').trim(),}));
     toast('已儲存。');return;
   }
-  if(e.target.closest('[data-toggle]')){store.staff(Object.assign(clone(s),{active:s.active===false}));return;}
+  if(e.target.closest('[data-suspend]')){
+    // 停權：保留帳號綁定，權限改為 suspended（記下原本的權限，恢復時還原）
+    const a=accessLinks[s.id];if(!superOK()||!a?.account||a.perm==='super')return; // 超級管理員暫時不能停權
+    if(a.perm==='suspended'){store.link(s.id,{account:a.account,perm:a.prevPerm||'view'});toast(`已恢復 ${codeOf(s.id)} 的權限（${PERMS[a.prevPerm||'view']}）。`);return;}
+    dialog(`<h3>停權 ${esc(fullName(s))}？</h3><p>停權後 ${esc(a.account)} 將無法登入系統，人員資料與班表都會保留。之後可以按「恢復權限」還原成原本的權限（${PERMS[a.perm]||PERMS.view}）。</p>`,()=>{store.link(s.id,{account:a.account,perm:'suspended',prevPerm:a.perm||'view'});toast(`已停權 ${codeOf(s.id)}。`);},'停權',true);
+    return;
+  }
+  if(e.target.closest('[data-toggle]')){
+    if(s.active===false){const n=clone(s);n.active=true;delete n.resignDate;store.staff(n);toast(`${codeOf(s.id)} 已恢復在職。`);return;}
+    // 設為離職：詢問離職日（預設今天），存在人員資料，離職名單會顯示到職日與離職日
+    dialog(`<h3>${esc(fullName(s))} 離職</h3><p>離職後保留過去班表，但不會出現在排班名單。</p><div class="field"><label for="rsDate">離職日</label><input type="date" id="rsDate" value="${resignOf(s.id)||ymd(new Date())}"></div>`,ov=>{
+      const v=ov.querySelector('#rsDate').value;if(!v){toast('請選擇離職日。','warn');return false;}
+      store.staff(Object.assign(clone(s),{active:false,resignDate:v}));toast(`${codeOf(s.id)} 已設為離職。`);
+    },'離職');
+    return;
+  }
   if(e.target.closest('[data-delstaff]')){
-    dialog(`<h3>刪除 ${esc(fullName(s))}？</h3><p>會同時從所有班表中移除這個人，無法復原。如果只是離職，建議改用「停用」。</p>`,()=>{
+    dialog(`<h3>刪除 ${esc(fullName(s))}？</h3><p>會同時從所有班表中移除這個人，無法復原。如果只是離職，建議改用「離職」。</p>`,()=>{
       histSkip=true;schedHist=[];
       Object.keys(weeks).forEach(wk=>{
         const w=weeks[wk];let changed=false;const nw={};
