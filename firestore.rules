@@ -26,11 +26,18 @@ service cloud.firestore {
     }
     function mySid() { return hasAcc() ? get(accPath()).data.staffId : ''; }
 
-    // 打卡裝置（kiosk.html）：匿名登入，devices/{uid} 由管理者核准（approved == true）後才算
+    // 打卡裝置（kiosk.html）：匿名登入，雙軌核准，任一成立即可：
+    //   1) devices/{uid}.approved == true（以裝置代碼核准）
+    //   2) devices/{uid}.hwId 指向的 hw/{裝置編號}.approved == true（App 才有裝置編號；代碼變了也沿用）
     function devPath() { return /databases/$(database)/documents/devices/$(request.auth.uid); }
+    function hwPath(id) { return /databases/$(database)/documents/hw/$(id); }
     function isKiosk() {
-      return request.auth != null && exists(devPath()) && get(devPath()).data.approved == true;
+      return request.auth != null && exists(devPath()) && (
+        get(devPath()).data.approved == true ||
+        (('hwId' in get(devPath()).data) && exists(hwPath(get(devPath()).data.hwId))
+          && get(hwPath(get(devPath()).data.hwId)).data.approved == true));
     }
+    function myHwId() { return request.auth != null && exists(devPath()) && ('hwId' in get(devPath()).data) ? get(devPath()).data.hwId : ''; }
 
     function canView()   { return perm() in ['view', 'self', 'manage', 'super']; }
     function canManage() { return perm() in ['manage', 'super']; }
@@ -50,7 +57,18 @@ service cloud.firestore {
       allow read: if canManage() || (request.auth != null && request.auth.uid == uid);
       allow create: if canManage() || (request.auth != null && request.auth.uid == uid
         && request.resource.data.approved == false
-        && request.resource.data.keys().hasOnly(['name', 'approved', 'at', 'ua']));
+        && request.resource.data.keys().hasOnly(['name', 'approved', 'at', 'ua', 'hwId', 'model']));
+      // 裝置自己只能補上裝置編號與型號（舊版登記的裝置），其他欄位由管理者處理
+      allow update: if canManage() || (request.auth != null && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hwId', 'model']));
+      allow delete: if canManage();
+    }
+    // 裝置編號 hw/{裝置編號}：App 回報；管理者核准後，同一台平板換了代碼也能打卡
+    match /hw/{hid} {
+      allow read: if canManage() || myHwId() == hid;
+      allow create: if canManage() || (myHwId() == hid
+        && request.resource.data.approved == false
+        && request.resource.data.keys().hasOnly(['approved', 'at', 'platform', 'model']));
       allow update, delete: if canManage();
     }
     // 打卡紀錄 punches/{id}：裝置只能新增（不能改、不能刪），且必須標明是自己這台裝置、時間不能在未來；

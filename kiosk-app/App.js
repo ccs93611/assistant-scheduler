@@ -1,13 +1,26 @@
 // 新海打卡：把 kiosk.html 包成 iOS / Android App，放在診所的平板上當打卡機。
-// 辨識、打卡、資料同步都在網頁（kiosk.html）裡；App 只負責：相機權限、全螢幕、螢幕不休眠、斷線重試。
+// 辨識、打卡、資料同步都在網頁（kiosk.html）裡；App 只負責：相機權限、全螢幕、螢幕不休眠、斷線重試，
+// 以及把「裝置編號」交給網頁（window.KIOSK_HW），讓排班系統可以綁定這台平板。
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useCameraPermissions } from 'expo-camera';
+import * as Application from 'expo-application';
+import * as Device from 'expo-device';
 
 const KIOSK_URL = 'https://assistant-scheduler-five.vercel.app/kiosk.html';
 const RETRY_MS = 15000;
+
+// 裝置編號：Android 用 Android ID（重裝 App 不變，恢復原廠設定才變）；
+// iOS 用 identifierForVendor（同一開發者的 App 全部刪除後重裝才會變）。
+async function getHardwareId() {
+  try {
+    const raw = Platform.OS === 'android' ? Application.getAndroidId() : await Application.getIosIdForVendorAsync();
+    if (!raw) return null;
+    return (Platform.OS === 'android' ? 'and-' : 'ios-') + String(raw).replace(/[^A-Za-z0-9-]/g, '').toLowerCase();
+  } catch (e) { return null; }
+}
 
 export default function App() {
   useKeepAwake(); // 打卡機螢幕常亮
@@ -15,6 +28,9 @@ export default function App() {
   const [failed, setFailed] = useState(false);
   const [key, setKey] = useState(0); // 改變 key 讓 WebView 重新載入
   const timer = useRef(null);
+  const [hw, setHw] = useState(undefined); // undefined＝讀取中；null＝讀不到
+
+  useEffect(() => { getHardwareId().then(setHw); }, []);
 
   useEffect(() => {
     if (perm && !perm.granted && perm.canAskAgain) requestPerm();
@@ -40,7 +56,8 @@ export default function App() {
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  if (!perm) return <View style={s.root} />;
+  if (!perm || hw === undefined) return <View style={s.root} />;
+  const hwInfo = JSON.stringify({ id: hw, platform: Platform.OS, model: [Device.manufacturer, Device.modelName].filter(Boolean).join(' ') });
   if (!perm.granted) {
     return (
       <View style={[s.root, s.center]}>
@@ -58,6 +75,7 @@ export default function App() {
       <WebView
         key={key}
         source={{ uri: KIOSK_URL }}
+        injectedJavaScriptBeforeContentLoaded={`window.KIOSK_HW=${hwInfo};true;`}
         style={s.root}
         javaScriptEnabled
         domStorageEnabled

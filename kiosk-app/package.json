@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "expo": "^57.0.26",
+    "expo-application": "~57.0.3",
     "expo-camera": "~57.0.6",
+    "expo-device": "~57.0.2",
     "expo-keep-awake": "~57.0.2",
     "react": "19.2.3",
     "react-native": "0.86.3",

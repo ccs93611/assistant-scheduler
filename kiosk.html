@@ -336,7 +336,8 @@ function firebaseSource(){
   const auth=firebase.auth();
   let me=null, subs=[], weekSub=null, daySub=null, curWk='', curDay='';
   const decCells=data=>{const o={};Object.entries(data?.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;};
-  function stopAll(){subs.forEach(u=>u());subs=[];if(weekSub)weekSub();if(daySub)daySub();weekSub=daySub=null;curWk=curDay='';}
+  let dayTimer=null;
+  function stopAll(){subs.forEach(u=>u());subs=[];if(weekSub)weekSub();if(daySub)daySub();weekSub=daySub=null;curWk=curDay='';clearInterval(dayTimer);dayTimer=null;}
   function watchDay(){
     const now=new Date(),wk=ymd(mondayOf(now)),day=ymd(now);
     if(wk!==curWk){if(weekSub)weekSub();curWk=wk;weekSub=db.doc('weeks/'+wk).onSnapshot(s=>{weekCells=s.exists?decCells(s.data()):{};renderRecent();},e=>console.warn(e));}
@@ -346,7 +347,7 @@ function firebaseSource(){
     subs.push(db.collection('staff').onSnapshot(s=>{staff=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderRecent();},onErr));
     subs.push(db.collection('faces').onSnapshot(s=>{const m={};s.docs.forEach(d=>{const v=d.data();try{m[d.id]=Object.assign({},v,{vecs:JSON.parse(v.emb||'[]')});}catch(e){}});faces=m;},onErr));
     subs.push(db.doc('kiosk/settings').onSnapshot(s=>{settings=Object.assign({},DEFAULTS,s.exists?s.data():{});if(!sel)renderPick();},onErr));
-    watchDay();setInterval(watchDay,30*1000);
+    watchDay();clearInterval(dayTimer);dayTimer=setInterval(watchDay,30*1000);
     beginKiosk();
   }
   function onErr(e){console.error(e);if(e.code==='permission-denied')showGate('revoked');}
@@ -357,19 +358,42 @@ function firebaseSource(){
       auth.onAuthStateChanged(async u=>{
         if(!u){try{await auth.signInAnonymously();}catch(e){console.error(e);showGate('error',e.code==='auth/operation-not-allowed'?'Firebase 尚未啟用「匿名」登入方式，請管理者到 Firebase 主控台 → Authentication → 登入方式 啟用「匿名」。':'無法連線：'+(e.code||e.message));}return;}
         me=u;
-        $('devSub').textContent='裝置代碼 '+devCode(u.uid);
+        $('devSub').textContent='裝置代碼 '+devCode(u.uid)+(HW?'・裝置編號 '+hwCode(HW.id):'');
+        // 雙軌核准：devices/{uid}.approved（代碼）或 hw/{裝置編號}.approved（App 才有裝置編號），任一成立即可打卡
         const ref=db.doc('devices/'+u.uid);
-        let created=false;
+        let created=false,devD=null,hwD=null,hwSub=null,hwTried=false;
+        const evalState=()=>{
+          if(!devD)return;
+          const ok=devD.approved===true||hwD?.approved===true;
+          device=Object.assign({},devD,{name:devD.name||hwD?.name||''});
+          $('devName').textContent=device.name||'新海美學牙醫診所';
+          if(!ok){stopAll();paused=true;showGate('pair',{uid:u.uid,hw:HW?.id});return;}
+          if(!subs.length){hideGate();startData();}
+        };
+        const watchHw=()=>{
+          if(!HW||hwSub)return;
+          const hr=db.doc('hw/'+HW.id);
+          hwSub=hr.onSnapshot(async s=>{
+            if(!s.exists){hwD=null;try{await hr.set({approved:false,at:Date.now(),platform:HW.platform||'',model:String(HW.model||'').slice(0,80)});}catch(e){console.warn('hw',e);}}
+            else hwD=s.data();
+            evalState();
+          },e=>console.warn('hw',e));
+        };
         ref.onSnapshot(async s=>{
           if(!s.exists){
             if(created)return;created=true;
-            try{await ref.set({name:'',approved:false,at:Date.now(),ua:navigator.userAgent.slice(0,200)});}
+            const body={name:'',approved:false,at:Date.now(),ua:navigator.userAgent.slice(0,200)};
+            if(HW){body.hwId=HW.id;body.model=String(HW.model||'').slice(0,80);}
+            try{await ref.set(body);}
             catch(e){console.error(e);showGate('error','無法登記裝置：'+(e.code||e.message));}
             return;
           }
-          const d=s.data();device=d;$('devName').textContent=d.name||'新海美學牙醫診所';
-          if(!d.approved){stopAll();paused=true;showGate('pair',u.uid);return;}
-          if(!subs.length){hideGate();startData();}
+          devD=s.data();
+          // 舊版登記的裝置還沒有裝置編號：補上（之後就能用裝置編號核准）
+          // 補上後會再收到一次快照；補不上（例如權限）就照代碼核准的方式繼續
+          if(HW&&devD.hwId!==HW.id&&!hwTried){hwTried=true;try{await ref.update({hwId:HW.id,model:String(HW.model||'').slice(0,80)});return;}catch(e){console.warn(e);}}
+          if(devD.hwId===HW?.id)watchHw();
+          evalState();
         },e=>{console.error(e);showGate('error','無法讀取裝置狀態：'+(e.code||e.message));});
       });
     },
@@ -382,6 +406,10 @@ function firebaseSource(){
   };
 }
 const devCode=u=>u.slice(0,6).toUpperCase();
+// 裝置編號的簡短顯示：and-1a2b3c4d… → AND-1A2B3C
+const hwCode=id=>(id.slice(0,3)+'-'+id.slice(4,10)).toUpperCase();
+// App 交給網頁的裝置編號（瀏覽器開啟時沒有）
+const HW=window.KIOSK_HW&&window.KIOSK_HW.id?window.KIOSK_HW:null;
 
 // ---------- 資料來源：本機（開發測試用，與 index.html?local=名稱 共用 localStorage） ----------
 function localSource(){
@@ -414,7 +442,7 @@ function localSource(){
 function showGate(kind,arg){
   const g=$('gate'),b=$('gateBox');g.hidden=false;
   if(kind==='loading'){b.innerHTML=`<h2>${esc(arg||'載入中…')}</h2><p>第一次開啟需要下載辨識模型（約 10 MB），請稍候。</p>`;return;}
-  if(kind==='pair'){b.innerHTML=`<h2>這台裝置尚未核准</h2><p>請管理者登入排班系統 → 「出勤」分頁 → 「打卡裝置」，核准下面這個裝置代碼。核准後這個畫面會自動進入打卡模式。</p><div class="code">${esc(devCode(arg))}</div>`;return;}
+  if(kind==='pair'){b.innerHTML=`<h2>這台裝置尚未核准</h2><p>請管理者登入排班系統 → 「出勤」分頁 → 「打卡裝置」，核准下面這台裝置。核准後這個畫面會自動進入打卡模式。</p><div class="code">${esc(devCode(arg.uid))}</div><p style="text-align:center;margin:0">裝置代碼</p>${arg.hw?`<div class="code" style="font-size:1.5rem;margin-top:14px">${esc(hwCode(arg.hw))}</div><p style="text-align:center;margin:0">裝置編號（核准時選「綁定裝置編號」，之後代碼變了也不用重新核准）</p>`:''}`;return;}
   if(kind==='revoked'){b.innerHTML=`<h2>這台裝置已停用</h2><p>請管理者到排班系統 → 「出勤」→ 「打卡裝置」重新核准。</p><div class="row"><button class="primary" onclick="location.reload()">重新整理</button></div>`;return;}
   if(kind==='camera'){b.innerHTML=`<h2>無法使用相機</h2><p>${esc(arg)}</p><div class="row"><button class="primary" onclick="location.reload()">重試</button></div>`;return;}
   b.innerHTML=`<h2>發生問題</h2><p>${esc(arg)}</p><div class="row"><button class="primary" onclick="location.reload()">重新整理</button></div>`;

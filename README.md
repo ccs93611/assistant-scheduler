@@ -165,6 +165,7 @@ HTML（7 個 <section id="tab-*">）
 - 應出勤＝到今天為止、已結束、沒有請假的診次（依 `weeks`，也就是定案後的異動班表）。出勤率＝上下班卡都有的診數 ÷ 應出勤。
 - **臨時加班**：打卡端選擇畫面最下方的「臨時加班 上班卡／下班卡」隨時可打，不受班表與可打卡時段限制（`sel.sh='extra'`），不列入出勤率、遲到、早退、缺卡。臨時加班下班卡一律成為加班申請（`ot.extra=true`），分鐘數從當天最近一張臨時加班上班卡起算（`ot.from`），必須有原因：臨時加班上班卡可以先填原因（存在 `extraReason`，也可「稍後再填」）；下班卡會帶出上班時填的原因，可「沿用並送出」或「修改原因」，上班時沒填就必須填（沒有「不用」選項）。60 秒沒動作：有上班原因就沿用，沒有則送出並標示「未填寫原因」；找不到上班卡時分鐘數顯示「?」，由主管核准時填入。
 - **接續下一診**：下班卡時間已超過當天下一診（有排班）的開始時間時，加班最多算到兩診中間的間隔，並同時自動打下一診的上班卡（`auto:true`，`link` 指回下班卡；下班卡記 `next`）。這張接續上班卡照算遲到，但下班卡的加班**核准後下一診不算遲到**（待審時標示「前一診加班審核中」）。即使沒到下一診開始，只要有排下一診，加班也最多算到兩診中間。
+- **打卡裝置雙軌核准**：裝置代碼是匿名登入帳號 ID 的前 6 碼，清除資料、重裝 App、換瀏覽器都會變。App 會把系統的裝置編號交給網頁（`window.KIOSK_HW`），核准時可選「綁定裝置編號」（之後代碼變了也自動沿用）或「只核准這個代碼」；用瀏覽器開啟的沒有裝置編號，只能以代碼核准。`isKiosk()`：`devices/{uid}.approved` 或其 `hwId` 對應的 `hw/{id}.approved` 任一成立。
 - **打卡端查看紀錄**：右上角「打卡紀錄」按鈕，不需密碼、人人可看。可切換單日／整月、上一個／下一個、今天，並依人員篩選；每筆顯示時間、姓名、哪一診上班／下班（接續、臨時加班、補登）、遲到／早退（依該週班表）與加班申請狀態。不顯示照片、不列出已作廢的打卡；60 秒沒操作自動關閉。
 - **防重複打卡**：同一人同一班的同一種卡（例如都是早診上班卡），`dupMin`（預設 5）分鐘內不能重複打，會提示上次打卡時間並回到選擇畫面；填 0 不限制。
 - **可打卡時段**：上班卡在開診前 `inBefore`（預設 60）～開診後 `inAfter`（預設 180）分鐘；下班卡在結束前 `outBefore`（預設 180）～結束後 `outAfter`（預設 180）分鐘。時段外的按鈕在打卡裝置上呈灰色無法選擇（每 30 秒更新），可在出勤規則調整。
@@ -175,7 +176,8 @@ HTML（7 個 <section id="tab-*">）
 
 | 路徑 | 內容 |
 |---|---|
-| `devices/{匿名uid}` | `{name, approved, at, ua}`；裝置自己建立（approved 必須是 false），排班管理以上核准 |
+| `devices/{匿名uid}` | `{name, approved, at, ua, hwId?, model?}`；裝置自己建立（approved 必須是 false，只能自己補上 hwId／model），排班管理以上核准 |
+| `hw/{裝置編號}` | `{approved, name, model, platform, at}`：App 回報的裝置編號（Android ID 或 iOS identifierForVendor，前綴 `and-`／`ios-`），核准後同一台平板換了代碼也能打卡 |
 | `punches/{id}` | `{staffId, ts, date, src:'kiosk'\|'manual', sel:{sh,k}?, ot:{min,reason,status:'pending'|'approved'|'rejected',approvedMin?,by?,note?}?, device, devName, sim, real, live, photo?, by?, note?, void?}`（`sel`：打卡時選的班別與上班 in／下班 out）。裝置只能新增；補登、作廢（`void`，保留紀錄）由管理者處理 |
 | `faces/{staffId}` | `{emb: JSON 字串（5 組特徵值）, n, at, consentAt, device}`，不存照片 |
 | `kiosk/settings` | `{graceIn, graceOut, nightOut, otAsk, dupMin, inBefore, inAfter, outBefore, outAfter, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
