@@ -202,6 +202,8 @@ npx eas-cli build -p ios --profile preview       # 需 Apple Developer 帳號，
 ```
 平板建議開「螢幕固定」（Android）／「引導使用模式」（iPad），避免被切到其他 App。
 
+**下載頁**：`app.html`（正式網址 `/app.html`，排班系統「出勤 → 打卡裝置」右上角也有連結）提供最新版 APK 的下載按鈕、QR code（指向下載頁本身，換版本不用重印）、版本與安裝步驟，內容讀 `app-latest.json`。每次建置完成後，在 `kiosk-app` 執行 `node set-latest.js "這一版的更新說明"` 更新 `app-latest.json`，再 commit／push。`eas.json` 的 preview 設定 `autoIncrement`，每次建置版本號（第 N 版）自動加 1。
+
 **本機測試**：`index.html?local=名稱` 與 `kiosk.html?local=名稱` 共用 localStorage（打卡資料存在 `clinic_kiosk_local_v1_名稱`）；沒有相機時可在主控台用 `__kiosk.simulate('人員id')` 模擬辨識成功。
 
 ## 本機使用

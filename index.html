@@ -187,6 +187,8 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .punch.void{text-decoration:line-through; color:var(--faint);}
 .punch img{width:28px; height:28px; border-radius:50%; object-fit:cover; cursor:zoom-in; vertical-align:middle;}
 #attLog td{white-space:nowrap;}
+.btn-link{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:.78rem;color:var(--accent);text-decoration:none;}
+.btn-link:hover{border-color:var(--accent);}
 /* 僅檢視：請假／休假分頁不顯示登記表單與停用的按鈕 */
 body.view-only [data-attclose],body.view-only #attTable .att-face{display:none;}
 body.view-only #attRulesCard,body.view-only #devCard,body.view-only #attToPay,body.view-only #tab-att button:disabled,body.view-only #attLogSid,body.view-only #otSid{display:none;}
@@ -741,7 +743,7 @@ body.gated .shell{display:none;}
           <div class="pay-rules" id="attRules"></div>
         </div>
         <div class="card" id="devCard">
-          <h2>打卡裝置</h2>
+          <div class="lv-title-row"><h2 style="margin:0">打卡裝置</h2><span style="flex:1"></span><a class="small btn-link" href="app.html" target="_blank" rel="noopener">下載打卡 App（最新版）</a></div>
           <p class="desc">在診所的平板開啟「新海打卡」App（或 <code id="kioskUrl"></code>），畫面會顯示裝置代碼，在這裡核准後才能打卡。臉部登錄在打卡裝置上進行（右上角 ⚙，需要下面的管理密碼）。</p>
           <div class="scroll-x"><table class="list" id="devTable"></table></div>
           <form class="form-row" id="kioskPinForm" style="margin-top:12px">

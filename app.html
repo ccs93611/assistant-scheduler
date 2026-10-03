@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新海打卡 App 下載</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#F3F1EC;--panel:#FFFFFF;--ink:#1F2A24;--sub:#5C6B63;--faint:#8B968E;--line:#DAD8CE;--accent:#3B5D52;--accent-ink:#FFFFFF;--accent-soft:#DDE7E1;--warn:#B4432E}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16201B;--panel:#1F2B25;--ink:#F1F4F1;--sub:#A9B8AF;--faint:#7D8C83;--line:#33443A;--accent:#8DB5A2;--accent-ink:#10160F;--accent-soft:#2A3A32;--warn:#E6866D}}
+:root[data-theme="dark"]{--bg:#16201B;--panel:#1F2B25;--ink:#F1F4F1;--sub:#A9B8AF;--faint:#7D8C83;--line:#33443A;--accent:#8DB5A2;--accent-ink:#10160F;--accent-soft:#2A3A32;--warn:#E6866D}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.6}
+main{max-width:720px;margin:0 auto;padding:32px 16px 48px;display:flex;flex-direction:column;gap:16px}
+h1{margin:0;font-size:1.6rem}
+.lead{margin:0;color:var(--sub)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.card h2{margin:0 0 8px;font-size:1.1rem}
+.dl{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center}
+@media (max-width:560px){.dl{grid-template-columns:1fr}.qr-wrap{justify-self:center}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:700;font-size:1.1rem;padding:14px 22px;border-radius:12px;min-height:52px}
+.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
+.meta{color:var(--sub);font-size:.9rem;margin:10px 0 0}
+.meta b{color:var(--ink)}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+#qr{background:#fff;padding:10px;border-radius:10px;line-height:0}
+.qr-wrap small{color:var(--faint);font-size:.78rem;text-align:center}
+ol{margin:0;padding-left:1.4em}
+ol li{margin:4px 0}
+.muted{color:var(--faint)}
+.warn{color:var(--warn)}
+code{background:var(--accent-soft);padding:1px 6px;border-radius:5px;font-size:.9em}
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>新海打卡 App</h1>
+    <p class="lead">診所平板用的臉部辨識打卡 App。這個網址永遠指向最新版。</p>
+  </div>
+
+  <section class="card">
+    <h2>Android 平板</h2>
+    <div class="dl">
+      <div>
+        <a class="btn" id="dlBtn" href="#" aria-disabled="true">下載最新版 APK</a>
+        <p class="meta" id="meta">讀取版本資訊中…</p>
+        <p class="meta" id="notes" hidden></p>
+      </div>
+      <div class="qr-wrap">
+        <div id="qr"></div>
+        <small>用平板掃描，<br>開啟這個下載頁</small>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>安裝步驟</h2>
+    <ol>
+      <li>在平板上開啟這個頁面（或掃描上方 QR code），按「下載最新版 APK」。</li>
+      <li>下載完成後點開檔案。如果出現「不允許安裝未知來源的應用程式」，依畫面指示允許瀏覽器（或檔案管理員）安裝。</li>
+      <li>已經裝過舊版的平板<b>直接覆蓋安裝</b>即可，不用先刪除；打卡紀錄與臉部資料都在雲端，不受影響。</li>
+      <li>打開「新海打卡」，允許使用相機。第一次安裝的平板，請管理者到排班系統「出勤 → 打卡裝置」核准（建議選「綁定裝置編號」）。</li>
+      <li>建議開啟 Android 的「螢幕固定」，避免打卡平板被切換到其他 App。</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>iPad</h2>
+    <p class="muted" id="iosInfo" style="margin:0">iPad 版尚未提供（需要 Apple Developer 帳號）。目前可以先用 Safari 開啟 <code>kiosk.html</code> 打卡頁使用。</p>
+  </section>
+</main>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const pageUrl=location.origin+location.pathname;
+  try{new QRCode($('qr'),{text:pageUrl,width:160,height:160,correctLevel:QRCode.CorrectLevel.M});}catch(e){$('qr').textContent='';}
+  const fmt=iso=>{const d=new Date(iso);return isNaN(d)?'':`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;};
+  fetch('app-latest.json?t='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(d=>{
+    const a=d.android;
+    if(!a||!a.url){$('meta').textContent='目前沒有可下載的版本。';return;}
+    $('dlBtn').href=a.url;$('dlBtn').removeAttribute('aria-disabled');
+    $('meta').innerHTML=`版本 <b>${a.version}</b>（第 ${a.build} 版）・建置於 ${fmt(a.builtAt)}`;
+    if(a.notes){$('notes').hidden=false;$('notes').textContent='這一版：'+a.notes;}
+    if(d.ios&&d.ios.url){$('iosInfo').innerHTML=`<a class="btn" href="${d.ios.url}">安裝 iPad 版</a>`;}
+  }).catch(()=>{$('meta').innerHTML='<span class="warn">讀取版本資訊失敗，請確認網路連線後重新整理。</span>';});
+})();
+</script>
+</body>
+</html>
