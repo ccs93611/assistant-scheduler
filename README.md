@@ -164,6 +164,8 @@ HTML（7 個 <section id="tab-*">）
 - 遲到：上班卡晚於開診超過「遲到寬限」→ 從開診時間起算的分鐘數；早退：下班卡早於結束超過「早退寬限」。晚班在「晚班可下班時間」（`nightOut`，預設 21:00）之後打下班卡不算早退，早於這個時間時早退分鐘也從這個時間起算。
 - 應出勤＝到今天為止、已結束、沒有請假的診次（依 `weeks`，也就是定案後的異動班表）。出勤率＝上下班卡都有的診數 ÷ 應出勤。
 - **臨時加班**：打卡端選擇畫面最下方的「臨時加班 上班卡／下班卡」隨時可打，不受班表與可打卡時段限制（`sel.sh='extra'`），不列入出勤率、遲到、早退、缺卡。臨時加班下班卡一律成為加班申請（`ot.extra=true`），分鐘數從當天最近一張臨時加班上班卡起算（`ot.from`），必須有原因：臨時加班上班卡可以先填原因（存在 `extraReason`，也可「稍後再填」）；下班卡會帶出上班時填的原因，可「沿用並送出」或「修改原因」，上班時沒填就必須填（沒有「不用」選項）。60 秒沒動作：有上班原因就沿用，沒有則送出並標示「未填寫原因」；找不到上班卡時分鐘數顯示「?」，由主管核准時填入。
+- **接續下一診**：下班卡時間已超過當天下一診（有排班）的開始時間時，加班最多算到兩診中間的間隔，並同時自動打下一診的上班卡（`auto:true`，`link` 指回下班卡；下班卡記 `next`）。這張接續上班卡照算遲到，但下班卡的加班**核准後下一診不算遲到**（待審時標示「前一診加班審核中」）。即使沒到下一診開始，只要有排下一診，加班也最多算到兩診中間。
+- **防重複打卡**：同一人同一班的同一種卡（例如都是早診上班卡），`dupMin`（預設 5）分鐘內不能重複打，會提示上次打卡時間並回到選擇畫面；填 0 不限制。
 - **可打卡時段**：上班卡在開診前 `inBefore`（預設 60）～開診後 `inAfter`（預設 180）分鐘；下班卡在結束前 `outBefore`（預設 180）～結束後 `outAfter`（預設 180）分鐘。時段外的按鈕在打卡裝置上呈灰色無法選擇（每 30 秒更新），可在出勤規則調整。
 - **加班申請**：下班卡比該診結束時間（晚班 21:30）晚超過「下班超過幾分鐘詢問加班」（`otAsk`，預設 3 分鐘，0＝不詢問），打卡裝置會詢問是否申請加班，申請必須填原因（可點選常用原因再補充）；不申請或 60 秒沒回應就只打下班卡。申請存在該筆打卡的 `ot`（裝置只能送出 `status:'pending'`），管理者在「出勤 → 加班申請」核准（可調整分鐘數）或退回。
 - 「帶入薪資（遲到、加班）」：遲到寫入 `pay/{staffId}_{YYYY-MM}.lateMin`（可設定是否併入早退分鐘）；當月**已核准**的加班分鐘合計寫入 `otMin`（取代原本手動填的加班/拖診分鐘數）。帶入前會列出變更讓管理者確認。
@@ -175,7 +177,7 @@ HTML（7 個 <section id="tab-*">）
 | `devices/{匿名uid}` | `{name, approved, at, ua}`；裝置自己建立（approved 必須是 false），排班管理以上核准 |
 | `punches/{id}` | `{staffId, ts, date, src:'kiosk'\|'manual', sel:{sh,k}?, ot:{min,reason,status:'pending'|'approved'|'rejected',approvedMin?,by?,note?}?, device, devName, sim, real, live, photo?, by?, note?, void?}`（`sel`：打卡時選的班別與上班 in／下班 out）。裝置只能新增；補登、作廢（`void`，保留紀錄）由管理者處理 |
 | `faces/{staffId}` | `{emb: JSON 字串（5 組特徵值）, n, at, consentAt, device}`，不存照片 |
-| `kiosk/settings` | `{graceIn, graceOut, nightOut, otAsk, inBefore, inAfter, outBefore, outAfter, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
+| `kiosk/settings` | `{graceIn, graceOut, nightOut, otAsk, dupMin, inBefore, inAfter, outBefore, outAfter, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
 
 **第一次上線要做的事**
 1. Firebase 主控台 → Authentication → 登入方式 → 啟用「匿名」。

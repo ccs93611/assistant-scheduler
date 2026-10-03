@@ -260,8 +260,7 @@ const MODEL_BASE='https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/models/';
 const SAMPLES=5;            // 登錄時擷取的特徵數
 const STABLE_FRAMES=3;      // 連續幾幀辨識成同一人才確認
 const CONFIRM_MS=2500;      // 確認畫面自動打卡倒數
-const COOLDOWN_MS=60*1000;  // 同一人兩次打卡的最短間隔
-const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00',otAsk:3,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
+const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00',otAsk:3,dupMin:5,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
 // 臨時加班：sel.sh='extra'，隨時可打、不看班表，下班卡一律成為加班申請（必填原因）
 const EXTRA={id:'extra',name:'臨時加班'};
 const shOf=id=>id==='extra'?EXTRA:SHIFTS.find(x=>x.id===id);
@@ -394,7 +393,8 @@ function askOvertime(sid,min,opt={mode:'ask'}){
     $('otReason').value='';$('otCd').textContent='';
     $('otChips').innerHTML=OT_REASONS.map(r=>`<button data-r="${esc(r)}">${esc(r)}</button>`).join('');
     if(mode==='ask'){
-      $('otTitle').textContent='要申請加班嗎？';$('otSub').textContent=`${nameOf(sid)}，你比下班時間晚了 ${min} 分鐘。`;
+      $('otTitle').textContent='要申請加班嗎？';$('otSub').textContent=`${nameOf(sid)}，你比下班時間晚了 ${min} 分鐘。`+(opt.msg?`
+${opt.msg}`:'');
       $('otNo').textContent='不用，只打下班卡';$('otYes').textContent='申請加班';
       $('otAsk1').hidden=false;$('otAsk2').hidden=true;$('otBack').hidden=false;$('otBack').textContent='取消申請';
     }else if(mode==='in'){
@@ -471,9 +471,20 @@ function selNote(sid,sel,ts){
   const end=sel.sh==='night'&&/^\d{1,2}:\d{2}$/.test(settings.nightOut||'')?Math.min(b,hm(settings.nightOut)):b;
   if(sel.k==='out'&&Math.ceil(end-min-1e-9)>(Number(settings.graceOut)||0))note=`早退 ${Math.ceil(end-min-1e-9)} 分鐘`;
   // 加班：下班卡比該診結束時間（晚班 21:30）晚超過 otAsk 分鐘時，打卡後詢問是否申請加班
-  const over=sel.k==='out'?Math.floor(min-b):0, ask=Number(settings.otAsk)||0;
-  if(over>0&&!note)note=`超過下班時間 ${over} 分鐘`;
-  return {label,note,ot:ask>0&&over>ask?over:0};
+  let over=sel.k==='out'?Math.floor(min-b):0;const ask=Number(settings.otAsk)||0;
+  // 當天有排下一診：加班最多算到下一診開始（兩診中間的間隔）；下班卡已超過下一診開始時，同時打下一診的上班卡
+  let next=null,cap=0;
+  if(sel.k==='out'){
+    const i=SHIFTS.findIndex(x=>x.id===sel.sh),nx=SHIFTS[i+1];
+    if(nx&&scheduledShifts(sid,d).some(x=>x.id===nx.id)){
+      const na=hm(nx.time.split('-')[0]);cap=Math.max(0,na-b);
+      if(over>cap)over=cap;
+      if(min>na)next={sh:nx.id,name:nx.name,late:Math.floor(min-na)};
+    }
+  }
+  if(over>0&&!note)note=`超過下班時間 ${over} 分鐘${cap&&over===cap?'（加班最多算到兩診中間）':''}`;
+  if(next)note+=`${note?'；':''}已超過${next.name}上班時間，將同時打${next.name}上班卡`;
+  return {label:next?`${label}＋${next.name} 上班`:label,note,ot:ask>0&&over>ask?over:0,next,cap};
 }
 // 臨時加班下班卡：用當天最近一張（還沒配對到下班卡的）臨時加班上班卡算分鐘
 function extraNote(sid,sel,ts){
@@ -487,7 +498,7 @@ function extraNote(sid,sel,ts){
 const punchLabel=p=>p.sel?selNote(p.staffId,p.sel,p.ts):guessKind(p.staffId,p.ts);
 function renderRecent(){
   const list=todays.slice().sort((a,b)=>b.ts-a.ts).slice(0,40);
-  $('recent').innerHTML=list.length?list.map(p=>{const g=punchLabel(p);if(g.warn)g.note='沒有排這一診';if(p.sel?.sh==='extra'&&p.sel.k==='in')g.note='';if(p.ot)g.note=p.ot.extra&&!p.ot.from?'申請臨時加班':`申請加班 ${p.ot.min} 分`;return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
+  $('recent').innerHTML=list.length?list.map(p=>{const g=punchLabel(p);if(g.warn)g.note='沒有排這一診';if(p.sel?.sh==='extra'&&p.sel.k==='in')g.note='';if(p.auto){g.label+='（接續）';g.note='';}if(p.next){g.label=g.label.replace(/＋.*$/,'');g.note=(g.note||'').split('；')[0].replace(/（.*）/,'');}if(p.ot)g.note=p.ot.extra&&!p.ot.from?'申請臨時加班':`申請加班 ${p.ot.min} 分`;return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
 }
 
 // ---------- 相機與辨識模型 ----------
@@ -579,7 +590,7 @@ $('scanCancel').onclick=endScan;
 renderPick();setInterval(()=>{if(!sel)renderPick();},30*1000);
 
 // ---------- 打卡主迴圈 ----------
-let streak={sid:null,n:0}, lastPunch={}, badSince=0;
+let streak={sid:null,n:0}, badSince=0;
 function setMsg(t,cls=''){$('msg').textContent=t;$('guide').className='guide '+cls;}
 async function loop(){
   if(!running)return;
@@ -610,7 +621,6 @@ function handleFrame(f){
   setMsg('辨識中…','seen');
   if(streak.n>=STABLE_FRAMES){
     streak={sid:null,n:0};
-    if(Date.now()-(lastPunch[m.sid]||0)<COOLDOWN_MS){setMsg(`${nameOf(m.sid)} 剛剛已經打過卡了`,'seen');return;}
     confirmPunch(m.sid,{sim:m.sim,real:f.real,live:f.live,box:f.box});
   }
 }
@@ -624,9 +634,20 @@ function snapshot(box){
   }catch(e){return null;}
 }
 let resTimer=null;
+// 同一班的同一種卡，dupMin 分鐘（預設 5）內不能重複打（看今天所有裝置的打卡）
+function recentDup(sid,s,ts=Date.now()){
+  const lim=(Number(settings.dupMin)||0)*60000;if(!lim)return null;
+  return todays.filter(p=>p.staffId===sid&&p.sel&&p.sel.sh===s.sh&&p.sel.k===s.k&&ts-p.ts>=0&&ts-p.ts<lim).sort((a,b)=>b.ts-a.ts)[0]||null;
+}
 function confirmPunch(sid,info){
   paused=true;
   if(!sel)return;
+  const dup=recentDup(sid,sel);
+  if(dup){
+    const ago=Math.max(0,Math.floor((Date.now()-dup.ts)/60000));
+    toast(`${nameOf(sid)} ${ago?ago+' 分鐘前':'剛剛'}已打過${shOf(sel.sh).name}${sel.k==='in'?'上班':'下班'}卡（${hhmm(dup.ts)}），${settings.dupMin} 分鐘內不能重複打卡`,'warn');
+    endScan();setTimeout(()=>{paused=false;},1500);return;
+  }
   const ts=Date.now(),chosen=Object.assign({},sel),g=selNote(sid,chosen,ts),photo=settings.photo?snapshot(info.box):null;
   $('resBox').classList.remove('done');
   $('resKind').textContent=g.label;$('resWho').textContent=nameOf(sid);$('resTime').textContent=hhmm(ts);
@@ -648,15 +669,19 @@ function confirmPunch(sid,info){
     let otReason=null;
     if(g.extra){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'out',prev:g.prev,msg:g.noIn?'找不到今天的臨時加班上班卡，請填寫原因（時數由主管確認）。':`臨時加班 ${g.ot} 分鐘，需要主管核准。`});$('resOv').hidden=false;}
     else if(chosen.sh==='extra'&&chosen.k==='in'){$('resOv').hidden=true;const r=await askOvertime(sid,0,{mode:'in'});$('resOv').hidden=false;if(r)p.extraReason=r;}
-    else if(g.ot){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot);$('resOv').hidden=false;}
+    else if(g.ot){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'ask',msg:g.next?`加班最多算到${g.next.name}開始（${g.cap} 分鐘）。已同時幫你打${g.next.name}上班卡；加班核准後，${g.next.name}不算遲到。`:''});$('resOv').hidden=false;}
     if(otReason){p.ot={min:g.ot,reason:otReason,status:'pending'};if(g.extra)p.ot.extra=true;if(g.from)p.ot.from=g.from;}
-    lastPunch[sid]=ts;
+    // 接續下一診：同一時間自動打下一診的上班卡（auto），link 指回這張下班卡；這張下班卡的加班核准後，下一診不算遲到
+    let pNext=null;
+    if(g.next){pNext=Object.assign({},p,{id:uid('p'),sel:{sh:g.next.sh,k:'in'},auto:true,link:p.id});delete pNext.ot;p.next=pNext.id;}
     src.addPunch(p).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
+    if(pNext)src.addPunch(pNext).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
     $('resActs').hidden=true;$('resBox').classList.add('done');$('resKind').textContent='✓ 已打卡・'+g.label;
     if(g.warn)$('resNote').textContent='';
     if(p.extraReason){$('resNote').textContent=`原因：${p.extraReason}`;$('resNote').className='note';}
     if(otReason){$('resNote').textContent=g.noIn?'已送出臨時加班申請，時數由主管確認':`已申請加班 ${g.ot} 分鐘，等待主管核准`;$('resNote').className='note';}
-    resTimer=setTimeout(()=>{$('resOv').hidden=true;endScan();paused=false;},otReason?2500:1800);
+    if(g.next){$('resNote').textContent=($('resNote').textContent&&otReason?$('resNote').textContent+'；':'')+`已同時打${g.next.name}上班卡`+(otReason?'':`（遲到 ${g.next.late} 分鐘）`);$('resNote').className='note';}
+    resTimer=setTimeout(()=>{$('resOv').hidden=true;endScan();paused=false;},otReason||g.next?3000:1800);
   };
   $('resNo').onclick=()=>finish(false);
   $('resOk').onclick=()=>finish(true);
