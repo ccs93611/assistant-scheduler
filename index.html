@@ -679,7 +679,8 @@ body.gated .shell{display:none;}
         </div>
         <div class="tiles" id="tiles"></div>
         <div class="card">
-          <div class="lv-title-row"><h2 id="statsTitle" style="margin:0">本月工時</h2><span class="lv-range" id="stRange"></span></div>
+          <div class="lv-title-row"><h2 id="statsTitle" style="margin:0">本月工時</h2><span class="lv-range" id="stRange"></span><span class="seg" id="statViewSeg" role="group" aria-label="依原始或異動班表統計"><button type="button" data-sview="orig">原始班表</button><button type="button" data-sview="live">異動班表</button></span></div>
+          <p class="hint" id="statViewNote" style="margin:4px 0 0" hidden></p>
           <p class="desc">只統計助理。「早+晚」「全天班」是同一天上這些班的天數；「主櫃」「跟診」「流動」是本月擔任該崗位的班數。「基本工時」只算基本診次（加診不計），每班 3.5 小時；助理同一天早、午、晚三班都是基本診時，當日計 10 小時；同一天上滿三班（含加診）另計單日超時 0.5 小時。「合理工時」＝可排班天數 × 8 小時；可排班天數＝期間天數－週日－診所休診日－非營業日－事前請假的日子，事後請假不影響。只計算統計期間內的日期；「加診數」是排班表中以「加診」排入的診數；「排班總超時」＝單日超時＋加診數 × 3.5 小時。</p>
           <div class="scroll-x"><table class="list" id="statsTable"></table></div>
         </div>
@@ -1321,7 +1322,10 @@ function renderAll(){
   if(prefs.tab==='schedule') renderSchedule(mi);
   if(prefs.tab==='leave') withOwnData(()=>renderLeave(mi,['assistant']));
   if(prefs.tab==='docleave') withOwnData(()=>renderLeave(mi,['doctor']));
-  if(prefs.tab==='stats'){const r=statRange(mi);renderStats(r,r.custom?monthCounts(r):counts);}
+  if(prefs.tab==='stats'){const r=statRange(mi);
+    if(statViewOf()==='orig')withWeeks(origWeeksFor(r),()=>renderStats(r,monthCounts(r)));
+    else renderStats(r,r.custom?monthCounts(r):counts);
+    renderStatView(r);}
   if(prefs.tab==='settings') renderSettings();
   if(prefs.tab==='rules') renderRules();
   if(prefs.tab==='holidays') renderHolidays();
@@ -1339,6 +1343,30 @@ function statRange(mi){
   const mondays=[];for(let d=mondayOf(first);d<=last;d.setDate(d.getDate()+7))mondays.push(new Date(d));
   return {first,last,dates,mondays,custom:true,label:`${md(first)}–${md(last)}${first.getFullYear()!==last.getFullYear()?`（${first.getFullYear()}–${last.getFullYear()}）`:''}`,ym:`${statCustom.from}_${statCustom.to}`};
 }
+// ---- 工時統計：依原始班表或異動班表 ----
+// 原始班表＝定案時存下的 baselines[月份]；還沒定案的月份，目前的班表就是原始班表（也還沒有異動班表）
+const statViewOf=()=>prefs.statView==='orig'?'orig':'live';
+function origWeeksFor(r){ // 逐日取該月份的原始班表（跨月、整年統計也正確）
+  const out={};
+  r.dates.forEach(({key,wk,dow})=>{
+    const b=baselines[key.slice(0,7)],src=b?(b.weeks?.[wk]||{}):(weeks[wk]||{});
+    Object.entries(src).forEach(([k,v])=>{const m=/^[LTX]?(\d)_/.exec(k);if(m&&Number(m[1])===dow)(out[wk]=out[wk]||{})[k]=v;});
+  });
+  return out;
+}
+function withWeeks(w,fn){const keep=weeks;weeks=w;try{fn();}finally{weeks=keep;}}
+function renderStatView(r){
+  const v=statViewOf();
+  document.querySelectorAll('#statViewSeg [data-sview]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.sview===v)));
+  const yms=[...new Set(r.dates.map(d=>d.key.slice(0,7)))],undone=yms.filter(ym=>!baselines[ym]);
+  const n=$('statViewNote');
+  if(!undone.length){n.hidden=true;return;}
+  const lab=undone.map(ym=>`${Number(ym.slice(0,4))}年${Number(ym.slice(5))}月`).join('、');
+  n.hidden=false;
+  n.textContent=v==='orig'?`${lab}還沒有定案，原始班表就是目前的班表。`:`${lab}還沒有定案，沒有異動班表；顯示的是目前的班表（原始班表）。`;
+}
+$('statViewSeg').addEventListener('click',e=>{const b=e.target.closest('[data-sview]');if(!b)return;prefs.statView=b.dataset.sview;savePrefs();renderAll();});
+
 // 排班總超時（小時）＝單日超時＋加診數 × 3.5
 const schedOt=c=>(c?.ot||0)+(c?.extra||0)*3.5;
 const fmtHM=h=>{const m=Math.round(h*60);return `${Math.floor(m/60)}小時${m%60}分鐘`;};
