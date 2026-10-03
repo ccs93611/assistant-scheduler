@@ -458,6 +458,15 @@ body.gated .shell{display:none;}
 .list tr.faded .pill{background:var(--slot); color:var(--faint); border-color:transparent;}
 .pay-table td:first-child,.pay-table td.num{white-space:nowrap;}
 .pay-table td.net{font-weight:700;}
+/* 薪資表：應發／扣除分組底色、第一欄固定、合計列 */
+.pay-table th{white-space:nowrap;vertical-align:bottom;}
+.pay-table th.pg-head{text-align:center;font-weight:700;color:var(--ink);border-bottom:1px solid var(--line);}
+.pay-table .pg-add{background:color-mix(in srgb,var(--ok) 7%,transparent);}
+.pay-table .pg-sub{background:color-mix(in srgb,var(--warn) 7%,transparent);}
+.pay-table .pg-gross,.pay-table .pg-net{background:color-mix(in srgb,var(--accent) 12%,transparent);}
+.pay-table td.num{font-variant-numeric:tabular-nums;}
+.pay-table .pay-who{position:sticky;left:0;z-index:1;background:var(--panel);box-shadow:1px 0 0 var(--line);white-space:nowrap;}
+.pay-table tfoot td{border-top:2px solid var(--line);font-weight:500;}
 .pay-rules{display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px;}
 .pay-rules input{width:100%;}
 .pay-rules .field.hl input{border:2px solid var(--warn);}
@@ -2039,30 +2048,46 @@ function renderPay(mi,counts){
     :'這是你這個月的薪資，實際金額以診所發放為準。';
   const list=payAdmin()?staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])):[byId(myStaffId())].filter(Boolean);
   const z=v=>v?money(v):'<span style="color:var(--faint)">0</span>';
-  const tot={gross:0,deduct:0,adj:0,net:0};const P=payCfg(mi.ym);
+  const P=payCfg(mi.ym),faint=v=>`<span style="color:var(--faint)">${v}</span>`;
+  // 欄位定義：g＝分組（add 應發、sub 扣除），v＝合計用的數值，cell＝格子內容，tip＝滑過提示
+  const COLS=[
+    {g:'add',l:'本俸',v:p=>p.r.base},
+    {g:'add',l:'出勤津貼',v:p=>p.attendPaid,tip:p=>p.attendNote,cell:p=>z(p.attendPaid)+(p.attendLost||p.attendPaid===0&&p.r.attend?' <span class="pill warn">不發</span>':p.sickCut?` <span class="pill warn">−${money(p.sickCut)}</span>`:'')},
+    {g:'add',l:'績效獎金',v:p=>p.r.perf},
+    {g:'add',l:'技能津貼',v:p=>p.r.skill},
+    {g:'add',l:'職務津貼',v:p=>p.r.duty||0},
+    {g:'add',l:'加診薪資',h:'加診數 × 3.5 小時 × 加班每分鐘金額',v:p=>p.extraPay,tip:(p,s)=>`加診 ${counts[s.id]?.extra||0} 診 × 3.5 小時＝${p.extraMin} 分`},
+    {g:'add',l:'All班加給',h:'同一天上滿三班（含加診）每天 30 分鐘 × 加班每分鐘金額',v:p=>p.allPay,tip:p=>`上滿三班 ${p.allDays} 天 × 30 分＝${p.allMin} 分`},
+    {g:'add',l:'加班薪資',h:'加班/拖診分鐘數 × 加班每分鐘金額',v:p=>p.otPay,tip:p=>`加班/拖診 ${p.otMin} 分`},
+    {g:'add',l:'國定假日加給',h:'國定假日上班診數 × 每診設定薪資 × 倍數',v:p=>p.holPay,tip:p=>p.holDays.map(x=>`${md(parseYmd(x.key))} ${x.name} ${x.n} 診`).join(String.fromCharCode(10))},
+    {g:'add',l:'自費獎金',v:p=>p.bonus,tip:p=>`個人 ${money(p.r.selfInd)}＋團體 ${money(p.r.selfTeam)}`},
+    {g:'add',l:'五星好評',v:p=>p.starPay,tip:p=>`${p.r.stars||0} 則`},
+    {g:'add',l:'禮金／獎金',h:'生日禮金與三節獎金，金額在薪資計算規則設定',v:p=>p.giftPay,tip:p=>p.autoNote},
+    {g:'gross',l:'應發合計',v:p=>p.gross,cell:p=>`<b>${money(p.gross)}</b>`},
+    {g:'sub',l:'勞保費',v:p=>p.r.labor},
+    {g:'sub',l:'健保費',v:p=>p.healthTotal,tip:p=>`${money(p.r.health)} × (1＋眷屬 ${p.r.dependents||0} 人)`},
+    {g:'sub',l:'遲到',v:p=>p.late,tip:p=>`${p.r.lateMin||0} 分鐘`},
+    {g:'sub',l:'早退',v:p=>p.early,tip:p=>`${p.r.earlyMin||0} 分鐘`},
+    {g:'sub',l:'請假扣款',h:'滑過數字可以看明細',v:p=>p.leaveDeduct,tip:p=>p.lvParts.join(String.fromCharCode(10))||'沒有請假'},
+    {g:'sub',l:'曠職扣款',v:p=>p.absentDeduct||0,tip:p=>p.absentUnknown?'打卡資料載入中':`曠職 ${p.absN} 診 × 每診 ${money(P.shiftPay)} 元 × ${P.absentRate}`,cell:p=>p.absentUnknown?faint('…'):p.absentDeduct?`<span class="att-bad">${money(p.absentDeduct)}</span>`:z(0)},
+    {g:'adj',l:'加減項',v:p=>p.adj,tip:p=>p.r.items.map(x=>`${x.label||'（未命名）'} ${money(x.amount)}`).join(String.fromCharCode(10)),cell:p=>p.adj?money(p.adj):faint(0)},
+    {g:'net',l:'實發',v:p=>p.net,cell:p=>money(p.net)},
+  ];
+  const cls=c=>`num pg-${c.g}${c.g==='net'?' net':''}`;
+  const sums=COLS.map(()=>0);
   const rows=list.map(s=>{
-    const p=calcPay(mi,counts,s);Object.keys(tot).forEach(k=>tot[k]+=p[k]);const r=p.r;
-    const lvTip=p.lvParts.join('\n')||'沒有請假';
-    const adjTip=r.items.map(x=>`${x.label||'（未命名）'} ${money(x.amount)}`).join('\n');
-    return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}${r.saved?'':' <span class="pill">試算</span>'}</td>
-      <td class="num">${z(r.base)}</td><td class="num"${p.attendNote?` title="${esc(p.attendNote)}"`:''}>${z(p.attendPaid)}${p.attendLost||p.attendPaid===0&&r.attend?' <span class="pill warn">不發</span>':p.sickCut?` <span class="pill warn">−${money(p.sickCut)}</span>`:''}</td><td class="num">${z(r.perf)}</td><td class="num">${z(r.skill)}</td><td class="num">${z(r.duty)}</td>
-      <td class="num" title="加診 ${counts[s.id]?.extra||0} 診 × 3.5 小時＝${p.extraMin} 分">${z(p.extraPay)}</td><td class="num" title="上滿三班 ${p.allDays} 天 × 30 分＝${p.allMin} 分">${z(p.allPay)}</td><td class="num" title="加班/拖診 ${p.otMin} 分">${z(p.otPay)}</td><td class="num"${p.holShifts?` title="${esc(p.holDays.map(x=>`${md(parseYmd(x.key))} ${x.name} ${x.n} 診`).join('\n'))}"`:''}>${z(p.holPay)}</td>
-      <td class="num" title="個人 ${money(r.selfInd)}＋團體 ${money(r.selfTeam)}">${z(p.bonus)}</td>
-      <td class="num" title="${r.stars||0} 則">${z(p.starPay)}</td>
-      <td class="num"${p.autoNote?` title="${esc(p.autoNote)}"`:''}>${z(p.giftPay)}</td>
-      <td class="num"><b>${money(p.gross)}</b></td>
-      <td class="num">${z(r.labor)}</td><td class="num" title="${money(r.health)} × (1＋眷屬 ${r.dependents||0} 人)">${z(p.healthTotal)}</td>
-      <td class="num" title="${r.lateMin||0} 分鐘">${z(p.late)}</td>
-      <td class="num" title="${r.earlyMin||0} 分鐘">${z(p.early)}</td>
-      <td class="num" title="${esc(lvTip)}">${z(p.leaveDeduct)}</td>
-      <td class="num" title="${p.absentUnknown?'打卡資料載入中':`曠職 ${p.absN} 診 × 每診 ${money(payCfg(mi.ym).shiftPay)} 元 × ${payCfg(mi.ym).absentRate}`}">${p.absentUnknown?'<span style="color:var(--faint)">…</span>':p.absentDeduct?`<span class="att-bad">${money(p.absentDeduct)}</span>`:z(0)}</td>
-      <td class="num" title="${esc(adjTip)}">${p.adj?money(p.adj):'<span style="color:var(--faint)">0</span>'}</td>
-      <td class="num net">${money(p.net)}</td><td class="pay-note">${payNoteHtml(p)}</td>
-      ${payAdmin()?`<td class="num"><button class="small" data-payedit="${s.id}">編輯</button></td>`:''}</tr>`;
+    const p=calcPay(mi,counts,s);COLS.forEach((c,i)=>sums[i]+=Number(c.v(p,s))||0);
+    return `<tr class="${s.active===false?'inactive':''}"><td class="pay-who">${esc(fullName(s))}${p.r.saved?'':' <span class="pill">試算</span>'}</td>`+
+      COLS.map(c=>{const t=c.tip?c.tip(p,s):'';return `<td class="${cls(c)}"${t?` title="${esc(t)}"`:''}>${c.cell?c.cell(p,s):z(c.v(p,s))}</td>`;}).join('')+
+      `<td class="pay-note">${payNoteHtml(p)}</td>${payAdmin()?`<td class="num"><button class="small" data-payedit="${s.id}">編輯</button></td>`:''}</tr>`;
   }).join('');
-  $('payTable').innerHTML=`<thead><tr><th>人員</th><th class="num">本俸</th><th class="num">出勤津貼</th><th class="num">績效獎金</th><th class="num">技能津貼</th><th class="num">職務津貼</th><th class="num" title="加診數 × 3.5 小時 × 加班每分鐘金額">加診薪資</th><th class="num" title="同一天上滿三班（含加診）每天 30 分鐘 × 加班每分鐘金額">All班加給</th><th class="num" title="加班/拖診分鐘數 × 加班每分鐘金額">加班薪資</th><th class="num" title="國定假日上班診數 × 每診設定薪資 × 倍數（預設 1，每診加 595）">國定假日上班加給</th><th class="num">自費獎金</th><th class="num">五星好評</th><th class="num" title="生日禮金（生日當月）與三節獎金（春節、端午、中秋所在月份），金額在薪資計算規則設定">禮金／獎金</th><th class="num">應發合計</th><th class="num">勞保費</th><th class="num">健保費</th><th class="num">遲到</th><th class="num">早退</th><th class="num" title="滑過數字可以看明細">請假扣款</th><th class="num">曠職扣款</th><th class="num">加減項</th><th class="num">實發</th><th>備註</th>${payAdmin()?'<th class="num"><button class="small primary" data-paybulk>集體編輯</button></th>':''}</tr></thead><tbody>`+
-    (rows||`<tr><td colspan="24" class="empty">${payAdmin()?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
-    (payAdmin()&&list.length>1?`<tfoot><tr><td><b>合計</b></td><td colspan="12"></td><td class="num"><b>${money(tot.gross)}</b></td><td colspan="6" class="num">扣除 ${money(tot.deduct)}</td><td class="num">${money(tot.adj)}</td><td class="num net">${money(tot.net)}</td><td></td><td></td></tr></tfoot>`:'');
+  // 兩層表頭：應發、扣除各自一組
+  const nAdd=COLS.filter(c=>c.g==='add').length,nSub=COLS.filter(c=>c.g==='sub').length,th2=g=>COLS.filter(c=>c.g===g).map(c=>`<th class="num pg-${g}"${c.h?` title="${esc(c.h)}"`:''}>${c.l}</th>`).join('');
+  const one=g=>{const c=COLS.find(x=>x.g===g);return `<th rowspan="2" class="num pg-${g}">${c.l}</th>`;};
+  $('payTable').innerHTML=`<thead><tr><th rowspan="2" class="pay-who">人員</th><th colspan="${nAdd}" class="pg-add pg-head">應發</th>${one('gross')}<th colspan="${nSub}" class="pg-sub pg-head">扣除</th>${one('adj')}${one('net')}<th rowspan="2">備註</th>${payAdmin()?'<th rowspan="2" class="num"><button class="small primary" data-paybulk>集體編輯</button></th>':''}</tr>
+    <tr>${th2('add')}${th2('sub')}</tr></thead><tbody>`+
+    (rows||`<tr><td colspan="${COLS.length+3}" class="empty">${payAdmin()?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
+    (payAdmin()&&list.length>1?`<tfoot><tr><td class="pay-who"><b>合計</b></td>${COLS.map((c,i)=>`<td class="${cls(c)}">${c.g==='gross'||c.g==='net'?`<b>${money(sums[i])}</b>`:z(sums[i])}</td>`).join('')}<td></td>${payAdmin()?'<td></td>':''}</tr></tfoot>`:'');
   $('payRulesCard').hidden=!payAdmin();
   $('payRulesTitle').textContent=`${mi.label} 薪資計算規則`;
   $('payRulesFrom').textContent=P.from===mi.ym?`這個月有自己的規則；之後沒有另外修改的月份會沿用。`
