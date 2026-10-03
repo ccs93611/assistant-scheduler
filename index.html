@@ -693,16 +693,23 @@ body.gated .shell{display:none;}
         <div class="card">
           <div class="lv-title-row"><h2 style="margin:0">加班申請</h2><span class="lv-range" id="otCount"></span></div>
           <p class="desc">下班卡比該診結束時間晚超過設定分鐘數時，打卡裝置會詢問是否申請加班（必填原因）；「臨時加班」的下班卡一律成為加班申請，分鐘數從當天最近一張臨時加班上班卡起算（不列入出勤統計）。核准後的分鐘數會在「帶入薪資」時寫入薪資的加班/拖診分鐘數。</p>
+          <div class="form-row">
+            <div class="field"><label for="otDate">日期</label><input type="date" id="otDate"></div>
+            <div class="field"><label for="otSid">人員</label><select id="otSid"></select></div>
+            <div class="field"><label for="otSh">下班卡</label><select id="otSh"></select></div>
+            <div class="field"><label for="otSt">狀態</label><select id="otSt"></select></div>
+            <button type="button" id="otReset">清除篩選</button>
+          </div>
           <div class="scroll-x" style="max-height:420px;overflow-y:auto"><table class="list" id="otTable"></table></div>
         </div>
         <div class="card">
           <div class="lv-title-row"><h2 style="margin:0">打卡紀錄</h2><span class="lv-range" id="attLogCount"></span></div>
           <p class="desc">這個月每一筆打卡，最新的在最上面。「對應」是這筆打卡算在哪一診的上班或下班；「其他」是重複打卡或當天沒有排班。</p>
           <div class="form-row">
+            <div class="field"><label for="attLogDate">日期</label><input type="date" id="attLogDate"></div>
             <div class="field"><label for="attLogSid">人員</label><select id="attLogSid"></select></div>
             <div class="field"><label for="attLogMap">對應</label><select id="attLogMap"></select></div>
             <div class="field"><label for="attLogSrc">來源</label><select id="attLogSrc"></select></div>
-            <div class="field"><label for="attLogDate">日期</label><input type="date" id="attLogDate"></div>
             <label class="field" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="attLogVoid" style="width:auto"> 顯示已作廢</label>
             <button type="button" id="attLogReset">清除篩選</button>
           </div>
@@ -2875,11 +2882,28 @@ let attLogSort={key:'date',dir:-1}; // 打卡紀錄排序：預設最新的在�
 // 「對應」欄依班別順序排序（其他、已作廢排最後）
 const MAP_ORDER=['早班上班','早班下班','午班上班','午班下班','晚班上班','晚班下班','臨時加班上班','臨時加班下班'];
 // 加班申請：待審的排最上面，其餘依時間新到舊
+// 加班申請的篩選與排序（預設依狀態：待審在最上面，同狀態新的在前）
+let otView={date:'',sid:'',sh:'',st:''},otSort={key:'status',dir:1};
+const OT_ST_ORDER={pending:0,approved:1,rejected:2};
+const otShOf=p=>p.ot.extra||p.sel?.sh==='extra'?'extra':(p.sel?.sh||'');
 function renderOt(mi){
-  const list=punches.filter(p=>p.ot&&!p.void).sort((a,b)=>(a.ot.status==='pending'?0:1)-(b.ot.status==='pending'?0:1)||b.ts-a.ts);
-  const pend=list.filter(p=>p.ot.status==='pending').length;
-  $('otCount').innerHTML=list.length?`共 ${list.length} 筆${pend?`，<span class="att-bad">待審 ${pend} 筆</span>`:''}`:'';
-  $('otTable').innerHTML=`<thead><tr><th>日期</th><th>人員</th><th>下班卡</th><th class="num">申請（分）</th><th>原因</th><th>狀態</th><th class="num">核准（分）</th><th></th></tr></thead><tbody>`+
+  const all=punches.filter(p=>p.ot&&!p.void),V=otView;
+  // 篩選選單（人員只列有加班申請的人）
+  const ids=[...new Set(all.map(p=>p.staffId))];
+  if(V.sid&&!ids.includes(V.sid))V.sid='';
+  const fill=(el,opts,v)=>{const h=opts.map(([k,l])=>`<option value="${esc(k)}">${esc(l)}</option>`).join('');if(el.innerHTML!==h)el.innerHTML=h;el.value=v;};
+  fill($('otSid'),[['','全部人員'],...staff.filter(x=>ids.includes(x.id)).sort(sortStaff).map(x=>[x.id,fullName(x)])],V.sid);
+  fill($('otSh'),[['','全部'],...SHIFTS.map(x=>[x.id,x.name]),['extra','臨時加班']],V.sh);
+  fill($('otSt'),[['','全部'],...Object.entries(OT_ST)],V.st);
+  $('otDate').value=V.date;$('otDate').min=ymd(mi.first);$('otDate').max=ymd(mi.last);
+  const keyOf={date:p=>p.ts,staff:p=>{const x=byId(p.staffId);return x?.code||x?.name||'';},sh:p=>{const k=otShOf(p);return k==='extra'?9:SHIFTS.findIndex(x=>x.id===k);},min:p=>Number(p.ot.min)||0,status:p=>OT_ST_ORDER[p.ot.status]??9};
+  const S=otSort,kf=keyOf[S.key]||keyOf.status;
+  const list=all.filter(p=>(!V.date||p.date===V.date)&&(!V.sid||p.staffId===V.sid)&&(!V.sh||otShOf(p)===V.sh)&&(!V.st||p.ot.status===V.st))
+    .sort((a,b)=>{const x=kf(a),y=kf(b);const c=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');return (c*S.dir)||(b.ts-a.ts);});
+  const pend=all.filter(p=>p.ot.status==='pending').length;
+  $('otCount').innerHTML=all.length?`${list.length!==all.length?`顯示 ${list.length}／`:'共 '}${all.length} 筆${pend?`，<span class="att-bad">待審 ${pend} 筆</span>`:''}`:'';
+  const th=(key,label,cls='')=>`<th${cls}><button type="button" class="th-btn${S.key===key?' on':''}" data-otsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
+  $('otTable').innerHTML=`<thead><tr>${th('date','日期')}${th('staff','人員')}${th('sh','下班卡')}${th('min','申請（分）',' class="num"')}<th>原因</th>${th('status','狀態')}<th class="num">核准（分）</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(p=>{
       const d=parseYmd(p.date),sh=p.sel&&(p.sel.sh==='extra'?{name:'臨時加班'}:SHIFTS.find(x=>x.id===p.sel.sh)),o=p.ot;
       const st=`<span class="${o.status==='pending'?'att-bad':o.status==='approved'?'att-ok':'att-mute'}">${OT_ST[o.status]||o.status}</span>${o.by?`<br><small class="att-mute">${esc(o.by)}${o.note?`：${esc(o.note)}`:''}</small>`:''}`;
@@ -2887,7 +2911,7 @@ function renderOt(mi){
       return `<tr><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td style="white-space:nowrap">${esc(fullName(byId(p.staffId)))}</td>
         <td style="white-space:nowrap">${o.extra?'<span class="att-bad">臨時加班</span> ':sh?esc(sh.name)+' ':''}${o.from?hhmm(o.from)+'–':''}${hhmm(p.ts)}</td><td class="num">${p.next?'<span title="同時打了下一診上班卡；核准後下一診不算遲到">↪ </span>':''}${o.extra&&!o.from?'<span class="att-bad" title="找不到臨時加班上班卡">？</span>':o.min}</td><td>${esc(o.reason||'')}</td><td>${st}</td>
         <td class="num">${o.status==='approved'?o.approvedMin:'—'}</td><td style="white-space:nowrap">${acts}</td></tr>`;
-    }).join(''):'<tr><td colspan="8" class="att-mute">這個月沒有加班申請</td></tr>')+'</tbody>';
+    }).join(''):`<tr><td colspan="8" class="att-mute">${all.length?'沒有符合篩選的加班申請':'這個月沒有加班申請'}</td></tr>`)+'</tbody>';
 }
 function renderAttLog(mi){
   const sel=$('attLogSid'),ids=[...new Set(punches.map(p=>p.staffId))];
@@ -3071,7 +3095,14 @@ $('tab-att').addEventListener('click',e=>{
   }
 });
 // 加班申請：核准（可調整分鐘數）、退回
+$('otDate').addEventListener('change',e=>{otView.date=e.target.value;renderAll();});
+$('otSid').addEventListener('change',e=>{otView.sid=e.target.value;renderAll();});
+$('otSh').addEventListener('change',e=>{otView.sh=e.target.value;renderAll();});
+$('otSt').addEventListener('change',e=>{otView.st=e.target.value;renderAll();});
+$('otReset').addEventListener('click',()=>{otView={date:'',sid:'',sh:'',st:''};renderAll();});
 $('otTable').addEventListener('click',e=>{
+  const sb=e.target.closest('[data-otsort]');
+  if(sb){const k=sb.dataset.otsort;otSort=otSort.key===k?{key:k,dir:-otSort.dir}:{key:k,dir:k==='date'?-1:1};renderAll();return;}
   const ok=e.target.closest('[data-otok]'),no=e.target.closest('[data-otno]');
   const p=punches.find(x=>x.id===(ok||no)?.dataset[ok?'otok':'otno']);if(!p||!canWrite)return;
   const who=`${esc(fullName(byId(p.staffId)))} ${esc(p.date)} ${hhmm(p.ts)}`;
