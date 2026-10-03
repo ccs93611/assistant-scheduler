@@ -483,6 +483,7 @@ body.gated .shell{display:none;}
     <button role="tab" data-tab="rules">排班規則</button>
     <button role="tab" data-tab="stats">工時統計</button>
     <button role="tab" data-tab="att" id="attTabBtn">出勤</button>
+    <button role="tab" data-tab="otrev" id="otRevTabBtn">加班審核</button>
     <button role="tab" data-tab="pay" id="payTabBtn">薪資</button>
     <button role="tab" data-tab="settings">人員名單</button>
   </nav>
@@ -677,6 +678,16 @@ body.gated .shell{display:none;}
       </div>
     </section>
 
+    <section id="tab-otrev" hidden>
+      <div class="stack">
+        <div class="card">
+          <div class="lv-title-row"><h2 id="otRevTitle" style="margin:0">加班審核</h2><span class="lv-range" id="otRevCount"></span></div>
+          <p class="desc" id="otRevDesc"></p>
+          <div class="form-row"><div class="field"><label for="otRevSt">狀態</label><select id="otRevSt"><option value="pending">待審</option><option value="">全部</option></select></div></div>
+          <div class="scroll-x"><table class="list" id="otRevTable"></table></div>
+        </div>
+      </div>
+    </section>
     <section id="tab-att" hidden>
       <div class="stack">
         <div class="card pay-month-bar">
@@ -867,6 +878,7 @@ let pevents=[]; // 個人假事件 {id,staffId,kind,date,rel,months,end,child,no
 let punches=[]; // 打卡紀錄 {id,staffId,ts,date,src:'kiosk'|'manual',device,photo?,by?,note?,void?}，只載入出勤分頁選擇的月份
 let faceMeta={}; // faces/{staffId} 是否已登錄臉部 {staffId:{at,n}}（特徵值本身不留在網頁）
 let devices={}; // 打卡裝置 devices/{uid}={name,approved,at,hwId?,model?}
+let revPunches=[]; // 加班審核分頁用：醫師＝指定給自己的加班申請；超級管理員＝所有待審（不限月份）
 let hwDevs={}; // 裝置編號 hw/{裝置編號}={approved,name,model,platform,at}（App 回報；核准後同一台平板換代碼也沿用）
 let kioskCfg={}; // kiosk/settings：出勤規則與裝置管理密碼
 let baselines={}; // 原始班表：baselines[YYYY-MM]={ym,at,by,weeks:{週一日期:cells}}，按「定案」時存下當月班表
@@ -1106,6 +1118,13 @@ const store={
     const {id,...body}=p;
     return queue('punches/'+id,()=>db.doc('punches/'+id).set(body));
   },
+  // 審核加班：只改 ot 欄位（安全規則限定審核醫師或超級管理員）
+  async otDecide(p,ot){
+    const np=Object.assign({},p,{ot}),sw=a=>a.map(x=>x.id===p.id?np:x);
+    punches=sw(punches);revPunches=sw(revPunches);renderAll();
+    if(!db){saveKioskLocal(d=>{d.punches=sw(d.punches||[]);});return;}
+    return queue('punches/'+p.id,()=>db.doc('punches/'+p.id).update({ot}));
+  },
   async kiosk(obj){
     kioskCfg=obj;renderAll();
     if(!db){saveKioskLocal(d=>{d.settings=obj;});return;}
@@ -1192,6 +1211,10 @@ function start(acc){
     db.collection('hw').onSnapshot(snap=>{hwDevs=docsTo(snap);renderAll();},e=>console.warn(e));
     db.doc('kiosk/settings').onSnapshot(s=>{kioskCfg=s.exists?clone(s.data()):{};renderAll();},e=>console.warn(e));
   }
+  // 加班審核：超級管理員看所有待審；其他綁定人員的帳號（醫師）看指定給自己的
+  const revTo=snap=>{revPunches=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();};
+  if(sup)db.collection('punches').where('ot.status','==','pending').onSnapshot(revTo,e=>console.warn(e));
+  else if(sid)db.collection('punches').where('ot.reviewer','==',sid).onSnapshot(revTo,e=>console.warn(e));
   if(mng)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
   else if(sid)db.collection('pay').where('staffId','==',sid).onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
 }
@@ -1252,9 +1275,10 @@ function renderAll(){
   $('undoBtn').disabled=!canWrite||!schedHist.length||viewingLocked();
   if(prefs.tab==='pay'&&!canSeePay())prefs.tab='schedule';
   $('attTabBtn').hidden=!canWrite;
+  {const show=canSeeOtRev(),n=otRevList('pending').length;$('otRevTabBtn').hidden=!show;$('otRevTabBtn').textContent=n?`加班審核（${n}）`:'加班審核';if(prefs.tab==='otrev'&&!show)prefs.tab='schedule';}
   if(prefs.tab==='att'&&!canWrite)prefs.tab='schedule';
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
-  ['schedule','docleave','leave','holidays','stats','att','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
+  ['schedule','docleave','leave','holidays','stats','att','otrev','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
   if(prefs.tab==='schedule') renderSchedule(mi);
@@ -1266,6 +1290,7 @@ function renderAll(){
   if(prefs.tab==='holidays') renderHolidays();
   if(prefs.tab==='pay') renderPay(mi,counts);
   if(prefs.tab==='att') renderAtt(mi);
+  if(prefs.tab==='otrev') renderOtRev();
 }
 
 const otMax=()=>Number.isFinite(cfg.otMax)?cfg.otMax:3;
@@ -2882,6 +2907,38 @@ let attLogSort={key:'date',dir:-1}; // 打卡紀錄排序：預設最新的在�
 // 「對應」欄依班別順序排序（其他、已作廢排最後）
 const MAP_ORDER=['早班上班','早班下班','午班上班','午班下班','晚班上班','晚班下班','臨時加班上班','臨時加班下班'];
 // 加班申請：待審的排最上面，其餘依時間新到舊
+// 誰可以審核加班：被指定的審核醫師，或超級管理員（本機模式視為超級管理員）
+const canReviewOt=p=>superOK()||(!!p.ot?.reviewer&&p.ot.reviewer===myStaffId());
+const otRevName=p=>p.ot?.reviewer?esc(fullName(byId(p.ot.reviewer))):'<span class="att-mute">未指定</span>';
+function otRowHtml(p){
+  const d=parseYmd(p.date),sh=p.sel&&(p.sel.sh==='extra'?{name:'臨時加班'}:SHIFTS.find(x=>x.id===p.sel.sh)),o=p.ot;
+  const st=`<span class="${o.status==='pending'?'att-bad':o.status==='approved'?'att-ok':'att-mute'}">${OT_ST[o.status]||o.status}</span>${o.by?`<br><small class="att-mute">${esc(o.by)}${o.note?`：${esc(o.note)}`:''}</small>`:''}`;
+  const can=canReviewOt(p),dis=can?'':' disabled title="只有審核醫師或超級管理員可以審核"';
+  const acts=o.status==='pending'?`<button class="small${can?' primary':''}" data-otok="${esc(p.id)}"${dis}>核准</button> <button class="small danger" data-otno="${esc(p.id)}"${dis}>退回</button>`:(can?`<button class="small" data-otok="${esc(p.id)}">修改</button>`:'');
+  return `<tr><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td style="white-space:nowrap">${esc(fullName(byId(p.staffId)))}</td>
+    <td style="white-space:nowrap">${o.extra?'<span class="att-bad">臨時加班</span> ':sh?esc(sh.name)+' ':''}${o.from?hhmm(o.from)+'–':''}${hhmm(p.ts)}</td><td class="num">${p.next?'<span title="同時打了下一診上班卡；核准後下一診不算遲到">↪ </span>':''}${o.extra&&!o.from?'<span class="att-bad" title="找不到臨時加班上班卡">？</span>':o.min}</td><td>${esc(o.reason||'')}</td>
+    <td style="white-space:nowrap">${otRevName(p)}</td><td>${st}</td>
+    <td class="num">${o.status==='approved'?o.approvedMin:'—'}</td><td style="white-space:nowrap">${acts}</td></tr>`;
+}
+// ---- 加班審核分頁：醫師看指定給自己的申請；超級管理員看全部待審 ----
+const canSeeOtRev=()=>superOK()||byId(myStaffId())?.role==='doctor';
+function otRevList(st){
+  const src=mode==='local'?punches:revPunches,me=myStaffId(),sup=superOK();
+  return src.filter(p=>p.ot&&!p.void&&(sup||p.ot.reviewer===me)&&(!st||p.ot.status===st))
+    .sort((a,b)=>(OT_ST_ORDER[a.ot.status]??9)-(OT_ST_ORDER[b.ot.status]??9)||b.ts-a.ts);
+}
+function renderOtRev(){
+  const st=$('otRevSt').value,list=otRevList(st),sup=superOK();
+  $('otRevTitle').textContent=sup?'加班審核（所有待審）':'加班審核（指定給我的）';
+  $('otRevDesc').textContent=sup?'超級管理員可以審核所有加班申請。這裡列出所有月份的待審申請；已審核的紀錄請到「出勤」分頁查看。':'助理打下班卡申請加班時指定你為審核醫師的申請。核准時可以調整分鐘數。';
+  if(sup&&mode!=='local'&&st===''){$('otRevSt').value='pending';return renderOtRev();} // 超級管理員只載入待審
+  $('otRevSt').querySelector('option[value=""]').hidden=sup&&mode!=='local';
+  $('otRevCount').textContent=list.length?`共 ${list.length} 筆`:'';
+  $('otRevTable').innerHTML='<thead><tr><th>日期</th><th>人員</th><th>下班卡</th><th class="num">申請（分）</th><th>原因</th><th>審核醫師</th><th>狀態</th><th class="num">核准（分）</th><th></th></tr></thead><tbody>'+
+    (list.length?list.map(otRowHtml).join(''):`<tr><td colspan="9" class="att-mute">${st==='pending'?'目前沒有待審的加班申請':'沒有加班申請'}</td></tr>`)+'</tbody>';
+}
+$('otRevSt').addEventListener('change',()=>renderAll());
+$('otRevTable').addEventListener('click',otClick);
 // 加班申請的篩選與排序（預設依狀態：待審在最上面，同狀態新的在前）
 let otView={date:'',sid:'',sh:'',st:''},otSort={key:'status',dir:1};
 const OT_ST_ORDER={pending:0,approved:1,rejected:2};
@@ -2896,22 +2953,15 @@ function renderOt(mi){
   fill($('otSh'),[['','全部'],...SHIFTS.map(x=>[x.id,x.name]),['extra','臨時加班']],V.sh);
   fill($('otSt'),[['','全部'],...Object.entries(OT_ST)],V.st);
   $('otDate').value=V.date;$('otDate').min=ymd(mi.first);$('otDate').max=ymd(mi.last);
-  const keyOf={date:p=>p.ts,staff:p=>{const x=byId(p.staffId);return x?.code||x?.name||'';},sh:p=>{const k=otShOf(p);return k==='extra'?9:SHIFTS.findIndex(x=>x.id===k);},min:p=>Number(p.ot.min)||0,status:p=>OT_ST_ORDER[p.ot.status]??9};
+  const keyOf={date:p=>p.ts,staff:p=>{const x=byId(p.staffId);return x?.code||x?.name||'';},sh:p=>{const k=otShOf(p);return k==='extra'?9:SHIFTS.findIndex(x=>x.id===k);},min:p=>Number(p.ot.min)||0,rev:p=>p.ot.reviewer?(byId(p.ot.reviewer)?.code||''):'~',status:p=>OT_ST_ORDER[p.ot.status]??9};
   const S=otSort,kf=keyOf[S.key]||keyOf.status;
   const list=all.filter(p=>(!V.date||p.date===V.date)&&(!V.sid||p.staffId===V.sid)&&(!V.sh||otShOf(p)===V.sh)&&(!V.st||p.ot.status===V.st))
     .sort((a,b)=>{const x=kf(a),y=kf(b);const c=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');return (c*S.dir)||(b.ts-a.ts);});
   const pend=all.filter(p=>p.ot.status==='pending').length;
   $('otCount').innerHTML=all.length?`${list.length!==all.length?`顯示 ${list.length}／`:'共 '}${all.length} 筆${pend?`，<span class="att-bad">待審 ${pend} 筆</span>`:''}`:'';
   const th=(key,label,cls='')=>`<th${cls}><button type="button" class="th-btn${S.key===key?' on':''}" data-otsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
-  $('otTable').innerHTML=`<thead><tr>${th('date','日期')}${th('staff','人員')}${th('sh','下班卡')}${th('min','申請（分）',' class="num"')}<th>原因</th>${th('status','狀態')}<th class="num">核准（分）</th><th></th></tr></thead><tbody>`+
-    (list.length?list.map(p=>{
-      const d=parseYmd(p.date),sh=p.sel&&(p.sel.sh==='extra'?{name:'臨時加班'}:SHIFTS.find(x=>x.id===p.sel.sh)),o=p.ot;
-      const st=`<span class="${o.status==='pending'?'att-bad':o.status==='approved'?'att-ok':'att-mute'}">${OT_ST[o.status]||o.status}</span>${o.by?`<br><small class="att-mute">${esc(o.by)}${o.note?`：${esc(o.note)}`:''}</small>`:''}`;
-      const acts=canWrite?(o.status==='pending'?`<button class="small primary" data-otok="${esc(p.id)}">核准</button> <button class="small danger" data-otno="${esc(p.id)}">退回</button>`:`<button class="small" data-otok="${esc(p.id)}">修改</button>`):'';
-      return `<tr><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td style="white-space:nowrap">${esc(fullName(byId(p.staffId)))}</td>
-        <td style="white-space:nowrap">${o.extra?'<span class="att-bad">臨時加班</span> ':sh?esc(sh.name)+' ':''}${o.from?hhmm(o.from)+'–':''}${hhmm(p.ts)}</td><td class="num">${p.next?'<span title="同時打了下一診上班卡；核准後下一診不算遲到">↪ </span>':''}${o.extra&&!o.from?'<span class="att-bad" title="找不到臨時加班上班卡">？</span>':o.min}</td><td>${esc(o.reason||'')}</td><td>${st}</td>
-        <td class="num">${o.status==='approved'?o.approvedMin:'—'}</td><td style="white-space:nowrap">${acts}</td></tr>`;
-    }).join(''):`<tr><td colspan="8" class="att-mute">${all.length?'沒有符合篩選的加班申請':'這個月沒有加班申請'}</td></tr>`)+'</tbody>';
+  $('otTable').innerHTML=`<thead><tr>${th('date','日期')}${th('staff','人員')}${th('sh','下班卡')}${th('min','申請（分）',' class="num"')}<th>原因</th>${th('rev','審核醫師')}${th('status','狀態')}<th class="num">核准（分）</th><th></th></tr></thead><tbody>`+
+    (list.length?list.map(otRowHtml).join(''):`<tr><td colspan="9" class="att-mute">${all.length?'沒有符合篩選的加班申請':'這個月沒有加班申請'}</td></tr>`)+'</tbody>';
 }
 function renderAttLog(mi){
   const sel=$('attLogSid'),ids=[...new Set(punches.map(p=>p.staffId))];
@@ -3103,20 +3153,25 @@ $('otReset').addEventListener('click',()=>{otView={date:'',sid:'',sh:'',st:''};r
 $('otTable').addEventListener('click',e=>{
   const sb=e.target.closest('[data-otsort]');
   if(sb){const k=sb.dataset.otsort;otSort=otSort.key===k?{key:k,dir:-otSort.dir}:{key:k,dir:k==='date'?-1:1};renderAll();return;}
-  const ok=e.target.closest('[data-otok]'),no=e.target.closest('[data-otno]');
-  const p=punches.find(x=>x.id===(ok||no)?.dataset[ok?'otok':'otno']);if(!p||!canWrite)return;
+  otClick(e);
+});
+// 加班核准／退回（出勤分頁與加班審核分頁共用）：只有審核醫師或超級管理員可以操作
+function otClick(e){
+  const ok=e.target.closest('[data-otok]'),no=e.target.closest('[data-otno]');if(!ok&&!no)return;
+  const id=(ok||no).dataset[ok?'otok':'otno'],p=punches.find(x=>x.id===id)||revPunches.find(x=>x.id===id);if(!p)return;
+  if(!canReviewOt(p)){toast('只有審核醫師或超級管理員可以審核這筆加班。','warn');return;}
   const who=`${esc(fullName(byId(p.staffId)))} ${esc(p.date)} ${hhmm(p.ts)}`;
   if(ok)dialog(`<h3>核准${p.ot.extra?'臨時':''}加班</h3><p>${who}，${p.ot.extra&&!p.ot.from?'<b class="att-bad">找不到臨時加班上班卡</b>，請確認實際加班時數。':`申請 ${p.ot.min} 分鐘${p.ot.from?`（${hhmm(p.ot.from)}–${hhmm(p.ts)}）`:''}。`}<br>原因：${esc(p.ot.reason||'')}</p>
     <div class="form-row"><div class="field"><label>核准分鐘數</label><input type="number" id="otMinIn" min="0" step="1" value="${p.ot.status==='approved'?p.ot.approvedMin:p.ot.min}"></div><div class="field"><label>備註（選填）</label><input id="otNoteIn" value="${esc(p.ot.note||'')}"></div></div>`,ov=>{
     const m=Number(ov.querySelector('#otMinIn').value);
     if(!(m>=0)||!Number.isInteger(m)){toast('請輸入分鐘數（整數）。','warn');return false;}
-    store.punch(Object.assign({},p,{ot:Object.assign({},p.ot,{status:'approved',approvedMin:m,note:ov.querySelector('#otNoteIn').value.trim(),by:myId||'本機',at:Date.now()})}));toast('已核准加班。');
+    store.otDecide(p,Object.assign({},p.ot,{status:'approved',approvedMin:m,note:ov.querySelector('#otNoteIn').value.trim(),by:myId||'本機',at:Date.now()}));toast('已核准加班。');
   },'核准');
   if(no)dialog(`<h3>退回加班申請</h3><p>${who}，申請 ${p.ot.min} 分鐘。<br>原因：${esc(p.ot.reason||'')}</p><div class="field"><label>退回原因（選填）</label><input id="otNoteIn"></div>`,ov=>{
     const o=Object.assign({},p.ot,{status:'rejected',note:ov.querySelector('#otNoteIn').value.trim(),by:myId||'本機',at:Date.now()});delete o.approvedMin;
-    store.punch(Object.assign({},p,{ot:o}));toast('已退回加班申請。');
+    store.otDecide(p,o);toast('已退回加班申請。');
   },'退回',true);
-});
+}
 $('attToPay').addEventListener('click',()=>{
   const mi=monthInfo(),C=attCfg();
   const pend=punches.filter(p=>p.ot&&!p.void&&p.ot.status==='pending').length;

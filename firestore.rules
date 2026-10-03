@@ -74,16 +74,25 @@ service cloud.firestore {
     // 打卡紀錄 punches/{id}：裝置只能新增（不能改、不能刪），且必須標明是自己這台裝置、時間不能在未來；
     // 補登、作廢由排班管理以上處理；本人可以看自己的
     match /punches/{id} {
-      allow read: if canManage() || isKiosk() || (signedIn() && resource.data.staffId == mySid());
+      // 被指定為審核醫師的人可以讀到指定給自己的加班申請
+      allow read: if canManage() || isKiosk() || (signedIn() && resource.data.staffId == mySid())
+        || (signedIn() && mySid() != '' && resource.data.ot.reviewer == mySid());
       allow create: if canManage() || (isKiosk()
         && request.resource.data.src == 'kiosk'
         && request.resource.data.device == request.auth.uid
         && request.resource.data.staffId is string
         && request.resource.data.ts is number
         && request.resource.data.ts < request.time.toMillis() + 5 * 60 * 1000
-        // 加班申請只能是待審（核准由排班管理以上處理）
+        // 加班申請只能是待審（由審核醫師或超級管理員審核）
         && (!('ot' in request.resource.data) || request.resource.data.ot.status == 'pending'));
-      allow update, delete: if canManage();
+      // 加班審核（ot 欄位）：只有超級管理員，或被指定的審核醫師（只能改 ot、不能換審核醫師）
+      // 排班管理可以補登、作廢，但不能動 ot
+      allow update: if isSuper()
+        || (canManage() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ot']))
+        || (signedIn() && mySid() != '' && resource.data.ot.reviewer == mySid()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ot'])
+            && request.resource.data.ot.reviewer == resource.data.ot.reviewer);
+      allow delete: if canManage();
     }
     // 臉部特徵值 faces/{staffId}：在打卡裝置上登錄（需裝置管理密碼）；排班管理以上可刪除
     match /faces/{sid} {

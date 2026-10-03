@@ -252,6 +252,8 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
     <p id="otSub" style="white-space:pre-line"></p>
     <div id="otAsk1" class="row"><button id="otNo">不用，只打下班卡</button><button class="primary" id="otYes">申請加班</button></div>
     <div id="otAsk2" hidden>
+      <div id="otDocWrap"><p style="margin-bottom:8px">審核醫師（必選）</p>
+      <div class="chips" id="otDocs"></div></div>
       <p style="margin-bottom:8px">請填寫加班原因（必填）</p>
       <div class="chips" id="otChips"></div>
       <input type="text" id="otReason" placeholder="或自行輸入原因" maxlength="100">
@@ -457,12 +459,18 @@ const anyOverlay=()=>['gate','resOv','pinOv','adminOv','enrollOv','facesOv','otO
 //                       60 秒沒回應＝沿用 prev，沒有 prev 時原因標示為未填寫
 function askOvertime(sid,min,opt={mode:'ask'}){
   return new Promise(resolve=>{
-    const ov=$('otOv'),mode=opt.mode,prev=opt.prev||'';let picked='',t0=Date.now(),tm=null;
+    const ov=$('otOv'),mode=opt.mode,prev=opt.prev||'';let picked='',doc=opt.defDoc||'',t0=Date.now(),tm=null;
+    const needDoc=mode!=='in'; // 一般加班與臨時加班下班卡都要選審核醫師
+    const docs=doctorList();
+    if(doc&&!docs.some(x=>x.id===doc))doc='';
+    const result=reason=>needDoc?{reason,reviewer:doc}:reason;
     const close=v=>{clearInterval(tm);ov.hidden=true;resolve(v);};
-    const timeoutVal=mode==='out'?(prev||'（未填寫原因）'):null;
+    const timeoutVal=mode==='out'?{reason:prev||'（未填寫原因）',reviewer:doc}:null;
     const showEdit=title=>{$('otAsk1').hidden=true;$('otAsk2').hidden=false;$('otTitle').textContent=title;};
     $('otReason').value='';$('otCd').textContent='';
     $('otChips').innerHTML=OT_REASONS.map(r=>`<button data-r="${esc(r)}">${esc(r)}</button>`).join('');
+    $('otDocWrap').hidden=!needDoc;
+    const drawDocs=()=>{$('otDocs').innerHTML=docs.length?docs.map(x=>`<button data-d="${esc(x.id)}" class="${x.id===doc?'on':''}">${esc(x.label)}</button>`).join(''):'<span style="color:var(--faint)">沒有在職醫師資料，將由超級管理員審核</span>';};drawDocs();
     if(mode==='ask'){
       $('otTitle').textContent='要申請加班嗎？';$('otSub').textContent=`${nameOf(sid)}，你比下班時間晚了 ${min} 分鐘。`+(opt.msg?`
 ${opt.msg}`:'');
@@ -475,7 +483,8 @@ ${opt.msg}`:'');
       $('otSub').textContent=`${nameOf(sid)}，${opt.msg||''}`;$('otBack').hidden=true;
       if(prev){
         $('otTitle').textContent='臨時加班：確認原因';$('otSub').textContent+=`
-上班時填的原因：「${prev}」`;
+上班時填的原因：「${prev}」`+(doc?`
+審核醫師：${docs.find(x=>x.id===doc)?.label||''}`:'');
         $('otNo').textContent='修改原因';$('otYes').textContent='沿用並送出';
         $('otAsk1').hidden=false;$('otAsk2').hidden=true;
       }else{$('otTitle').textContent='臨時加班：請填寫原因';$('otAsk1').hidden=true;$('otAsk2').hidden=false;}
@@ -486,7 +495,7 @@ ${opt.msg}`:'');
     tm=setInterval(tick,500);tick();
     const touch=()=>{t0=Date.now();}; // 有操作就重新計時
     if(mode==='out'&&prev){
-      $('otYes').onclick=()=>close(prev);
+      $('otYes').onclick=()=>{if(!doc&&docs.length){touch();showEdit('臨時加班：請選擇審核醫師');$('otReason').value=prev;return;}close(result(prev));};
       $('otNo').onclick=()=>{touch();showEdit('臨時加班：修改原因');$('otReason').value=prev;};
     }else{
       $('otNo').onclick=()=>close(null);
@@ -495,13 +504,28 @@ ${opt.msg}`:'');
     $('otBack').onclick=()=>close(null);
     $('otChips').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;touch();picked=picked===b.dataset.r?'':b.dataset.r;$('otChips').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.r===picked));};
     $('otReason').oninput=touch;
+    $('otDocs').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;touch();doc=b.dataset.d;drawDocs();};
     $('otSend').onclick=()=>{
       const text=$('otReason').value.trim(),reason=[picked,text].filter(Boolean).join('：');
       if(!reason){toast(mode==='in'?'請選擇或輸入原因，或按「稍後再填」':'請選擇或輸入加班原因','warn');touch();return;}
-      close(reason);
+      if(needDoc&&!doc&&docs.length){toast('請選擇審核醫師','warn');touch();return;}
+      close(result(reason));
     };
     ov.hidden=false;
   });
+}
+
+// 在職醫師（依代號排序，忽略開頭的 Dr.）
+function doctorList(){
+  const key=x=>String(x.code||x.name||'').replace(/^dr\.?\s*/i,'');
+  return staff.filter(x=>x.role==='doctor'&&x.active!==false).sort((a,b)=>key(a).localeCompare(key(b),'zh-Hant')).map(x=>({id:x.id,label:[x.code,x.name].filter(Boolean).join(' ')}));
+}
+// 預設審核醫師：今天這一診和這位助理跟診配對的醫師（班表 L 欄）
+function pairedDoctor(sid,shId,date=new Date()){
+  if(!shId||shId==='extra')return '';
+  const v=weekCells['L'+((date.getDay()+6)%7)+'_'+shId];
+  const hit=Array.isArray(v)?v.find(x=>Array.isArray(x)&&x[0]===sid):null;
+  return hit?hit[1]:'';
 }
 
 // ---------- 時鐘與網路 ----------
@@ -738,10 +762,11 @@ function confirmPunch(sid,info){
     if(photo)p.photo=photo;
     // 超過下班時間：先問要不要申請加班（必填原因），回答後才寫入這筆打卡（裝置只能新增、不能修改打卡）
     let otReason=null;
-    if(g.extra){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'out',prev:g.prev,msg:g.noIn?'找不到今天的臨時加班上班卡，請填寫原因（時數由主管確認）。':`臨時加班 ${g.ot} 分鐘，需要主管核准。`});$('resOv').hidden=false;}
+    if(g.extra){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'out',prev:g.prev,defDoc:'',msg:g.noIn?'找不到今天的臨時加班上班卡，請填寫原因（時數由主管確認）。':`臨時加班 ${g.ot} 分鐘，需要主管核准。`});$('resOv').hidden=false;}
     else if(chosen.sh==='extra'&&chosen.k==='in'){$('resOv').hidden=true;const r=await askOvertime(sid,0,{mode:'in'});$('resOv').hidden=false;if(r)p.extraReason=r;}
-    else if(g.ot){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'ask',msg:g.next?`加班最多算到${g.next.name}開始（${g.cap} 分鐘）。已同時幫你打${g.next.name}上班卡；加班核准後，${g.next.name}不算遲到。`:''});$('resOv').hidden=false;}
-    if(otReason){p.ot={min:g.ot,reason:otReason,status:'pending'};if(g.extra)p.ot.extra=true;if(g.from)p.ot.from=g.from;}
+    else if(g.ot){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'ask',defDoc:pairedDoctor(sid,chosen.sh),msg:g.next?`加班最多算到${g.next.name}開始（${g.cap} 分鐘）。已同時幫你打${g.next.name}上班卡；加班核准後，${g.next.name}不算遲到。`:''});$('resOv').hidden=false;}
+    let reviewer='';if(otReason&&typeof otReason==='object'){reviewer=otReason.reviewer||'';otReason=otReason.reason;}
+    if(otReason){p.ot={min:g.ot,reason:otReason,status:'pending'};if(reviewer)p.ot.reviewer=reviewer;if(g.extra)p.ot.extra=true;if(g.from)p.ot.from=g.from;}
     // 接續下一診：同一時間自動打下一診的上班卡（auto），link 指回這張下班卡；這張下班卡的加班核准後，下一診不算遲到
     let pNext=null;
     if(g.next){pNext=Object.assign({},p,{id:uid('p'),sel:{sh:g.next.sh,k:'in'},auto:true,link:p.id});delete pNext.ot;p.next=pNext.id;}
