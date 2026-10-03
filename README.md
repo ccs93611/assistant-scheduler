@@ -163,16 +163,17 @@ HTML（7 個 <section id="tab-*">）
 **打卡規則**：每一診都要打上班卡與下班卡（早班連午班也要在中午打下班、再打上班）。打卡時選的班別存在 `punches.sel`，直接算在那一診（同一個時間點有多筆時上班取最早、下班取最晚；選了沒排的診列為「其他」）。沒有 `sel` 的打卡（舊紀錄、補登時選「依時間自動判斷」）才依時間順序對應到還空著的時間點（動態規劃：先求對上最多、再求時間差總和最小；差 180 分鐘以上不對應）。
 - 遲到：上班卡晚於開診超過「遲到寬限」→ 從開診時間起算的分鐘數；早退：下班卡早於結束超過「早退寬限」。晚班在「晚班可下班時間」（`nightOut`，預設 21:00）之後打下班卡不算早退，早於這個時間時早退分鐘也從這個時間起算。
 - 應出勤＝到今天為止、已結束、沒有請假的診次（依 `weeks`，也就是定案後的異動班表）。出勤率＝上下班卡都有的診數 ÷ 應出勤。
-- 「把遲到分鐘帶入薪資」：寫入 `pay/{staffId}_{YYYY-MM}.lateMin`（可設定是否併入早退分鐘），帶入前會列出變更讓管理者確認。
+- **加班申請**：下班卡比該診結束時間（晚班 21:30）晚超過「下班超過幾分鐘詢問加班」（`otAsk`，預設 3 分鐘，0＝不詢問），打卡裝置會詢問是否申請加班，申請必須填原因（可點選常用原因再補充）；不申請或 60 秒沒回應就只打下班卡。申請存在該筆打卡的 `ot`（裝置只能送出 `status:'pending'`），管理者在「出勤 → 加班申請」核准（可調整分鐘數）或退回。
+- 「帶入薪資（遲到、加班）」：遲到寫入 `pay/{staffId}_{YYYY-MM}.lateMin`（可設定是否併入早退分鐘）；當月**已核准**的加班分鐘合計寫入 `otMin`（取代原本手動填的加班/拖診分鐘數）。帶入前會列出變更讓管理者確認。
 
 **Firestore**（規則見 `firestore.rules`）：
 
 | 路徑 | 內容 |
 |---|---|
 | `devices/{匿名uid}` | `{name, approved, at, ua}`；裝置自己建立（approved 必須是 false），排班管理以上核准 |
-| `punches/{id}` | `{staffId, ts, date, src:'kiosk'\|'manual', sel:{sh,k}?, device, devName, sim, real, live, photo?, by?, note?, void?}`（`sel`：打卡時選的班別與上班 in／下班 out）。裝置只能新增；補登、作廢（`void`，保留紀錄）由管理者處理 |
+| `punches/{id}` | `{staffId, ts, date, src:'kiosk'\|'manual', sel:{sh,k}?, ot:{min,reason,status:'pending'|'approved'|'rejected',approvedMin?,by?,note?}?, device, devName, sim, real, live, photo?, by?, note?, void?}`（`sel`：打卡時選的班別與上班 in／下班 out）。裝置只能新增；補登、作廢（`void`，保留紀錄）由管理者處理 |
 | `faces/{staffId}` | `{emb: JSON 字串（5 組特徵值）, n, at, consentAt, device}`，不存照片 |
-| `kiosk/settings` | `{graceIn, graceOut, nightOut, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
+| `kiosk/settings` | `{graceIn, graceOut, nightOut, otAsk, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
 
 **第一次上線要做的事**
 1. Firebase 主控台 → Authentication → 登入方式 → 啟用「匿名」。

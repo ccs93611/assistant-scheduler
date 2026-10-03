@@ -62,7 +62,9 @@ service cloud.firestore {
         && request.resource.data.device == request.auth.uid
         && request.resource.data.staffId is string
         && request.resource.data.ts is number
-        && request.resource.data.ts < request.time.toMillis() + 5 * 60 * 1000);
+        && request.resource.data.ts < request.time.toMillis() + 5 * 60 * 1000
+        // 加班申請只能是待審（核准由排班管理以上處理）
+        && (!('ot' in request.resource.data) || request.resource.data.ot.status == 'pending'));
       allow update, delete: if canManage();
     }
     // 臉部特徵值 faces/{staffId}：在打卡裝置上登錄（需裝置管理密碼）；排班管理以上可刪除

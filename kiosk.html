@@ -32,6 +32,7 @@ if (location.hostname === 'localhost' && /[?&]local=[\w-]+/.test(location.search
   --line:#33443A; --accent:#8DB5A2; --accent-ink:#10160F; --ok:#86C29D; --warn:#E6866D; --gold:#E2C178;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
   font-family:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;overflow:hidden;
   -webkit-user-select:none;user-select:none}
@@ -122,6 +123,9 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 .code{font-size:2.2rem;font-weight:700;letter-spacing:.2em;text-align:center;margin:10px 0;color:var(--gold)}
 .mini-stage{position:relative;border-radius:14px;overflow:hidden;background:#0B100D;aspect-ratio:4/3;margin-top:12px}
 .mini-stage video{position:absolute;inset:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chips button{padding:10px 16px;border-radius:999px}
+.chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);
   padding:10px 18px;border-radius:12px;z-index:30;max-width:90vw;text-align:center}
 .toast.warn{border-color:var(--warn);color:var(--warn)}
@@ -211,6 +215,21 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
     </div>
   </div>
 </div>
+<!-- 加班申請：下班卡超過設定分鐘數時詢問 -->
+<div class="ov" id="otOv" hidden>
+  <div class="box">
+    <h2 id="otTitle">要申請加班嗎？</h2>
+    <p id="otSub"></p>
+    <div id="otAsk1" class="row"><button id="otNo">不用，只打下班卡</button><button class="primary" id="otYes">申請加班</button></div>
+    <div id="otAsk2" hidden>
+      <p style="margin-bottom:8px">請填寫加班原因（必填）</p>
+      <div class="chips" id="otChips"></div>
+      <input type="text" id="otReason" placeholder="或自行輸入原因" maxlength="100">
+      <div class="row"><button id="otBack">取消申請</button><button class="primary" id="otSend">送出申請</button></div>
+    </div>
+    <div class="cd" id="otCd" style="text-align:center;color:var(--faint);margin-top:12px;font-size:.85rem"></div>
+  </div>
+</div>
 <!-- 確認對話框（App 內的 WebView 不一定支援 confirm()） -->
 <div class="ov" id="askOv" hidden style="z-index:20"><div class="box"><p id="askMsg" style="color:var(--ink)"></p><div class="row"><button id="askNo">取消</button><button class="primary" id="askYes">確定</button></div></div></div>
 <!-- 已登錄名單 -->
@@ -237,7 +256,9 @@ const SAMPLES=5;            // 登錄時擷取的特徵數
 const STABLE_FRAMES=3;      // 連續幾幀辨識成同一人才確認
 const CONFIRM_MS=2500;      // 確認畫面自動打卡倒數
 const COOLDOWN_MS=60*1000;  // 同一人兩次打卡的最短間隔
-const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00'};
+const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00',otAsk:3};
+const OT_REASONS=['拖診','病人延遲','整理器械／診間','交班'];
+const OT_WAIT_MS=60*1000; // 沒回應就當作不申請
 
 // ---------- 小工具 ----------
 const $=id=>document.getElementById(id);
@@ -349,7 +370,32 @@ function showGate(kind,arg){
   b.innerHTML=`<h2>發生問題</h2><p>${esc(arg)}</p><div class="row"><button class="primary" onclick="location.reload()">重新整理</button></div>`;
 }
 function hideGate(){$('gate').hidden=true;}
-const anyOverlay=()=>['gate','resOv','pinOv','adminOv','enrollOv','facesOv'].some(id=>!$(id).hidden);
+const anyOverlay=()=>['gate','resOv','pinOv','adminOv','enrollOv','facesOv','otOv'].some(id=>!$(id).hidden);
+// 詢問是否申請加班；回傳原因字串，不申請（或 60 秒沒回應）回傳 null
+function askOvertime(sid,min){
+  return new Promise(resolve=>{
+    const ov=$('otOv');let picked='',t0=Date.now(),tm=null;
+    const close=v=>{clearInterval(tm);ov.hidden=true;resolve(v);};
+    $('otTitle').textContent='要申請加班嗎？';
+    $('otSub').textContent=`${nameOf(sid)}，你比下班時間晚了 ${min} 分鐘。`;
+    $('otAsk1').hidden=false;$('otAsk2').hidden=true;$('otReason').value='';
+    $('otChips').innerHTML=OT_REASONS.map(r=>`<button data-r="${esc(r)}">${esc(r)}</button>`).join('');
+    const tick=()=>{const left=Math.ceil((OT_WAIT_MS-(Date.now()-t0))/1000);if(left<=0)close(null);else $('otCd').textContent=`${left} 秒後自動略過（不申請）`;};
+    tm=setInterval(tick,500);tick();
+    const touch=()=>{t0=Date.now();}; // 有操作就重新計時
+    $('otNo').onclick=()=>close(null);
+    $('otYes').onclick=()=>{touch();$('otAsk1').hidden=true;$('otAsk2').hidden=false;$('otTitle').textContent=`申請加班 ${min} 分鐘`;};
+    $('otBack').onclick=()=>close(null);
+    $('otChips').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;touch();picked=picked===b.dataset.r?'':b.dataset.r;$('otChips').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.r===picked));};
+    $('otReason').oninput=touch;
+    $('otSend').onclick=()=>{
+      const text=$('otReason').value.trim(),reason=[picked,text].filter(Boolean).join('：');
+      if(!reason){toast('請選擇或輸入加班原因','warn');touch();return;}
+      close(reason);
+    };
+    ov.hidden=false;
+  });
+}
 
 // ---------- 時鐘與網路 ----------
 function tick(){
@@ -387,12 +433,15 @@ function selNote(sid,sel,ts){
   if(sel.k==='in'&&Math.floor(min-a)>(Number(settings.graceIn)||0))note=`遲到 ${Math.floor(min-a)} 分鐘`;
   const end=sel.sh==='night'&&/^\d{1,2}:\d{2}$/.test(settings.nightOut||'')?Math.min(b,hm(settings.nightOut)):b;
   if(sel.k==='out'&&Math.ceil(end-min-1e-9)>(Number(settings.graceOut)||0))note=`早退 ${Math.ceil(end-min-1e-9)} 分鐘`;
-  return {label,note};
+  // 加班：下班卡比該診結束時間（晚班 21:30）晚超過 otAsk 分鐘時，打卡後詢問是否申請加班
+  const over=sel.k==='out'?Math.floor(min-b):0, ask=Number(settings.otAsk)||0;
+  if(over>0&&!note)note=`超過下班時間 ${over} 分鐘`;
+  return {label,note,ot:ask>0&&over>ask?over:0};
 }
 const punchLabel=p=>p.sel?selNote(p.staffId,p.sel,p.ts):guessKind(p.staffId,p.ts);
 function renderRecent(){
   const list=todays.slice().sort((a,b)=>b.ts-a.ts).slice(0,40);
-  $('recent').innerHTML=list.length?list.map(p=>{const g=punchLabel(p);if(g.warn)g.note='沒有排這一診';return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
+  $('recent').innerHTML=list.length?list.map(p=>{const g=punchLabel(p);if(g.warn)g.note='沒有排這一診';if(p.ot)g.note=`申請加班 ${p.ot.min} 分`;return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
 }
 
 // ---------- 相機與辨識模型 ----------
@@ -527,17 +576,25 @@ function confirmPunch(sid,info){
   const bar=$('resBar');bar.style.transition='none';bar.style.width='0';
   // 沒有排這一診時不自動打卡，要本人按「確認打卡」
   if(!g.warn)requestAnimationFrame(()=>{bar.style.transition=`width ${CONFIRM_MS}ms linear`;bar.style.width='100%';});
-  const finish=ok=>{
+  let done=false;
+  const finish=async ok=>{
     clearTimeout(resTimer);
+    if(done)return;
     if(!ok){$('resOv').hidden=true;scanUntil=Date.now()+SCAN_MS;setTimeout(()=>{paused=false;},1500);return;} // 不是我：繼續掃臉
+    done=true;
     const p={id:uid('p'),staffId:sid,ts,date:ymd(new Date(ts)),src:'kiosk',device:src.deviceId(),devName:device.name||'',
       sel:chosen,sim:Math.round(info.sim*1000)/1000,real:info.real!=null?Math.round(info.real*100)/100:null,live:info.live!=null?Math.round(info.live*100)/100:null};
     if(photo)p.photo=photo;
+    // 超過下班時間：先問要不要申請加班（必填原因），回答後才寫入這筆打卡（裝置只能新增、不能修改打卡）
+    let otReason=null;
+    if(g.ot){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot);$('resOv').hidden=false;}
+    if(otReason)p.ot={min:g.ot,reason:otReason,status:'pending'};
     lastPunch[sid]=ts;
     src.addPunch(p).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
     $('resActs').hidden=true;$('resBox').classList.add('done');$('resKind').textContent='✓ 已打卡・'+g.label;
-    if(g.warn){$('resNote').textContent='';}
-    resTimer=setTimeout(()=>{$('resOv').hidden=true;endScan();paused=false;},1800);
+    if(g.warn)$('resNote').textContent='';
+    if(otReason){$('resNote').textContent=`已申請加班 ${g.ot} 分鐘，等待主管核准`;$('resNote').className='note';}
+    resTimer=setTimeout(()=>{$('resOv').hidden=true;endScan();paused=false;},otReason?2500:1800);
   };
   $('resNo').onclick=()=>finish(false);
   $('resOk').onclick=()=>finish(true);
