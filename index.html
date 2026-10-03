@@ -542,6 +542,7 @@ body.gated .shell{display:none;}
             <div class="field"><label for="lvType-doctor">休假類別</label><select id="lvType-doctor" data-n="type"><option>休假</option><option>進修</option><option>公務</option><option>病假</option><option>其他</option></select></div>
             <div class="field" style="flex:1;min-width:140px"><label for="lvNote-doctor">備註</label><input id="lvNote-doctor" data-n="note" placeholder="例如：學會、出國…"></div>
             <button class="primary" type="submit" data-w>登記</button>
+            <button type="button" id="monthLeaveBtnDoc">整月排休</button>
           </form>
           <div class="lv-title-row"><h3 class="subhead" id="leaveTitle-doctor"></h3><span class="lv-range" data-lvrange="dc"></span></div>
           <div class="hol-scroll" id="leaveScroll-doctor"><table class="list leave-table" id="leaveTable-doctor"></table></div>
@@ -1703,7 +1704,7 @@ function renderLeave(mi,roles){
     const sel=$('lvStaff-'+pk);const cur=sel.value;
     const selfOnly=!canWrite&&canLeaveFor(myStaffId())&&byId(myStaffId())?.role===role;
     $('leaveTable-'+pk).closest('.card').querySelector('.leave-form button[type=submit]').disabled=!(canWrite||selfOnly);
-    if(pk!=='doctor')$(pk==='after'?'monthLeaveBtnAfter':'monthLeaveBtn').disabled=!(canWrite||selfOnly);
+    $(pk==='doctor'?'monthLeaveBtnDoc':pk==='after'?'monthLeaveBtnAfter':'monthLeaveBtn').disabled=!(canWrite||selfOnly);
     if(pk==='after'&&!$('lvType-after').options.length)$('lvType-after').innerHTML=$('lvType-assistant').innerHTML;
     sel.innerHTML=activeStaff(role).filter(s=>canWrite||s.id===myStaffId()).map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');
     if(cur&&byId(cur))sel.value=cur;
@@ -3504,15 +3505,18 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
 const LEAVE_COLORS={特休:['#2E7D32','#fff'],排休:['#C0CA33','#263238'],事假:['#C62828','#fff'],病假:['#EF6C00','#fff'],公假:['#1565C0','#fff'],婚假:['#D81B60','#fff'],喪假:['#455A64','#fff'],產假:['#6A1B9A','#fff'],陪產假:['#3949AB','#fff'],生理假:['#FBC02D','#3E2723'],補休:['#00897B','#fff'],颱風假:['#0288D1','#fff'],原住民族歲時祭儀:['#AD1457','#fff'],不可上班:['#212121','#fff'],其他:['#8D6E63','#fff'],產檢假:['#BA68C8','#fff'],流產產假:['#4E342E','#fff'],育嬰假:['#90A4AE','#263238']};
 const leaveColor=t=>LEAVE_COLORS[t]||['#757575','#fff'];
 const leaveTagStyle=t=>{const [bg,fg]=leaveColor(t);return `background:${bg};border-color:${bg};color:${fg}`;};
-function openMonthLeave(when){ // when：'before' 事前／'after' 事後
-  const types=[...document.querySelectorAll('#lvType-assistant option')].map(o=>o.value);
-  let off=prefs.monthOffset,type=types.includes('事假')?'事假':types[0],sel=null,dragSid=null;
+// when：'before' 事前／'after' 事後（助理）；role：'assistant' 整月排假／'doctor' 整月排休（醫師沒有事前、事後之分，可以按診休假）
+function openMonthLeave(when,role='assistant'){
+  const doc=role==='doctor',who=doc?'醫師':'助理',word=doc?'休假':'請假';
+  const types=[...document.querySelectorAll(doc?'#lvType-doctor option':'#lvType-assistant option')].map(o=>o.value);
+  let off=prefs.monthOffset,type=doc?types[0]:types.includes('事假')?'事假':types[0],sel=null,dragSid=null;
+  const other=l=>!doc&&whenOf(l)!==when; // 助理：另一邊（事前／事後）登記的假
   const ov=document.createElement('div');ov.className='overlay';
   ov.innerHTML=`<div class="dialog ml-dialog" role="dialog" aria-modal="true">
     <div class="ml-head"><h3 id="mlTitle"></h3><span style="display:flex;gap:6px"><button class="small" data-mlundo disabled title="復原這個視窗裡的上一次排假或取消" style="margin-right:28px">↶ 回復前一動作</button><button class="small" data-mlnav="-1" aria-label="上個月">◀</button><button class="small" data-mlnow>本月</button><button class="small" data-mlnav="1" aria-label="下個月">▶</button><button class="small" data-mlclose>關閉</button></span></div>
     <div class="ml-types" id="mlTypes" role="group" aria-label="請假類別"></div>
     <div class="ml-body"><div class="ml-staff" id="mlStaff"></div><div class="ml-cal-wrap"><div class="ml-cal" id="mlCal"></div></div></div>
-    <p class="hint">選好假別後，把助理代號拖到要請假的班次；拖到日期上則整天（早午晚）都請假。手機可以先點助理、再點班次或日期。點班次裡的代號可以取消那一班。</p></div>`;
+    <p class="hint">選好假別後，把${who}代號拖到要${word}的班次；拖到日期上則整天（早午晚）都${word}。手機可以先點${who}、再點班次或日期。點班次裡的代號可以取消那一班。</p></div>`;
   document.body.appendChild(ov);
   const q=s=>ov.querySelector(s);
   const close=()=>{ov.remove();document.removeEventListener('keydown',onKey);renderAll();};
@@ -3520,11 +3524,11 @@ function openMonthLeave(when){ // when：'before' 事前／'after' 事後
   document.addEventListener('keydown',onKey);
   const paint=()=>{
     const mi=monthInfo(off),inMonth=new Set(mi.dates.map(x=>x.key));
-    q('#mlTitle').innerHTML=`${esc(mi.label)} 整月排假（${when==='after'?'<span class="ml-after">事後</span>':'<span class="ml-before">事前</span>'}）`;
+    q('#mlTitle').innerHTML=doc?`${esc(mi.label)} 醫師整月排休`:`${esc(mi.label)} 整月排假（${when==='after'?'<span class="ml-after">事後</span>':'<span class="ml-before">事前</span>'}）`;
     q('#mlTypes').innerHTML=types.map(t=>`<button type="button" data-mltype="${esc(t)}" aria-pressed="${t===type}"${t===type?` style="${leaveTagStyle(t)}"`:''}><i class="ml-dot" style="background:${leaveColor(t)[0]}"></i>${esc(t)}</button>`).join('');
-    const list=activeStaff('assistant').filter(s=>canWrite||s.id===myStaffId());
+    const list=activeStaff(role).filter(s=>canWrite||s.id===myStaffId());
     if(sel&&!list.some(s=>s.id===sel))sel=null;
-    q('#mlStaff').innerHTML=list.map(s=>`<div class="chip assistant${sel===s.id?' sel':''}" draggable="true" tabindex="0" data-mlsid="${s.id}" title="${esc(fullName(s))}"><span class="nm">${esc(s.code||s.name)}</span></div>`).join('')||'<div class="hint" style="margin:0">尚無助理。</div>';
+    q('#mlStaff').innerHTML=list.map(s=>`<div class="chip ${role}${sel===s.id?' sel':''}" draggable="true" tabindex="0" data-mlsid="${s.id}" title="${esc(fullName(s))}"><span class="nm">${esc(s.code||s.name)}</span></div>`).join('')||`<div class="hint" style="margin:0">尚無${who}。</div>`;
     const shown=new Set(list.map(s=>s.id));
     let html=DAYS.map(d=>`<div class="ml-dow">週${d}</div>`).join('');
     mi.mondays.forEach(mon=>{for(let i=0;i<7;i++){
@@ -3533,7 +3537,7 @@ function openMonthLeave(when){ // when：'before' 事前／'after' 事後
       const hol=holidayOf(key);
       const openSh=dow===6?[]:SHIFTS.filter(sh=>!closedAt(dow,sh.id,key)).map(sh=>sh.id);
       // 當天有請假的人依代號 A→Z 排出固定欄位，早午晚三格共用，讓同一人上下對齊
-      const dayLv=leaves.filter(l=>l.date===key&&byId(l.staffId)?.role==='assistant'&&(canWrite||shown.has(l.staffId)))
+      const dayLv=leaves.filter(l=>l.date===key&&byId(l.staffId)?.role===role&&(canWrite||shown.has(l.staffId)))
         .sort((a,b)=>codeOf(a.staffId).localeCompare(codeOf(b.staffId),'en',{numeric:true,sensitivity:'base'}));
       // 整天制假別：依上下相鄰的看診班次決定標籤是頂端、中段或底端，讓三格連成一條
       const isOpen=si=>si>=0&&si<SHIFTS.length&&openSh.includes(SHIFTS[si].id);
@@ -3545,7 +3549,7 @@ function openMonthLeave(when){ // when：'before' 事前／'after' 事後
       html+=`<div class="ml-day"${openSh.length?` data-day="${key}" data-open="${openSh.join(',')}"`:''}><div class="ml-date" title="${openSh.length?'拖到這裡：整天請假':''}">${md(d)}${hol?` <small style="color:var(--faint)">${esc(hol.name||'休診日')}</small>`:''}</div><div class="ml-shifts">`+SHIFTS.map((sh,si)=>{
         if(dow===6||closedAt(dow,sh.id,key))return `<div class="ml-slot off"><span class="ml-sh">${sh.short}</span></div>`;
         const tags=dayLv.map(l=>(l.shifts||[]).includes(sh.id)
-          ?(whenOf(l)!==when // 另一邊（事前／事後）登記的假：淺灰色，只能看
+          ?(other(l) // 另一邊（事前／事後）登記的假：淺灰色，只能看
             ?`<span class="ml-tag faded${fdCls(l,si)}" title="${esc(fullName(byId(l.staffId)))}・${esc(l.type||'')}（${whenOf(l)==='after'?'事後':'事前'}登記，請切換到「${whenOf(l)==='after'?'事後':'事前'}」的整月排假修改）">${esc(codeOf(l.staffId))}</span>`
             :`<button type="button" class="ml-tag${fdCls(l,si)}" style="${leaveTagStyle(l.type)}" data-mldel="${l.id}" data-sh="${sh.id}" title="${esc(fullName(byId(l.staffId)))}・${esc(l.type||'')}（點一下取消）">${esc(codeOf(l.staffId))}</button>`)
           :'<span class="ml-tag ph" aria-hidden="true"></span>').join('');
@@ -3557,20 +3561,22 @@ function openMonthLeave(when){ // when：'before' 事前／'after' 事後
   };
   // shs：要請假的班次（拖到格子是一班；拖到日期是當天所有看診班次）
   const addLeave=(sid,date,shs)=>{
-    if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的請假。','warn');return;}
+    if(!canLeaveFor(sid)){toast(`你沒有權限登記這位人員的${word}。`,'warn');return;}
     const dup=leaves.find(l=>l.staffId===sid&&l.date===date);
     // 事前、事後各自管理：當天已有另一邊登記的請假時，不能在這裡更動
-    if(dup&&whenOf(dup)!==when){const o=whenOf(dup)==='after'?'事後':'事前';toast(`${codeOf(sid)} ${date.slice(5).replace('-','/')} 已有${o}登記的${dup.type||'請假'}，請切換到「${o}」修改。`,'warn');return;}
-    {const clash=leaveVsFc(sid,date,when==='before'?SHIFTS.map(s=>s.id):shs);if(clash){toast(clash,'warn');return;}}
-    if(askLeaveInfo(sid,type,[date],()=>addLeave(sid,date,shs),paint))return;
+    if(dup&&other(dup)){const o=whenOf(dup)==='after'?'事後':'事前';toast(`${codeOf(sid)} ${date.slice(5).replace('-','/')} 已有${o}登記的${dup.type||'請假'}，請切換到「${o}」修改。`,'warn');return;}
+    // 家庭照顧假衝突、事件假資料只適用助理
+    if(!doc){const clash=leaveVsFc(sid,date,when==='before'?SHIFTS.map(s=>s.id):shs);if(clash){toast(clash,'warn');return;}}
+    if(!doc&&askLeaveInfo(sid,type,[date],()=>addLeave(sid,date,shs),paint))return;
     if(dup&&shs.every(s=>(dup.shifts||[]).includes(s))&&dup.type===type)return;
     const shifts=SHIFTS.map(s=>s.id).filter(s=>shs.includes(s)||(dup?.shifts||[]).includes(s));
-    const chk=leaveLimitIssues(sid,[{date,type,shifts,when}]);
+    const chk=doc?{over:[],info:[]}:leaveLimitIssues(sid,[{date,type,shifts,when}]); // 年度上限只適用助理
     const apply=()=>{
       remember(sid,date);
-      if(dup)store.putLeave(Object.assign({},dup,{shifts,type,when}));
-      else store.leave({id:uid('l'),staffId:sid,date,shifts,type,note:'',when,createdAt:Date.now()});
-      const sn=shs.length===3||when==='before'?'全天':SHIFTS.filter(s=>shs.includes(s.id)).map(s=>s.name).join('、');
+      const extra=doc?{}:{when};
+      if(dup)store.putLeave(Object.assign({},dup,{shifts,type},extra));
+      else store.leave(Object.assign({id:uid('l'),staffId:sid,date,shifts,type,note:'',createdAt:Date.now()},extra));
+      const sn=shs.length===3||(!doc&&when==='before')?'全天':SHIFTS.filter(s=>shs.includes(s.id)).map(s=>s.name).join('、');
       toast(`已登記 ${codeOf(sid)} ${date.slice(5).replace('-','/')} ${sn}${type}。${dup&&dup.type!==type?`當天其他班次也一併改為${type}。`:''}${chk.info.join('')}`);
       paint();
     };
@@ -3589,13 +3595,13 @@ function openMonthLeave(when){ // when：'before' 事前／'after' 事後
   };
   const removeShift=(id,sh)=>{
     const l=leaves.find(x=>x.id===id);if(!l)return;
-    if(!canLeaveFor(l.staffId)){toast('你沒有權限取消這筆請假。','warn');return;}
+    if(!canLeaveFor(l.staffId)){toast(`你沒有權限取消這筆${word}。`,'warn');return;}
     // 特休、排休、婚假、喪假只能整天，取消其中一班就取消當天全部
     const whole=isWholeDay(l);
     const rest=whole?[]:(l.shifts||[]).filter(s=>s!==sh);
     remember(l.staffId,l.date);
     if(rest.length)store.putLeave(Object.assign({},l,{shifts:rest}));else store.delLeave(l.id);
-    toast(whole?`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} 全天${l.type}。`:`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} ${SHIFTS.find(s=>s.id===sh).name}的請假。`);paint();
+    toast(whole?`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} 全天${l.type}。`:`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} ${SHIFTS.find(s=>s.id===sh).name}的${word}。`);paint();
   };
   ov.addEventListener('click',e=>{
     if(e.target===ov||e.target.closest('[data-mlclose]')){close();return;}
@@ -3607,7 +3613,7 @@ function openMonthLeave(when){ // when：'before' 事前／'after' 事後
     if(e.target.closest('.ml-tag.faded')){const o=when==='after'?'事前':'事後';toast(`這是${o}登記的請假，請切換到「${o}」的整月排假修改。`);return;}
     const chip=e.target.closest('[data-mlsid]');if(chip){sel=sel===chip.dataset.mlsid?null:chip.dataset.mlsid;paint();return;}
     const tg=targetOf(e);
-    if(tg){if(!sel){toast('請先點選左邊的助理，或直接把助理拖到班次或日期。');return;}addLeave(sel,tg.date,tg.shs);}
+    if(tg){if(!sel){toast(`請先點選左邊的${who}，或直接把${who}拖到班次或日期。`);return;}addLeave(sel,tg.date,tg.shs);}
   });
   // 放在班次格子＝請那一班；放在日期或當天空白處＝請當天所有看診班次；休診格子不接受
   const targetOf=e=>{
@@ -3629,6 +3635,7 @@ $('lvWhenSeg').addEventListener('click',e=>{
 });
 $('monthLeaveBtn').onclick=()=>openMonthLeave('before');
 $('monthLeaveBtnAfter').onclick=()=>openMonthLeave('after');
+$('monthLeaveBtnDoc').onclick=()=>openMonthLeave(null,'doctor');
 $('fcForm').addEventListener('submit',e=>{
   e.preventDefault();
   const sid=$('fcStaff').value;if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的家庭照顧假。','warn');return;}const date=$('fcDate').value;
