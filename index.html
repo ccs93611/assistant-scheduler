@@ -2869,6 +2869,9 @@ function attLabels(mi){
   return m;
 }
 let attLog={sid:'',date:'',showVoid:false};
+let attLogSort={key:'date',dir:-1}; // 打卡紀錄排序：預設最新的在最上面
+// 「對應」欄依班別順序排序（其他、已作廢排最後）
+const MAP_ORDER=['早班上班','早班下班','午班上班','午班下班','晚班上班','晚班下班','臨時加班上班','臨時加班下班'];
 // 加班申請：待審的排最上面，其餘依時間新到舊
 function renderOt(mi){
   const list=punches.filter(p=>p.ot&&!p.void).sort((a,b)=>(a.ot.status==='pending'?0:1)-(b.ot.status==='pending'?0:1)||b.ts-a.ts);
@@ -2892,9 +2895,14 @@ function renderAttLog(mi){
   sel.value=attLog.sid;$('attLogDate').value=attLog.date;$('attLogVoid').checked=attLog.showVoid;
   $('attLogDate').min=ymd(mi.first);$('attLogDate').max=ymd(mi.last);
   const lab=attLabels(mi);
-  const list=punches.filter(p=>(!attLog.sid||p.staffId===attLog.sid)&&(!attLog.date||p.date===attLog.date)&&(attLog.showVoid||!p.void)).sort((a,b)=>b.ts-a.ts);
+  const srcTxt=p=>p.src==='manual'?'補登 '+(p.by||''):(p.devName||'打卡裝置');
+  const keyOf={date:p=>p.ts,staff:p=>{const x=byId(p.staffId);return (x?.code||x?.name||'')},map:p=>{if(p.void)return 99;const t=lab[p.id]?.t||'',i=MAP_ORDER.findIndex(x=>t.startsWith(x));return i<0?90:i;},src:srcTxt};
+  const S=attLogSort,kf=keyOf[S.key]||keyOf.date;
+  const list=punches.filter(p=>(!attLog.sid||p.staffId===attLog.sid)&&(!attLog.date||p.date===attLog.date)&&(attLog.showVoid||!p.void))
+    .sort((a,b)=>{const x=kf(a),y=kf(b);const c=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');return (c*S.dir)||(b.ts-a.ts);});
+  const th=(key,label)=>`<th><button type="button" class="th-btn${S.key===key?' on':''}" data-logsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
   $('attLogCount').textContent=`共 ${list.length} 筆`;
-  $('attLog').innerHTML=`<thead><tr><th>日期</th><th>時間</th><th>人員</th><th>對應</th><th>來源</th><th>照片</th><th></th></tr></thead><tbody>`+
+  $('attLog').innerHTML=`<thead><tr>${th('date','日期')}<th>時間</th>${th('staff','人員')}${th('map','對應')}${th('src','來源')}<th>照片</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(p=>{
       const d=parseYmd(p.date),L=lab[p.id];
       const src=p.src==='manual'?`補登（${esc(p.by||'')}）${p.note?`<br><small class="att-mute">${esc(p.note)}</small>`:''}`:`${esc(p.devName||'打卡裝置')}${p.sim?` <small class="att-mute">相似度 ${p.sim}</small>`:''}`;
@@ -2980,6 +2988,7 @@ $('attLogSid').addEventListener('change',e=>{attLog.sid=e.target.value;renderAll
 $('attLogDate').addEventListener('change',e=>{attLog.date=e.target.value;renderAll();});
 $('attLogVoid').addEventListener('change',e=>{attLog.showVoid=e.target.checked;renderAll();});
 $('attLogReset').addEventListener('click',()=>{attLog={sid:'',date:'',showVoid:false};renderAll();});
+$('attLog').addEventListener('click',e=>{const b=e.target.closest('[data-logsort]');if(!b)return;const k=b.dataset.logsort;attLogSort=attLogSort.key===k?{key:k,dir:-attLogSort.dir}:{key:k,dir:k==='date'?-1:1};renderAll();});
 $('attRules').addEventListener('change',e=>{
   const k=e.target.dataset.attcfg;if(!k||!canWrite)return;
   const next=Object.assign({},kioskCfg);
