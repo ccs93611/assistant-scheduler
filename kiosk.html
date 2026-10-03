@@ -49,6 +49,7 @@ header{display:flex;align-items:center;gap:14px}
 .dev{color:var(--faint);font-size:.8rem;text-align:right}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);margin-right:6px;vertical-align:middle}
 .dot.on{background:var(--ok)} .dot.off{background:var(--warn)}
+.logbtn{height:44px;padding:0 16px;border-radius:22px;font-size:1rem;font-weight:500;white-space:nowrap}
 .gear{width:44px;height:44px;padding:0;border-radius:50%;font-size:1.2rem;background:transparent}
 main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;min-height:0;margin-top:12px}
 @media (max-width:760px),(orientation:portrait){main{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}}
@@ -64,11 +65,8 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block
 .pick{position:absolute;inset:0;background:rgba(11,16,13,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:clamp(8px,2vh,22px) clamp(8px,2vw,22px);gap:clamp(6px,1.6vh,16px);overflow:hidden;container-type:size}
 .pick[hidden]{display:none}
-/* 直式或較矮的螢幕：選擇畫面蓋住時鐘列以下的整個畫面（--pickTop 由程式依時鐘列高度設定） */
-@media (max-width:760px),(orientation:portrait),(max-height:600px){
-  .pick{position:fixed;top:var(--pickTop,0px);left:0;right:0;bottom:0;z-index:5;background:var(--bg);justify-content:center;
-    padding-bottom:max(10px,env(safe-area-inset-bottom))}
-}
+/* 選擇畫面只蓋住相機區，「今日打卡」永遠看得到；較矮的螢幕隱藏最下方說明文字，多留空間給按鈕 */
+@media (max-height:700px){footer{display:none}}
 .pick h2{margin:0;flex:none;font-size:clamp(1rem,min(3.6vw,4vh),1.9rem);line-height:1.2}
 .pick-grid{flex:1;min-height:0;max-height:560px;width:min(680px,100%);display:grid;
   grid-template-columns:auto repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr));gap:clamp(5px,1.4vh,12px) clamp(6px,1.4vw,12px)}
@@ -145,6 +143,18 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .chips button{padding:10px 16px;border-radius:999px}
 .chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.logbox{width:min(760px,100%);height:min(90vh,900px);display:flex;flex-direction:column;padding:18px}
+.log-head{display:flex;align-items:center;gap:10px}.log-head h2{flex:1;margin:0}
+.log-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
+.log-ctl button{padding:10px 14px}.log-ctl select{width:auto;flex:1;min-width:140px}
+.log-label{font-weight:700;font-variant-numeric:tabular-nums;min-width:8.5em;text-align:center}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}.seg button{border:0;border-radius:0;background:transparent}.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.log-list{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.log-day{color:var(--sub);font-size:.85rem;margin:8px 2px 0}
+.log-row{display:grid;grid-template-columns:3.6em minmax(5em,auto) 1fr;gap:10px;align-items:center;background:var(--panel2);border-radius:10px;padding:8px 12px}
+.log-row .t{font-weight:700;font-variant-numeric:tabular-nums}.log-row .k{color:var(--sub);font-size:.85rem}
+.log-row .n{font-size:.85rem;text-align:right}.log-row .bad{color:var(--warn)}.log-row .ok{color:var(--ok)}
+.log-foot{color:var(--faint);font-size:.8rem;text-align:center;padding-top:8px}
 .toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);
   padding:10px 18px;border-radius:12px;z-index:30;max-width:90vw;text-align:center}
 .toast.warn{border-color:var(--warn);color:var(--warn)}
@@ -159,6 +169,7 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
     </div>
     <div class="spacer"></div>
     <div class="dev"><div><span class="dot" id="net"></span><span id="devName">新海美學牙醫診所</span></div><div id="devSub"></div></div>
+    <button class="logbtn" id="logBtn">打卡紀錄</button>
     <button class="gear" id="gear" aria-label="管理">⚙</button>
   </header>
   <main>
@@ -251,6 +262,20 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 </div>
 <!-- 確認對話框（App 內的 WebView 不一定支援 confirm()） -->
 <div class="ov" id="askOv" hidden style="z-index:20"><div class="box"><p id="askMsg" style="color:var(--ink)"></p><div class="row"><button id="askNo">取消</button><button class="primary" id="askYes">確定</button></div></div></div>
+<!-- 打卡紀錄（人人可看） -->
+<div class="ov" id="logOv" hidden>
+  <div class="box logbox">
+    <div class="log-head"><h2>打卡紀錄</h2><button id="logClose">關閉</button></div>
+    <div class="log-ctl">
+      <div class="seg" id="logMode"><button data-m="day" class="on">單日</button><button data-m="month">整月</button></div>
+      <button id="logPrev" aria-label="前一個">◀</button><span id="logLabel" class="log-label"></span><button id="logNext" aria-label="下一個">▶</button>
+      <button id="logToday">今天</button>
+      <select id="logSid"></select>
+    </div>
+    <div class="log-list" id="logList"></div>
+    <div class="log-foot" id="logFoot"></div>
+  </div>
+</div>
 <!-- 已登錄名單 -->
 <div class="ov" id="facesOv" hidden>
   <div class="box">
@@ -349,6 +374,8 @@ function firebaseSource(){
       });
     },
     addPunch(p){const {id,...body}=p;todays.push(p);renderRecent();return db.doc('punches/'+id).set(body);},
+    async punchesIn(from,to){const q=await db.collection('punches').where('date','>=',from).where('date','<=',to).get();return q.docs.map(d=>Object.assign({id:d.id},d.data()));},
+    async weekCellsOf(wk){const d=await db.doc('weeks/'+wk).get();return d.exists?decCells(d.data()):{};},
     saveFace(sid,obj){return db.doc('faces/'+sid).set({staffId:sid,emb:JSON.stringify(obj.vecs),n:obj.vecs.length,at:obj.at,consentAt:obj.consentAt,device:me.uid});},
     delFace(sid){return db.doc('faces/'+sid).delete();},
     deviceId(){return me?.uid||'';},
@@ -375,6 +402,8 @@ function localSource(){
     kind:'local',
     init(){$('devName').textContent='本機測試模式';$('devSub').textContent='資料只存在這個瀏覽器';load();window.addEventListener('storage',load);setInterval(load,30*1000);beginKiosk();},
     addPunch(p){todays.push(p);renderRecent();write(d=>{(d.punches=d.punches||[]).push(p);});return Promise.resolve();},
+    async punchesIn(from,to){return (read(KIOSK).punches||[]).filter(p=>p.date>=from&&p.date<=to);},
+    async weekCellsOf(wk){return (read(ROSTER).weeks||{})[wk]||{};},
     saveFace(sid,obj){write(d=>{(d.faces=d.faces||{})[sid]={staffId:sid,emb:JSON.stringify(obj.vecs),n:obj.vecs.length,at:obj.at,consentAt:obj.consentAt,device:'local'};});load();return Promise.resolve();},
     delFace(sid){write(d=>{if(d.faces)delete d.faces[sid];});load();return Promise.resolve();},
     deviceId(){return 'local';},
@@ -391,7 +420,7 @@ function showGate(kind,arg){
   b.innerHTML=`<h2>發生問題</h2><p>${esc(arg)}</p><div class="row"><button class="primary" onclick="location.reload()">重新整理</button></div>`;
 }
 function hideGate(){$('gate').hidden=true;}
-const anyOverlay=()=>['gate','resOv','pinOv','adminOv','enrollOv','facesOv','otOv'].some(id=>!$(id).hidden);
+const anyOverlay=()=>['gate','resOv','pinOv','adminOv','enrollOv','facesOv','otOv','logOv'].some(id=>!$(id).hidden);
 // 詢問是否申請加班；回傳原因字串，不申請（或 60 秒沒回應）回傳 null
 // 加班原因詢問，三種模式：
 //   {mode:'ask'}：一般加班，可選「不用」；60 秒沒回應＝不申請（回傳 null）
@@ -457,9 +486,9 @@ function tick(){
 setInterval(tick,1000);tick();
 
 // ---------- 班表推算：這次打卡是哪一診的上班／下班 ----------
-function scheduledShifts(sid,date=new Date()){
+function scheduledShifts(sid,date=new Date(),cells=weekCells){
   const dow=(date.getDay()+6)%7;
-  return SHIFTS.filter(sh=>{const c=weekCells[dow+'_'+sh.id];return Array.isArray(c)&&c.some(a=>Array.isArray(a)&&a.includes(sid));});
+  return SHIFTS.filter(sh=>{const c=cells[dow+'_'+sh.id];return Array.isArray(c)&&c.some(a=>Array.isArray(a)&&a.includes(sid));});
 }
 function guessKind(sid,ts){
   const d=new Date(ts),min=d.getHours()*60+d.getMinutes()+d.getSeconds()/60;
@@ -602,8 +631,6 @@ function endScan(){sel=null;$('scanBar').hidden=true;$('pick').hidden=false;rend
 $('pickGrid').addEventListener('click',e=>{const b=e.target.closest('[data-sel]');if(!b||!running)return;const [sh,k]=b.dataset.sel.split('|');if(!canPunch(sh,k)){renderPick();toast('現在不在這張卡的打卡時段','warn');return;}startScan(b.dataset.sel);});
 $('scanCancel').onclick=endScan;
 renderPick();setInterval(()=>{if(!sel)renderPick();},30*1000);
-const setPickTop=()=>document.documentElement.style.setProperty('--pickTop',Math.ceil(document.querySelector('header').getBoundingClientRect().bottom+6)+'px');
-setPickTop();window.addEventListener('resize',setPickTop);
 
 // ---------- 打卡主迴圈 ----------
 let streak={sid:null,n:0}, badSince=0;
@@ -714,6 +741,75 @@ async function beginKiosk(){
   if('wakeLock' in navigator){const lock=()=>navigator.wakeLock.request('screen').catch(()=>{});lock();document.addEventListener('visibilitychange',()=>{if(!document.hidden)lock();});}
 }
 
+// ---------- 打卡紀錄（人人可看，不需密碼） ----------
+const OT_ST={pending:'待審',approved:'已核准',rejected:'已退回'};
+const LOG_IDLE_MS=60*1000;
+let logState={mode:'day',date:'',sid:''},logIdle=null,logSeq=0;
+const addDays=(k,n)=>{const [y,m,d]=k.split('-').map(Number);return ymd(new Date(y,m-1,d+n));};
+const addMonths=(k,n)=>{const [y,m]=k.split('-').map(Number);return ymd(new Date(y,m-1+n,1));};
+const monthEnd=k=>{const [y,m]=k.split('-').map(Number);return ymd(new Date(y,m,0));};
+const dayOf=k=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d);};
+// 一筆打卡的說明：哪一診、遲到／早退、加班申請狀態（依該週的班表）
+function recNote(p,cells){
+  const d=new Date(p.ts),min=d.getHours()*60+d.getMinutes()+d.getSeconds()/60,out=[];
+  if(!p.sel)return {label:'打卡（未指定班別）',notes:p.src==='manual'?['補登']:[]};
+  const sh=shOf(p.sel.sh);let label=`${sh.name} ${p.sel.k==='in'?'上班':'下班'}`;
+  if(p.auto)label+='（接續）';
+  if(p.src==='manual')out.push({t:'補登'});
+  if(p.sel.sh!=='extra'){
+    if(!scheduledShifts(p.staffId,d,cells).some(x=>x.id===p.sel.sh))out.push({t:'沒有排這一診',bad:1});
+    else{
+      const [a,b]=sh.time.split('-').map(hm);
+      if(p.sel.k==='in'&&Math.floor(min-a)>(Number(settings.graceIn)||0))out.push({t:`遲到 ${Math.floor(min-a)} 分`,bad:1});
+      const end=p.sel.sh==='night'&&/^\d{1,2}:\d{2}$/.test(settings.nightOut||'')?Math.min(b,hm(settings.nightOut)):b;
+      if(p.sel.k==='out'&&Math.ceil(end-min-1e-9)>(Number(settings.graceOut)||0))out.push({t:`早退 ${Math.ceil(end-min-1e-9)} 分`,bad:1});
+    }
+  }
+  if(p.ot){const o=p.ot,m=o.status==='approved'?o.approvedMin:(o.extra&&!o.from?'?':o.min);out.push({t:`加班 ${m} 分（${OT_ST[o.status]||o.status}）`,ok:o.status==='approved',bad:o.status==='rejected'});}
+  return {label,notes:out};
+}
+function openLog(){
+  logState={mode:'day',date:ymd(new Date()),sid:''};
+  const list=staff.filter(x=>x.active!==false).sort((a,b)=>(a.code||a.name||'').localeCompare(b.code||b.name||'','zh-Hant'));
+  $('logSid').innerHTML='<option value="">全部人員</option>'+list.map(x=>`<option value="${esc(x.id)}">${esc([x.code,x.name].filter(Boolean).join(' '))}</option>`).join('');
+  $('logOv').hidden=false;paused=true;drawLog();logTouch();
+}
+function closeLog(){clearTimeout(logIdle);$('logOv').hidden=true;paused=false;}
+function logTouch(){clearTimeout(logIdle);logIdle=setTimeout(closeLog,LOG_IDLE_MS);}
+async function drawLog(){
+  const st=logState,seq=++logSeq,month=st.mode==='month';
+  const from=month?st.date.slice(0,8)+'01':st.date,to=month?monthEnd(st.date):st.date,dd=dayOf(st.date);
+  $('logLabel').textContent=month?`${dd.getFullYear()} 年 ${dd.getMonth()+1} 月`:`${dd.getMonth()+1}/${dd.getDate()}（${DAYS[dd.getDay()]}）`;
+  $('logMode').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.m===st.mode));
+  $('logNext').disabled=to>=ymd(new Date());
+  $('logList').innerHTML='<div class="log-foot">載入中…</div>';
+  let ps=[];
+  try{ps=(await src.punchesIn(from,to)).filter(p=>!p.void&&(!st.sid||p.staffId===st.sid));}
+  catch(e){console.error(e);if(seq===logSeq)$('logList').innerHTML='<div class="log-foot">讀取失敗，請確認網路連線</div>';return;}
+  // 需要的週班表（判斷遲到、早退）
+  const wks=[...new Set(ps.map(p=>ymd(mondayOf(dayOf(p.date)))))],cells={};
+  await Promise.all(wks.map(async wk=>{try{cells[wk]=await src.weekCellsOf(wk);}catch(e){cells[wk]={};}}));
+  if(seq!==logSeq)return; // 已切換到別的日期
+  ps.sort((a,b)=>b.ts-a.ts);
+  let html='',lastDay='';
+  ps.forEach(p=>{
+    if(month&&p.date!==lastDay){lastDay=p.date;const x=dayOf(p.date);html+=`<div class="log-day">${x.getMonth()+1}/${x.getDate()}（${DAYS[x.getDay()]}）</div>`;}
+    const r=recNote(p,cells[ymd(mondayOf(dayOf(p.date)))]||{});
+    html+=`<div class="log-row"><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(r.label)}</div></span><span class="n">${r.notes.map(n=>`<span class="${n.bad?'bad':n.ok?'ok':''}">${esc(n.t)}</span>`).join('<br>')}</span></div>`;
+  });
+  $('logList').innerHTML=html||'<div class="log-foot">沒有打卡紀錄</div>';
+  $('logFoot').textContent=`共 ${ps.length} 筆・${LOG_IDLE_MS/1000} 秒沒有操作會自動關閉`;
+}
+$('logBtn').onclick=()=>{if(!running||anyOverlay())return;openLog();};
+$('logClose').onclick=closeLog;
+$('logOv').addEventListener('pointerdown',logTouch);
+$('logList').addEventListener('scroll',logTouch,{passive:true});
+$('logMode').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;logState.mode=b.dataset.m;drawLog();};
+$('logPrev').onclick=()=>{logState.date=logState.mode==='month'?addMonths(logState.date,-1):addDays(logState.date,-1);drawLog();};
+$('logNext').onclick=()=>{const t=ymd(new Date());let n=logState.mode==='month'?addMonths(logState.date,1):addDays(logState.date,1);if(n>t)n=t;logState.date=n;drawLog();};
+$('logToday').onclick=()=>{logState.date=ymd(new Date());drawLog();};
+$('logSid').onchange=e=>{logState.sid=e.target.value;drawLog();};
+
 // ---------- 管理：密碼 ----------
 let pinBuf='';
 function openPin(){
@@ -793,7 +889,7 @@ $('flist').addEventListener('click',async e=>{
 });
 
 // 測試用：在主控台呼叫 __kiosk.simulate(人員id, 班別, 'in'|'out') 模擬選好班別後辨識成功（不經過相機）
-window.__kiosk={simulate:(sid,sh='day',k='in')=>{if(!sel)startScan(sh+'|'+k);confirmPunch(sid,{sim:1,real:1,live:1,box:[0,0,1,1]});},state:()=>({staff,faces,settings,todays,weekCells,sel})};
+window.__kiosk={openLog:()=>openLog(),simulate:(sid,sh='day',k='in')=>{if(!sel)startScan(sh+'|'+k);confirmPunch(sid,{sim:1,real:1,live:1,box:[0,0,1,1]});},state:()=>({staff,faces,settings,todays,weekCells,sel})};
 
 src=window.FIREBASE_CONFIG&&window.firebase?firebaseSource():localSource();
 src.init();
