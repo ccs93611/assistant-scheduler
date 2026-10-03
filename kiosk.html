@@ -71,6 +71,10 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block
 .pick-grid button.out{border-color:var(--gold)}
 .pick-grid button.sug{background:var(--accent);color:var(--accent-ink)}
 .pick-grid button.out.sug{background:var(--gold);border-color:var(--gold);color:var(--accent-ink)}
+.pick-grid .sh.extra{color:var(--warn);padding-top:10px;border-top:1px dashed var(--line)}
+.pick-grid button.extra{border-style:dashed;border-color:var(--warn);margin-top:10px}
+.pick-grid button small{display:block;font-size:.62em;font-weight:400;opacity:.75;margin-top:2px;font-variant-numeric:tabular-nums}
+.pick-grid button:disabled{opacity:1;background:#1A221E;border-color:#2A332E;color:#5A665F;cursor:not-allowed}
 .scanbar{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.6);border-radius:14px;padding:8px 8px 8px 16px}
 .scanbar[hidden]{display:none}
 .scanbar #scanSel{font-size:clamp(1.1rem,3vw,1.5rem);font-weight:700;flex:1}
@@ -82,6 +86,7 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block
 .recent li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--panel);border-radius:10px;padding:8px 12px}
 .recent .t{font-variant-numeric:tabular-nums;font-weight:700}
 .recent .k{color:var(--sub);font-size:.8rem}
+.recent li>span:nth-child(2){min-width:5em}
 .recent .late{color:var(--warn)}
 @media (max-width:760px),(orientation:portrait){.recent{max-height:24vh}}
 footer{color:var(--faint);font-size:.75rem;text-align:center;padding-top:8px}
@@ -150,7 +155,7 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
       <!-- 先選班別與上班／下班，再開始掃臉 -->
       <div class="scanbar" id="scanBar" hidden><span id="scanSel"></span><span class="cd" id="scanCd"></span><button id="scanCancel">取消</button></div>
       <div class="pick" id="pick">
-        <h2>請選擇班別</h2>
+        <h2 id="pickTitle">請選擇班別</h2>
         <div class="pick-grid" id="pickGrid"></div>
       </div>
     </div>
@@ -219,7 +224,7 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 <div class="ov" id="otOv" hidden>
   <div class="box">
     <h2 id="otTitle">要申請加班嗎？</h2>
-    <p id="otSub"></p>
+    <p id="otSub" style="white-space:pre-line"></p>
     <div id="otAsk1" class="row"><button id="otNo">不用，只打下班卡</button><button class="primary" id="otYes">申請加班</button></div>
     <div id="otAsk2" hidden>
       <p style="margin-bottom:8px">請填寫加班原因（必填）</p>
@@ -256,7 +261,10 @@ const SAMPLES=5;            // 登錄時擷取的特徵數
 const STABLE_FRAMES=3;      // 連續幾幀辨識成同一人才確認
 const CONFIRM_MS=2500;      // 確認畫面自動打卡倒數
 const COOLDOWN_MS=60*1000;  // 同一人兩次打卡的最短間隔
-const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00',otAsk:3};
+const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00',otAsk:3,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
+// 臨時加班：sel.sh='extra'，隨時可打、不看班表，下班卡一律成為加班申請（必填原因）
+const EXTRA={id:'extra',name:'臨時加班'};
+const shOf=id=>id==='extra'?EXTRA:SHIFTS.find(x=>x.id===id);
 const OT_REASONS=['拖診','病人延遲','整理器械／診間','交班'];
 const OT_WAIT_MS=60*1000; // 沒回應就當作不申請
 
@@ -299,7 +307,7 @@ function firebaseSource(){
   function startData(){
     subs.push(db.collection('staff').onSnapshot(s=>{staff=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderRecent();},onErr));
     subs.push(db.collection('faces').onSnapshot(s=>{const m={};s.docs.forEach(d=>{const v=d.data();try{m[d.id]=Object.assign({},v,{vecs:JSON.parse(v.emb||'[]')});}catch(e){}});faces=m;},onErr));
-    subs.push(db.doc('kiosk/settings').onSnapshot(s=>{settings=Object.assign({},DEFAULTS,s.exists?s.data():{});},onErr));
+    subs.push(db.doc('kiosk/settings').onSnapshot(s=>{settings=Object.assign({},DEFAULTS,s.exists?s.data():{});if(!sel)renderPick();},onErr));
     watchDay();setInterval(watchDay,30*1000);
     beginKiosk();
   }
@@ -346,7 +354,7 @@ function localSource(){
     const r=read(ROSTER),k=read(KIOSK),now=new Date();
     staff=r.staff||[];weekCells=(r.weeks||{})[ymd(mondayOf(now))]||{};
     faces={};Object.entries(k.faces||{}).forEach(([sid,v])=>{try{faces[sid]=Object.assign({},v,{vecs:JSON.parse(v.emb||'[]')});}catch(e){}});
-    settings=Object.assign({},DEFAULTS,k.settings||{});
+    settings=Object.assign({},DEFAULTS,k.settings||{});if(!sel)renderPick();
     todays=(k.punches||[]).filter(p=>p.date===ymd(now)&&!p.void);
     renderRecent();
   }
@@ -372,25 +380,53 @@ function showGate(kind,arg){
 function hideGate(){$('gate').hidden=true;}
 const anyOverlay=()=>['gate','resOv','pinOv','adminOv','enrollOv','facesOv','otOv'].some(id=>!$(id).hidden);
 // 詢問是否申請加班；回傳原因字串，不申請（或 60 秒沒回應）回傳 null
-function askOvertime(sid,min){
+// 加班原因詢問，三種模式：
+//   {mode:'ask'}：一般加班，可選「不用」；60 秒沒回應＝不申請（回傳 null）
+//   {mode:'in'}：臨時加班上班卡，可先填原因或「稍後再填」；60 秒沒回應＝稍後再填（null）
+//   {mode:'out',prev}：臨時加班下班卡，一定要申請；上班時填過原因（prev）可沿用或修改，
+//                       60 秒沒回應＝沿用 prev，沒有 prev 時原因標示為未填寫
+function askOvertime(sid,min,opt={mode:'ask'}){
   return new Promise(resolve=>{
-    const ov=$('otOv');let picked='',t0=Date.now(),tm=null;
+    const ov=$('otOv'),mode=opt.mode,prev=opt.prev||'';let picked='',t0=Date.now(),tm=null;
     const close=v=>{clearInterval(tm);ov.hidden=true;resolve(v);};
-    $('otTitle').textContent='要申請加班嗎？';
-    $('otSub').textContent=`${nameOf(sid)}，你比下班時間晚了 ${min} 分鐘。`;
-    $('otAsk1').hidden=false;$('otAsk2').hidden=true;$('otReason').value='';
+    const timeoutVal=mode==='out'?(prev||'（未填寫原因）'):null;
+    const showEdit=title=>{$('otAsk1').hidden=true;$('otAsk2').hidden=false;$('otTitle').textContent=title;};
+    $('otReason').value='';$('otCd').textContent='';
     $('otChips').innerHTML=OT_REASONS.map(r=>`<button data-r="${esc(r)}">${esc(r)}</button>`).join('');
-    const tick=()=>{const left=Math.ceil((OT_WAIT_MS-(Date.now()-t0))/1000);if(left<=0)close(null);else $('otCd').textContent=`${left} 秒後自動略過（不申請）`;};
+    if(mode==='ask'){
+      $('otTitle').textContent='要申請加班嗎？';$('otSub').textContent=`${nameOf(sid)}，你比下班時間晚了 ${min} 分鐘。`;
+      $('otNo').textContent='不用，只打下班卡';$('otYes').textContent='申請加班';
+      $('otAsk1').hidden=false;$('otAsk2').hidden=true;$('otBack').hidden=false;$('otBack').textContent='取消申請';
+    }else if(mode==='in'){
+      $('otTitle').textContent='臨時加班：填寫原因';$('otSub').textContent=`${nameOf(sid)}，可以現在填寫，也可以下班時再填。`;
+      $('otAsk1').hidden=true;$('otAsk2').hidden=false;$('otBack').hidden=false;$('otBack').textContent='稍後再填';
+    }else{
+      $('otSub').textContent=`${nameOf(sid)}，${opt.msg||''}`;$('otBack').hidden=true;
+      if(prev){
+        $('otTitle').textContent='臨時加班：確認原因';$('otSub').textContent+=`
+上班時填的原因：「${prev}」`;
+        $('otNo').textContent='修改原因';$('otYes').textContent='沿用並送出';
+        $('otAsk1').hidden=false;$('otAsk2').hidden=true;
+      }else{$('otTitle').textContent='臨時加班：請填寫原因';$('otAsk1').hidden=true;$('otAsk2').hidden=false;}
+    }
+    const tick=()=>{const left=Math.ceil((OT_WAIT_MS-(Date.now()-t0))/1000);
+      if(left<=0){close(timeoutVal);return;}
+      $('otCd').textContent=mode==='ask'?`${left} 秒後自動略過（不申請）`:mode==='in'?`${left} 秒後自動略過（稍後再填）`:prev?`${left} 秒後自動沿用上班時的原因送出`:`${left} 秒後自動送出（原因標示為未填寫）`;};
     tm=setInterval(tick,500);tick();
     const touch=()=>{t0=Date.now();}; // 有操作就重新計時
-    $('otNo').onclick=()=>close(null);
-    $('otYes').onclick=()=>{touch();$('otAsk1').hidden=true;$('otAsk2').hidden=false;$('otTitle').textContent=`申請加班 ${min} 分鐘`;};
+    if(mode==='out'&&prev){
+      $('otYes').onclick=()=>close(prev);
+      $('otNo').onclick=()=>{touch();showEdit('臨時加班：修改原因');$('otReason').value=prev;};
+    }else{
+      $('otNo').onclick=()=>close(null);
+      $('otYes').onclick=()=>{touch();showEdit(`申請加班 ${min} 分鐘`);};
+    }
     $('otBack').onclick=()=>close(null);
     $('otChips').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;touch();picked=picked===b.dataset.r?'':b.dataset.r;$('otChips').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.r===picked));};
     $('otReason').oninput=touch;
     $('otSend').onclick=()=>{
       const text=$('otReason').value.trim(),reason=[picked,text].filter(Boolean).join('：');
-      if(!reason){toast('請選擇或輸入加班原因','warn');touch();return;}
+      if(!reason){toast(mode==='in'?'請選擇或輸入原因，或按「稍後再填」':'請選擇或輸入加班原因','warn');touch();return;}
       close(reason);
     };
     ov.hidden=false;
@@ -425,6 +461,7 @@ function guessKind(sid,ts){
 }
 // 依「打卡人選擇的」班別與上下班，算遲到／早退提示，並檢查當天有沒有排這一診
 function selNote(sid,sel,ts){
+  if(sel.sh==='extra')return extraNote(sid,sel,ts);
   const d=new Date(ts),min=d.getHours()*60+d.getMinutes()+d.getSeconds()/60,sh=SHIFTS.find(x=>x.id===sel.sh);
   const [a,b]=sh.time.split('-').map(hm);
   const label=`${sh.name} ${sel.k==='in'?'上班':'下班'}`;
@@ -438,10 +475,19 @@ function selNote(sid,sel,ts){
   if(over>0&&!note)note=`超過下班時間 ${over} 分鐘`;
   return {label,note,ot:ask>0&&over>ask?over:0};
 }
+// 臨時加班下班卡：用當天最近一張（還沒配對到下班卡的）臨時加班上班卡算分鐘
+function extraNote(sid,sel,ts){
+  if(sel.k==='in')return {label:'臨時加班 上班',note:'下班時請打「臨時加班 下班卡」'};
+  const mine=todays.filter(p=>p.staffId===sid&&p.sel?.sh==='extra'&&p.ts<ts).sort((a,b)=>b.ts-a.ts);
+  const start=mine[0]&&mine[0].sel.k==='in'?mine[0]:null;
+  if(!start)return {label:'臨時加班 下班',note:'找不到今天的臨時加班上班卡，加班時數由主管核准時確認',extra:true,ot:0,noIn:true};
+  const m=Math.max(0,Math.floor((ts-start.ts)/60000));
+  return {label:'臨時加班 下班',note:`臨時加班 ${m} 分鐘（${hhmm(start.ts)} 起）`,extra:true,ot:m,from:start.ts,prev:start.extraReason||''};
+}
 const punchLabel=p=>p.sel?selNote(p.staffId,p.sel,p.ts):guessKind(p.staffId,p.ts);
 function renderRecent(){
   const list=todays.slice().sort((a,b)=>b.ts-a.ts).slice(0,40);
-  $('recent').innerHTML=list.length?list.map(p=>{const g=punchLabel(p);if(g.warn)g.note='沒有排這一診';if(p.ot)g.note=`申請加班 ${p.ot.min} 分`;return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
+  $('recent').innerHTML=list.length?list.map(p=>{const g=punchLabel(p);if(g.warn)g.note='沒有排這一診';if(p.sel?.sh==='extra'&&p.sel.k==='in')g.note='';if(p.ot)g.note=p.ot.extra&&!p.ot.from?'申請臨時加班':`申請加班 ${p.ot.min} 分`;return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
 }
 
 // ---------- 相機與辨識模型 ----------
@@ -496,28 +542,41 @@ function bestMatch(emb,exclude){
 // sel=null：顯示選擇畫面；sel={sh,k}：掃臉中（SCAN_MS 內沒辨識到就回到選擇畫面）
 const SCAN_MS=30*1000;
 let sel=null, scanUntil=0;
-function suggestSel(now=new Date()){ // 依現在時間，建議最接近的「開診（上班）」或「結束（下班）」時間
-  const min=now.getHours()*60+now.getMinutes();
+// 可打卡時段：上班卡＝開診前 inBefore ～ 開診後 inAfter 分鐘；下班卡＝結束前 outBefore ～ 結束後 outAfter 分鐘（出勤規則可調整）
+const fmtMin=m=>{m=Math.max(0,Math.min(24*60-1,Math.round(m)));return `${pad(Math.floor(m/60))}:${pad(m%60)}`;};
+function punchWindow(shId,k){
+  const sh=SHIFTS.find(x=>x.id===shId),[a,b]=sh.time.split('-').map(hm),n=x=>Math.max(0,Number(settings[x])||0);
+  return k==='in'?[a-n('inBefore'),a+n('inAfter')]:[b-n('outBefore'),b+n('outAfter')];
+}
+const nowMin=(d=new Date())=>d.getHours()*60+d.getMinutes()+d.getSeconds()/60;
+const canPunch=(shId,k,min=nowMin())=>{if(shId==='extra')return true; // 臨時加班隨時可打
+  const [f,t]=punchWindow(shId,k);return min>=f&&min<=t;};
+function suggestSel(now=new Date()){ // 依現在時間，在可打卡的按鈕中建議最接近的「開診（上班）」或「結束（下班）」時間
+  const min=nowMin(now);
   let best=null;
-  SHIFTS.forEach(sh=>{const [a,b]=sh.time.split('-').map(hm);[[a,'in'],[b,'out']].forEach(([t,k])=>{const d=Math.abs(t-min);if(!best||d<best.d)best={sh:sh.id,k,d};});});
+  SHIFTS.forEach(sh=>{const [a,b]=sh.time.split('-').map(hm);[[a,'in'],[b,'out']].forEach(([t,k])=>{if(!canPunch(sh.id,k,min))return;const d=Math.abs(t-min);if(!best||d<best.d)best={sh:sh.id,k,d};});});
   return best;
 }
 function renderPick(){
-  const s=suggestSel();
+  const s=suggestSel(),min=nowMin();
   $('pickGrid').innerHTML=SHIFTS.map(sh=>`<div class="sh">${sh.name}<small>${sh.time}</small></div>`+
-    ['in','out'].map(k=>`<button class="${k}${s&&s.sh===sh.id&&s.k===k?' sug':''}" data-sel="${sh.id}|${k}">${k==='in'?'上班卡':'下班卡'}</button>`).join('')).join('');
+    ['in','out'].map(k=>{const ok=canPunch(sh.id,k,min),[f,t]=punchWindow(sh.id,k);
+      return `<button class="${k}${s&&s.sh===sh.id&&s.k===k?' sug':''}" data-sel="${sh.id}|${k}"${ok?'':' disabled'}>${k==='in'?'上班卡':'下班卡'}<small>${fmtMin(f)}–${fmtMin(t)}</small></button>`;}).join('')).join('')+
+    `<div class="sh extra">臨時加班<small>隨時可打・需審核</small></div>`+
+    ['in','out'].map(k=>`<button class="${k} extra" data-sel="extra|${k}">${k==='in'?'上班卡':'下班卡'}<small>不受班表限制</small></button>`).join('');
+  $('pickTitle').textContent=s?'請選擇班別':'目前不在一般打卡時段（可打臨時加班）';
 }
 function startScan(v){
   const [sh,k]=v.split('|');sel={sh,k};scanUntil=Date.now()+SCAN_MS;
   streak={sid:null,n:0};badSince=0;
-  $('scanSel').textContent=`${SHIFTS.find(x=>x.id===sh).name}・${k==='in'?'上班卡':'下班卡'}`;
+  $('scanSel').textContent=`${shOf(sh).name}・${k==='in'?'上班卡':'下班卡'}`;
   $('pick').hidden=true;$('scanBar').hidden=false;
   setMsg(Object.keys(faces).length?'請站到鏡頭前，拿下口罩、正對鏡頭':'尚未登錄任何臉部，請管理者按右上角 ⚙ 登錄');
 }
 function endScan(){sel=null;$('scanBar').hidden=true;$('pick').hidden=false;renderPick();setMsg('請先選擇班別與上班／下班');}
-$('pickGrid').addEventListener('click',e=>{const b=e.target.closest('[data-sel]');if(b&&running)startScan(b.dataset.sel);});
+$('pickGrid').addEventListener('click',e=>{const b=e.target.closest('[data-sel]');if(!b||!running)return;const [sh,k]=b.dataset.sel.split('|');if(!canPunch(sh,k)){renderPick();toast('現在不在這張卡的打卡時段','warn');return;}startScan(b.dataset.sel);});
 $('scanCancel').onclick=endScan;
-renderPick();setInterval(()=>{if(!sel)renderPick();},60*1000);
+renderPick();setInterval(()=>{if(!sel)renderPick();},30*1000);
 
 // ---------- 打卡主迴圈 ----------
 let streak={sid:null,n:0}, lastPunch={}, badSince=0;
@@ -587,13 +646,16 @@ function confirmPunch(sid,info){
     if(photo)p.photo=photo;
     // 超過下班時間：先問要不要申請加班（必填原因），回答後才寫入這筆打卡（裝置只能新增、不能修改打卡）
     let otReason=null;
-    if(g.ot){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot);$('resOv').hidden=false;}
-    if(otReason)p.ot={min:g.ot,reason:otReason,status:'pending'};
+    if(g.extra){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'out',prev:g.prev,msg:g.noIn?'找不到今天的臨時加班上班卡，請填寫原因（時數由主管確認）。':`臨時加班 ${g.ot} 分鐘，需要主管核准。`});$('resOv').hidden=false;}
+    else if(chosen.sh==='extra'&&chosen.k==='in'){$('resOv').hidden=true;const r=await askOvertime(sid,0,{mode:'in'});$('resOv').hidden=false;if(r)p.extraReason=r;}
+    else if(g.ot){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot);$('resOv').hidden=false;}
+    if(otReason){p.ot={min:g.ot,reason:otReason,status:'pending'};if(g.extra)p.ot.extra=true;if(g.from)p.ot.from=g.from;}
     lastPunch[sid]=ts;
     src.addPunch(p).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
     $('resActs').hidden=true;$('resBox').classList.add('done');$('resKind').textContent='✓ 已打卡・'+g.label;
     if(g.warn)$('resNote').textContent='';
-    if(otReason){$('resNote').textContent=`已申請加班 ${g.ot} 分鐘，等待主管核准`;$('resNote').className='note';}
+    if(p.extraReason){$('resNote').textContent=`原因：${p.extraReason}`;$('resNote').className='note';}
+    if(otReason){$('resNote').textContent=g.noIn?'已送出臨時加班申請，時數由主管確認':`已申請加班 ${g.ot} 分鐘，等待主管核准`;$('resNote').className='note';}
     resTimer=setTimeout(()=>{$('resOv').hidden=true;endScan();paused=false;},otReason?2500:1800);
   };
   $('resNo').onclick=()=>finish(false);
