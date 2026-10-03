@@ -177,7 +177,8 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .pay-auto{color:var(--accent); font-weight:500;}
 /* 出勤 */
 /* 出勤規則：分組、等寬欄位 */
-#attRules{display:flex;flex-direction:column;gap:18px;}
+#attRules,#payRules{display:flex;flex-direction:column;gap:18px;}
+.ar-desc{margin:0 0 8px;font-size:.72rem;color:var(--faint);}
 .ar-group h4{margin:0 0 8px;font-size:.82rem;font-weight:700;color:var(--sub);padding-bottom:4px;border-bottom:1px solid var(--line);}
 .ar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 16px;}
 .ar-field{display:flex;flex-direction:column;gap:4px;}
@@ -783,9 +784,8 @@ body.gated .shell{display:none;}
           <h2 id="payRulesTitle">薪資計算規則</h2>
           <p class="hint" id="payRulesFrom" style="margin:0 0 8px"></p>
           <p class="desc">應發＝本俸＋出勤津貼＋績效獎金＋技能津貼＋職務津貼＋加診薪資＋All班加給＋加班薪資＋國定假日上班加給＋自費獎金（個人、團體）＋五星好評。加診薪資＝加診數 × 3.5 小時 × 加班每分鐘金額；All班加給＝同一天上滿三班（含加診）的天數 × 30 分鐘 × 加班每分鐘金額；加班薪資＝加班/拖診分鐘數 × 加班每分鐘金額；國定假日上班加給＝國定假日上班診數 × 每診設定薪資 × 倍數（預設 1）；五星好評＝則數 × 每則金額。扣除＝勞保費＋健保費 ×（1＋眷屬人數）＋遲到分鐘數 × 遲到每分鐘金額＋早退分鐘數 × 早退每分鐘金額＋請假扣款＋曠職扣款。實發＝應發－扣除＋加減項。當月遲到超過設定分鐘數，或當月加診診數少於事假診數時，不發出勤津貼；病假每診扣出勤津貼的設定比例（預設 0.25），最多扣到 0。下方的預設值只用在還沒填過的月份。規則可以依月份不同：在某個月修改，會從那個月起生效，之後沒有另外修改的月份沿用。</p>
-          <div class="pay-rules" id="payRules" style="margin-bottom:16px"></div>
-          <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:6px">請假扣款＝請假診數 × 每診設定薪資 × 扣薪比例（一個班算 1 診）。家庭照顧假另計：時數 × 每小時金額。各假別扣薪比例：1＝全扣、0.5＝扣一半、0＝不扣。</div>
-          <div class="pay-rules" id="payDeduct"></div>
+          <div id="payRules" class="ar-wrap"></div>
+          <div id="payDeduct" hidden></div>
         </div>
       </div>
     </section>
@@ -2069,9 +2069,35 @@ function renderPay(mi,counts){
     :P.from?`沿用 ${+P.from.slice(0,4)}年 ${+P.from.slice(5)}月起的規則；在這裡修改會從 ${mi.label}起生效。`
     :`目前使用共用的規則；在這裡修改會從 ${mi.label}起生效。`;
   if(payAdmin()&&!$('payRulesCard').contains(document.activeElement)){
-    $('payRules').innerHTML=PAY_RULE_FIELDS.map(([k,l])=>`<div class="field"><label for="pr-${k}">${l}</label><input id="pr-${k}" type="number" min="0" step="${k==='sickAttendCut'?0.05:1}" data-pr="${k}" value="${P[k]}"></div>`).join('');
-    $('payDeduct').innerHTML=PAY_TYPES.map(t=>`<div class="field"><label for="ded-${t}">${t}</label><input id="ded-${t}" type="number" min="0" max="1" step="0.1" data-ded="${t}" value="${P.deduct[t]||0}"></div>`).join('')
-      +`<div class="field"><label for="pr-fcPerHour">家庭照顧假（每小時扣元）</label><input id="pr-fcPerHour" type="number" min="0" step="1" data-pr="fcPerHour" value="${P.fcPerHour}"></div>`;
+    // 薪資計算規則：分組、等寬欄位、說明放在欄位下方（樣式與出勤規則共用 ar-*）
+    const f=(k,label,hint,step=1)=>`<div class="ar-field"><label for="pr-${k}">${label}</label><input id="pr-${k}" type="number" min="0" step="${step}" data-pr="${k}" value="${P[k]}"><small>${hint}</small></div>`;
+    const grp=(title,body,desc='')=>`<section class="ar-group"><h4>${title}</h4>${desc?`<p class="ar-desc">${desc}</p>`:''}<div class="ar-grid">${body}</div></section>`;
+    $('payRules').innerHTML=
+      grp('津貼與獎金預設',
+        f('attend','出勤津貼（元）','新月份試算的預設值')+
+        f('perf','績效獎金（元）','新月份試算的預設值')+
+        f('skill','技能津貼（元）','新月份試算的預設值')+
+        f('starUnit','五星好評每則（元）','好評則數 × 這個金額')+
+        f('birthdayBonus','生日禮金（元）','生日當月自動加發')+
+        f('festivalBonus','三節獎金（元）','春節、端午、中秋所在月份加發'))+
+      grp('加班與加給',
+        f('otPerMin','加班每分鐘（元）','加診薪資、All班加給、加班薪資都用這個金額')+
+        f('holidayRate','國定假日上班加給（倍）','每診加給＝每診設定薪資 × 這個倍數',0.1))+
+      grp('遲到與早退',
+        f('latePerMin','遲到每分鐘扣（元）','遲到分鐘數 × 這個金額')+
+        f('lateLimit','遲到上限（分鐘）','當月遲到超過這個分鐘數，不發出勤津貼')+
+        f('earlyPerMin','早退每分鐘扣（元）','早退分鐘數 × 這個金額')+
+        f('earlyLimit','早退上限（分鐘）','當月早退超過這個分鐘數，不發出勤津貼'))+
+      grp('請假與曠職',
+        f('shiftPay','每診設定薪資（元）','請假扣款、曠職扣款、國定假日加給的基準')+
+        f('sickAttendCut','病假扣出勤津貼（比例）','每請一診病假，扣出勤津貼的比例','0.05')+
+        f('fcPerHour','家庭照顧假每小時扣（元）','時數 × 這個金額')+
+        f('absentRate','曠職扣薪比例','曠職診數 × 每診設定薪資 × 比例；1＝全扣','0.1')+
+        f('absentNoAttend','有曠職不發出勤津貼','1＝是、0＝否'))+
+      grp('各假別扣薪比例',
+        PAY_TYPES.map(t=>`<div class="ar-field"><label for="ded-${t}">${t}</label><input id="ded-${t}" type="number" min="0" max="1" step="0.1" data-ded="${t}" value="${P.deduct[t]||0}"></div>`).join(''),
+        '請假扣款＝請假診數 × 每診設定薪資 × 比例（一個班算 1 診）。1＝全扣、0.5＝扣一半、0＝不扣。');
+    $('payDeduct').innerHTML='';
   }
 }
 const adjRow=(x={})=>`<div class="adj-row"><input data-al placeholder="項目名稱" value="${esc(x.label||'')}"><input type="number" data-aa step="1" placeholder="金額" value="${x.amount??''}"><button type="button" class="small danger" data-adjdel aria-label="刪除這一列">刪除</button></div>`;
