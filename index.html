@@ -700,6 +700,8 @@ body.gated .shell{display:none;}
           <p class="desc">這個月每一筆打卡，最新的在最上面。「對應」是這筆打卡算在哪一診的上班或下班；「其他」是重複打卡或當天沒有排班。</p>
           <div class="form-row">
             <div class="field"><label for="attLogSid">人員</label><select id="attLogSid"></select></div>
+            <div class="field"><label for="attLogMap">對應</label><select id="attLogMap"></select></div>
+            <div class="field"><label for="attLogSrc">來源</label><select id="attLogSrc"></select></div>
             <div class="field"><label for="attLogDate">日期</label><input type="date" id="attLogDate"></div>
             <label class="field" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="attLogVoid" style="width:auto"> 顯示已作廢</label>
             <button type="button" id="attLogReset">清除篩選</button>
@@ -2868,7 +2870,7 @@ function attLabels(mi){
   });
   return m;
 }
-let attLog={sid:'',date:'',showVoid:false};
+let attLog={sid:'',date:'',showVoid:false,map:'',src:''};
 let attLogSort={key:'date',dir:-1}; // 打卡紀錄排序：預設最新的在最上面
 // 「對應」欄依班別順序排序（其他、已作廢排最後）
 const MAP_ORDER=['早班上班','早班下班','午班上班','午班下班','晚班上班','晚班下班','臨時加班上班','臨時加班下班'];
@@ -2893,12 +2895,21 @@ function renderAttLog(mi){
   if(sel.innerHTML!==opts)sel.innerHTML=opts;
   if(attLog.sid&&!ids.includes(attLog.sid))attLog.sid='';
   sel.value=attLog.sid;$('attLogDate').value=attLog.date;$('attLogVoid').checked=attLog.showVoid;
+  // 對應：班別上下班、其他、有加班申請；來源：各打卡裝置名稱、補登（選單只列這個月有出現的）
+  const srcKey=p=>p.src==='manual'?'manual':'dev:'+(p.devName||'打卡裝置');
+  const mapOpts=[['','全部'],...MAP_ORDER.map(x=>[x,x]),['other','其他'],['ot','有加班申請']];
+  const srcs=[...new Set(punches.map(srcKey))].sort((a,b)=>a==='manual'?1:b==='manual'?-1:a.localeCompare(b,'zh-Hant'));
+  if(attLog.src&&!srcs.includes(attLog.src))attLog.src='';
+  const fill=(el,opts,v)=>{const h=opts.map(([k,l])=>`<option value="${esc(k)}">${esc(l)}</option>`).join('');if(el.innerHTML!==h)el.innerHTML=h;el.value=v;};
+  fill($('attLogMap'),mapOpts,attLog.map);
+  fill($('attLogSrc'),[['','全部'],...srcs.map(k=>[k,k==='manual'?'補登':k.slice(4)])],attLog.src);
   $('attLogDate').min=ymd(mi.first);$('attLogDate').max=ymd(mi.last);
   const lab=attLabels(mi);
   const srcTxt=p=>p.src==='manual'?'補登 '+(p.by||''):(p.devName||'打卡裝置');
   const keyOf={date:p=>p.ts,staff:p=>{const x=byId(p.staffId);return (x?.code||x?.name||'')},map:p=>{if(p.void)return 99;const t=lab[p.id]?.t||'',i=MAP_ORDER.findIndex(x=>t.startsWith(x));return i<0?90:i;},src:srcTxt};
   const S=attLogSort,kf=keyOf[S.key]||keyOf.date;
-  const list=punches.filter(p=>(!attLog.sid||p.staffId===attLog.sid)&&(!attLog.date||p.date===attLog.date)&&(attLog.showVoid||!p.void))
+  const mapHit=p=>{if(!attLog.map)return true;if(attLog.map==='ot')return !!p.ot;const t=p.void?'':(lab[p.id]?.t||'');if(attLog.map==='other')return !p.void&&!MAP_ORDER.some(x=>t.startsWith(x));return t.startsWith(attLog.map);};
+  const list=punches.filter(p=>(!attLog.sid||p.staffId===attLog.sid)&&(!attLog.date||p.date===attLog.date)&&(attLog.showVoid||!p.void)&&mapHit(p)&&(!attLog.src||srcKey(p)===attLog.src))
     .sort((a,b)=>{const x=kf(a),y=kf(b);const c=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');return (c*S.dir)||(b.ts-a.ts);});
   const th=(key,label)=>`<th><button type="button" class="th-btn${S.key===key?' on':''}" data-logsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
   $('attLogCount').textContent=`共 ${list.length} 筆`;
@@ -2987,7 +2998,9 @@ $('attMonth').addEventListener('change',e=>{const v=e.target.value;if(!/^\d{4}-\
 $('attLogSid').addEventListener('change',e=>{attLog.sid=e.target.value;renderAll();});
 $('attLogDate').addEventListener('change',e=>{attLog.date=e.target.value;renderAll();});
 $('attLogVoid').addEventListener('change',e=>{attLog.showVoid=e.target.checked;renderAll();});
-$('attLogReset').addEventListener('click',()=>{attLog={sid:'',date:'',showVoid:false};renderAll();});
+$('attLogReset').addEventListener('click',()=>{attLog={sid:'',date:'',showVoid:false,map:'',src:''};renderAll();});
+$('attLogMap').addEventListener('change',e=>{attLog.map=e.target.value;renderAll();});
+$('attLogSrc').addEventListener('change',e=>{attLog.src=e.target.value;renderAll();});
 $('attLog').addEventListener('click',e=>{const b=e.target.closest('[data-logsort]');if(!b)return;const k=b.dataset.logsort;attLogSort=attLogSort.key===k?{key:k,dir:-attLogSort.dir}:{key:k,dir:k==='date'?-1:1};renderAll();});
 $('attRules').addEventListener('change',e=>{
   const k=e.target.dataset.attcfg;if(!k||!canWrite)return;
