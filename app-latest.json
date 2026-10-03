@@ -1,10 +1,10 @@
 {
   "android": {
     "version": "1.0.0",
-    "build": 1,
-    "builtAt": "2026-10-03T05:10:35.971Z",
-    "url": "https://expo.dev/artifacts/eas/DfqCLL_ShzRjmjfoB-XEl6G6r83G2MlZx7ZGKpYaGgY.apk",
-    "notes": "加入裝置編號（綁定平板，代碼變了也不用重新核准）"
+    "build": 2,
+    "builtAt": "2026-10-03T08:09:05.373Z",
+    "url": "https://expo.dev/artifacts/eas/ex6X-E6BGiF0-rRi4sqFsR6UCzGS73ooEZcLtyEdJVw.apk",
+    "notes": "更換 App 圖示（診所牙齒標誌＋打卡時鐘）"
   },
   "ios": null
 }

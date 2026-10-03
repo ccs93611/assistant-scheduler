@@ -23,7 +23,11 @@
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#C7D3EA"
+      }
     },
     "plugins": [
       [
@@ -39,6 +43,7 @@
       "eas": {
         "projectId": "9862c279-359b-4aaf-8004-a83febf4b021"
       }
-    }
+    },
+    "icon": "./assets/icon.png"
   }
 }
