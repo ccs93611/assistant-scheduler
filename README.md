@@ -122,7 +122,8 @@ HTML（7 個 <section id="tab-*">）
 |---|---|
 | 勞保費 | 每人每月填寫 |
 | 健保費 | 本人健保費 ×（1 ＋ 眷屬人數） |
-| 遲到 | 遲到分鐘數 × 每分鐘 4 元 |
+| 遲到 | 遲到分鐘數 × 遲到每分鐘 4 元 |
+| 早退 | 早退分鐘數 × 早退每分鐘 4 元（與遲到分開計算；早退超過 30 分鐘也不發出勤津貼，可調整） |
 | 請假扣款 | 請假診數 × 每診設定薪資（預設 595，可調整）× 假別扣薪比例。一個班算 1 診。預設比例：事假、不可上班、其他 1，病假、生理假 0.5，其餘 0 |
 | 家庭照顧假 | 登記時數 × 每小時 170 元 |
 
@@ -175,7 +176,7 @@ HTML（7 個 <section id="tab-*">）
 - **防重複打卡**：同一人同一班的同一種卡（例如都是早診上班卡），`dupMin`（預設 5）分鐘內不能重複打，會提示上次打卡時間並回到選擇畫面；填 0 不限制。
 - **可打卡時段**：上班卡在開診前 `inBefore`（預設 60）～開診後 `inAfter`（預設 180）分鐘；下班卡在結束前 `outBefore`（預設 180）～結束後 `outAfter`（預設 180）分鐘。時段外的按鈕在打卡裝置上呈灰色無法選擇（每 30 秒更新），可在出勤規則調整。
 - **加班申請**：下班卡比該診結束時間（晚班 21:30）晚超過「下班超過幾分鐘詢問加班」（`otAsk`，預設 3 分鐘，0＝不詢問），打卡裝置會詢問是否申請加班，申請必須填原因（可點選常用原因再補充）；不申請或 60 秒沒回應就只打下班卡。申請存在該筆打卡的 `ot`（裝置只能送出 `status:'pending'`），管理者在「出勤 → 加班申請」核准（可調整分鐘數）或退回。
-- 「帶入薪資（遲到、加班）」：遲到寫入 `pay/{staffId}_{YYYY-MM}.lateMin`（可設定是否併入早退分鐘）；當月**已核准**的加班分鐘合計寫入 `otMin`（取代原本手動填的加班/拖診分鐘數）。帶入前會列出變更讓管理者確認。
+- 「帶入薪資（遲到、早退、加班）」：遲到、早退分別寫入 `pay/{staffId}_{YYYY-MM}.lateMin`、`earlyMin`；當月**已核准**的加班分鐘合計寫入 `otMin`（取代原本手動填的加班/拖診分鐘數）。帶入前會列出變更讓管理者確認。
 
 **Firestore**（規則見 `firestore.rules`）：
 
@@ -186,7 +187,7 @@ HTML（7 個 <section id="tab-*">）
 | `punches/{id}` | `{staffId, ts, date, src:'kiosk'\|'manual', sel:{sh,k}?, ot:{min,reason,reviewer?,replaces?,revoked?,status:'pending'|'approved'|'rejected'|'replaced',approvedMin?,by?,note?}?, device, devName, sim, real, live, photo?, by?, note?, void?}`（`sel`：打卡時選的班別與上班 in／下班 out）。裝置只能新增；補登、作廢（`void`，保留紀錄）由管理者處理 |
 | `faces/{staffId}` | `{emb: JSON 字串（5 組特徵值）, n, at, consentAt, device}`，不存照片 |
 | `kiosk/rules` | `kiosk/settings` 去掉 `pinHash` 的副本（排班管理儲存規則時同步寫入），所有已開通的帳號可讀，讓僅檢視的人用同樣規則計算自己的出勤 |
-| `kiosk/settings` | `{graceIn, graceOut, nightOut, absentFrom, otAsk, dupMin, revokeDays, inBefore, inAfter, outBefore, outAfter, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
+| `kiosk/settings` | `{graceIn, graceOut, nightOut, absentFrom, otAsk, dupMin, revokeDays, inBefore, inAfter, outBefore, outAfter, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
 
 **第一次上線要做的事**
 1. Firebase 主控台 → Authentication → 登入方式 → 啟用「匿名」。

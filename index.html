@@ -718,7 +718,7 @@ body.gated .shell{display:none;}
           <span class="hint" style="margin:0">依這個月的排班表（定案後為異動班表）比對打卡紀錄。</span>
         </div>
         <div class="card">
-          <div class="lv-title-row"><h2 id="attTitle" style="margin:0">出勤統計</h2><span style="flex:1"></span><button class="small primary" data-padd="" data-pany="1" data-w>＋ 補登打卡</button> <button class="small" id="attToPay" data-w>帶入薪資（遲到、加班）</button></div>
+          <div class="lv-title-row"><h2 id="attTitle" style="margin:0">出勤統計</h2><span style="flex:1"></span><button class="small primary" data-padd="" data-pany="1" data-w>＋ 補登打卡</button> <button class="small" id="attToPay" data-w>帶入薪資（遲到、早退、加班）</button></div>
           <p class="desc">每一診都要打上班卡與下班卡。「應出勤」只算到今天為止、扣除請假的診次；「完整」是上下班卡都有的診數；出勤率＝完整 ÷ 應出勤。遲到＝上班卡晚於開診時間（超過寬限才算）；早退＝下班卡早於結束時間。點人員看每天的明細、補登或作廢打卡。</p>
           <p class="hint att-bad" id="attAbsNote" style="margin:0 0 8px" hidden>尚未設定「曠職起算日」，目前不計算曠職。請到下方「出勤規則 → 遲到與早退」設定開始計算曠職的日期。</p>
           <div class="scroll-x"><table class="list" id="attTable"></table></div>
@@ -782,7 +782,7 @@ body.gated .shell{display:none;}
         <div class="card" id="payRulesCard">
           <h2 id="payRulesTitle">薪資計算規則</h2>
           <p class="hint" id="payRulesFrom" style="margin:0 0 8px"></p>
-          <p class="desc">應發＝本俸＋出勤津貼＋績效獎金＋技能津貼＋職務津貼＋加診薪資＋All班加給＋加班薪資＋國定假日上班加給＋自費獎金（個人、團體）＋五星好評。加診薪資＝加診數 × 3.5 小時 × 加班每分鐘金額；All班加給＝同一天上滿三班（含加診）的天數 × 30 分鐘 × 加班每分鐘金額；加班薪資＝加班/拖診分鐘數 × 加班每分鐘金額；國定假日上班加給＝國定假日上班診數 × 每診設定薪資 × 倍數（預設 1）；五星好評＝則數 × 每則金額。扣除＝勞保費＋健保費 ×（1＋眷屬人數）＋遲到分鐘數 × 每分鐘金額。實發＝應發－扣除＋加減項。當月遲到超過設定分鐘數，或當月加診診數少於事假診數時，不發出勤津貼；病假每診扣出勤津貼的設定比例（預設 0.25），最多扣到 0。下方的預設值只用在還沒填過的月份。規則可以依月份不同：在某個月修改，會從那個月起生效，之後沒有另外修改的月份沿用。</p>
+          <p class="desc">應發＝本俸＋出勤津貼＋績效獎金＋技能津貼＋職務津貼＋加診薪資＋All班加給＋加班薪資＋國定假日上班加給＋自費獎金（個人、團體）＋五星好評。加診薪資＝加診數 × 3.5 小時 × 加班每分鐘金額；All班加給＝同一天上滿三班（含加診）的天數 × 30 分鐘 × 加班每分鐘金額；加班薪資＝加班/拖診分鐘數 × 加班每分鐘金額；國定假日上班加給＝國定假日上班診數 × 每診設定薪資 × 倍數（預設 1）；五星好評＝則數 × 每則金額。扣除＝勞保費＋健保費 ×（1＋眷屬人數）＋遲到分鐘數 × 遲到每分鐘金額＋早退分鐘數 × 早退每分鐘金額＋請假扣款＋曠職扣款。實發＝應發－扣除＋加減項。當月遲到超過設定分鐘數，或當月加診診數少於事假診數時，不發出勤津貼；病假每診扣出勤津貼的設定比例（預設 0.25），最多扣到 0。下方的預設值只用在還沒填過的月份。規則可以依月份不同：在某個月修改，會從那個月起生效，之後沒有另外修改的月份沿用。</p>
           <div class="pay-rules" id="payRules" style="margin-bottom:16px"></div>
           <div class="lb" style="font-size:.72rem;color:var(--sub);margin-bottom:6px">請假扣款＝請假診數 × 每診設定薪資 × 扣薪比例（一個班算 1 診）。家庭照顧假另計：時數 × 每小時金額。各假別扣薪比例：1＝全扣、0.5＝扣一半、0＝不扣。</div>
           <div class="pay-rules" id="payDeduct"></div>
@@ -1858,9 +1858,10 @@ const PAY_FIELDS=[
   {k:'health',label:'健保費（本人）',carry:true,g:'sub'},
   {k:'dependents',label:'健保眷屬',carry:true,g:'sub',unit:'人'},
   {k:'lateMin',label:'遲到',g:'sub',unit:'分鐘'},
+  {k:'earlyMin',label:'早退',g:'sub',unit:'分鐘'},
 ];
-const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,shiftPay:595,fcPerHour:170,lateLimit:30,sickAttendCut:0.25,birthdayBonus:1000,festivalBonus:1000,holidayRate:1,absentRate:1,absentNoAttend:1};
-const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['lateLimit','遲到超過幾分鐘不發出勤津貼'],['sickAttendCut','病假每診扣出勤津貼比例'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['shiftPay','每診設定薪資（元）'],['birthdayBonus','生日禮金（元）'],['festivalBonus','三節獎金（元）'],['holidayRate','國定假日上班加給每診＝每診設定薪資 ×'],['absentRate','曠職扣薪比例（1＝全扣）'],['absentNoAttend','有曠職不發出勤津貼（1＝是、0＝否）']];
+const PAY_DEFAULTS={otPerMin:4,starUnit:30,latePerMin:4,attend:1000,perf:1000,skill:3500,shiftPay:595,fcPerHour:170,lateLimit:30,earlyPerMin:4,earlyLimit:30,sickAttendCut:0.25,birthdayBonus:1000,festivalBonus:1000,holidayRate:1,absentRate:1,absentNoAttend:1};
+const PAY_RULE_FIELDS=[['otPerMin','加班每分鐘（元）'],['latePerMin','遲到每分鐘扣（元）'],['lateLimit','遲到超過幾分鐘不發出勤津貼'],['earlyPerMin','早退每分鐘扣（元）'],['earlyLimit','早退超過幾分鐘不發出勤津貼'],['sickAttendCut','病假每診扣出勤津貼比例'],['perf','績效獎金預設'],['attend','出勤津貼預設'],['skill','技能津貼預設'],['starUnit','五星好評每則（元）'],['shiftPay','每診設定薪資（元）'],['birthdayBonus','生日禮金（元）'],['festivalBonus','三節獎金（元）'],['holidayRate','國定假日上班加給每診＝每診設定薪資 ×'],['absentRate','曠職扣薪比例（1＝全扣）'],['absentNoAttend','有曠職不發出勤津貼（1＝是、0＝否）']];
 // 三節（春節、端午、中秋）的國曆日期；只看月份，用來判斷該月是否發三節獎金。農曆節日每年不同，超過表內年份要再補
 const FESTIVALS={
   2024:{春節:"02-10",端午:"06-10",中秋:"09-17"},2025:{春節:"01-29",端午:"05-31",中秋:"10-06"},2026:{春節:"02-17",端午:"06-19",中秋:"09-25"},
@@ -1996,6 +1997,7 @@ function calcPay(mi,counts,s,rec){
   const lostReasons=[];
   if(shiN>0&&mkN<shiN)lostReasons.push(`事假 ${shiN} 診、加診 ${mkN} 診，加診不足`);
   if((r.lateMin||0)>P.lateLimit)lostReasons.push(`遲到 ${r.lateMin} 分鐘，超過 ${P.lateLimit} 分鐘`);
+  if((r.earlyMin||0)>P.earlyLimit)lostReasons.push(`早退 ${r.earlyMin} 分鐘，超過 ${P.earlyLimit} 分鐘`);
   // 曠職：曠職診數 × 每診設定薪資 × 曠職扣薪比例；有曠職的月份可設定不發出勤津貼
   const absRaw=absentForPay(mi,s.id),absN=absRaw||0,absentUnknown=absRaw===null;
   const absentDeduct=Math.round(absN*P.shiftPay*(Number(P.absentRate)||0));
@@ -2016,15 +2018,15 @@ function calcPay(mi,counts,s,rec){
   const giftPay=gifts.reduce((n,g)=>n+g.amount,0);
   const autoNote=gifts.map(g=>`${g.label} ${money(g.amount)} 元`).concat(holShifts?[`國定假日上班加給 ${holShifts} 診（${holDays.map(x=>`${md(parseYmd(x.key))}${x.name}`).join('、')}）${money(holPay)} 元`]:[]).join('、');
   const gross=r.base+allow+extraPay+allPay+otPay+bonus+starPay+giftPay+holPay;
-  const healthTotal=r.health*(1+(r.dependents||0)),late=(r.lateMin||0)*P.latePerMin;
+  const healthTotal=r.health*(1+(r.dependents||0)),late=(r.lateMin||0)*P.latePerMin,early=(r.earlyMin||0)*P.earlyPerMin;
   const fcHours=fcHoursOf(mi,s.id),fcDeduct=fcHours*P.fcPerHour;
   const leaveDeduct=Math.round(Object.entries(lvN).reduce((n,[t,c])=>n+c*P.shiftPay*(P.deduct[t]||0),0)+fcDeduct);
   const adj=(r.items||[]).reduce((n,x)=>n+(Number(x.amount)||0),0);
-  const deduct=r.labor+healthTotal+late+leaveDeduct+absentDeduct;
+  const deduct=r.labor+healthTotal+late+early+leaveDeduct+absentDeduct;
   // 請假明細文字（表格提示與編輯視窗共用）
   const lvParts=Object.entries(lvN).map(([t,c])=>`${t} ${c} 診 × ${P.deduct[t]||0}`);
   if(fcHours)lvParts.push(`家庭照顧假 ${fcHours} 小時 × ${P.fcPerHour} 元`);
-  return {absN,absentDeduct,absentUnknown,r,schedOtMin,extraMin,extraPay,allMin,allPay,allDays,otMin,otPay,starPay,gifts,giftPay,autoNote,holDays,holShifts,holPay,allow,attendPaid,attendLost,attendNote,sickCut,lostReasons,shiN,mkN,bonus,gross,healthTotal,late,lvN,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
+  return {early,absN,absentDeduct,absentUnknown,r,schedOtMin,extraMin,extraPay,allMin,allPay,allDays,otMin,otPay,starPay,gifts,giftPay,autoNote,holDays,holShifts,holPay,allow,attendPaid,attendLost,attendNote,sickCut,lostReasons,shiN,mkN,bonus,gross,healthTotal,late,lvN,fcHours,leaveDeduct,lvParts,adj,deduct,net:gross-deduct+adj};
 }
 // 薪資備註欄：自動備註（生日禮金、三節獎金）＋手動備註
 const payNoteHtml=p=>{const a=p.autoNote?`<span class="pay-auto">${esc(p.autoNote)}</span>`:"",m=p.r.note?esc(p.r.note):"";return a||m?[a,m].filter(Boolean).join("<br>"):`<span style="color:var(--faint)">—</span>`;};
@@ -2051,15 +2053,16 @@ function renderPay(mi,counts){
       <td class="num"><b>${money(p.gross)}</b></td>
       <td class="num">${z(r.labor)}</td><td class="num" title="${money(r.health)} × (1＋眷屬 ${r.dependents||0} 人)">${z(p.healthTotal)}</td>
       <td class="num" title="${r.lateMin||0} 分鐘">${z(p.late)}</td>
+      <td class="num" title="${r.earlyMin||0} 分鐘">${z(p.early)}</td>
       <td class="num" title="${esc(lvTip)}">${z(p.leaveDeduct)}</td>
       <td class="num" title="${p.absentUnknown?'打卡資料載入中':`曠職 ${p.absN} 診 × 每診 ${money(payCfg(mi.ym).shiftPay)} 元 × ${payCfg(mi.ym).absentRate}`}">${p.absentUnknown?'<span style="color:var(--faint)">…</span>':p.absentDeduct?`<span class="att-bad">${money(p.absentDeduct)}</span>`:z(0)}</td>
       <td class="num" title="${esc(adjTip)}">${p.adj?money(p.adj):'<span style="color:var(--faint)">0</span>'}</td>
       <td class="num net">${money(p.net)}</td><td class="pay-note">${payNoteHtml(p)}</td>
       ${payAdmin()?`<td class="num"><button class="small" data-payedit="${s.id}">編輯</button></td>`:''}</tr>`;
   }).join('');
-  $('payTable').innerHTML=`<thead><tr><th>人員</th><th class="num">本俸</th><th class="num">出勤津貼</th><th class="num">績效獎金</th><th class="num">技能津貼</th><th class="num">職務津貼</th><th class="num" title="加診數 × 3.5 小時 × 加班每分鐘金額">加診薪資</th><th class="num" title="同一天上滿三班（含加診）每天 30 分鐘 × 加班每分鐘金額">All班加給</th><th class="num" title="加班/拖診分鐘數 × 加班每分鐘金額">加班薪資</th><th class="num" title="國定假日上班診數 × 每診設定薪資 × 倍數（預設 1，每診加 595）">國定假日上班加給</th><th class="num">自費獎金</th><th class="num">五星好評</th><th class="num" title="生日禮金（生日當月）與三節獎金（春節、端午、中秋所在月份），金額在薪資計算規則設定">禮金／獎金</th><th class="num">應發合計</th><th class="num">勞保費</th><th class="num">健保費</th><th class="num">遲到</th><th class="num" title="滑過數字可以看明細">請假扣款</th><th class="num">曠職扣款</th><th class="num">加減項</th><th class="num">實發</th><th>備註</th>${payAdmin()?'<th class="num"><button class="small primary" data-paybulk>集體編輯</button></th>':''}</tr></thead><tbody>`+
-    (rows||`<tr><td colspan="23" class="empty">${payAdmin()?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
-    (payAdmin()&&list.length>1?`<tfoot><tr><td><b>合計</b></td><td colspan="12"></td><td class="num"><b>${money(tot.gross)}</b></td><td colspan="5" class="num">扣除 ${money(tot.deduct)}</td><td class="num">${money(tot.adj)}</td><td class="num net">${money(tot.net)}</td><td></td><td></td></tr></tfoot>`:'');
+  $('payTable').innerHTML=`<thead><tr><th>人員</th><th class="num">本俸</th><th class="num">出勤津貼</th><th class="num">績效獎金</th><th class="num">技能津貼</th><th class="num">職務津貼</th><th class="num" title="加診數 × 3.5 小時 × 加班每分鐘金額">加診薪資</th><th class="num" title="同一天上滿三班（含加診）每天 30 分鐘 × 加班每分鐘金額">All班加給</th><th class="num" title="加班/拖診分鐘數 × 加班每分鐘金額">加班薪資</th><th class="num" title="國定假日上班診數 × 每診設定薪資 × 倍數（預設 1，每診加 595）">國定假日上班加給</th><th class="num">自費獎金</th><th class="num">五星好評</th><th class="num" title="生日禮金（生日當月）與三節獎金（春節、端午、中秋所在月份），金額在薪資計算規則設定">禮金／獎金</th><th class="num">應發合計</th><th class="num">勞保費</th><th class="num">健保費</th><th class="num">遲到</th><th class="num">早退</th><th class="num" title="滑過數字可以看明細">請假扣款</th><th class="num">曠職扣款</th><th class="num">加減項</th><th class="num">實發</th><th>備註</th>${payAdmin()?'<th class="num"><button class="small primary" data-paybulk>集體編輯</button></th>':''}</tr></thead><tbody>`+
+    (rows||`<tr><td colspan="24" class="empty">${payAdmin()?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
+    (payAdmin()&&list.length>1?`<tfoot><tr><td><b>合計</b></td><td colspan="12"></td><td class="num"><b>${money(tot.gross)}</b></td><td colspan="6" class="num">扣除 ${money(tot.deduct)}</td><td class="num">${money(tot.adj)}</td><td class="num net">${money(tot.net)}</td><td></td><td></td></tr></tfoot>`:'');
   $('payRulesCard').hidden=!payAdmin();
   $('payRulesTitle').textContent=`${mi.label} 薪資計算規則`;
   $('payRulesFrom').textContent=P.from===mi.ym?`這個月有自己的規則；之後沒有另外修改的月份會沿用。`
@@ -2897,7 +2900,7 @@ function toast(msg,kind='',action){
 // 打卡裝置（kiosk.html）只記錄「誰、幾點」，這裡依排班表（weeks，定案後即異動班表）推算每一診的上下班卡。
 // 每一診有兩個時間點（上班＝開診、下班＝結束）；同一天的打卡依時間順序對應到這些時間點（動態規劃，
 // 盡量多對上、再取時間差總和最小），差距超過 ATT_WINDOW 分鐘的打卡不對應，列為「其他打卡」。
-const ATT_DEF={graceIn:0,graceOut:0,earlyAsLate:true,photo:true,thr:0.6,nightOut:'21:00',otAsk:3,dupMin:5,revokeDays:3,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
+const ATT_DEF={graceIn:0,graceOut:0,photo:true,thr:0.6,nightOut:'21:00',otAsk:3,dupMin:5,revokeDays:3,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
 // replaced：員工在打卡裝置上用同一班的新申請取代了這一筆（不審核、不計入加班分鐘）
 const OT_ST={pending:'待審',approved:'已核准',rejected:'已退回',replaced:'已被取代'};
 // 當月已核准的加班分鐘（作廢的打卡不算）
@@ -2985,7 +2988,6 @@ function attMonth(mi,sid){
       if(x.early){s.earlyN++;s.earlyMin+=x.early;}
     });
   });
-  s.payMin=s.lateMin+(attCfg().earlyAsLate?s.earlyMin:0);
   return {days,s};
 }
 const attPeople=mi=>viewOnly()?staff.filter(s=>s.id===myStaffId()):staff.filter(s=>s.role==='assistant'&&s.active!==false||punches.some(p=>p.staffId===s.id&&!p.void)).sort(sortStaff);
@@ -3126,13 +3128,13 @@ function renderAtt(mi){
   const C=attCfg(),pct=(a,b)=>b?Math.round(a/b*1000)/10+'%':'—';
   const ppl=attPeople(mi),res={};ppl.forEach(s=>res[s.id]=attMonth(mi,s.id));
   const bad=(n,t)=>n?`<span class="att-bad">${t}</span>`:`<span class="att-mute">0</span>`;
-  $('attTable').innerHTML=`<thead><tr><th>人員</th><th class="num">應出勤（診）</th><th class="num">完整</th><th class="num">出勤率</th><th class="num">遲到</th><th class="num">早退</th><th class="num" title="只缺上班卡或只缺下班卡，請確認是否忘記打卡">未打卡（待確認）</th><th class="num" title="上下班卡都沒打、也沒請假">曠職（診）</th><th class="num">帶入薪資（分）</th><th class="att-face">臉部</th></tr></thead><tbody>`+
+  $('attTable').innerHTML=`<thead><tr><th>人員</th><th class="num">應出勤（診）</th><th class="num">完整</th><th class="num">出勤率</th><th class="num">遲到</th><th class="num">早退</th><th class="num" title="只缺上班卡或只缺下班卡，請確認是否忘記打卡">未打卡（待確認）</th><th class="num" title="上下班卡都沒打、也沒請假">曠職（診）</th><th class="num" title="帶入薪資的遲到分鐘／早退分鐘">帶入薪資（遲到／早退分）</th><th class="att-face">臉部</th></tr></thead><tbody>`+
     (ppl.length?ppl.map(s=>{const x=res[s.id].s;return `<tr class="att-row${attSel===s.id?' sel':''}" data-attsid="${esc(s.id)}">
       <td><b>${esc(codeOf(s.id))}</b> ${esc(s.name||'')}</td><td class="num">${x.due}</td><td class="num">${x.full}</td>
       <td class="num">${x.due?(x.full===x.due?`<span class="att-ok">${pct(x.full,x.due)}</span>`:`<span class="att-bad">${pct(x.full,x.due)}</span>`):'—'}</td>
       <td class="num">${bad(x.lateN,`${x.lateN} 次／${x.lateMin} 分`)}</td><td class="num">${bad(x.earlyN,`${x.earlyN} 次／${x.earlyMin} 分`)}</td>
       <td class="num" title="缺上班卡 ${x.missIn}、缺下班卡 ${x.missOut}">${bad(x.missIn+x.missOut,x.missIn+x.missOut)}</td><td class="num">${bad(x.absent,`<b>${x.absent}</b>`)}</td>
-      <td class="num">${s.role==='assistant'?x.payMin:'—'}</td>
+      <td class="num">${s.role==='assistant'?`${x.lateMin}／${x.earlyMin}`:'—'}</td>
       <td class="att-face">${faceMeta[s.id]?'<span class="att-ok">已登錄</span>':'<span class="att-mute">未登錄</span>'}</td></tr>`;}).join(''):'<tr><td colspan="10" class="att-mute">沒有人員</td></tr>')+'</tbody>';
   // 明細
   const det=$('attDetail'),s=attSel&&byId(attSel);
@@ -3173,8 +3175,7 @@ function renderAtt(mi){
       num('graceIn','遲到寬限（分鐘）','晚於開診超過這個分鐘數才算遲到，算遲到時從開診起算全部分鐘')+
       num('graceOut','早退寬限（分鐘）','早於結束超過這個分鐘數才算早退')+
       time('nightOut','晚班可下班時間','之後打下班卡不算早退；清空則以 21:30 為準')+
-      date('absentFrom','曠職起算日','這天起，上下班卡都沒打又沒請假的診算曠職；空白＝不計曠職')+
-      chk('earlyAsLate','早退分鐘併入薪資的遲到分鐘','帶入薪資時，早退分鐘一起算進遲到分鐘'))+
+      date('absentFrom','曠職起算日','這天起，上下班卡都沒打又沒請假的診算曠職；空白＝不計曠職'))+
     grp('可打卡時段',
       num('inBefore','上班卡：開診前（分鐘）','開診前多久開始可以打上班卡')+
       num('inAfter','上班卡：開診後（分鐘）','開診後多久內還可以打上班卡')+
@@ -3392,13 +3393,13 @@ $('attToPay').addEventListener('click',()=>{
   const mi=monthInfo(),C=attCfg();
   const pend=punches.filter(p=>p.ot&&!p.void&&p.ot.status==='pending').length;
   const list=attPeople(mi).filter(s=>s.role==='assistant').map(s=>{const r=payRec(s.id,mi.ym),x=attMonth(mi,s.id).s,ot=otApproved(mi,s.id);
-    return {s,r,late:[r.lateMin||0,x.due?x.payMin:(r.lateMin||0)],ot:[r.otMin||0,ot]};})
-    .filter(x=>x.late[0]!==x.late[1]||x.ot[0]!==x.ot[1]);
-  if(!list.length){toast(`${mi.label}薪資的遲到、加班分鐘已經和出勤紀錄一致。`);return;}
+    return {s,r,late:[r.lateMin||0,x.due?x.lateMin:(r.lateMin||0)],early:[r.earlyMin||0,x.due?x.earlyMin:(r.earlyMin||0)],ot:[r.otMin||0,ot]};})
+    .filter(x=>x.late[0]!==x.late[1]||x.early[0]!==x.early[1]||x.ot[0]!==x.ot[1]);
+  if(!list.length){toast(`${mi.label}薪資的遲到、早退、加班分鐘已經和出勤紀錄一致。`);return;}
   const cell=([a,b])=>a===b?`<td class="num att-mute">${a}</td>`:`<td class="num">${a} → <b>${b}</b></td>`;
-  dialog(`<h3>帶入 ${mi.label} 薪資</h3><p class="hint" style="margin:0 0 8px">遲到依出勤紀錄計算${C.earlyAsLate?'（遲到＋早退）':'（只算遲到）'}；加班為「已核准」的加班分鐘合計，會<b>取代</b>薪資的加班/拖診分鐘數（原本手動填的會被覆蓋）。還沒儲存（試算中）的薪資會連同目前的試算值一起儲存。請先處理缺卡、補登與加班審核後再帶入。${pend?`<br><span class="att-bad">還有 ${pend} 筆加班申請待審，不會計入。</span>`:''}</p>
-    <table class="list"><thead><tr><th>人員</th><th class="num">遲到（分）</th><th class="num">加班（分）</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(fullName(x.s))}${x.r.saved?'':' <small class="att-mute">（試算）</small>'}</td>${cell(x.late)}${cell(x.ot)}</tr>`).join('')}</tbody></table>`,()=>{
-    list.forEach(({s,r,late,ot})=>{const o={staffId:s.id,ym:mi.ym};PAY_FIELDS.forEach(f=>o[f.k]=r[f.k]);o.items=r.items;o.note=r.note;o.lateMin=late[1];o.otMin=ot[1];store.pay(s.id+'_'+mi.ym,o);});
+  dialog(`<h3>帶入 ${mi.label} 薪資</h3><p class="hint" style="margin:0 0 8px">遲到、早退依出勤紀錄分別計算；加班為「已核准」的加班分鐘合計，會<b>取代</b>薪資的加班/拖診分鐘數（原本手動填的會被覆蓋）。還沒儲存（試算中）的薪資會連同目前的試算值一起儲存。請先處理缺卡、補登與加班審核後再帶入。${pend?`<br><span class="att-bad">還有 ${pend} 筆加班申請待審，不會計入。</span>`:''}</p>
+    <table class="list"><thead><tr><th>人員</th><th class="num">遲到（分）</th><th class="num">早退（分）</th><th class="num">加班（分）</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(fullName(x.s))}${x.r.saved?'':' <small class="att-mute">（試算）</small>'}</td>${cell(x.late)}${cell(x.early)}${cell(x.ot)}</tr>`).join('')}</tbody></table>`,()=>{
+    list.forEach(({s,r,late,early,ot})=>{const o={staffId:s.id,ym:mi.ym};PAY_FIELDS.forEach(f=>o[f.k]=r[f.k]);o.items=r.items;o.note=r.note;o.lateMin=late[1];o.earlyMin=early[1];o.otMin=ot[1];store.pay(s.id+'_'+mi.ym,o);});
     toast(`已更新 ${list.length} 人的薪資。`);
   },'帶入');
 });
@@ -4311,8 +4312,8 @@ async function exportExcel(){
   const ws6=XLSX.utils.aoa_to_sheet(mkRows);ws6['!cols']=[{wch:14},{wch:10},{wch:10},{wch:22}];
   XLSX.utils.book_append_sheet(wb,ws6,'事假補診');
   if(payAdmin()){
-    const pr=[['代號','姓名','狀態','本俸','出勤津貼','績效獎金','技能津貼','職務津貼','加診數','加診薪資','All班天數','All班加給','加班/拖診(分鐘)','加班薪資','國定假日上班(診)','國定假日上班加給','自費獎金-個人','自費獎金-團體','五星好評(則)','五星好評','禮金／獎金','應發合計','勞保費','健保費(本人)','眷屬人數','健保費','遲到分鐘','遲到扣款','請假扣款','曠職扣款','扣除合計','加減項','加減項明細','實發','備註']];
-    staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])).forEach(s=>{const p=calcPay(mi,counts,s),r=p.r;pr.push([s.code||'',s.name||'',r.saved?'已儲存':'試算',r.base,p.attendPaid,r.perf,r.skill,r.duty||0,counts[s.id]?.extra||0,p.extraPay,p.allDays,p.allPay,r.otMin||0,p.otPay,p.holShifts,p.holPay,r.selfInd,r.selfTeam,r.stars,p.starPay,p.giftPay,p.gross,r.labor,r.health,r.dependents,p.healthTotal,r.lateMin,p.late,p.leaveDeduct,p.absentDeduct,p.deduct,p.adj,r.items.map(x=>`${x.label} ${x.amount}`).join('、'),p.net,[p.autoNote,r.note].filter(Boolean).join('；')]);});
+    const pr=[['代號','姓名','狀態','本俸','出勤津貼','績效獎金','技能津貼','職務津貼','加診數','加診薪資','All班天數','All班加給','加班/拖診(分鐘)','加班薪資','國定假日上班(診)','國定假日上班加給','自費獎金-個人','自費獎金-團體','五星好評(則)','五星好評','禮金／獎金','應發合計','勞保費','健保費(本人)','眷屬人數','健保費','遲到分鐘','遲到扣款','早退分鐘','早退扣款','請假扣款','曠職扣款','扣除合計','加減項','加減項明細','實發','備註']];
+    staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])).forEach(s=>{const p=calcPay(mi,counts,s),r=p.r;pr.push([s.code||'',s.name||'',r.saved?'已儲存':'試算',r.base,p.attendPaid,r.perf,r.skill,r.duty||0,counts[s.id]?.extra||0,p.extraPay,p.allDays,p.allPay,r.otMin||0,p.otPay,p.holShifts,p.holPay,r.selfInd,r.selfTeam,r.stars,p.starPay,p.giftPay,p.gross,r.labor,r.health,r.dependents,p.healthTotal,r.lateMin,p.late,r.earlyMin||0,p.early,p.leaveDeduct,p.absentDeduct,p.deduct,p.adj,r.items.map(x=>`${x.label} ${x.amount}`).join('、'),p.net,[p.autoNote,r.note].filter(Boolean).join('；')]);});
     const ws5=XLSX.utils.aoa_to_sheet(pr);ws5['!cols']=pr[0].map(h=>({wch:Math.max(8,h.length*2)}));
     XLSX.utils.book_append_sheet(wb,ws5,'薪資');
   }
