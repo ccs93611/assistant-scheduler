@@ -2874,7 +2874,7 @@ function toast(msg,kind='',action){
 // 打卡裝置（kiosk.html）只記錄「誰、幾點」，這裡依排班表（weeks，定案後即異動班表）推算每一診的上下班卡。
 // 每一診有兩個時間點（上班＝開診、下班＝結束）；同一天的打卡依時間順序對應到這些時間點（動態規劃，
 // 盡量多對上、再取時間差總和最小），差距超過 ATT_WINDOW 分鐘的打卡不對應，列為「其他打卡」。
-const ATT_DEF={graceIn:0,graceOut:0,earlyAsLate:true,photo:true,thr:0.6,nightOut:'21:00',otAsk:3,dupMin:5,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
+const ATT_DEF={graceIn:0,graceOut:0,earlyAsLate:true,photo:true,thr:0.6,nightOut:'21:00',otAsk:3,dupMin:5,revokeDays:3,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
 // replaced：員工在打卡裝置上用同一班的新申請取代了這一筆（不審核、不計入加班分鐘）
 const OT_ST={pending:'待審',approved:'已核准',rejected:'已退回',replaced:'已被取代'};
 // 當月已核准的加班分鐘（作廢的打卡不算）
@@ -2996,9 +2996,9 @@ const canReviewOt=p=>superOK()||(!!p.ot?.reviewer&&p.ot.reviewer===myStaffId());
 const otRevName=p=>p.ot?.reviewer?esc(fullName(byId(p.ot.reviewer))):'<span class="att-mute">未指定</span>';
 function otRowHtml(p){
   const d=parseYmd(p.date),sh=p.sel&&(p.sel.sh==='extra'?{name:'臨時加班'}:SHIFTS.find(x=>x.id===p.sel.sh)),o=p.ot;
-  const st=`<span class="${o.status==='pending'?'att-bad':o.status==='approved'?'att-ok':'att-mute'}">${esc(otStatusText(o))}</span>${o.status==='replaced'?`<br><small class="att-mute">${o.replacedByName?`由 ${esc(o.replacedByName)} 改用同一班的另一筆申請`:'改用同一班的另一筆申請'}</small>`:''}${o.note?`<br><small class="att-mute">${esc(o.note)}</small>`:''}`;
+  const st=`<span class="${o.status==='pending'?'att-bad':o.status==='approved'?'att-ok':'att-mute'}">${esc(otStatusText(o))}</span>${o.revoked?`<br><small class="att-mute">曾由 ${esc(o.revoked.prevByName||'')} 核准 ${o.revoked.prevMin} 分，${esc(o.revoked.byName||'')} 撤銷${o.revoked.note?`：${esc(o.revoked.note)}`:''}</small>`:''}${o.status==='replaced'?`<br><small class="att-mute">${o.replacedByName?`由 ${esc(o.replacedByName)} 改用同一班的另一筆申請`:'改用同一班的另一筆申請'}</small>`:''}${o.note?`<br><small class="att-mute">${esc(o.note)}</small>`:''}`;
   const can=canReviewOt(p),dis=can?'':' disabled title="只有審核醫師或超級管理員可以審核"';
-  const acts=o.status==='replaced'?'':o.status==='pending'?`<button class="small${can?' primary':''}" data-otok="${esc(p.id)}"${dis}>核准</button> <button class="small danger" data-otno="${esc(p.id)}"${dis}>退回</button>`:(can?`<button class="small" data-otok="${esc(p.id)}">修改</button>`:'');
+  const acts=o.status==='replaced'?'':o.status==='pending'?`<button class="small${can?' primary':''}" data-otok="${esc(p.id)}"${dis}>核准</button> <button class="small danger" data-otno="${esc(p.id)}"${dis}>退回</button>`:(can?`<button class="small" data-otok="${esc(p.id)}">修改</button>${o.status==='approved'?(revokeLeft(o)>=0?` <button class="small danger" data-otrevoke="${esc(p.id)}" title="${revokeLeft(o)===Infinity?'':'撤銷期限到 '+fmtAt(Number(o.at)+(Number(attCfg().revokeDays)||0)*864e5)}">撤銷核准</button>`:' <small class="att-mute">已超過撤銷期限</small>'):''}`:'');
   return `<tr${o.status==='replaced'?' class="att-mute"':''}><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td style="white-space:nowrap">${esc(fullName(byId(p.staffId)))}</td>
     <td style="white-space:nowrap">${o.extra?'<span class="att-bad">臨時加班</span> ':sh?esc(sh.name)+' ':''}${o.from?hhmm(o.from)+'–':''}${hhmm(p.ts)}</td><td class="num">${p.next?'<span title="同時打了下一診上班卡；核准後下一診不算遲到">↪ </span>':''}${o.extra&&!o.from?'<span class="att-bad" title="找不到臨時加班上班卡">？</span>':o.min}</td><td>${esc(o.reason||'')}${o.manual?`<br><small class="att-mute">（${esc(o.addedBy||'管理者')}新增）</small>`:''}${o.replaces?'<br><small class="att-mute">（取代前一筆申請）</small>':''}${o.prev?`<br><small class="att-bad">（同一班已有核准的 ${o.prev.min} 分鐘）</small>`:''}</td>
     <td style="white-space:nowrap">${otRevName(p)}</td><td>${st}</td>
@@ -3132,6 +3132,7 @@ function renderAtt(mi){
   const R=[['graceIn','遲到寬限（分鐘）','上班卡晚於開診時間超過這個分鐘數才算遲到；算遲到時從開診時間起算全部分鐘'],['graceOut','早退寬限（分鐘）','下班卡早於結束時間超過這個分鐘數才算早退'],['thr','臉部辨識門檻（0.4–0.9）','越高越嚴格：認錯人時調高，常常認不出來時調低。建議 0.55–0.65']];
   if(!$('attRules').contains(document.activeElement))$('attRules').innerHTML=R.map(([k,l,h])=>`<div class="field"><label>${l}</label><input type="number" data-attcfg="${k}" value="${C[k]}" ${k==='thr'?'step="0.01" min="0.4" max="0.9"':'step="1" min="0"'} ${canWrite?'':'disabled'} title="${esc(h)}"></div>`).join('')+
     `<div class="field"><label>下班超過幾分鐘詢問加班<small class="att-mute">（填 0 則不詢問）</small></label><input type="number" data-attcfg="otAsk" value="${C.otAsk}" step="1" min="0" ${canWrite?'':'disabled'} title="下班卡比該診結束時間晚超過這個分鐘數，打卡裝置會詢問是否申請加班；填 0 不詢問"></div>`+
+    `<div class="field"><label>核准後幾天內可以撤銷核准<small class="att-mute">（填 0 則不限制）</small></label><input type="number" data-attcfg="revokeDays" value="${C.revokeDays}" step="1" min="0" ${canWrite?'':'disabled'}></div>`+
     `<div class="field"><label>同一班同一種卡幾分鐘內不能重複打<small class="att-mute">（填 0 則不限制）</small></label><input type="number" data-attcfg="dupMin" value="${C.dupMin}" step="1" min="0" ${canWrite?'':'disabled'}></div>`+
     [['inBefore','上班卡：開診前幾分鐘起可打'],['inAfter','上班卡：開診後幾分鐘內可打'],['outBefore','下班卡：結束前幾分鐘起可打'],['outAfter','下班卡：結束後幾分鐘內可打']].map(([k,l])=>`<div class="field"><label>${l}</label><input type="number" data-attcfg="${k}" value="${C[k]}" step="1" min="0" ${canWrite?'':'disabled'} title="不在這個時段內，打卡裝置上的按鈕會變灰色無法選擇"></div>`).join('')+
     `<div class="field"><label>晚班可下班時間</label><input type="time" data-attcfg="nightOut" value="${esc(C.nightOut||'')}" ${canWrite?'':'disabled'} title="晚班在這個時間之後打下班卡不算早退；清空則以 21:30 為準"></div>`+
@@ -3293,8 +3294,32 @@ $('otTable').addEventListener('click',e=>{
   if(sb){const k=sb.dataset.otsort;otSort=otSort.key===k?{key:k,dir:-otSort.dir}:{key:k,dir:k==='date'?-1:1};renderAll();return;}
   otClick(e);
 });
+// 撤銷核准（超級管理員或這一筆的審核醫師）：改回待審，或改為退回；留下撤銷紀錄
+// 撤銷期限：從核准時間（ot.at）起算 revokeDays 天，0＝不限制
+const revokeLeft=o=>{const days=Number(attCfg().revokeDays)||0;if(!days)return Infinity;const t=Number(o.at)||0;return t?t+days*864e5-Date.now():-1;};
+function otRevoke(id){
+  const p=punches.find(x=>x.id===id)||revPunches.find(x=>x.id===id);if(!p||p.ot?.status!=='approved')return;
+  if(!canReviewOt(p)){toast('只有超級管理員或這一筆的審核醫師可以撤銷核准。','warn');return;}
+  if(revokeLeft(p.ot)<0){toast(`已超過撤銷期限（核准後 ${attCfg().revokeDays} 天內）。`,'warn');return;}
+  const o=p.ot,replacedPrev=[...punches,...revPunches].find(x=>x.ot?.replacedBy===p.id);
+  dialog(`<h3>撤銷核准</h3><p>${esc(fullName(byId(p.staffId)))} ${esc(p.date)} ${hhmm(p.ts)}，目前${esc(otStatusText(o))} ${o.approvedMin} 分鐘。<br>原因：${esc(o.reason||'')}</p>
+    <div class="field"><label style="display:flex;gap:6px;align-items:flex-start"><input type="radio" name="rvTo" value="pending" checked style="width:auto;margin-top:3px"> <span><b>改回待審</b><br><small class="att-mute">重新交給審核醫師審核</small></span></label>
+      <label style="display:flex;gap:6px;align-items:flex-start;margin-top:6px"><input type="radio" name="rvTo" value="rejected" style="width:auto;margin-top:3px"> <span><b>改為退回</b><br><small class="att-mute">不核准這筆加班</small></span></label></div>
+    <div class="field" style="margin-top:8px"><label>撤銷原因（必填）</label><input id="rvNote" placeholder="例如：核准分鐘數有誤"></div>
+    ${replacedPrev?'<p class="hint att-bad" style="margin:8px 0 0">這筆核准當初取代了前一筆加班申請；撤銷後前一筆不會自動恢復，需要時請另外處理。</p>':''}
+    <p class="hint" style="margin:6px 0 0">若已經「帶入薪資」，撤銷後請重新帶入，薪資的加班分鐘才會更新。</p>`,ov=>{
+    const to=ov.querySelector('[name=rvTo]:checked').value,note=ov.querySelector('#rvNote').value.trim();
+    if(!note){toast('請填撤銷原因。','warn');return false;}
+    const n=Object.assign({},o,{status:to,revoked:{prevMin:o.approvedMin,prevByName:o.byName||o.by||'',byName:myDisplayName(),by:myId||'本機',at:Date.now(),note}});
+    delete n.approvedMin;
+    if(to==='rejected'){Object.assign(n,{by:myId||'本機',byName:myDisplayName(),at:Date.now()});delete n.note;} // 退回原因就是撤銷原因（顯示在撤銷紀錄），不重複
+    else{delete n.by;delete n.byName;delete n.at;delete n.note;}
+    store.otDecide(p,n);toast(to==='pending'?'已撤銷核准，改回待審。':'已撤銷核准，改為退回。');
+  },'撤銷核准',true);
+}
 // 加班核准／退回（出勤分頁與加班審核分頁共用）：只有審核醫師或超級管理員可以操作
 function otClick(e){
+  const rv=e.target.closest('[data-otrevoke]');if(rv){otRevoke(rv.dataset.otrevoke);return;}
   const ok=e.target.closest('[data-otok]'),no=e.target.closest('[data-otno]');if(!ok&&!no)return;
   const id=(ok||no).dataset[ok?'otok':'otno'],p=punches.find(x=>x.id===id)||revPunches.find(x=>x.id===id);if(!p)return;
   if(!canReviewOt(p)){toast('只有審核醫師或超級管理員可以審核這筆加班。','warn');return;}

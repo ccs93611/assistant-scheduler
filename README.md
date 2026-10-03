@@ -165,6 +165,7 @@ HTML（7 個 <section id="tab-*">）
 - 應出勤＝到今天為止、已結束、沒有請假的診次（依 `weeks`，也就是定案後的異動班表）。出勤率＝上下班卡都有的診數 ÷ 應出勤。
 - **臨時加班**：打卡端選擇畫面最下方的「臨時加班 上班卡／下班卡」隨時可打，不受班表與可打卡時段限制（`sel.sh='extra'`），不列入出勤率、遲到、早退、缺卡。臨時加班下班卡一律成為加班申請（`ot.extra=true`），分鐘數從當天最近一張臨時加班上班卡起算（`ot.from`），必須有原因：臨時加班上班卡可以先填原因（存在 `extraReason`，也可「稍後再填」）；下班卡會帶出上班時填的原因，可「沿用並送出」或「修改原因」，上班時沒填就必須填（沒有「不用」選項）。60 秒沒動作：有上班原因就沿用，沒有則送出並標示「未填寫原因」；找不到上班卡時分鐘數顯示「?」，由主管核准時填入。
 - **審核醫師**：申請加班（一般加班與臨時加班下班卡）時必須選一位在職醫師審核（`ot.reviewer`＝醫師的 staffId），預設為這一診跟診配對的醫師（班表 `L` 欄）。只有被指定的審核醫師或超級管理員可以核准／退回（安全規則：審核醫師只能改 `ot`、不能換審核醫師；排班管理可以補登、作廢但不能動 `ot`）。醫師登入後在「加班審核」分頁看到指定給自己的申請；超級管理員看到所有月份的待審申請。醫師需要在人員名單綁定登入帳號（「僅檢視」即可）；未指定審核醫師的申請只有超級管理員能審。
+- **撤銷核准**：已核准的加班，超級管理員或該筆的審核醫師可以在核准後 `revokeDays`（出勤規則可調，預設 3 天，0＝不限制）天內按「撤銷核准」（超過期限按鈕改為「已超過撤銷期限」），選「改回待審」或「改為退回」並填撤銷原因；撤銷紀錄存在 `ot.revoked:{prevMin,prevByName,byName,at,note}`，狀態欄顯示「曾由 xxx 核准 N 分，yyy 撤銷：原因」。若這筆核准當初取代了前一筆申請，前一筆不會自動恢復；已帶入薪資的需重新帶入。
 - **管理者新增加班**：「出勤 → 加班申請」的「＋ 新增加班」（排班管理以上）：選人員、日期、班別、下班時間（臨時加班另填開始時間），加班分鐘依該診結束時間（或臨時加班開始時間）自動算出、可修改；原因必填。建立一筆補登的下班卡（`src:'manual'`）附上 `ot.manual:true`、`ot.addedBy`。排班管理新增的必須指定審核醫師、狀態為待審；超級管理員可勾「直接核准」。同一天同一班已有加班時會提醒。安全規則：只有超級管理員能直接建立已核准的加班。
 - **同一班重複申請加班**：同一天同一班（含臨時加班）已有加班申請時，打卡裝置送出前詢問。前一筆待審：「改用這一筆」把前一筆標成 `status:'replaced'`（記 `replacedBy`，新申請記 `ot.replaces`），「保留前一筆」則這次只打下班卡；前一筆已核准／退回：詢問是否「另外申請」；前一筆已核准而另外申請時，新申請記 `ot.prev:{id,min,ts}`，審核醫師只能「核准並取代前一筆」（前一筆改為 replaced，記 `replacedBy`、`replacedByName`）或「退回」，不能兩筆都保留。安全規則允許新申請的審核醫師把它 `ot.prev` 指向的已核准申請改成 replaced。已被取代的申請不審核、不計入加班分鐘。安全規則只允許打卡裝置把待審改成 replaced。
 - **接續下一診**：下班卡時間已超過當天下一診（有排班）的開始時間時，加班最多算到兩診中間的間隔，並同時自動打下一診的上班卡（`auto:true`，`link` 指回下班卡；下班卡記 `next`）。這張接續上班卡照算遲到，但下班卡的加班**核准後下一診不算遲到**（待審時標示「前一診加班審核中」）。即使沒到下一診開始，只要有排下一診，加班也最多算到兩診中間。
@@ -181,10 +182,10 @@ HTML（7 個 <section id="tab-*">）
 |---|---|
 | `devices/{匿名uid}` | `{name, approved, at, ua, hwId?, model?}`；裝置自己建立（approved 必須是 false，只能自己補上 hwId／model），排班管理以上核准 |
 | `hw/{裝置編號}` | `{approved, name, model, platform, at}`：App 回報的裝置編號（Android ID 或 iOS identifierForVendor，前綴 `and-`／`ios-`），核准後同一台平板換了代碼也能打卡 |
-| `punches/{id}` | `{staffId, ts, date, src:'kiosk'\|'manual', sel:{sh,k}?, ot:{min,reason,reviewer?,replaces?,status:'pending'|'approved'|'rejected'|'replaced',approvedMin?,by?,note?}?, device, devName, sim, real, live, photo?, by?, note?, void?}`（`sel`：打卡時選的班別與上班 in／下班 out）。裝置只能新增；補登、作廢（`void`，保留紀錄）由管理者處理 |
+| `punches/{id}` | `{staffId, ts, date, src:'kiosk'\|'manual', sel:{sh,k}?, ot:{min,reason,reviewer?,replaces?,revoked?,status:'pending'|'approved'|'rejected'|'replaced',approvedMin?,by?,note?}?, device, devName, sim, real, live, photo?, by?, note?, void?}`（`sel`：打卡時選的班別與上班 in／下班 out）。裝置只能新增；補登、作廢（`void`，保留紀錄）由管理者處理 |
 | `faces/{staffId}` | `{emb: JSON 字串（5 組特徵值）, n, at, consentAt, device}`，不存照片 |
 | `kiosk/rules` | `kiosk/settings` 去掉 `pinHash` 的副本（排班管理儲存規則時同步寫入），所有已開通的帳號可讀，讓僅檢視的人用同樣規則計算自己的出勤 |
-| `kiosk/settings` | `{graceIn, graceOut, nightOut, otAsk, dupMin, inBefore, inAfter, outBefore, outAfter, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
+| `kiosk/settings` | `{graceIn, graceOut, nightOut, otAsk, dupMin, revokeDays, inBefore, inAfter, outBefore, outAfter, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
 
 **第一次上線要做的事**
 1. Firebase 主控台 → Authentication → 登入方式 → 啟用「匿名」。
