@@ -89,9 +89,22 @@ service cloud.firestore {
       // 排班管理可以補登、作廢，但不能動 ot
       allow update: if isSuper()
         || (canManage() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ot']))
+        // 打卡裝置：員工用同一班的新加班申請取代前一筆時，只能把「待審」改成「已被取代」
+        || (isKiosk() && resource.data.ot.status == 'pending'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ot'])
+            && request.resource.data.ot.status == 'replaced'
+            && request.resource.data.ot.min == resource.data.ot.min
+            && request.resource.data.ot.reason == resource.data.ot.reason)
         || (signedIn() && mySid() != '' && resource.data.ot.reviewer == mySid()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ot'])
-            && request.resource.data.ot.reviewer == resource.data.ot.reviewer);
+            && request.resource.data.ot.reviewer == resource.data.ot.reviewer)
+        // 審核醫師核准新申請時，可以把同一班「已核准」的前一筆改成「已被取代」（新申請的 ot.prev 指向這一筆、且由自己審核）
+        || (signedIn() && mySid() != '' && resource.data.ot.status == 'approved'
+            && request.resource.data.ot.status == 'replaced'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ot'])
+            && get(/databases/$(database)/documents/punches/$(request.resource.data.ot.replacedBy)).data.ot.reviewer == mySid()
+            && get(/databases/$(database)/documents/punches/$(request.resource.data.ot.replacedBy)).data.staffId == resource.data.staffId
+            && get(/databases/$(database)/documents/punches/$(request.resource.data.ot.replacedBy)).data.ot.prev.id == id);
       allow delete: if canManage();
     }
     // 臉部特徵值 faces/{staffId}：在打卡裝置上登錄（需裝置管理密碼）；排班管理以上可刪除

@@ -263,7 +263,7 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
   </div>
 </div>
 <!-- 確認對話框（App 內的 WebView 不一定支援 confirm()） -->
-<div class="ov" id="askOv" hidden style="z-index:20"><div class="box"><p id="askMsg" style="color:var(--ink)"></p><div class="row"><button id="askNo">取消</button><button class="primary" id="askYes">確定</button></div></div></div>
+<div class="ov" id="askOv" hidden style="z-index:20"><div class="box"><p id="askMsg" style="color:var(--ink);white-space:pre-line"></p><div class="row"><button id="askNo">取消</button><button class="primary" id="askYes">確定</button></div></div></div>
 <!-- 打卡紀錄（人人可看） -->
 <div class="ov" id="logOv" hidden>
   <div class="box logbox">
@@ -319,7 +319,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 const pinHashOf=pin=>sha('xinhai-kiosk:'+pin);
-function ask(m){return new Promise(r=>{$('askMsg').textContent=m;$('askOv').hidden=false;const done=v=>{$('askOv').hidden=true;r(v);};$('askYes').onclick=()=>done(true);$('askNo').onclick=()=>done(false);});}
+function ask(m,yes='確定',no='取消'){return new Promise(r=>{$('askMsg').textContent=m;$('askYes').textContent=yes;$('askNo').textContent=no;$('askOv').hidden=false;const done=v=>{$('askOv').hidden=true;r(v);};$('askYes').onclick=()=>done(true);$('askNo').onclick=()=>done(false);});}
 let toastT=null;
 function toast(m,kind=''){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');document.body.appendChild(t);}t.className='toast '+kind;t.textContent=m;clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),3500);}
 const nameOf=sid=>{const s=staff.find(x=>x.id===sid);return s?[s.code,s.name].filter(Boolean).join(' '):'（未知人員）';};
@@ -400,6 +400,8 @@ function firebaseSource(){
       });
     },
     addPunch(p){const {id,...body}=p;todays.push(p);renderRecent();return db.doc('punches/'+id).set(body);},
+    // 加班申請被同一班的新申請取代（安全規則只允許把待審改成 replaced）
+    replaceOt(p,ot){p.ot=ot;renderRecent();return db.doc('punches/'+p.id).update({ot});},
     async punchesIn(from,to){const q=await db.collection('punches').where('date','>=',from).where('date','<=',to).get();return q.docs.map(d=>Object.assign({id:d.id},d.data()));},
     async weekCellsOf(wk){const d=await db.doc('weeks/'+wk).get();return d.exists?decCells(d.data()):{};},
     saveFace(sid,obj){return db.doc('faces/'+sid).set({staffId:sid,emb:JSON.stringify(obj.vecs),n:obj.vecs.length,at:obj.at,consentAt:obj.consentAt,device:me.uid});},
@@ -432,6 +434,7 @@ function localSource(){
     kind:'local',
     init(){$('devName').textContent='本機測試模式';$('devSub').textContent='資料只存在這個瀏覽器';load();window.addEventListener('storage',load);setInterval(load,30*1000);beginKiosk();},
     addPunch(p){todays.push(p);renderRecent();write(d=>{(d.punches=d.punches||[]).push(p);});return Promise.resolve();},
+    replaceOt(p,ot){p.ot=ot;renderRecent();write(d=>{(d.punches||[]).forEach(x=>{if(x.id===p.id)x.ot=ot;});});return Promise.resolve();},
     async punchesIn(from,to){return (read(KIOSK).punches||[]).filter(p=>p.date>=from&&p.date<=to);},
     async weekCellsOf(wk){return (read(ROSTER).weeks||{})[wk]||{};},
     saveFace(sid,obj){write(d=>{(d.faces=d.faces||{})[sid]={staffId:sid,emb:JSON.stringify(obj.vecs),n:obj.vecs.length,at:obj.at,consentAt:obj.consentAt,device:'local'};});load();return Promise.resolve();},
@@ -593,7 +596,7 @@ function extraNote(sid,sel,ts){
 const punchLabel=p=>p.sel?selNote(p.staffId,p.sel,p.ts):guessKind(p.staffId,p.ts);
 function renderRecent(){
   const list=todays.slice().sort((a,b)=>b.ts-a.ts).slice(0,40);
-  $('recent').innerHTML=list.length?list.map(p=>{const g=punchLabel(p);if(g.warn)g.note='沒有排這一診';if(p.sel?.sh==='extra'&&p.sel.k==='in')g.note='';if(p.auto){g.label+='（接續）';g.note='';}if(p.next){g.label=g.label.replace(/＋.*$/,'');g.note=(g.note||'').split('；')[0].replace(/（.*）/,'');}if(p.ot)g.note=p.ot.extra&&!p.ot.from?'申請臨時加班':`申請加班 ${p.ot.min} 分`;return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
+  $('recent').innerHTML=list.length?list.map(p=>{const g=punchLabel(p);if(g.warn)g.note='沒有排這一診';if(p.sel?.sh==='extra'&&p.sel.k==='in')g.note='';if(p.auto){g.label+='（接續）';g.note='';}if(p.next){g.label=g.label.replace(/＋.*$/,'');g.note=(g.note||'').split('；')[0].replace(/（.*）/,'');}if(p.ot)g.note=p.ot.status==='replaced'?'加班申請已被取代':p.ot.extra&&!p.ot.from?'申請臨時加班':`申請加班 ${p.ot.min} 分`;return `<li><span class="t">${hhmm(p.ts)}</span><span>${esc(nameOf(p.staffId))}<div class="k">${esc(g.label)}</div></span><span class="k late">${esc(g.note||'')}</span></li>`;}).join(''):'<li><span class="k">今天還沒有人打卡</span></li>';
 }
 
 // ---------- 相機與辨識模型 ----------
@@ -766,12 +769,33 @@ function confirmPunch(sid,info){
     else if(chosen.sh==='extra'&&chosen.k==='in'){$('resOv').hidden=true;const r=await askOvertime(sid,0,{mode:'in'});$('resOv').hidden=false;if(r)p.extraReason=r;}
     else if(g.ot){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'ask',defDoc:pairedDoctor(sid,chosen.sh),msg:g.next?`加班最多算到${g.next.name}開始（${g.cap} 分鐘）。已同時幫你打${g.next.name}上班卡；加班核准後，${g.next.name}不算遲到。`:''});$('resOv').hidden=false;}
     let reviewer='';if(otReason&&typeof otReason==='object'){reviewer=otReason.reviewer||'';otReason=otReason.reason;}
-    if(otReason){p.ot={min:g.ot,reason:otReason,status:'pending'};if(reviewer)p.ot.reviewer=reviewer;if(g.extra)p.ot.extra=true;if(g.from)p.ot.from=g.from;}
+    // 同一天同一班已經申請過加班：審核中→問要不要取代；已審核→問要不要另外申請
+    let replaces=null,prevApproved=null;
+    if(otReason){
+      const prev=todays.filter(q=>q.staffId===sid&&!q.void&&q.ot&&q.ot.status!=='replaced'&&q.sel?.sh===chosen.sh).sort((a,b)=>b.ts-a.ts)[0];
+      if(prev){
+        const sn=shOf(chosen.sh).name,pm=prev.ot.extra&&!prev.ot.from?'':` ${prev.ot.status==='approved'?prev.ot.approvedMin:prev.ot.min} 分鐘`;
+        $('resOv').hidden=true;
+        if(prev.ot.status==='pending'){
+          const keepNew=await ask(`你今天已申請過${sn}加班${pm}（${hhmm(prev.ts)}，原因：${prev.ot.reason||''}），還在審核中。
+要用這一次的申請（${g.extra&&g.noIn?'時數由主管確認':g.ot+' 分鐘'}）取代前一筆嗎？`,'改用這一筆','保留前一筆');
+          if(keepNew)replaces=prev;else otReason=null;
+        }else{
+          const again=await ask(`你今天的${sn}加班已${prev.ot.status==='approved'?'核准':'退回'}（${hhmm(prev.ts)}${pm}）。
+這一次要另外再申請嗎？`,'另外申請','不申請');
+          if(!again)otReason=null;
+          else if(prev.ot.status==='approved')prevApproved=prev; // 審核醫師核准時會詢問是否取代這一筆
+        }
+        $('resOv').hidden=false;
+      }
+    }
+    if(otReason){p.ot={min:g.ot,reason:otReason,status:'pending'};if(reviewer)p.ot.reviewer=reviewer;if(replaces)p.ot.replaces=replaces.id;if(prevApproved)p.ot.prev={id:prevApproved.id,min:prevApproved.ot.approvedMin??prevApproved.ot.min,ts:prevApproved.ts};if(g.extra)p.ot.extra=true;if(g.from)p.ot.from=g.from;}
     // 接續下一診：同一時間自動打下一診的上班卡（auto），link 指回這張下班卡；這張下班卡的加班核准後，下一診不算遲到
     let pNext=null;
     if(g.next){pNext=Object.assign({},p,{id:uid('p'),sel:{sh:g.next.sh,k:'in'},auto:true,link:p.id});delete pNext.ot;p.next=pNext.id;}
     src.addPunch(p).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
     if(pNext)src.addPunch(pNext).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
+    if(replaces)src.replaceOt(replaces,Object.assign({},replaces.ot,{status:'replaced',replacedBy:p.id,replacedAt:Date.now()})).catch(e=>{console.error(e);toast('前一筆加班申請沒有標記成已取代，請洽管理者：'+(e.code||e.message),'warn');});
     $('resActs').hidden=true;$('resBox').classList.add('done');$('resKind').textContent='✓ 已打卡・'+g.label;
     if(g.warn)$('resNote').textContent='';
     if(p.extraReason){$('resNote').textContent=`原因：${p.extraReason}`;$('resNote').className='note';}
@@ -795,7 +819,7 @@ async function beginKiosk(){
 }
 
 // ---------- 打卡紀錄（人人可看，不需密碼） ----------
-const OT_ST={pending:'待審',approved:'已核准',rejected:'已退回'};
+const OT_ST={pending:'待審',approved:'已核准',rejected:'已退回',replaced:'已被取代'};
 const LOG_IDLE_MS=60*1000;
 let logState={mode:'day',date:'',sid:''},logIdle=null,logSeq=0;
 const addDays=(k,n)=>{const [y,m,d]=k.split('-').map(Number);return ymd(new Date(y,m-1,d+n));};

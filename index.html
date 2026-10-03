@@ -707,7 +707,7 @@ body.gated .shell{display:none;}
           <span class="hint" style="margin:0">依這個月的排班表（定案後為異動班表）比對打卡紀錄。</span>
         </div>
         <div class="card">
-          <div class="lv-title-row"><h2 id="attTitle" style="margin:0">出勤統計</h2><span style="flex:1"></span><button class="small" id="attToPay" data-w>帶入薪資（遲到、加班）</button></div>
+          <div class="lv-title-row"><h2 id="attTitle" style="margin:0">出勤統計</h2><span style="flex:1"></span><button class="small primary" data-padd="" data-pany="1" data-w>＋ 補登打卡</button> <button class="small" id="attToPay" data-w>帶入薪資（遲到、加班）</button></div>
           <p class="desc">每一診都要打上班卡與下班卡。「應出勤」只算到今天為止、扣除請假的診次；「完整」是上下班卡都有的診數；出勤率＝完整 ÷ 應出勤。遲到＝上班卡晚於開診時間（超過寬限才算）；早退＝下班卡早於結束時間。點人員看每天的明細、補登或作廢打卡。</p>
           <div class="scroll-x"><table class="list" id="attTable"></table></div>
         </div>
@@ -1130,6 +1130,13 @@ const store={
     return queue('punches/'+id,()=>db.doc('punches/'+id).set(body));
   },
   // 審核加班：只改 ot 欄位（安全規則限定審核醫師或超級管理員）
+  async otReplacePrev(prevId,byId_){
+    const patch={status:'replaced',replacedBy:byId_,replacedAt:Date.now(),replacedByName:myDisplayName()};
+    const sw=a=>a.map(x=>x.id===prevId&&x.ot?Object.assign({},x,{ot:Object.assign({},x.ot,patch)}):x);
+    punches=sw(punches);revPunches=sw(revPunches);renderAll();
+    if(!db){saveKioskLocal(d=>{d.punches=sw(d.punches||[]);});return;}
+    return queue('punches/'+prevId,()=>db.doc('punches/'+prevId).update({'ot.status':'replaced','ot.replacedBy':byId_,'ot.replacedAt':patch.replacedAt,'ot.replacedByName':patch.replacedByName}));
+  },
   async otDecide(p,ot){
     const np=Object.assign({},p,{ot}),sw=a=>a.map(x=>x.id===p.id?np:x);
     punches=sw(punches);revPunches=sw(revPunches);renderAll();
@@ -2847,9 +2854,9 @@ function openPrivate(s){
   ov.addEventListener('input',e=>{if(e.target.dataset.pv==='hireDate'||e.target.dataset.pv==='resignDate')ov.querySelector('#pvSen').textContent=seniority(ov.querySelector('[data-pv=hireDate]').value,ov.querySelector('[data-pv=resignDate]').value);});
   ov.querySelector('[data-pv]')?.focus();
 }
-function dialog(html,onOk,okLabel='確認',danger=false){
+function dialog(html,onOk,okLabel='確認',danger=false,cancelLabel='取消',onCancel=null){
   const ov=document.createElement('div');ov.className='overlay';
-  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true">${html}<div class="acts"><button data-x>取消</button><button class="primary" data-ok style="${danger?'background:var(--warn);border-color:var(--warn);color:#fff':''}">${okLabel}</button></div></div>`;
+  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true">${html}<div class="acts"><button data-x>${cancelLabel}</button><button class="primary" data-ok style="${danger?'background:var(--warn);border-color:var(--warn);color:#fff':''}">${okLabel}</button></div></div>`;
   document.body.appendChild(ov);
   const close=()=>ov.remove();
   ov.addEventListener('click',e=>{if(e.target===ov||e.target.closest('[data-x]'))close();if(e.target.closest('[data-ok]')){const r=onOk(ov);if(r!==false)close();}});
@@ -2868,7 +2875,8 @@ function toast(msg,kind='',action){
 // 每一診有兩個時間點（上班＝開診、下班＝結束）；同一天的打卡依時間順序對應到這些時間點（動態規劃，
 // 盡量多對上、再取時間差總和最小），差距超過 ATT_WINDOW 分鐘的打卡不對應，列為「其他打卡」。
 const ATT_DEF={graceIn:0,graceOut:0,earlyAsLate:true,photo:true,thr:0.6,nightOut:'21:00',otAsk:3,dupMin:5,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
-const OT_ST={pending:'待審',approved:'已核准',rejected:'已退回'};
+// replaced：員工在打卡裝置上用同一班的新申請取代了這一筆（不審核、不計入加班分鐘）
+const OT_ST={pending:'待審',approved:'已核准',rejected:'已退回',replaced:'已被取代'};
 // 當月已核准的加班分鐘（作廢的打卡不算）
 const otApproved=(mi,sid)=>punches.reduce((n,p)=>n+(p.staffId===sid&&!p.void&&p.ot?.status==='approved'&&p.date>=ymd(mi.first)&&p.date<=ymd(mi.last)?(Number(p.ot.approvedMin)||0):0),0);
 // 晚班在 nightOut（預設 21:00）之後打下班卡不算早退；早於這個時間時，早退分鐘也從這個時間起算
@@ -2988,11 +2996,11 @@ const canReviewOt=p=>superOK()||(!!p.ot?.reviewer&&p.ot.reviewer===myStaffId());
 const otRevName=p=>p.ot?.reviewer?esc(fullName(byId(p.ot.reviewer))):'<span class="att-mute">未指定</span>';
 function otRowHtml(p){
   const d=parseYmd(p.date),sh=p.sel&&(p.sel.sh==='extra'?{name:'臨時加班'}:SHIFTS.find(x=>x.id===p.sel.sh)),o=p.ot;
-  const st=`<span class="${o.status==='pending'?'att-bad':o.status==='approved'?'att-ok':'att-mute'}">${esc(otStatusText(o))}</span>${o.note?`<br><small class="att-mute">${esc(o.note)}</small>`:''}`;
+  const st=`<span class="${o.status==='pending'?'att-bad':o.status==='approved'?'att-ok':'att-mute'}">${esc(otStatusText(o))}</span>${o.status==='replaced'?`<br><small class="att-mute">${o.replacedByName?`由 ${esc(o.replacedByName)} 改用同一班的另一筆申請`:'改用同一班的另一筆申請'}</small>`:''}${o.note?`<br><small class="att-mute">${esc(o.note)}</small>`:''}`;
   const can=canReviewOt(p),dis=can?'':' disabled title="只有審核醫師或超級管理員可以審核"';
-  const acts=o.status==='pending'?`<button class="small${can?' primary':''}" data-otok="${esc(p.id)}"${dis}>核准</button> <button class="small danger" data-otno="${esc(p.id)}"${dis}>退回</button>`:(can?`<button class="small" data-otok="${esc(p.id)}">修改</button>`:'');
-  return `<tr><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td style="white-space:nowrap">${esc(fullName(byId(p.staffId)))}</td>
-    <td style="white-space:nowrap">${o.extra?'<span class="att-bad">臨時加班</span> ':sh?esc(sh.name)+' ':''}${o.from?hhmm(o.from)+'–':''}${hhmm(p.ts)}</td><td class="num">${p.next?'<span title="同時打了下一診上班卡；核准後下一診不算遲到">↪ </span>':''}${o.extra&&!o.from?'<span class="att-bad" title="找不到臨時加班上班卡">？</span>':o.min}</td><td>${esc(o.reason||'')}</td>
+  const acts=o.status==='replaced'?'':o.status==='pending'?`<button class="small${can?' primary':''}" data-otok="${esc(p.id)}"${dis}>核准</button> <button class="small danger" data-otno="${esc(p.id)}"${dis}>退回</button>`:(can?`<button class="small" data-otok="${esc(p.id)}">修改</button>`:'');
+  return `<tr${o.status==='replaced'?' class="att-mute"':''}><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td style="white-space:nowrap">${esc(fullName(byId(p.staffId)))}</td>
+    <td style="white-space:nowrap">${o.extra?'<span class="att-bad">臨時加班</span> ':sh?esc(sh.name)+' ':''}${o.from?hhmm(o.from)+'–':''}${hhmm(p.ts)}</td><td class="num">${p.next?'<span title="同時打了下一診上班卡；核准後下一診不算遲到">↪ </span>':''}${o.extra&&!o.from?'<span class="att-bad" title="找不到臨時加班上班卡">？</span>':o.min}</td><td>${esc(o.reason||'')}${o.replaces?'<br><small class="att-mute">（取代前一筆申請）</small>':''}${o.prev?`<br><small class="att-bad">（同一班已有核准的 ${o.prev.min} 分鐘）</small>`:''}</td>
     <td style="white-space:nowrap">${otRevName(p)}</td><td>${st}</td>
     <td class="num">${o.status==='approved'?o.approvedMin:'—'}</td><td style="white-space:nowrap">${acts}</td></tr>`;
 }
@@ -3017,7 +3025,7 @@ $('otRevSt').addEventListener('change',()=>renderAll());
 $('otRevTable').addEventListener('click',otClick);
 // 加班申請的篩選與排序（預設依狀態：待審在最上面，同狀態新的在前）
 let otView={date:'',sid:'',sh:'',st:''},otSort={key:'status',dir:1};
-const OT_ST_ORDER={pending:0,approved:1,rejected:2};
+const OT_ST_ORDER={pending:0,approved:1,rejected:2,replaced:3};
 const otShOf=p=>p.ot.extra||p.sel?.sh==='extra'?'extra':(p.sel?.sh||'');
 function renderOt(mi){
   const all=monthPunches(mi).filter(p=>p.ot&&!p.void),V=otView;
@@ -3068,7 +3076,7 @@ function renderAttLog(mi){
     (list.length?list.map(p=>{
       const d=parseYmd(p.date),L=lab[p.id];
       const src=p.src==='manual'?`補登（${esc(p.by||'')}）${p.note?`<br><small class="att-mute">${esc(p.note)}</small>`:''}`:`${esc(p.devName||'打卡裝置')}${p.sim?` <small class="att-mute">相似度 ${p.sim}</small>`:''}`;
-      const otTxt=p.ot&&!p.void?` <span class="${p.ot.status==='pending'?'att-bad':'att-ok'}">加班 ${p.ot.status==='approved'?p.ot.approvedMin:p.ot.extra&&!p.ot.from?'?':p.ot.min} 分（${esc(otStatusText(p.ot))}）</span>`:'';
+      const otTxt=p.ot&&!p.void?` <span class="${p.ot.status==='pending'?'att-bad':p.ot.status==='replaced'?'att-mute':'att-ok'}">加班 ${p.ot.status==='approved'?p.ot.approvedMin:p.ot.extra&&!p.ot.from?'?':p.ot.min} 分（${esc(otStatusText(p.ot))}）</span>`:'';
       const map0=p.void?`<span class="att-mute">已作廢${p.voidNote?`：${esc(p.voidNote)}`:''}</span>`:L?`${L.other?`<span class="att-mute">${L.t}</span>`:L.t}${L.bad?` <span class="att-bad">${L.bad}</span>`:''}`:'';
       const map=map0+otTxt;
       return `<tr${p.void?' class="att-mute"':''}><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td class="${p.void?'':''}" style="font-variant-numeric:tabular-nums">${p.void?`<s>${hhmm(p.ts)}</s>`:hhmm(p.ts)}</td>
@@ -3206,20 +3214,26 @@ $('tab-att').addEventListener('click',e=>{
   const df=e.target.closest('[data-delface]');
   if(df){const sid=df.dataset.delface;dialog(`<h3>刪除臉部資料</h3><p>刪除 ${esc(fullName(byId(sid)))} 的臉部特徵值。刪除後需要在打卡裝置重新登錄才能打卡（離職或本人要求時使用）。</p>`,()=>{store.delFace(sid);toast('已刪除臉部資料。');},'刪除',true);return;}
   const pa=e.target.closest('[data-padd]');
-  if(pa&&attSel){
+  // 標題列的「補登打卡」（data-pany）可以選人員；明細裡的補登固定是展開的那位
+  if(pa&&(attSel||pa.dataset.pany)){
+    if(!canWrite)return;
+    const pickWho=!!pa.dataset.pany,who0=attSel||'';
     const [dk,shId,k]=pa.dataset.padd.split('|'),sh=SHIFTS.find(x=>x.id===shId),def=sh?shiftSpan(sh)[k==='out'?1:0]:null;
     const t=def!=null?`${pad(Math.floor(def/60))}:${pad(def%60)}`:'';
     const selOpts=`<option value="">依時間自動判斷</option>`+SHIFTS.flatMap(s=>['in','out'].map(x=>`<option value="${s.id}|${x}"${sh&&s.id===sh.id&&x===k?' selected':''}>${s.name}${x==='in'?'上班卡':'下班卡'}</option>`)).join('');
-    dialog(`<h3>補登打卡・${esc(fullName(byId(attSel)))}</h3>
+    const people=staff.filter(x=>x.active!==false&&x.role!=='manager').sort(sortStaff);
+    dialog(`<h3>補登打卡${pickWho?'':'・'+esc(fullName(byId(attSel)))}</h3>
+      ${pickWho?`<div class="field"><label>人員</label><select id="paWho"><option value="">請選擇…</option>${people.map(x=>`<option value="${esc(x.id)}"${x.id===who0?' selected':''}>${esc(fullName(x))}</option>`).join('')}</select></div>`:''}
       <div class="form-row"><div class="field"><label>日期</label><input type="date" id="paDate" value="${esc(dk||ymd(new Date()))}"></div><div class="field"><label>時間</label><input type="time" id="paTime" value="${t}"></div><div class="field"><label>班別</label><select id="paSel">${selOpts}</select></div></div>
       <div class="field"><label>原因（必填）</label><input id="paNote" placeholder="例如：忘記打卡，經主管確認"></div>`,ov=>{
-      const d=ov.querySelector('#paDate').value,tm=ov.querySelector('#paTime').value,note=ov.querySelector('#paNote').value.trim(),sv=ov.querySelector('#paSel').value;
+      const d=ov.querySelector('#paDate').value,tm=ov.querySelector('#paTime').value,note=ov.querySelector('#paNote').value.trim(),sv=ov.querySelector('#paSel').value,who=pickWho?ov.querySelector('#paWho').value:attSel;
+      if(!who){toast('請選擇人員。','warn');return false;}
       if(!d||!tm){toast('請填日期與時間。','warn');return false;}
       if(!note){toast('請填補登原因。','warn');return false;}
       const [h,mn]=tm.split(':').map(Number),ts=parseYmd(d).getTime()+(h*60+mn)*60000;
-      const p={id:uid('p'),staffId:attSel,ts,date:d,src:'manual',by:myId||'本機',note,at:Date.now()};
+      const p={id:uid('p'),staffId:who,ts,date:d,src:'manual',by:myId||'本機',note,at:Date.now()};
       if(sv){const [s2,k2]=sv.split('|');p.sel={sh:s2,k:k2};}
-      store.punch(p);toast('已補登。');
+      store.punch(p);toast(`已補登 ${codeOf(who)} ${d.slice(5).replace('-','/')} ${tm}。`);
     },'補登');
   }
 });
@@ -3240,12 +3254,15 @@ function otClick(e){
   const id=(ok||no).dataset[ok?'otok':'otno'],p=punches.find(x=>x.id===id)||revPunches.find(x=>x.id===id);if(!p)return;
   if(!canReviewOt(p)){toast('只有審核醫師或超級管理員可以審核這筆加班。','warn');return;}
   const who=`${esc(fullName(byId(p.staffId)))} ${esc(p.date)} ${hhmm(p.ts)}`;
-  if(ok)dialog(`<h3>核准${p.ot.extra?'臨時':''}加班</h3><p>${who}，${p.ot.extra&&!p.ot.from?'<b class="att-bad">找不到臨時加班上班卡</b>，請確認實際加班時數。':`申請 ${p.ot.min} 分鐘${p.ot.from?`（${hhmm(p.ot.from)}–${hhmm(p.ts)}）`:''}。`}<br>原因：${esc(p.ot.reason||'')}</p>
+  // 員工在前一筆已核准後又「另外申請」：只能「核准並取代前一筆」或退回，不能兩筆都保留
+  const pv=p.ot.prev,pvCur=pv&&(punches.find(x=>x.id===pv.id)||revPunches.find(x=>x.id===pv.id)),mustReplace=!!pv&&p.ot.status==='pending'&&(!pvCur||pvCur.ot?.status==='approved');
+  if(ok)dialog(`<h3>核准${p.ot.extra?'臨時':''}加班</h3><p>${who}，${p.ot.extra&&!p.ot.from?'<b class="att-bad">找不到臨時加班上班卡</b>，請確認實際加班時數。':`申請 ${p.ot.min} 分鐘${p.ot.from?`（${hhmm(p.ot.from)}–${hhmm(p.ts)}）`:''}。`}<br>原因：${esc(p.ot.reason||'')}</p>${mustReplace?`<p class="att-bad" style="margin:0 0 10px">這一天的${p.sel?.sh==='extra'?'臨時加班':esc(SHIFTS.find(x=>x.id===p.sel?.sh)?.name||'')}已經有一筆核准的加班 <b>${pv.min} 分鐘</b>（${hhmm(pv.ts)}）。核准這一筆會取代前一筆（前一筆改為「已被取代」，只計算這一筆）；不同意請按「退回」。</p>`:''}
     <div class="form-row"><div class="field"><label>核准分鐘數</label><input type="number" id="otMinIn" min="0" step="1" value="${p.ot.status==='approved'?p.ot.approvedMin:p.ot.min}"></div><div class="field"><label>備註（選填）</label><input id="otNoteIn" value="${esc(p.ot.note||'')}"></div></div>`,ov=>{
     const m=Number(ov.querySelector('#otMinIn').value);
     if(!(m>=0)||!Number.isInteger(m)){toast('請輸入分鐘數（整數）。','warn');return false;}
     store.otDecide(p,Object.assign({},p.ot,{status:'approved',approvedMin:m,note:ov.querySelector('#otNoteIn').value.trim(),by:myId||'本機',byName:myDisplayName(),at:Date.now()}));toast('已核准加班。');
-  },'核准');
+    if(mustReplace){store.otReplacePrev(pv.id,p.id);toast('已核准，並取代前一筆加班。');}
+  },mustReplace?'核准並取代前一筆':'核准');
   if(no)dialog(`<h3>退回加班申請</h3><p>${who}，申請 ${p.ot.min} 分鐘。<br>原因：${esc(p.ot.reason||'')}</p><div class="field"><label>退回原因（選填）</label><input id="otNoteIn"></div>`,ov=>{
     const o=Object.assign({},p.ot,{status:'rejected',note:ov.querySelector('#otNoteIn').value.trim(),by:myId||'本機',byName:myDisplayName(),at:Date.now()});delete o.approvedMin;
     store.otDecide(p,o);toast('已退回加班申請。');
