@@ -99,8 +99,9 @@ h1{font-size:1.5rem; margin:0; font-weight:700; letter-spacing:.5px; text-wrap:b
 .sync.local i{background:var(--doc);}
 
 nav.tabs{display:flex; gap:4px; padding-block:12px 0; border-bottom:1px solid var(--line); overflow-x:auto;}
-nav.tabs button{border:none; background:none; border-radius:0; padding:8px 14px 10px; color:var(--sub); border-bottom:2px solid transparent; white-space:nowrap;}
-nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent); font-weight:500;}
+nav.tabs button{border:none; background:none; border-radius:6px 6px 0 0; padding:9px 15px 10px; font-size:1.05rem; font-weight:600; color:color-mix(in srgb,var(--ink) 72%,transparent); border-bottom:3px solid transparent; white-space:nowrap;}
+nav.tabs button:hover{color:var(--ink); background:var(--accent-soft);}
+nav.tabs button[aria-selected="true"]{color:var(--accent); border-bottom-color:var(--accent); font-weight:700;}
 
 .banner{margin-top:12px; padding:9px 12px; border-radius:8px; font-size:.82rem; background:var(--slot); color:var(--sub);}
 .banner.warn{background:var(--warn-soft); color:var(--warn);}
@@ -738,6 +739,7 @@ body.gated .shell{display:none;}
         <div class="card">
           <div class="lv-title-row"><h2 style="margin:0">加班申請</h2><span class="lv-range" id="otCount"></span><span style="flex:1"></span><button class="small primary" id="otAddBtn" data-w>＋ 新增加班</button></div>
           <p class="desc">下班卡比該診結束時間晚超過設定分鐘數時，打卡裝置會詢問是否申請加班（必填原因）；「臨時加班」的下班卡一律成為加班申請，分鐘數從當天最近一張臨時加班上班卡起算（不列入出勤統計）。核准後的分鐘數會在「帶入薪資」時寫入薪資的加班/拖診分鐘數。</p>
+          <p class="hint att-bad" id="otOtherMonths" style="margin:0 0 8px" hidden></p>
           <div class="form-row">
             <div class="field"><label for="otDate">日期</label><input type="date" id="otDate"></div>
             <div class="field"><label for="otSid">人員</label><select id="otSid"></select></div>
@@ -3090,7 +3092,9 @@ function otRowHtml(p){
     <td class="num">${o.status==='approved'?o.approvedMin:'—'}</td><td style="white-space:nowrap">${acts}</td></tr>`;
 }
 // ---- 加班審核分頁：醫師看指定給自己的申請；超級管理員看全部待審 ----
-const canSeeOtRev=()=>superOK()||byId(myStaffId())?.role==='doctor';
+// 加班審核分頁：醫師才有；看不到出勤分頁的醫師一律顯示，有管理權限的醫師在被指名為審核醫師時也顯示
+const otAssignedToMe=()=>{const me=myStaffId();return !!me&&(mode==='local'?punches:revPunches).some(p=>p.ot&&!p.void&&p.ot.reviewer===me);};
+const canSeeOtRev=()=>byId(myStaffId())?.role==='doctor'&&(!(canWrite||viewOnlyAssistant())||otAssignedToMe());
 function otRevList(st){
   const src=mode==='local'?punches:revPunches,me=myStaffId(),sup=superOK();
   return src.filter(p=>p.ot&&!p.void&&(sup||p.ot.reviewer===me)&&(!st||p.ot.status===st))
@@ -3112,7 +3116,17 @@ $('otRevTable').addEventListener('click',otClick);
 let otView={date:'',sid:'',sh:'',st:''},otSort={key:'status',dir:1};
 const OT_ST_ORDER={pending:0,approved:1,rejected:2,replaced:3};
 const otShOf=p=>p.ot.extra||p.sel?.sh==='extra'?'extra':(p.sel?.sh||'');
+// 其他月份還有待審的加班（超級管理員看全部；審核醫師看指定給自己的），可以一鍵跳過去
+function renderOtOther(mi){
+  const a=ymd(mi.first),z=ymd(mi.last),by={};
+  otRevList('pending').forEach(p=>{if(p.date<a||p.date>z){const ym=p.date.slice(0,7);by[ym]=(by[ym]||0)+1;}});
+  const yms=Object.keys(by).sort(),n=yms.reduce((t,k)=>t+by[k],0),el=$('otOtherMonths');
+  el.hidden=!n;if(!n)return;
+  el.innerHTML=`其他月份還有 <b>${n}</b> 筆待審：`+yms.map(ym=>`<button type="button" class="small" data-otgoto="${ym}">${Number(ym.slice(0,4))}年${Number(ym.slice(5))}月（${by[ym]}）</button>`).join(' ');
+}
+$('otOtherMonths').addEventListener('click',e=>{const b=e.target.closest('[data-otgoto]');if(!b)return;const [y,m]=b.dataset.otgoto.split('-').map(Number),t=new Date();prefs.monthOffset=(y-t.getFullYear())*12+(m-1-t.getMonth());savePrefs();renderAll();$('otTable').scrollIntoView({behavior:'smooth',block:'center'});});
 function renderOt(mi){
+  renderOtOther(mi);
   const all=monthPunches(mi).filter(p=>p.ot&&!p.void),V=otView;
   // 篩選選單（人員只列有加班申請的人）
   const ids=[...new Set(all.map(p=>p.staffId))];
