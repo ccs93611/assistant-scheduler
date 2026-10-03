@@ -137,11 +137,11 @@ service cloud.firestore {
       allow delete: if canManage() || isSelf(resource.data.staffId);
     }
 
-    // 薪資：排班管理以上可看可改所有人；其他人只能看自己的
+    // 薪資：只有超級管理員可看可改所有人；其他人（含排班管理）只能看自己的
     // pay/{staffId}_{YYYY-MM}：每人每月一筆
     match /pay/{id} {
-      allow read: if canManage() || (signedIn() && resource.data.staffId == mySid());
-      allow write: if canManage();
+      allow read: if isSuper() || (signedIn() && resource.data.staffId == mySid());
+      allow write: if isSuper();
     }
 
     // 個資：只有超級管理員
