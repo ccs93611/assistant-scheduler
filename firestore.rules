@@ -77,7 +77,10 @@ service cloud.firestore {
       // 被指定為審核醫師的人可以讀到指定給自己的加班申請
       allow read: if canManage() || isKiosk() || (signedIn() && resource.data.staffId == mySid())
         || (signedIn() && mySid() != '' && resource.data.ot.reviewer == mySid());
-      allow create: if canManage() || (isKiosk()
+      // 管理者補登：排班管理只能新增待審的加班；直接新增已核准的加班限超級管理員
+      allow create: if isSuper()
+        || (canManage() && (!('ot' in request.resource.data) || request.resource.data.ot.status == 'pending'))
+        || (isKiosk()
         && request.resource.data.src == 'kiosk'
         && request.resource.data.device == request.auth.uid
         && request.resource.data.staffId is string

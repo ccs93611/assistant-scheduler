@@ -713,7 +713,7 @@ body.gated .shell{display:none;}
         </div>
         <div class="card" id="attDetail" hidden></div>
         <div class="card">
-          <div class="lv-title-row"><h2 style="margin:0">加班申請</h2><span class="lv-range" id="otCount"></span></div>
+          <div class="lv-title-row"><h2 style="margin:0">加班申請</h2><span class="lv-range" id="otCount"></span><span style="flex:1"></span><button class="small primary" id="otAddBtn" data-w>＋ 新增加班</button></div>
           <p class="desc">下班卡比該診結束時間晚超過設定分鐘數時，打卡裝置會詢問是否申請加班（必填原因）；「臨時加班」的下班卡一律成為加班申請，分鐘數從當天最近一張臨時加班上班卡起算（不列入出勤統計）。核准後的分鐘數會在「帶入薪資」時寫入薪資的加班/拖診分鐘數。</p>
           <div class="form-row">
             <div class="field"><label for="otDate">日期</label><input type="date" id="otDate"></div>
@@ -3000,7 +3000,7 @@ function otRowHtml(p){
   const can=canReviewOt(p),dis=can?'':' disabled title="只有審核醫師或超級管理員可以審核"';
   const acts=o.status==='replaced'?'':o.status==='pending'?`<button class="small${can?' primary':''}" data-otok="${esc(p.id)}"${dis}>核准</button> <button class="small danger" data-otno="${esc(p.id)}"${dis}>退回</button>`:(can?`<button class="small" data-otok="${esc(p.id)}">修改</button>`:'');
   return `<tr${o.status==='replaced'?' class="att-mute"':''}><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td style="white-space:nowrap">${esc(fullName(byId(p.staffId)))}</td>
-    <td style="white-space:nowrap">${o.extra?'<span class="att-bad">臨時加班</span> ':sh?esc(sh.name)+' ':''}${o.from?hhmm(o.from)+'–':''}${hhmm(p.ts)}</td><td class="num">${p.next?'<span title="同時打了下一診上班卡；核准後下一診不算遲到">↪ </span>':''}${o.extra&&!o.from?'<span class="att-bad" title="找不到臨時加班上班卡">？</span>':o.min}</td><td>${esc(o.reason||'')}${o.replaces?'<br><small class="att-mute">（取代前一筆申請）</small>':''}${o.prev?`<br><small class="att-bad">（同一班已有核准的 ${o.prev.min} 分鐘）</small>`:''}</td>
+    <td style="white-space:nowrap">${o.extra?'<span class="att-bad">臨時加班</span> ':sh?esc(sh.name)+' ':''}${o.from?hhmm(o.from)+'–':''}${hhmm(p.ts)}</td><td class="num">${p.next?'<span title="同時打了下一診上班卡；核准後下一診不算遲到">↪ </span>':''}${o.extra&&!o.from?'<span class="att-bad" title="找不到臨時加班上班卡">？</span>':o.min}</td><td>${esc(o.reason||'')}${o.manual?`<br><small class="att-mute">（${esc(o.addedBy||'管理者')}新增）</small>`:''}${o.replaces?'<br><small class="att-mute">（取代前一筆申請）</small>':''}${o.prev?`<br><small class="att-bad">（同一班已有核准的 ${o.prev.min} 分鐘）</small>`:''}</td>
     <td style="white-space:nowrap">${otRevName(p)}</td><td>${st}</td>
     <td class="num">${o.status==='approved'?o.approvedMin:'—'}</td><td style="white-space:nowrap">${acts}</td></tr>`;
 }
@@ -3243,6 +3243,51 @@ $('otSid').addEventListener('change',e=>{otView.sid=e.target.value;renderAll();}
 $('otSh').addEventListener('change',e=>{otView.sh=e.target.value;renderAll();});
 $('otSt').addEventListener('change',e=>{otView.st=e.target.value;renderAll();});
 $('otReset').addEventListener('click',()=>{otView={date:'',sid:'',sh:'',st:''};renderAll();});
+// 管理者手動新增加班：建立一筆補登的下班卡並附上加班申請；排班管理新增的是待審，超級管理員可以直接核准
+$('otAddBtn').addEventListener('click',()=>{
+  if(!canWrite)return;
+  const sup=superOK(),people=staff.filter(x=>x.active!==false&&x.role==='assistant').sort(sortStaff);
+  const docs=staff.filter(x=>x.active!==false&&x.role==='doctor').sort(sortStaff);
+  const shOpts=SHIFTS.map(x=>`<option value="${x.id}">${x.name}（${x.time}）</option>`).join('')+'<option value="extra">臨時加班</option>';
+  dialog(`<h3>新增加班</h3>
+    <div class="form-row"><div class="field"><label>人員</label><select id="maWho"><option value="">請選擇…</option>${people.map(x=>`<option value="${esc(x.id)}">${esc(fullName(x))}</option>`).join('')}</select></div>
+      <div class="field"><label>日期</label><input type="date" id="maDate" value="${ymd(new Date())}"></div>
+      <div class="field"><label>班別</label><select id="maSh">${shOpts}</select></div></div>
+    <div class="form-row"><div class="field" id="maFromF" hidden><label>臨時加班開始</label><input type="time" id="maFrom"></div>
+      <div class="field"><label>下班時間</label><input type="time" id="maTo"></div>
+      <div class="field"><label>加班分鐘</label><input type="number" id="maMin" min="1" step="1"></div></div>
+    <div class="field"><label>原因（必填）</label><input id="maReason" placeholder="例如：拖診，助理忘記申請"></div>
+    <div class="form-row"><div class="field"><label>審核醫師</label><select id="maRev"><option value="">（未指定）</option>${docs.map(x=>`<option value="${esc(x.id)}">${esc(fullName(x))}</option>`).join('')}</select></div>
+      ${sup?'<label class="field" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="maApprove" style="width:auto"> 直接核准（超級管理員）</label>':''}</div>
+    <p class="hint" id="maHint" style="margin:6px 0 0"></p>`,ov=>{
+    const q=x=>ov.querySelector(x),who=q('#maWho').value,d=q('#maDate').value,sh=q('#maSh').value,to=q('#maTo').value,from=q('#maFrom').value;
+    const min=Number(q('#maMin').value),reason=q('#maReason').value.trim(),rev=q('#maRev').value,approve=!!q('#maApprove')?.checked;
+    if(!who){toast('請選擇人員。','warn');return false;}
+    if(!d||!to){toast('請填日期與下班時間。','warn');return false;}
+    if(sh==='extra'&&!from){toast('臨時加班請填開始時間。','warn');return false;}
+    if(!(min>0)||!Number.isInteger(min)){toast('加班分鐘請填正整數。','warn');return false;}
+    if(!reason){toast('請填加班原因。','warn');return false;}
+    if(!approve&&!rev&&!sup){toast('請選擇審核醫師。','warn');return false;}
+    const at=t=>{const [h,m]=t.split(':').map(Number);return parseYmd(d).getTime()+(h*60+m)*60000;};
+    const ot={min,reason,status:'pending',manual:true,addedBy:myDisplayName()};
+    if(rev)ot.reviewer=rev;
+    if(sh==='extra'){ot.extra=true;ot.from=at(from);}
+    if(approve)Object.assign(ot,{status:'approved',approvedMin:min,by:myId||'本機',byName:myDisplayName(),at:Date.now()});
+    store.punch({id:uid('p'),staffId:who,ts:at(to),date:d,src:'manual',sel:{sh,k:'out'},by:myId||'本機',note:'手動新增加班',at:Date.now(),ot});
+    toast(`已新增 ${codeOf(who)} ${d.slice(5).replace('-','/')} 加班 ${min} 分鐘（${approve?'已核准':'待審'}）。`);
+  },'新增');
+  // 依班別與時間自動算分鐘；同一天同一班已有加班時提醒
+  const ov=[...document.querySelectorAll('.overlay')].pop(),q=x=>ov.querySelector(x);
+  const calc=()=>{
+    const sh=q('#maSh').value,to=q('#maTo').value,from=q('#maFrom').value,hmv=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
+    q('#maFromF').hidden=sh!=='extra';
+    if(to){const base=sh==='extra'?(from?hmv(from):null):shiftSpan(SHIFTS.find(x=>x.id===sh))[1];if(base!=null){const m=hmv(to)-base;q('#maMin').value=m>0?m:'';}}
+    const who=q('#maWho').value,d=q('#maDate').value;
+    const dup=punches.filter(p=>p.staffId===who&&p.date===d&&!p.void&&p.ot&&p.sel?.sh===sh&&['pending','approved'].includes(p.ot.status));
+    q('#maHint').innerHTML=dup.length?`<span class="att-bad">注意：這一天的${sh==='extra'?'臨時加班':SHIFTS.find(x=>x.id===sh).name}已經有 ${dup.map(p=>`${hhmm(p.ts)} ${p.ot.status==='approved'?p.ot.approvedMin:p.ot.min} 分（${OT_ST[p.ot.status]}）`).join('、')}，請確認不是重複新增。</span>`:'';
+  };
+  ['#maSh','#maTo','#maFrom','#maWho','#maDate'].forEach(x=>q(x).addEventListener('input',calc));calc();
+});
 $('otTable').addEventListener('click',e=>{
   const sb=e.target.closest('[data-otsort]');
   if(sb){const k=sb.dataset.otsort;otSort=otSort.key===k?{key:k,dir:-otSort.dir}:{key:k,dir:k==='date'?-1:1};renderAll();return;}
