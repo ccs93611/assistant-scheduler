@@ -153,6 +153,31 @@ service cloud.firestore {
       allow delete: if canManage() || isSelf(resource.data.staffId);
     }
 
+    // 排休抽籤：lottery/{YYYY-MM} 由管理者設定；開獎時間到後，參加的助理（任何一人開著頁面）可以寫入開獎結果；所有人都「下好離手」時，參加者可以把本輪截止提前到現在（之後倒數 5 秒開獎）
+    match /lottery/{ym} {
+      allow read: if canView();
+      allow create, delete: if canManage();
+      allow update: if canManage() || (canView() && mySid() in resource.data.participants
+        && resource.data.status == 'open' && request.time.toMillis() >= resource.data.roundEndsAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lock', 'rounds', 'round', 'status', 'won', 'left', 'roundEndsAt']))
+        || (canView() && mySid() in resource.data.participants && resource.data.status == 'open'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['roundEndsAt', 'earlyAt'])
+        && request.resource.data.roundEndsAt < resource.data.roundEndsAt
+        && request.resource.data.roundEndsAt > request.time.toMillis() - 60000
+        && request.resource.data.roundEndsAt < request.time.toMillis() + 10000);
+    }
+    // 籌碼：lotteryBets/{YYYY-MM}_{輪次}_{sid}，只能放自己的，而且要在本輪截止前
+    match /lotteryBets/{id} {
+      allow read: if canView();
+      allow write: if canManage() || (canView() && request.resource.data.sid == mySid()
+        && id == request.resource.data.ym + '_' + string(request.resource.data.round) + '_' + mySid()
+        && lotOpen(request.resource.data.ym, request.resource.data.round));
+    }
+    function lotOpen(ym, round) {
+      let L = get(/databases/$(database)/documents/lottery/$(ym)).data;
+      return L.status == 'open' && L.round == round && mySid() in L.participants && request.time.toMillis() < L.roundEndsAt;
+    }
+
     // 薪資：只有超級管理員可看可改所有人；其他人（含排班管理）只能看自己的
     // pay/{staffId}_{YYYY-MM}：每人每月一筆
     match /pay/{id} {

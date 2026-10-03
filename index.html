@@ -91,7 +91,7 @@ header.top{
   padding-block:20px 14px; border-bottom:1px solid var(--line);
 }
 h1{font-size:1.5rem; margin:0; font-weight:700; letter-spacing:.5px; text-wrap:balance;}
-.month-label{color:var(--sub); font-size:.95rem; margin-top:2px;}
+.month-label{color:var(--sub); font-size:.95rem; margin-top:2px; font-variant-numeric:tabular-nums;}
 .ctrl{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
 .sync{font-size:.72rem; color:var(--faint); display:flex; align-items:center; gap:6px;}
 .sync i{width:7px; height:7px; border-radius:50%; background:var(--faint); display:inline-block;}
@@ -192,6 +192,71 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .att-bad{color:var(--warn); font-weight:500;}
 .att-ok{color:var(--ok);}
 .att-mute{color:var(--faint);}
+/* 排休抽籤 */
+.lot-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;background:var(--accent-soft);border-radius:10px;padding:10px 14px;margin:0 0 12px;}
+.lot-cd b{font-variant-numeric:tabular-nums;font-size:1.1rem;color:var(--accent);}
+.lot-chips{display:flex;align-items:center;gap:5px;}
+.lot-chips i{width:16px;height:16px;border-radius:50%;background:var(--doc);box-shadow:inset 0 0 0 3px rgba(255,255,255,.35);}
+.lot-chips i.used{background:transparent;box-shadow:inset 0 0 0 2px var(--doc);}
+.lot-chips span{color:var(--sub);font-size:.8rem;margin-left:6px;}
+.lot-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:14px;padding:8px;border:1.5px solid var(--day-line);border-radius:12px;background:var(--slot);}
+.lot-dow{text-align:center;font-size:.8rem;font-weight:700;color:var(--accent-ink);background:var(--accent);border-radius:6px;padding:4px 0;margin-bottom:2px;}
+.lot-day{position:relative;min-height:74px;border:1px solid var(--day-line);border-radius:8px;padding:4px 5px;background:var(--panel);font-size:.72rem;}
+.lot-day.off{background:var(--slot);color:var(--faint);}
+.lot-day.can{cursor:pointer;}
+.lot-day.can:hover{border-color:var(--accent);}
+.lot-day.mine{border:2px solid var(--doc);background:var(--doc-soft);}
+.lot-day.won{border:2px solid var(--ok);}
+.lot-d{font-weight:700;font-size:.85rem;}
+.lot-q{color:var(--sub);display:flex;align-items:center;gap:4px;}
+.lot-qi{width:3.4em;padding:2px 4px;font-size:.85rem;text-align:center;}
+.lot-day.off .lot-qi{background:transparent;}
+.lot-dem{color:var(--sub);}
+.lot-dem.hot{color:var(--warn);font-weight:700;}
+.lot-win{display:flex;flex-wrap:wrap;gap:2px;margin-top:2px;}
+.lot-win span{background:var(--chip);border-radius:4px;padding:0 4px;}
+.lot-win span.me{background:var(--ok);color:#fff;}
+.lot-chip{position:absolute;top:3px;right:6px;color:var(--doc);font-size:1rem;}
+.lot-set-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px 28px;}
+.lot-set .ar-field input[type=datetime-local]{width:100%;max-width:230px;}
+.lot-set .ar-group h4{display:flex;align-items:center;gap:8px;}
+.lot-pall{margin-left:8px;display:flex;gap:6px;font-weight:400;}
+.lot-people{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;}
+.lot-set>.ar-desc{margin-bottom:16px;}
+.lot-people label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.82rem;}
+.lot-people label.on{border-color:var(--accent);background:var(--accent-soft);}
+.lot-people input{width:18px;height:18px;margin:0;accent-color:var(--accent);}
+.lot-people small{color:var(--faint);}
+.lot-bar button.on{border-color:var(--ok);color:var(--ok);}
+.lot-set-acts{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
+.lot-round{font-size:.8rem;color:var(--sub);padding:5px 0;border-top:1px dashed var(--line);}
+.lot-dlg{max-width:520px;}
+.lot-draw{padding:8px 0;border-top:1px solid var(--line);}
+.lot-names{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.lot-names span{padding:4px 10px;border-radius:999px;background:var(--chip);transition:transform .08s;}
+.lot-names span.hot{background:var(--doc);color:#fff;transform:scale(1.12);}
+.lot-names span.win{background:var(--ok);color:#fff;font-weight:700;}
+.lot-names span.lose{opacity:.45;text-decoration:line-through;}
+.lot-mine{font-weight:700;margin-top:10px;}
+.lot-ready{color:var(--ok);font-weight:700;}
+.lot-ppl-head{font-size:.8rem;color:var(--sub);margin:0 0 6px;}
+.lot-ppl{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;}
+.lot-p{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.78rem;background:var(--panel);}
+.lot-p.me{border-color:var(--doc);}
+.lot-p.ready{background:var(--accent-soft);border-color:var(--ok);}
+.lot-p.none{opacity:.5;}
+.lot-p em{font-style:normal;color:var(--ok);font-weight:700;}
+.lot-pc{display:flex;gap:2px;}
+.lot-pc i{width:9px;height:9px;border-radius:50%;background:var(--doc);}
+.lot-pc i.used{background:transparent;box-shadow:inset 0 0 0 1.5px var(--doc);}
+.lot-count{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(15,20,17,.55);pointer-events:none;}
+.lot-count div{text-align:center;color:#fff;}
+.lot-count small{display:block;font-size:1.1rem;letter-spacing:.1em;opacity:.85;}
+.lot-count b{display:block;font-size:min(40vw,220px);line-height:1.1;font-weight:800;text-shadow:0 6px 30px rgba(0,0,0,.4);}
+.lot-count b.pop{animation:lotPop .9s ease-out;}
+@keyframes lotPop{0%{transform:scale(1.8);opacity:0}25%{transform:scale(1);opacity:1}100%{transform:scale(.85);opacity:.9}}
+@media (max-width:600px){.lot-day{min-height:60px;font-size:.62rem;padding:3px;}}
+
 .att-row{cursor:pointer;}
 .att-row:hover td{background:var(--accent-soft);}
 .att-row.sel td{background:var(--accent-soft);}
@@ -518,6 +583,7 @@ body.gated .shell{display:none;}
     <button role="tab" data-tab="otrev" id="otRevTabBtn">加班審核</button>
     <button role="tab" data-tab="pay" id="payTabBtn">薪資</button>
     <button role="tab" data-tab="settings">人員名單</button>
+    <button role="tab" data-tab="lottery">排休抽籤</button>
   </nav>
   <div id="banner"></div>
   <main>
@@ -780,6 +846,7 @@ body.gated .shell{display:none;}
       </div>
     </section>
 
+    <section id="tab-lottery" hidden><div id="lotRoot"></div></section>
     <section id="tab-pay" hidden>
       <div class="stack">
         <div class="card pay-month-bar">
@@ -908,6 +975,7 @@ let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, us
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], privateInfo={}, isAdmin=true;
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
 let makeups=[]; // 舊版手動登記的事假補班 {id,staffId,date,shifts,note}，已不再使用
+let lotteries={},lotBets={}; // 排休抽籤 lottery/{YYYY-MM}、lotteryBets/{YYYY-MM}_{輪次}_{sid}
 let pevents=[]; // 個人假事件 {id,staffId,kind,date,rel,months,end,child,note}
 // 出勤（打卡裝置 kiosk.html 寫入）：只有排班管理以上會載入
 let punches=[]; // 打卡紀錄 {id,staffId,ts,date,src:'kiosk'|'manual',device,photo?,by?,note?,void?}，只載入出勤分頁選擇的月份
@@ -1012,8 +1080,8 @@ function loadKioskLocal(){
   }catch(e){}
 }
 function saveKioskLocal(fn){try{const d=JSON.parse(localStorage.getItem(KIOSK_KEY)||'null')||{};fn(d);localStorage.setItem(KIOSK_KEY,JSON.stringify(d));}catch(e){}}
-function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups,pevents,baselines}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};}}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
@@ -1103,6 +1171,17 @@ const store={
     if(!db){saveLocal();return;}
     const enc={ym:obj.ym,at:obj.at,by:obj.by||'',weeks:Object.fromEntries(Object.entries(obj.weeks).map(([wk,cells])=>[wk,encCells(cells)]))};
     return queue('baselines/'+ym,()=>db.doc('baselines/'+ym).set(enc));
+  },
+  // 排休抽籤（L 為 null 時刪除）
+  async lottery(ym,L){
+    if(L)lotteries[ym]=L;else delete lotteries[ym];renderAll();
+    if(!db){saveLocal();return;}
+    return queue('lottery/'+ym,()=>L?db.doc('lottery/'+ym).set(L):db.doc('lottery/'+ym).delete());
+  },
+  async lotBet(id,b){
+    lotBets[id]=b;renderAll();
+    if(!db){saveLocal();return;}
+    return queue('lotteryBets/'+id,()=>db.doc('lotteryBets/'+id).set(b));
   },
   async pev(e){
     pevents=pevents.filter(x=>x.id!==e.id).concat([e]);renderAll();
@@ -1240,6 +1319,8 @@ function start(acc){
   db.collection('familyCare').onSnapshot(snap=>{familyCare=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('fc');},onErr);
   db.collection('makeups').onSnapshot(snap=>{makeups=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
   db.collection('baselines').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();m[d.id]={ym:v.ym||d.id,at:v.at,by:v.by,weeks:Object.fromEntries(Object.entries(v.weeks||{}).map(([wk,c])=>[wk,decCells({c})]))};});baselines=m;renderAll();},onErr);
+  db.collection('lottery').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotteries=m;renderAll();},e=>console.warn(e));
+  db.collection('lotteryBets').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotBets=m;renderAll();},e=>console.warn(e));
   db.collection('personalEvents').onSnapshot(snap=>{pevents=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
   db.doc('config/main').onSnapshot(snap=>{cfg=Object.assign(clone(DEFAULT_CFG),snap.exists?clone(snap.data()):{});done('cfg');},onErr);
   // 自己的權限被改掉時重新載入，讓畫面與資料讀取範圍跟著更新
@@ -1303,7 +1384,7 @@ const viewOnly=()=>(mode==='live'||(mode==='local'&&SIM_AS))&&effPerm()==='view'
 const viewOnlyAssistant=()=>viewOnly()&&byId(myStaffId())?.role==='assistant';
 function viewTabs(){
   const r=byId(myStaffId())?.role;
-  return ['schedule',...(r==='assistant'?['att','leave','pay']:[]),...(r==='doctor'?['docleave','otrev']:[])];
+  return ['schedule',...(r==='assistant'?['att','leave','lottery','pay']:[]),...(r==='doctor'?['docleave','otrev']:[])];
 }
 // 僅檢視的人在請假分頁只看到自己的資料：繪製時暫時只留自己的請假、家庭照顧假、事件與人員
 function withOwnData(fn){
@@ -1325,7 +1406,7 @@ function canLeaveFor(sid){if(!platformWrite)return false;const p=effPerm();retur
 function renderAll(){
   const mi=monthInfo();
   {const p=effPerm();canWrite=platformWrite&&(p==='admin'||p==='super'||p==='manage');}
-  $('monthLabel').textContent=mi.label;
+  // 標題下方改顯示目前日期時間（clockTick）
   const sync=$('sync');
   sync.className='sync '+(mode==='live'?'live':mode==='local'?'local':'');
   sync.querySelector('span').textContent=mode==='live'?'已同步・多人共用':mode==='local'?'僅存於此瀏覽器':'連線中…';
@@ -1349,7 +1430,7 @@ function renderAll(){
   document.body.classList.toggle('view-only',viewOnly());
   if(viewOnly()){const ok=viewTabs();document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!ok.includes(b.dataset.tab))b.hidden=true;});if(!ok.includes(prefs.tab))prefs.tab='schedule';}
   else document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!['pay','att','otrev'].includes(b.dataset.tab))b.hidden=false;});
-  ['schedule','docleave','leave','holidays','stats','att','otrev','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
+  ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
   if(prefs.tab==='schedule') renderSchedule(mi);
@@ -1363,6 +1444,7 @@ function renderAll(){
   if(prefs.tab==='rules') renderRules();
   if(prefs.tab==='holidays') renderHolidays();
   if(prefs.tab==='pay') renderPay(mi,counts);
+  if(prefs.tab==='lottery') renderLottery();
   if(prefs.tab==='att') renderAtt(mi);
   if(prefs.tab==='otrev') renderOtRev();
 }
@@ -2212,6 +2294,305 @@ function renderHolidays(){
 const EXCL_POS=[0,1,2,3]; // 主櫃、副櫃、跟診、流動
 // 教育中的助理（cfg.training）：不參與任何職位的自動排班
 const isTraining=id=>(cfg.training||[]).includes(id);
+// ---------- 排休抽籤 ----------
+// lottery/{YYYY-MM}：{ym,status:'setup'|'open'|'done'|'confirmed',chips,roundMin,drawAt,quotas{日期:名額},participants[],
+//   round（目前輪次）,roundEndsAt（本輪截止 ms）,lock{輪次:開獎時間},rounds[{round,lockAt,seed,placements{sid:[日期]},winners{日期:[sid]},left{sid:沒抽中的籌碼}}],
+//   won{sid:[日期]},left{sid:下一輪可放的籌碼}}
+// lotteryBets/{YYYY-MM}_{輪次}_{sid}：{ym,round,sid,dates[],at}
+// 抽籤：亂數種子＝SHA-256(月份、輪次、開獎時間、所有人的籌碼)，任何人觸發結果都一樣，事後可以重算驗證
+let lotYm=null,lotRunning=false,lotSeen={},lotTimer=null;
+const LOT_DEF={chips:4,defQuota:2,roundMin:10,day:10,time:'22:00'};
+// 本月抽籤預設：存在 config/main.lotByMonth[YYYY-MM]；沒有調整的月份沿用前一個（最近一次調整的）月份
+const lotCfgFrom=ym=>Object.keys(cfg.lotByMonth||{}).filter(k=>k<=ym).sort().pop()||null;
+const lotCfg=ym=>{const f=lotCfgFrom(ym||lotYm||lotNextYm());return Object.assign({},LOT_DEF,cfg.lottery||{},f?cfg.lotByMonth[f]:{});};
+const lotNextYm=()=>{const t=new Date(),d=new Date(t.getFullYear(),t.getMonth()+1,1);return ymd(d).slice(0,7);};
+const lotDrawDefault=ym=>{const [y,m]=ym.split('-').map(Number),c=lotCfg(ym),[hh,mm]=String(c.time||'22:00').split(':').map(Number);const last=new Date(y,m-1,0).getDate();return new Date(y,m-2,Math.min(c.day,last),hh||0,mm||0).getTime();};
+const lotYmLabel=ym=>`${Number(ym.slice(0,4))}年 ${Number(ym.slice(5))}月`;
+function lotDates(ym){const [y,m]=ym.split('-').map(Number),out=[];for(let d=new Date(y,m-1,1);d.getMonth()===m-1;d.setDate(d.getDate()+1))out.push(ymd(new Date(d)));return out;}
+function lotDefaultQuotas(ym,def){
+  const q={};
+  lotDates(ym).forEach(k=>{const d=parseYmd(k),dow=(d.getDay()+6)%7;q[k]=dow===6||holidayOf(k)||SHIFTS.every(sh=>closedAt(dow,sh.id,k))?0:def;});
+  return q;
+}
+const lotWonCount=(L,won=L.won||{})=>{const c={};Object.values(won).forEach(a=>a.forEach(k=>c[k]=(c[k]||0)+1));return c;};
+const lotCapLeft=(L,k,won)=>(L.quotas?.[k]||0)-(lotWonCount(L,won)[k]||0);
+const lotMyChips=(L,sid)=>!L||!L.participants?.includes(sid)?0:L.round===1?L.chips:(L.left?.[sid]||0);
+const lotBetOf=(ym,round,sid)=>lotBets[`${ym}_${round}_${sid}`];
+// 亂數：SHA-256 前 16 bytes 當 sfc32 的種子
+async function lotSeedBytes(ym,round,lockAt,bets){
+  const s=JSON.stringify([ym,round,lockAt,bets.map(b=>[b.sid,b.dates.slice().sort()]).sort((a,b)=>a[0].localeCompare(b[0]))]);
+  return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))];
+}
+function lotRng(bytes){
+  const w=i=>(bytes[i]|bytes[i+1]<<8|bytes[i+2]<<16|bytes[i+3]<<24)>>>0;let a=w(0),b=w(4),c=w(8),d=w(12);
+  return ()=>{a>>>=0;b>>>=0;c>>>=0;d>>>=0;let t=(a+b)|0;a=b^(b>>>9);b=(c+(c<<3))|0;c=(c<<21)|(c>>>11);d=(d+1)|0;t=(t+d)|0;c=(c+t)|0;return (t>>>0)/4294967296;};
+}
+// 計算一輪：回傳這一輪的紀錄與之後的狀態（純函式，驗證時重算用同一套）
+async function lotCompute(L,bets,lockAt){
+  const round=L.round,won=clone(L.won||{});
+  const cap=k=>lotCapLeft(L,k,won),allow=sid=>lotMyChips(L,sid);
+  const clean=[];
+  bets.forEach(b=>{
+    if(!L.participants.includes(b.sid))return;const mine=new Set(won[b.sid]||[]);
+    const ds=[...new Set(b.dates||[])].filter(k=>cap(k)>0&&!mine.has(k)).sort().slice(0,allow(b.sid));
+    if(ds.length)clean.push({sid:b.sid,dates:ds});
+  });
+  const bytes=await lotSeedBytes(L.ym,round,lockAt,clean),rnd=lotRng(bytes);
+  const byDate={};clean.forEach(b=>b.dates.forEach(k=>(byDate[k]=byDate[k]||[]).push(b.sid)));
+  const winners={},left={};
+  Object.keys(byDate).sort().forEach(k=>{
+    const c=byDate[k].slice().sort(),n=cap(k);
+    if(c.length>n){for(let i=c.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[c[i],c[j]]=[c[j],c[i]];}winners[k]=c.slice(0,n).sort();c.slice(n).forEach(s=>left[s]=(left[s]||0)+1);}
+    else winners[k]=c;
+  });
+  Object.entries(winners).forEach(([k,ss])=>ss.forEach(s=>(won[s]=won[s]||[]).push(k)));
+  Object.values(won).forEach(a=>a.sort());
+  // 還有人有沒抽中的籌碼、而且還有他沒拿到且有名額的日子 → 下一輪
+  const more=Object.entries(left).some(([s,n])=>n>0&&lotDates(L.ym).some(k=>lotCapLeft(L,k,won)>0&&!(won[s]||[]).includes(k)));
+  const rec={round,lockAt,seed:bytes.slice(0,8).map(x=>x.toString(16).padStart(2,'0')).join(''),placements:Object.fromEntries(clean.map(b=>[b.sid,b.dates])),winners,left};
+  return {rec,next:{won,left:more?left:{},round:more?round+1:round,status:more?'open':'done',roundEndsAt:more?lockAt+L.roundMin*60000:L.roundEndsAt}};
+}
+// 驗證：從頭重算每一輪，和存下來的結果比對
+async function lotVerify(L){
+  let S={ym:L.ym,quotas:L.quotas,chips:L.chips,roundMin:L.roundMin,participants:L.participants,round:1,won:{},left:{}};
+  for(const r of L.rounds||[]){
+    const bets=Object.entries(r.placements||{}).map(([sid,dates])=>({sid,dates}));
+    const {rec,next}=await lotCompute(S,bets,r.lockAt);
+    if(JSON.stringify(rec.winners)!==JSON.stringify(r.winners))return {ok:false,round:r.round};
+    S=Object.assign({},S,next);
+  }
+  return {ok:true};
+}
+// 開獎：時間到就由任何開著頁面的人觸發；先寫入開獎時間（lock），再計算並寫入結果，只有第一個寫入的有效
+async function lotDraw(ym){
+  if(lotRunning)return;lotRunning=true;
+  try{
+    let L=lotteries[ym];if(!L||L.status!=='open'||Date.now()<L.roundEndsAt+LOT_CD)return;
+    const r=L.round;let lockAt=L.lock?.[r];
+    if(!lockAt){
+      lockAt=Date.now();
+      if(db){
+        const ref=db.doc('lottery/'+ym);
+        lockAt=await db.runTransaction(async t=>{const s=await t.get(ref),d=s.data();if(!d||d.status!=='open'||d.round!==r)return null;if(d.lock?.[r])return d.lock[r];t.update(ref,{['lock.'+r]:lockAt});return lockAt;});
+        if(!lockAt)return;
+      }else{L=Object.assign({},L,{lock:Object.assign({},L.lock,{[r]:lockAt})});lotteries[ym]=L;}
+    }
+    // 這一輪的籌碼（正式模式重新讀一次，確保拿到所有人的）
+    let bets=Object.values(lotBets).filter(b=>b.ym===ym&&b.round===r);
+    if(db){const q=await db.collection('lotteryBets').where('ym','==',ym).where('round','==',r).get();bets=q.docs.map(d=>d.data());}
+    const {rec,next}=await lotCompute(L,bets,lockAt);
+    if(db){
+      const ref=db.doc('lottery/'+ym);
+      await db.runTransaction(async t=>{const s=await t.get(ref),d=s.data();if(!d||d.status!=='open'||d.round!==r||(d.rounds||[]).length>=r)return;t.update(ref,Object.assign({rounds:[...(d.rounds||[]),rec]},next));});
+    }else{lotteries[ym]=Object.assign({},L,{rounds:[...(L.rounds||[]),rec]},next);saveLocal();renderAll();}
+  }catch(e){console.warn('lottery draw',e);}
+  finally{lotRunning=false;}
+}
+function lotTick(){
+  const me=myStaffId();
+  Object.values(lotteries).forEach(L=>{if(L.status!=='open'||!(canWrite||L.participants?.includes(me)))return;if(Date.now()>=L.roundEndsAt+LOT_CD)lotDraw(L.ym);else if(lotAllReady(L)&&L.roundEndsAt-Date.now()>1000)lotEarly(L.ym);});
+  lotCountdown();
+  // 倒數只更新文字，不重畫整頁
+  document.querySelectorAll('[data-lotcd]').forEach(el=>{const t=Number(el.dataset.lotcd)-Date.now();el.textContent=t>0?lotFmtLeft(t):'倒數開獎中…';});
+  lotReveal();
+}
+// 本輪截止（時間到，或所有還有籌碼的人都「下好離手」時提前截止）→ 畫面倒數 5 秒 → 開獎
+const LOT_CD=5000;
+const lotNeed=L=>(L.participants||[]).filter(s=>lotMyChips(L,s)>0);
+const lotAllReady=L=>{const n=lotNeed(L);return n.length>0&&n.every(s=>lotBetOf(L.ym,L.round,s)?.ready);};
+let lotEarlyBusy=false;
+async function lotEarly(ym){
+  if(lotEarlyBusy)return;lotEarlyBusy=true;
+  try{
+    const L=lotteries[ym],r=L.round;
+    if(db){const ref=db.doc('lottery/'+ym);await db.runTransaction(async t=>{const d=(await t.get(ref)).data();const at=Date.now();if(!d||d.status!=='open'||d.round!==r||d.roundEndsAt<=at+1000)return;t.update(ref,{roundEndsAt:at,earlyAt:Date.now()});});}
+    else{lotteries[ym]=Object.assign({},L,{roundEndsAt:Date.now(),earlyAt:Date.now()});saveLocal();renderAll();}
+  }catch(e){console.warn('lottery early',e);}
+  finally{lotEarlyBusy=false;}
+}
+// 截止後 5 秒：畫面正中間大字倒數，倒數完開獎
+function lotCountdown(){
+  let ov=document.querySelector('.lot-count');const L=lotteries[lotYm],t=L?L.roundEndsAt-Date.now():0;
+  const show=prefs.tab==='lottery'&&L&&L.status==='open'&&t<=0&&t>-LOT_CD-20000;
+  if(!show){ov?.remove();return;}
+  document.querySelector('.lot-reveal')?.remove();
+  if(!ov){ov=document.createElement('div');ov.className='lot-count';ov.innerHTML='<div><small></small><b></b></div>';document.body.appendChild(ov);}
+  const txt=t>-LOT_CD?String(Math.ceil((LOT_CD+t)/1000)):'開獎！';const b=ov.querySelector('b');
+  ov.querySelector('small').textContent=`第 ${L.round} 輪開獎倒數`;
+  if(b.textContent!==txt){b.textContent=txt;b.classList.remove('pop');void b.offsetWidth;b.classList.add('pop');}
+}
+const lotFmtLeft=ms=>{const s=Math.ceil(ms/1000),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),x=s%60;return (d?`${d} 天 `:'')+`${pad(h)}:${pad(m)}:${pad(x)}`;};
+// 開獎動畫：看到新的一輪結果時，在抽籤分頁上播放
+function lotReveal(){
+  if(prefs.tab!=='lottery'||document.querySelector('.lot-reveal'))return;
+  const L=lotteries[lotYm];if(!L)return;const n=(L.rounds||[]).length;
+  if(!(L.ym in lotSeen)){lotSeen[L.ym]=n;return;} // 第一次載入不播
+  if(n<=lotSeen[L.ym])return;
+  lotSeen[L.ym]=n;document.querySelector('.lot-count')?.remove();const rec=L.rounds[n-1],me=myStaffId();
+  const contested=Object.entries(rec.winners).filter(([k])=>Object.values(rec.placements).filter(a=>a.includes(k)).length>rec.winners[k].length);
+  const ov=document.createElement('div');ov.className='overlay lot-reveal';
+  const myWin=Object.entries(rec.winners).filter(([,ss])=>ss.includes(me)).map(([k])=>k),myLose=Object.entries(rec.placements[me]?Object.fromEntries(rec.placements[me].map(k=>[k,1])):{}).map(([k])=>k).filter(k=>!myWin.includes(k));
+  ov.innerHTML=`<div class="dialog lot-dlg"><h3>🎲 第 ${rec.round} 輪開獎</h3>
+    ${contested.length?contested.map(([k,ws])=>{const cands=Object.entries(rec.placements).filter(([,a])=>a.includes(k)).map(([s])=>s);return `<div class="lot-draw" data-win="${esc(ws.join(','))}"><b>${md(parseYmd(k))}（${DAYS[(parseYmd(k).getDay()+6)%7]}）</b> 名額 ${ws.length}・${cands.length} 人搶<div class="lot-names">${cands.map(s=>`<span data-s="${esc(s)}">${esc(codeOf(s))}</span>`).join('')}</div></div>`;}).join(''):'<p>這一輪沒有需要抽籤的日子，大家都拿到了選的日子。</p>'}
+    ${me&&rec.placements[me]?`<p class="lot-mine">${myWin.length?`🎉 你抽中 ${myWin.map(k=>md(parseYmd(k))).join('、')}`:''}${myWin.length&&myLose.length?'；':''}${myLose.length?`${myLose.map(k=>md(parseYmd(k))).join('、')} 沒抽中，籌碼退回`:''}</p>`:''}
+    <div class="acts"><button class="primary" data-x>好</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov||e.target.closest('[data-x]'))ov.remove();});
+  // 名字輪流亮起，約 1.6 秒後停在抽中的人
+  ov.querySelectorAll('.lot-draw').forEach(box=>{
+    const sp=[...box.querySelectorAll('[data-s]')],win=box.dataset.win.split(',');let i=0;
+    const iv=setInterval(()=>{sp.forEach(x=>x.classList.remove('hot'));sp[i++%sp.length].classList.add('hot');},90);
+    setTimeout(()=>{clearInterval(iv);sp.forEach(x=>{x.classList.remove('hot');x.classList.add(win.includes(x.dataset.s)?'win':'lose');});},1600);
+  });
+}
+// ---- 畫面 ----
+function renderLottery(){
+  if(!lotYm)lotYm=lotNextYm();
+  const ym=lotYm,L=lotteries[ym],me=myStaffId(),admin=canWrite,root=$('lotRoot');
+  const st={setup:'未開啟（助理還看不到）',open:'進行中',done:'抽籤完成，待管理者確認',confirmed:'已確認，已登記排休'};
+  let h=`<div class="card"><div class="lv-title-row"><h2 style="margin:0">${lotYmLabel(ym)} 排休抽籤</h2><span class="lv-range"><button class="small" data-lotnav="-1">◀</button> <button class="small" data-lotnav="1">▶</button></span><span style="flex:1"></span>${L?`<span class="pill">${st[L.status]||L.status}</span>`:''}</div>
+    <p class="desc">每人有固定枚數的籌碼，放在想排休的日子（一天一枚）。抽籤時間到，想要同一天的人超過名額就抽籤；沒抽中的籌碼退回，當場進行下一輪，在時限內放到還有名額的日子，直到籌碼用完或名額排滿。時限內沒放的籌碼視為放棄。</p>`;
+  if(!L){
+    h+=admin?`<p>這個月的抽籤遊戲：<b>未開啟</b>。先設定每天的名額，設定好再開啟，助理才能開始放籌碼。</p><button class="primary" data-lotnew>設定 ${lotYmLabel(ym)} 名額</button>`:'<p class="att-mute">這個月還沒有開啟排休抽籤。</p>';
+    root.innerHTML=h+'</div>'+lotCfgCard();return;
+  }
+  // 狀態列
+  if(L.status==='setup')h+=admin?'<p class="hint">在月曆上直接填入每天的名額（填 0 ＝這天不開放），下方設定籌碼數、抽籤時間與參加人員，確認後按「開啟抽籤遊戲」，助理才能開始放籌碼。</p>':'<p class="att-mute">管理者還在設定名額，開啟後就可以放籌碼。</p>';
+  if(L.status==='setup'&&!admin){root.innerHTML=h+'</div>';return;}
+  if(L.status==='open'){
+    const my=lotMyChips(L,me),bet=lotBetOf(ym,L.round,me),used=bet?.dates?.length||0;
+    h+=`<div class="lot-bar"><div><b>第 ${L.round} 輪</b>・${L.round===1?'抽籤':'本輪截止'}時間 ${fmtAt(L.roundEndsAt)}${admin&&L.round===1&&!(L.rounds||[]).length&&Date.now()<L.roundEndsAt?' <button class="small" data-lotclose>關閉抽籤遊戲</button>':''}${admin?` <button class="small${L.showBets===true?' on':''}" data-lotshow>玩家看得到檯面籌碼：${L.showBets===true?'開':'關'}</button>`:''}</div><div class="lot-cd">剩 <b data-lotcd="${L.roundEndsAt}">${lotFmtLeft(Math.max(0,L.roundEndsAt-Date.now()))}</b></div>
+      ${L.participants.includes(me)?`<div class="lot-chips">你的籌碼：${Array.from({length:my},(_,i)=>`<i class="${i<used?'used':''}"></i>`).join('')||'<span class="att-mute">沒有可放的籌碼</span>'} <span>已放 ${used}／${my}</span></div>`:''}
+      ${L.participants.includes(me)&&my>0?(bet?.ready?`<div class="lot-ready">✔ 已下好離手 <button class="small" data-lotready="0">取消</button></div>`:`<button class="primary" data-lotready="1">下好離手</button>`):''}</div>`;
+    const ppl=L.participants.map(byId).filter(Boolean).sort(sortStaff),need=lotNeed(L),nReady=need.filter(s=>lotBetOf(ym,L.round,s)?.ready).length;
+    h+=`<div class="lot-ppl-head">大家的籌碼（已放／未放）・下好離手 ${nReady}／${need.length} 人<span class="att-mute">　全部下好離手就提前開獎，否則時間到才開獎</span></div><div class="lot-ppl">${ppl.map(s=>{const c=lotMyChips(L,s.id),b=lotBetOf(ym,L.round,s.id),u=Math.min(b?.dates?.length||0,c);
+      return `<div class="lot-p${b?.ready&&c?' ready':''}${c?'':' none'}${s.id===me?' me':''}"><b>${esc(codeOf(s.id))}</b>${c?`<span class="lot-pc">${Array.from({length:c},(_,i)=>`<i class="${i<u?'used':''}"></i>`).join('')}</span><span>${u}／${c-u}</span>${b?.ready?'<em>✔</em>':''}`:'<span>沒有籌碼</span>'}</div>`;}).join('')}</div>`;
+  }
+  // 月曆
+  const ds=lotDates(ym),first=parseYmd(ds[0]),pre=(first.getDay()+6)%7,wonCnt=lotWonCount(L);
+  const curBets=L.status==='open'?Object.values(lotBets).filter(b=>b.ym===ym&&b.round===L.round):[];
+  const demand={};curBets.forEach(b=>(b.dates||[]).forEach(k=>demand[k]=(demand[k]||0)+1));
+  const myBet=L.status==='open'?lotBetOf(ym,L.round,me):null,myWon=L.won?.[me]||[];
+  h+=`<div class="lot-cal">${DAYS.map(d=>`<div class="lot-dow">${d}</div>`).join('')}${'<div></div>'.repeat(pre)}`;
+  ds.forEach(k=>{
+    const q=L.quotas?.[k]||0,left=q-(wonCnt[k]||0),winners=Object.entries(L.won||{}).filter(([,a])=>a.includes(k)).map(([s])=>s),mine=myBet?.dates?.includes(k);
+    const can=L.status==='open'&&L.participants.includes(me)&&left>0&&!myWon.includes(k);
+    const cls=['lot-day',q?'':'off',mine?'mine':'',myWon.includes(k)?'won':'',can?'can':''].filter(Boolean).join(' ');
+    h+=`<div class="${cls}" ${can?`data-lotday="${k}"`:''}><div class="lot-d">${Number(k.slice(8))}</div>`+
+      (L.status==='setup'&&admin?`<div class="lot-q">名額 <input class="lot-qi" type="number" min="0" max="20" step="1" inputmode="numeric" data-lotqi="${k}" value="${q}"></div>`:
+       q?`<div class="lot-q">名額 ${left}／${q}</div>${L.status==='open'&&demand[k]&&(admin||L.showBets===true)?`<div class="lot-dem${demand[k]>left?' hot':''}">${demand[k]} 人想要</div>`:''}`:'<div class="lot-q att-mute">不開放</div>')+
+      (winners.length?`<div class="lot-win">${winners.map(s=>`<span class="${s===me?'me':''}">${esc(codeOf(s))}</span>`).join('')}</div>`:'')+
+      (mine?'<div class="lot-chip">●</div>':'')+'</div>';
+  });
+  h+='</div>';
+  if(L.status==='open'&&L.participants.includes(me))h+='<p class="hint">點日子放籌碼、再點一次收回。可以一直改到本輪截止。「名額 1／2」＝還剩 1 個名額（共 2 個）；'+(L.showBets===true?'「3 人想要」是本輪目前放在這天的籌碼數。':'這個月不公開檯面上的籌碼，只看得到自己放的。')+'</p>';
+  h+='</div>';
+  // 管理者設定
+  if(admin&&L.status==='setup'){
+    const people=staff.filter(s=>s.role==='assistant'&&s.active!==false).sort(sortStaff);
+    const dt=t=>{const d=new Date(t);return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;};
+    const nOpen=Object.values(L.quotas||{}).filter(n=>n>0).length,nSlot=Object.values(L.quotas||{}).reduce((a,n)=>a+n,0);
+    h+=`<div class="card lot-set"><h2>抽籤設定</h2><p class="ar-desc">${lotYmLabel(L.ym)}：開放 ${nOpen} 天、共 ${nSlot} 個名額；${L.participants.length} 人參加 × ${L.chips} 枚籌碼 = ${L.participants.length*L.chips} 枚</p>
+      <div class="lot-set-groups">
+      <div class="ar-group"><h4>籌碼與名額</h4><div class="ar-grid">
+        <div class="ar-field"><label>每人籌碼（枚）</label><input type="number" min="1" step="1" data-lotset="chips" value="${L.chips}"><small>每人最多可以排休幾天</small></div>
+        <div class="ar-field"><label>每天名額預設</label><input type="number" min="0" step="1" data-lotset="defQuota" value="${L.defQuota??lotCfg(L.ym).defQuota}"><small>修改會重設月曆上所有開放日的名額</small></div></div></div>
+      <div class="ar-group"><h4>時間</h4><div class="ar-grid">
+        <div class="ar-field"><label>抽籤日期與時間</label><input type="datetime-local" data-lotset="drawAt" value="${dt(L.drawAt)}"><small>時間到截止放籌碼，倒數 5 秒開獎</small></div>
+        <div class="ar-field"><label>自動進入下一輪要等幾分鐘</label><input type="number" min="1" step="1" data-lotset="roundMin" value="${L.roundMin}"><small>沒抽中的人在這段時間內重新放籌碼</small></div></div></div>
+      <div class="ar-group"><h4>檯面</h4><div class="ar-grid">
+        <div class="ar-field ar-chk"><label>玩家可以看到檯面上的籌碼</label><span class="ar-box"><input type="checkbox" data-lotset="showBets" ${L.showBets===true?'checked':''}></span><small>預設不勾選：玩家只看得到自己的籌碼；勾選後月曆上會顯示每天有幾人放籌碼（管理者一律看得到）</small></div></div></div>
+      </div>
+      <div class="ar-group" style="margin-top:18px"><h4>參加人員（${L.participants.length}／${people.length} 人）<span class="lot-pall"><button class="small" data-lotpall="1">全選</button><button class="small" data-lotpall="0">全不選</button></span></h4>
+        <div class="lot-people">${people.map(s=>`<label class="${L.participants.includes(s.id)?'on':''}"><input type="checkbox" data-lotppl="${s.id}" ${L.participants.includes(s.id)?'checked':''}><span>${esc(fullName(s))}${isTraining(s.id)?' <small>（教育中）</small>':''}</span></label>`).join('')}</div></div>
+      <div class="lot-set-acts"><button class="primary" data-lotopen>開啟抽籤遊戲</button><button class="danger" data-lotdel>刪除這次抽籤</button></div></div>`;
+  }
+  // 結果與每輪紀錄
+  if((L.rounds||[]).length||L.status==='done'||L.status==='confirmed'){
+    const ppl=L.participants.map(byId).filter(Boolean).sort(sortStaff);
+    h+=`<div class="card"><div class="lv-title-row"><h2 style="margin:0">抽籤結果</h2><span style="flex:1"></span><button class="small" data-lotverify>驗證結果</button>${admin&&L.status==='done'?' <button class="small primary" data-lotconfirm>確認登記排休</button>':''}</div>
+      <table class="list"><thead><tr><th>人員</th><th>抽中的日子</th><th class="num">天數</th></tr></thead><tbody>${ppl.map(s=>{const w=L.won?.[s.id]||[];return `<tr><td>${esc(fullName(s))}</td><td>${w.map(k=>`${md(parseYmd(k))}（${DAYS[(parseYmd(k).getDay()+6)%7]}）`).join('、')||'<span class="att-mute">—</span>'}</td><td class="num">${w.length}／${L.chips}</td></tr>`;}).join('')}</tbody></table>
+      <h4 style="margin:14px 0 6px">每輪紀錄</h4>${(L.rounds||[]).map(r=>{const cont=Object.entries(r.winners).filter(([k,ws])=>Object.values(r.placements).filter(a=>a.includes(k)).length>ws.length);return `<div class="lot-round"><b>第 ${r.round} 輪</b>・開獎 ${fmtAt(r.lockAt)}・種子 <code>${r.seed}</code>・${Object.keys(r.placements).length} 人放籌碼${cont.length?'：'+cont.map(([k,ws])=>`${md(parseYmd(k))} 由 ${ws.map(codeOf).join('、')} 抽中（${Object.entries(r.placements).filter(([,a])=>a.includes(k)).length} 人搶 ${ws.length} 名額）`).join('；'):'，沒有需要抽籤的日子'}</div>`;}).join('')||'<p class="att-mute">尚未開獎</p>'}</div>`;
+  }
+  root.innerHTML=h+lotCfgCard();
+}
+function lotCfgCard(){
+  if(!canWrite||lotteries[lotYm])return '';const c=lotCfg(lotYm),f=lotCfgFrom(lotYm);
+  return `<div class="card" id="lotCfgBox"><h2>本月抽籤預設</h2><p class="desc">${lotYmLabel(lotYm)} 按「設定名額」時套用這些值。${f===lotYm?'這個月有調整過。':f?`沒有調整，沿用 ${lotYmLabel(f)} 的設定。`:'沒有調整，使用系統預設。'}儲存後之後沒有調整的月份也會沿用。</p><div class="ar-grid">
+    <div class="ar-field"><label>抽籤日期</label><span>前一個月 <input type="number" min="1" max="31" step="1" data-lotcfg="day" value="${c.day}" style="width:4.5em"> 號</span><small>月份天數不足時用最後一天</small></div>
+    <div class="ar-field"><label>抽籤時間</label><input type="time" data-lotcfg="time" value="${esc(c.time)}"><small>時間到截止放籌碼，倒數 5 秒開獎</small></div>
+    <div class="ar-field"><label>自動進入下一輪要等幾分鐘</label><input type="number" min="1" step="1" data-lotcfg="roundMin" value="${c.roundMin}"><small>沒抽中的人在這段時間內重新放籌碼</small></div>
+    <div class="ar-field"><label>每人籌碼（枚）</label><input type="number" min="1" step="1" data-lotcfg="chips" value="${c.chips}"></div>
+    <div class="ar-field"><label>每天名額</label><input type="number" min="0" step="1" data-lotcfg="defQuota" value="${c.defQuota}"><small>週日與診所休診日為 0</small></div>
+  </div><div style="margin-top:12px"><button class="primary" data-lotcfgsave>儲存預設</button></div></div>`;
+}
+function lotPatch(patch){const L=lotteries[lotYm];if(!L)return;store.lottery(lotYm,Object.assign({},L,patch));}
+$('tab-lottery').addEventListener('click',e=>{
+  const nav=e.target.closest('[data-lotnav]');if(nav){const v=Number(nav.dataset.lotnav);if(v===0)lotYm=lotNextYm();else{const [y,m]=lotYm.split('-').map(Number);lotYm=ymd(new Date(y,m-1+v,1)).slice(0,7);}renderAll();return;}
+  if(e.target.closest('[data-lotnew]')){if(!canWrite)return;const ym=lotYm,c=lotCfg(ym),def=c.defQuota;
+    const ppl=staff.filter(s=>s.role==='assistant'&&s.active!==false&&!isTraining(s.id)).map(s=>s.id);
+    store.lottery(ym,{ym,status:'setup',chips:c.chips,defQuota:def,roundMin:c.roundMin,drawAt:lotDrawDefault(ym),quotas:lotDefaultQuotas(ym,def),participants:ppl,round:1,won:{},left:{},rounds:[],lock:{},createdBy:myId||'本機',createdAt:Date.now()});return;}
+  const pa=e.target.closest('[data-lotpall]');if(pa&&canWrite){lotPatch({participants:pa.dataset.lotpall==='1'?staff.filter(s=>s.role==='assistant'&&s.active!==false).map(s=>s.id):[]});return;}
+  const pp=e.target.closest('[data-lotppl]');if(pp&&canWrite){const L=lotteries[lotYm],id=pp.dataset.lotppl;lotPatch({participants:pp.checked?[...new Set([...L.participants,id])]:L.participants.filter(x=>x!==id)});return;}
+  if(e.target.closest('[data-lotopen]')){const L=lotteries[lotYm];
+    if(!L.participants.length){toast('請選擇參加人員。','warn');return;}
+    if(!Object.values(L.quotas).some(n=>n>0)){toast('沒有開放的日子，請先設定名額。','warn');return;}
+    if(L.drawAt<=Date.now()+60000){toast('抽籤時間要晚於現在。','warn');return;}
+    dialog(`<h3>開啟抽籤遊戲</h3><p>${lotYmLabel(lotYm)}：每人 ${L.chips} 枚籌碼、${L.participants.length} 人參加，${fmtAt(L.drawAt)} 截止並倒數開獎，之後每輪 ${L.roundMin} 分鐘。開啟後助理就可以放籌碼；第 1 輪開獎前可以再關閉修改。</p>`,()=>{lotPatch({status:'open',round:1,roundEndsAt:L.drawAt,openedAt:Date.now()});toast('已開啟，助理可以開始放籌碼。');},'開啟');return;}
+  if(e.target.closest('[data-lotclose]')){const L=lotteries[lotYm];if(!L||L.round!==1||(L.rounds||[]).length)return;
+    dialog(`<h3>關閉抽籤遊戲</h3><p>關閉後助理看不到、也不能放籌碼，可以重新修改名額與設定；已放的籌碼會保留，再開啟時仍有效。</p>`,()=>{const p={status:'setup'};delete L.roundEndsAt;store.lottery(lotYm,Object.assign({},L,p));},'關閉');return;}
+  if(e.target.closest('[data-lotcfgsave]')){const box=$('lotCfgBox'),v=k=>box.querySelector(`[data-lotcfg="${k}"]`).value;
+    const day=parseInt(v('day'),10),chips=parseInt(v('chips'),10),q=parseInt(v('defQuota'),10),rm=parseInt(v('roundMin'),10),time=v('time');
+    if(!(day>=1&&day<=31)||!(chips>=1)||!(q>=0)||!(rm>=1)||!/^[0-9]{2}:[0-9]{2}$/.test(time)){toast('數值不正確。','warn');return;}
+    const n=clone(cfg);n.lotByMonth=Object.assign({},n.lotByMonth,{[lotYm]:{day,time,chips,defQuota:q,roundMin:rm}});store.cfg(n);toast(`已儲存 ${lotYmLabel(lotYm)} 的抽籤預設。`);return;}
+  if(e.target.closest('[data-lotdel]')){dialog(`<h3>刪除排休抽籤</h3><p>刪除 ${lotYmLabel(lotYm)} 的排休抽籤設定。</p>`,()=>{store.lottery(lotYm,null);},'刪除',true);return;}
+  if(e.target.closest('[data-lotshow]')&&canWrite){const L=lotteries[lotYm];lotPatch({showBets:!L.showBets});toast(!L.showBets?'玩家現在看得到檯面上的籌碼。':'已隱藏檯面上的籌碼，玩家只看得到自己的。');return;}
+  if(e.target.closest('[data-lotverify]')){lotVerify(lotteries[lotYm]).then(r=>toast(r.ok?'驗證通過：每一輪重新計算的結果都和公布的一樣。':`驗證失敗：第 ${r.round} 輪重算結果不同。`,r.ok?'':'warn'));return;}
+  if(e.target.closest('[data-lotconfirm]')){const L=lotteries[lotYm];
+    const adds=[];Object.entries(L.won||{}).forEach(([sid,ks])=>ks.forEach(k=>{if(!leaves.some(l=>l.staffId===sid&&l.date===k))adds.push({id:uid('l'),staffId:sid,date:k,shifts:SHIFTS.map(s=>s.id),type:'排休',note:'排休抽籤',when:'before',createdAt:Date.now()});}));
+    dialog(`<h3>確認登記排休</h3><p>把抽中的 ${adds.length} 天登記為「排休」（事前、全天）。已經有請假紀錄的日子會略過。</p>`,()=>{store.leavesBulk(adds,[]);lotPatch({status:'confirmed',confirmedAt:Date.now(),confirmedBy:myId||'本機'});toast(`已登記 ${adds.length} 天排休。`);},'確認登記');return;}
+  const rd=e.target.closest('[data-lotready]');
+  if(rd){const L=lotteries[lotYm],me=myStaffId();if(!L||L.status!=='open'||Date.now()>=L.roundEndsAt)return;
+    if(rd.dataset.lotready==='0'&&L.roundEndsAt-Date.now()<=1000){toast('已經開始倒數，不能取消了。','warn');return;}
+    const id=`${lotYm}_${L.round}_${me}`,b=lotBets[id];
+    const go=()=>store.lotBet(id,{ym:lotYm,round:L.round,sid:me,dates:b?.dates||[],ready:rd.dataset.lotready==='1',at:Date.now()});
+    const n=b?.dates?.length||0,my=lotMyChips(L,me);
+    if(rd.dataset.lotready==='1'&&n<my)dialog(`<h3>下好離手</h3><p>你還有 ${my-n} 枚籌碼沒放，下好離手後這些籌碼視為放棄。確定嗎？</p>`,go,'下好離手');
+    else go();
+    return;}
+  const day=e.target.closest('[data-lotday]');
+  if(day){const L=lotteries[lotYm],me=myStaffId(),k=day.dataset.lotday;if(!L||L.status!=='open'||Date.now()>=L.roundEndsAt)return;
+    const id=`${lotYm}_${L.round}_${me}`,cur=lotBets[id]?.dates||[],my=lotMyChips(L,me);
+    if(lotBets[id]?.ready){toast('你已經下好離手，要修改請先按「取消」。','warn');return;}
+    let next=cur.includes(k)?cur.filter(x=>x!==k):[...cur,k];
+    if(next.length>my){toast(`你只有 ${my} 枚籌碼，請先收回其他日子的籌碼。`,'warn');return;}
+    store.lotBet(id,{ym:lotYm,round:L.round,sid:me,dates:next.sort(),at:Date.now()});}
+});
+$('tab-lottery').addEventListener('change',e=>{
+  const qi=e.target.dataset.lotqi;
+  if(qi&&canWrite){const v=parseInt(e.target.value,10);if(!(v>=0&&v<=20)){toast('名額請填 0～20。','warn');e.target.value=lotteries[lotYm].quotas?.[qi]||0;return;}
+    lotPatch({quotas:Object.assign({},lotteries[lotYm].quotas,{[qi]:v})});return;}
+  const k=e.target.dataset.lotset;if(!k||!canWrite)return;const L=lotteries[lotYm];
+  if(k==='showBets'){lotPatch({showBets:e.target.checked});return;}
+  if(k==='drawAt'){const t=new Date(e.target.value).getTime();if(!t){toast('請填抽籤時間。','warn');return;}lotPatch({drawAt:t});return;}
+  const v=Number(e.target.value);if(!(v>=0)||(k!=='defQuota'&&!(v>=1))){toast('數值不正確。','warn');return;}
+  if(k==='defQuota'){lotPatch({defQuota:v,quotas:lotDefaultQuotas(lotYm,v)});return;}
+  lotPatch({[k]:v});
+});
+setInterval(lotTick,1000);
+// 標題下方的時鐘
+function clockTick(){const d=new Date();$('monthLabel').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${DAYS[(d.getDay()+6)%7]}） ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;}
+clockTick();setInterval(clockTick,1000);
+// 試玩：本機模式加上 ?lotdemo=秒數，每一輪開始幾秒後，所有參加者自動隨機放籌碼並下好離手（只在 localhost 的本機模式有效）
+const LOT_DEMO=(()=>{const v=new URLSearchParams(location.search).get('lotdemo');return v!=null&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?(Number(v)||5)*1000:0;})();
+if(LOT_DEMO){const seen={};setInterval(()=>{
+  if(db)return;const L=lotteries[lotYm];if(!L||L.status!=='open'||Date.now()>=L.roundEndsAt)return;
+  const key=L.ym+'_'+L.round;seen[key]=seen[key]||Date.now();if(Date.now()-seen[key]<LOT_DEMO)return;
+  lotNeed(L).forEach(sid=>{const id=`${L.ym}_${L.round}_${sid}`;if(lotBets[id]?.ready)return;
+    // 偏好月初與週五、週六，製造搶同一天的情況
+    const open=lotDates(L.ym).filter(k=>lotCapLeft(L,k)>0&&!(L.won?.[sid]||[]).includes(k)).map(k=>({k,w:Math.random()*(1+(parseYmd(k).getDay()>=5?1.5:0)+(Number(k.slice(8))<12?1:0))})).sort((a,b)=>b.w-a.w);
+    store.lotBet(id,{ym:L.ym,round:L.round,sid,dates:open.slice(0,lotMyChips(L,sid)).map(x=>x.k).sort(),ready:true,at:Date.now()});});
+},500);}
 const exclOnly=(pi,id)=>!!(cfg.autoExclude&&(cfg.autoExclude[pi]||[]).includes(id)); // 只看各崗位的排除名單（畫面用）
 function isExcluded(pi,id){return isTraining(id)||exclOnly(pi,id);}
 function renderRulesDoc(){
