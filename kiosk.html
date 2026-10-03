@@ -472,10 +472,10 @@ function askOvertime(sid,min,opt={mode:'ask'}){
     $('otDocWrap').hidden=!needDoc;
     const drawDocs=()=>{$('otDocs').innerHTML=docs.length?docs.map(x=>`<button data-d="${esc(x.id)}" class="${x.id===doc?'on':''}">${esc(x.label)}</button>`).join(''):'<span style="color:var(--faint)">沒有在職醫師資料，將由超級管理員審核</span>';};drawDocs();
     if(mode==='ask'){
-      $('otTitle').textContent='要申請加班嗎？';$('otSub').textContent=`${nameOf(sid)}，你比下班時間晚了 ${min} 分鐘。`+(opt.msg?`
+      $('otTitle').textContent=`要申請加班 ${min} 分鐘嗎？`;$('otSub').textContent=`${nameOf(sid)}，你比下班時間晚了 ${min} 分鐘。要申請請選審核醫師、填原因後送出。`+(opt.msg?`
 ${opt.msg}`:'');
-      $('otNo').textContent='不用，只打下班卡';$('otYes').textContent='申請加班';
-      $('otAsk1').hidden=false;$('otAsk2').hidden=true;$('otBack').hidden=false;$('otBack').textContent='取消申請';
+      // 一個畫面直接顯示審核醫師與原因：選「不用，只打下班卡」或填好後「送出申請」
+      $('otAsk1').hidden=true;$('otAsk2').hidden=false;$('otBack').hidden=false;$('otBack').textContent='不用，只打下班卡';
     }else if(mode==='in'){
       $('otTitle').textContent='臨時加班：填寫原因';$('otSub').textContent=`${nameOf(sid)}，可以現在填寫，也可以下班時再填。`;
       $('otAsk1').hidden=true;$('otAsk2').hidden=false;$('otBack').hidden=false;$('otBack').textContent='稍後再填';
@@ -818,7 +818,7 @@ function recNote(p,cells){
       if(p.sel.k==='out'&&Math.ceil(end-min-1e-9)>(Number(settings.graceOut)||0))out.push({t:`早退 ${Math.ceil(end-min-1e-9)} 分`,bad:1});
     }
   }
-  if(p.ot){const o=p.ot,m=o.status==='approved'?o.approvedMin:(o.extra&&!o.from?'?':o.min);out.push({t:`加班 ${m} 分（${OT_ST[o.status]||o.status}）`,ok:o.status==='approved',bad:o.status==='rejected'});}
+  if(p.ot){const o=p.ot,m=o.status==='approved'?o.approvedMin:(o.extra&&!o.from?'?':o.min);const who=o.byName||'';out.push({t:`加班 ${m} 分（${o.status==='approved'&&who?`已由 ${who} 核准`:o.status==='rejected'&&who?`已由 ${who} 退回`:(OT_ST[o.status]||o.status)}）`,ok:o.status==='approved',bad:o.status==='rejected'});}
   return {label,notes:out};
 }
 function openLog(){

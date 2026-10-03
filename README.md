@@ -77,7 +77,7 @@ HTML（7 個 <section id="tab-*">）
 
 | 等級 | 可以做什麼 |
 |---|---|
-| 僅檢視 `view` | 看班表、請假、休診日、統計 |
+| 僅檢視 `view` | 助理：排班表、自己的請假、自己的出勤、自己的薪資；醫師：排班表、自己的休假、待自己審核的加班；未綁定人員：只有排班表（其他分頁隱藏，請假列表只顯示自己的、不顯示登記表單） |
 | 登記本人請假 `self` | 上述 + 登記／變更自己的請假與家庭照顧假 + 看自己的薪資 |
 | 排班管理 `manage` | 排班、所有人的請假、休診日、規則、所有人的薪資 |
 | 超級管理員 `super` | 上述 + 個資 + 設定權限 |
@@ -181,6 +181,7 @@ HTML（7 個 <section id="tab-*">）
 | `hw/{裝置編號}` | `{approved, name, model, platform, at}`：App 回報的裝置編號（Android ID 或 iOS identifierForVendor，前綴 `and-`／`ios-`），核准後同一台平板換了代碼也能打卡 |
 | `punches/{id}` | `{staffId, ts, date, src:'kiosk'\|'manual', sel:{sh,k}?, ot:{min,reason,reviewer?,status:'pending'|'approved'|'rejected',approvedMin?,by?,note?}?, device, devName, sim, real, live, photo?, by?, note?, void?}`（`sel`：打卡時選的班別與上班 in／下班 out）。裝置只能新增；補登、作廢（`void`，保留紀錄）由管理者處理 |
 | `faces/{staffId}` | `{emb: JSON 字串（5 組特徵值）, n, at, consentAt, device}`，不存照片 |
+| `kiosk/rules` | `kiosk/settings` 去掉 `pinHash` 的副本（排班管理儲存規則時同步寫入），所有已開通的帳號可讀，讓僅檢視的人用同樣規則計算自己的出勤 |
 | `kiosk/settings` | `{graceIn, graceOut, nightOut, otAsk, dupMin, inBefore, inAfter, outBefore, outAfter, earlyAsLate, photo, thr, pinHash}` 出勤規則、辨識門檻、裝置管理密碼（SHA-256） |
 
 **第一次上線要做的事**
@@ -204,5 +205,7 @@ npx eas-cli build -p ios --profile preview       # 需 Apple Developer 帳號，
 **本機測試**：`index.html?local=名稱` 與 `kiosk.html?local=名稱` 共用 localStorage（打卡資料存在 `clinic_kiosk_local_v1_名稱`）；沒有相機時可在主控台用 `__kiosk.simulate('人員id')` 模擬辨識成功。
 
 ## 本機使用
+
+本機模式可以在網址加上 `&as=權限:人員id`（例如 `index.html?local=test&as=view:a1`）模擬某個帳號登入後看到的畫面，只在 localhost 有效。
 
 直接用瀏覽器打開 `index.html` 就可以使用。如果要開 GitHub Pages：repo 的 Settings → Pages → Branch 選 `main`，路徑選 `/ (root)`。

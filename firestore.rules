@@ -100,8 +100,9 @@ service cloud.firestore {
       allow write: if isKiosk() || canManage();
     }
     // 出勤規則與裝置管理密碼
+    // kiosk/settings 含裝置管理密碼，只給裝置與排班管理；kiosk/rules 是不含密碼的出勤規則，所有已開通的帳號可讀（計算自己的出勤）
     match /kiosk/{doc} {
-      allow read: if isKiosk() || canManage();
+      allow read: if isKiosk() || canManage() || (doc == 'rules' && canView());
       allow write: if canManage();
     }
     match /config/{id}     { allow read: if canView(); allow write: if canManage(); }
