@@ -316,8 +316,8 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .btn-link{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:.78rem;color:var(--accent);text-decoration:none;}
 .btn-link:hover{border-color:var(--accent);}
 /* 僅檢視：請假／休假分頁不顯示登記表單與停用的按鈕 */
-body.view-only [data-attclose],body.view-only #attTable .att-face{display:none;}
-body.view-only #attRulesCard,body.view-only #devCard,body.view-only #attToPay,body.view-only #tab-att button:disabled,body.view-only #attLogSid,body.view-only #otSid{display:none;}
+body.low-perm [data-attclose],body.low-perm #attTable .att-face,body.low-perm .mgr-only{display:none;}
+body.low-perm #attRulesCard,body.low-perm #devCard,body.low-perm #attToPay,body.low-perm #tab-att button:disabled,body.low-perm #attLogSid,body.low-perm #otSid{display:none;}
 body.view-only #tab-leave form,body.view-only #tab-docleave form,body.view-only #tab-leave button:disabled,body.view-only #tab-docleave button:disabled{display:none;}
 .att-photo{display:block; width:224px; height:224px; border-radius:12px; object-fit:cover; margin:8px auto;}
 .pay-note{min-width:120px; max-width:240px; white-space:pre-wrap; font-size:.8rem; color:var(--sub);}
@@ -854,7 +854,7 @@ body.gated .shell{display:none;}
         </div>
         <div class="card">
           <div class="lv-title-row"><h2 id="attTitle" style="margin:0">出勤統計</h2><span style="flex:1"></span><button class="small primary" data-padd="" data-pany="1" data-w>＋ 補登打卡</button> <button class="small" id="attToPay" data-w>帶入薪資（遲到、早退、加班）</button></div>
-          <p class="desc">每一診都要打上班卡與下班卡。「應出勤」只算到今天為止、扣除請假的診次；「完整」是上下班卡都有的診數；出勤率＝完整 ÷ 應出勤。遲到＝上班卡晚於開診時間（超過寬限才算）；早退＝下班卡早於結束時間。點人員看每天的明細、補登或作廢打卡。</p>
+          <p class="desc">每一診都要打上班卡與下班卡。「應出勤」只算到今天為止、扣除請假的診次；「完整」是上下班卡都有的診數；出勤率＝完整 ÷ 應出勤。遲到＝上班卡晚於開診時間（超過寬限才算）；早退＝下班卡早於結束時間。<span class="mgr-only">點人員看每天的明細、補登或作廢打卡。</span></p>
           <p class="hint att-bad" id="attAbsNote" style="margin:0 0 8px" hidden>尚未設定「曠職起算日」，目前不計算曠職。請到下方「出勤規則 → 遲到與早退」設定開始計算曠職的日期。</p>
           <div class="scroll-x"><table class="list" id="attTable"></table></div>
         </div>
@@ -1689,14 +1689,16 @@ const PERMS={view:'僅檢視',self:'登記本人請假',manage:'排班管理',su
 // 僅檢視：助理只看排班表、自己的請假、自己的出勤、自己的薪資；醫師只看排班表、自己的休假、待自己審核的加班；未綁定人員只看排班表
 const viewOnly=()=>(mode==='live'||(mode==='local'&&SIM_AS))&&effPerm()==='view';
 // 僅檢視的助理可以看自己的出勤（醫師不需要）
-const viewOnlyAssistant=()=>viewOnly()&&byId(myStaffId())?.role==='assistant';
+const viewOnlyAssistant=()=>lowPerm()&&byId(myStaffId())?.role==='assistant'; // 「登記本人請假」以下的助理：出勤只看自己的
+// 「登記本人請假」以下（self、view）：只看得到排班表與自己的出勤／請假／薪資／排休抽籤（醫師：自己的休假、待自己審核的加班）
+const lowPerm=()=>(mode==='live'||(mode==='local'&&SIM_AS))&&['view','self'].includes(effPerm());
 function viewTabs(){
   const r=byId(myStaffId())?.role;
-  return ['schedule',...(r==='assistant'?['att','leave','lottery','pay']:[]),...(r==='doctor'?['docleave','otrev']:[])];
+  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev']:[])];
 }
-// 僅檢視的人在請假分頁只看到自己的資料：繪製時暫時只留自己的請假、家庭照顧假、事件與人員
+// 「登記本人請假」以下的人在請假分頁只看到自己的資料：繪製時暫時只留自己的請假、家庭照顧假、事件與人員
 function withOwnData(fn){
-  if(!viewOnly())return fn();
+  if(!lowPerm())return fn();
   const sid=myStaffId(),keep={leaves,familyCare,pevents,makeups,staff};
   leaves=leaves.filter(x=>x.staffId===sid);familyCare=familyCare.filter(x=>x.staffId===sid);pevents=pevents.filter(x=>x.staffId===sid);makeups=makeups.filter(x=>x.staffId===sid);staff=staff.filter(x=>x.id===sid);
   try{fn();}finally{({leaves,familyCare,pevents,makeups,staff}=keep);}
@@ -1736,8 +1738,8 @@ function renderAll(){
   {const show=canSeeOtRev(),n=otRevList('pending').length;$('otRevTabBtn').hidden=!show;$('otRevTabBtn').textContent=n?`加班審核（${n}）`:'加班審核';if(prefs.tab==='otrev'&&!show)prefs.tab='schedule';}
   if(prefs.tab==='att'&&!canWrite&&!viewOnlyAssistant())prefs.tab='schedule';
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
-  document.body.classList.toggle('view-only',viewOnly());
-  if(viewOnly()){const ok=viewTabs();document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!ok.includes(b.dataset.tab))b.hidden=true;});if(!ok.includes(prefs.tab))prefs.tab='schedule';}
+  document.body.classList.toggle('view-only',viewOnly());document.body.classList.toggle('low-perm',lowPerm());
+  if(lowPerm()){const ok=viewTabs();document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!ok.includes(b.dataset.tab))b.hidden=true;});if(!ok.includes(prefs.tab))prefs.tab='schedule';}
   else document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!['pay','att','otrev'].includes(b.dataset.tab))b.hidden=false;});
   ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
@@ -3757,7 +3759,7 @@ const punchMin=ts=>{const d=new Date(ts);return d.getHours()*60+d.getMinutes()+d
 const hhmm=ts=>{const d=new Date(ts);return `${pad(d.getHours())}:${pad(d.getMinutes())}`;};
 const shiftSpan=sh=>sh.time.split('-').map(hm); // [開始分鐘, 結束分鐘]
 // 選擇月份內的打卡（主管只載入當月；僅檢視的人載入自己所有月份）
-const monthPunches=mi=>{const a=ymd(mi.first),z=ymd(mi.last),me=viewOnly()?myStaffId():null;return punches.filter(p=>p.date>=a&&p.date<=z&&(!me||p.staffId===me));};
+const monthPunches=mi=>{const a=ymd(mi.first),z=ymd(mi.last),me=lowPerm()?myStaffId():null;return punches.filter(p=>p.date>=a&&p.date<=z&&(!me||p.staffId===me));};
 const publicKioskRules=o=>{const x=Object.assign({},o);delete x.pinHash;return x;};
 function attSubscribe(mi){ // 只載入選擇月份的打卡紀錄（排班管理以上；其他人已在登入時載入自己的打卡）
   if(!db||!canWrite||attSubYm===mi.ym)return;
@@ -3832,7 +3834,7 @@ function attMonth(mi,sid){
   });
   return {days,s};
 }
-const attPeople=mi=>viewOnly()?staff.filter(s=>s.id===myStaffId()):staff.filter(s=>s.role==='assistant'&&s.active!==false||punches.some(p=>p.staffId===s.id&&!p.void)).sort(sortStaff);
+const attPeople=mi=>lowPerm()?staff.filter(s=>s.id===myStaffId()):staff.filter(s=>s.role==='assistant'&&s.active!==false||punches.some(p=>p.staffId===s.id&&!p.void)).sort(sortStaff);
 function punchHtml(p,editable){
   const cls=['punch',p.src==='manual'?'manual':'',p.void?'void':''].filter(Boolean).join(' ');
   const tip=p.src==='manual'?`補登：${p.by||''}${p.note?'，'+p.note:''}`:`${p.devName||'打卡裝置'}${p.sim?`，相似度 ${p.sim}`:''}`;
@@ -3973,7 +3975,7 @@ function renderAttLog(mi){
 }
 function renderAtt(mi){
   attSubscribe(mi);
-  if(viewOnly())attSel=myStaffId();
+  if(lowPerm())attSel=myStaffId();
   if(document.activeElement!==$('attMonth'))$('attMonth').value=mi.ym;
   $('attTitle').textContent=`${mi.label} 出勤統計`;
   $('attAbsNote').hidden=!!absentFrom()||!canWrite;
@@ -4010,7 +4012,7 @@ function renderAtt(mi){
     det.hidden=false;
     det.innerHTML=`<div class="lv-title-row"><h2 style="margin:0">${esc(fullName(s))}・${mi.label} 出勤明細</h2><span style="flex:1"></span>
       ${ed?`<button class="small" data-padd="">補登打卡</button> `:''}${ed&&faceMeta[s.id]?`<button class="small danger" data-delface="${esc(s.id)}">刪除臉部資料</button> `:''}<button class="small" data-attclose>關閉</button></div>
-      <p class="desc">${viewOnly()?'每一診的上班卡、下班卡與狀態。斜體（補）是管理者補登的打卡。打卡有問題請洽診所管理者。':'斜體（補）是管理者補登的打卡；按 × 作廢誤打的卡（保留紀錄，不列入計算）。有照片的打卡可以點照片放大核對。'}</p>
+      <p class="desc">${lowPerm()?'每一診的上班卡、下班卡與狀態。斜體（補）是管理者補登的打卡。打卡有問題請洽診所管理者。':'斜體（補）是管理者補登的打卡；按 × 作廢誤打的卡（保留紀錄，不列入計算）。有照片的打卡可以點照片放大核對。'}</p>
       <div class="scroll-x"><table class="list"><thead><tr><th>日期</th><th>診</th><th>上班卡</th><th>下班卡</th><th>狀態</th></tr></thead><tbody>${rows.join('')||'<tr><td colspan="5" class="att-mute">這個月到今天為止沒有排班或打卡</td></tr>'}</tbody></table></div>
       ${voided.length?`<p class="hint">已作廢：${voided.map(p=>`${Number(p.date.slice(5,7))}/${Number(p.date.slice(8))} ${punchHtml(p,false)}`).join('、')}</p>`:''}`;
   }
