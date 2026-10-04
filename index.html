@@ -276,7 +276,7 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .why-row.ok{background:var(--accent-soft);}
 .why-row span{color:var(--sub);}
 .why-row.ok span{color:var(--ok);font-weight:600;}
-.lot-docs{margin-top:3px;padding-top:3px;border-top:1px dashed var(--line);font-size:.62rem;line-height:1.35;color:var(--doc);}
+.lot-docs{display:grid;justify-content:start;gap:0 4px;margin-top:3px;padding-top:3px;border-top:1px dashed var(--line);font-size:.62rem;line-height:1.35;color:var(--doc);}
 .lot-docs i{font-style:normal;color:var(--faint);margin-right:3px;}
 .lv-title-row button.on{border-color:var(--doc);color:var(--doc);}
 .lot-set-acts{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
@@ -2779,6 +2779,13 @@ function lotDoctorsOf(ym,key){
   const cellOf=ck=>{const c=b?b.weeks?.[wk]?.[ck]:weeks[wk]?.[ck];return Array.isArray(c)&&Array.isArray(c[FOLLOW])?c[FOLLOW]:[];};
   return SHIFTS.map(sh=>({sh,docs:closedAt(dow,sh.id,key)?null:cellOf(dow+'_'+sh.id).filter(id=>byId(id)?.role==='doctor')}));
 }
+// 月曆格子裡的醫師：當天有上班的醫師依代號 A→Z 由左到右排成固定欄位，早午晚三列共用，讓同一人上下對齊
+const lotDrCode=id=>codeOf(id).replace(/^dr\.?\s*/i,'');
+function lotDocsHtml(ym,key){
+  const rows=lotDoctorsOf(ym,key).filter(x=>x.docs!==null);if(!rows.length)return '';
+  const all=[...new Set(rows.flatMap(x=>x.docs))].sort((a,b)=>lotDrCode(a).localeCompare(lotDrCode(b),'en',{numeric:true,sensitivity:'base'}));
+  return `<div class="lot-docs" style="grid-template-columns:auto repeat(${Math.max(1,all.length)},auto)">${rows.map(({sh,docs})=>`<i>${sh.short}</i>${all.length?all.map(id=>`<span>${docs.includes(id)?esc(lotDrCode(id)):''}</span>`).join(''):'<span class="att-mute">—</span>'}`).join('')}</div>`;
+}
 // ---- 畫面 ----
 function renderLottery(){
   if(!lotYm)lotYm=lotNextYm();
@@ -2817,7 +2824,7 @@ function renderLottery(){
        q?`<div class="lot-q">名額 ${left}／${q}</div>${L.status==='open'&&demand[k]&&(admin||L.showBets===true)?`<div class="lot-dem${demand[k]>left?' hot':''}">${demand[k]} 人想要</div>`:''}`:'<div class="lot-q att-mute">不開放</div>')+
       (winners.length?`<div class="lot-win">${winners.map(s=>`<span class="${s===me?'me':''}">${esc(codeOf(s))}</span>`).join('')}</div>`:'')+
       (mine?'<div class="lot-chip">●</div>':'')+
-      (admin&&lotDocYm[ym]?`<div class="lot-docs">${lotDoctorsOf(ym,k).map(({sh,docs})=>docs===null?'':`<div><i>${sh.short}</i>${docs.length?docs.map(id=>esc(codeOf(id).replace(/^dr\.?\s*/i,''))).join(' '):'<span class="att-mute">—</span>'}</div>`).join('')}</div>`:'')+'</div>';
+      (admin&&lotDocYm[ym]?lotDocsHtml(ym,k):'')+'</div>';
   });
   h+='</div>';
   if(L.status==='open'&&L.participants.includes(me))h+='<p class="hint">點日子放籌碼、再點一次收回。可以一直改到本輪截止。「名額 1／2」＝還剩 1 個名額（共 2 個）；'+(L.showBets===true?'「3 人想要」是本輪目前放在這天的籌碼數。':'這個月不公開檯面上的籌碼，只看得到自己放的。')+'</p>';
