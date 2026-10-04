@@ -279,6 +279,13 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .lot-docs{display:grid;justify-content:start;gap:0 4px;margin-top:3px;padding-top:3px;border-top:1px dashed var(--line);font-size:.62rem;line-height:1.35;color:var(--doc);}
 .lot-docs i{font-style:normal;color:var(--faint);margin-right:3px;}
 .lv-title-row button.on{border-color:var(--doc);color:var(--doc);}
+.aq-days{margin-top:4px;font-size:.8rem;font-weight:600;color:var(--ok);}
+.aq-days.bad{color:var(--warn);}
+.pf-missing{border-color:var(--warn);background:var(--warn-soft);}
+.pf-missing-head{font-size:.88rem;color:var(--warn);margin-bottom:8px;}
+.pf-missing-list{display:flex;flex-wrap:wrap;gap:6px;}
+.pf-missing-item{border:1px solid var(--warn);background:var(--panel);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:.78rem;cursor:pointer;}
+.pf-missing-item:hover{background:var(--warn);color:#fff;}
 .lot-set-acts{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
 .lot-round{font-size:.8rem;color:var(--sub);padding:5px 0;border-top:1px dashed var(--line);}
 .lot-dlg{max-width:520px;}
@@ -320,6 +327,8 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .btn-link:hover{border-color:var(--accent);}
 /* 僅檢視：請假／休假分頁不顯示登記表單與停用的按鈕 */
 body.low-perm [data-attclose],body.low-perm #attTable .att-face,body.low-perm .mgr-only{display:none;}
+/* 登記本人請假以下：請假只能請自己的，不顯示選擇人員的欄位 */
+body.low-perm .leave-form .field:has(> [data-n="staff"]),body.low-perm #fcForm .field:has(> #fcStaff){display:none;}
 body.low-perm #attRulesCard,body.low-perm #devCard,body.low-perm #attToPay,body.low-perm #tab-att button:disabled,body.low-perm #attLogSid,body.low-perm #otSid{display:none;}
 body.view-only #tab-leave form,body.view-only #tab-docleave form,body.view-only #tab-leave button:disabled,body.view-only #tab-docleave button:disabled{display:none;}
 .att-photo{display:block; width:224px; height:224px; border-radius:12px; object-fit:cover; margin:8px auto;}
@@ -699,6 +708,7 @@ body.gated .shell{display:none;}
 
     <section id="tab-leave" hidden>
       <div class="stack">
+        <div class="card pf-missing" id="pfMissingCard" hidden></div>
         <div class="card" id="lvReqCard" hidden></div>
         <div class="card" id="lvCard">
           <div class="lv-head"><h2>請假登記</h2><span class="seg" id="lvWhenSeg" role="group" aria-label="事前或事後"><button type="button" data-when="before" aria-pressed="true">事前</button><button type="button" data-when="after" aria-pressed="false">事後</button></span></div>
@@ -715,7 +725,7 @@ body.gated .shell{display:none;}
                 <label><input type="checkbox" data-sh="night" checked>晚</label>
               </div>
             </div>
-            <div class="field"><label for="lvType-assistant">請假類別</label><select id="lvType-assistant" data-n="type"><option>排休</option><option>特休</option><option>生理假</option><option>病假</option><option>事假</option><option>公假</option><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>陪產假</option><option>育嬰假</option><option>補休</option><option>颱風假</option><option>原住民族歲時祭儀</option><option>不可上班</option><option>其他</option></select></div>
+            <div class="field"><label for="lvType-assistant">請假類別</label><select id="lvType-assistant" data-n="type"><option>排休</option><option>特休</option><option>生理假</option><option>病假</option><option>事假</option><option>公假</option><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>陪產假（陪產檢假）</option><option>育嬰假</option><option>彈性育嬰假</option><option>補休</option><option>颱風假</option><option>原住民族歲時祭儀</option><option>不可上班</option><option>其他</option></select></div>
             <div class="field" style="flex:1;min-width:140px"><label for="lvNote-assistant">備註</label><input id="lvNote-assistant" data-n="note" placeholder="例如：家中有事…"></div>
             <button class="primary" type="submit" data-w>登記</button>
             <button type="button" id="monthLeaveBtn">整月排假</button>
@@ -752,16 +762,16 @@ body.gated .shell{display:none;}
         <div class="card">
           <h2>家庭照顧假</h2>
           <p class="lv-proof">📎 <b>家庭照顧假</b>需檢附：需檢附合理證明<br><span>至少以 1 小時為單位；上班到中途請到當診結束，以 0.5 小時為單位</span></p>
-          <p class="desc">僅限助理。填寫時間段後自動計算時數，以 1 小時為最小單位，未滿 1 小時的部分以 1 小時計；超過 3 小時但不超過 3.5 小時（一個診）時記 3.5 小時。上班到中途請假到當診結束時，勾選「請到當診結束」，結束時間固定為當診結束時間，以 0.5 小時為最小單位，未滿 0.5 小時以 0.5 小時計。家庭照顧假另外記錄，不會影響排班。</p>
+          <p class="desc">僅限助理。填寫時間段後自動計算時數，以 1 小時為最小單位，未滿 1 小時的部分以 1 小時計；超過 3 小時但不超過 3.5 小時（一個診）時記 3.5 小時。上班到中途請假到當診結束時，勾選「且到當診結束」，結束時間固定為當診結束時間，以 0.5 小時為最小單位，未滿 0.5 小時以 0.5 小時計。家庭照顧假另外記錄，不會影響排班。</p>
           <form class="form-row" id="fcForm" style="margin-bottom:14px">
             <div class="field"><label for="fcStaff">助理</label><select id="fcStaff" required></select></div>
             <div class="field"><label for="fcDate">日期</label><input type="date" id="fcDate" required></div>
             <div class="field"><span class="lb">班別</span><span class="seg fc-seg" id="fcShiftSeg" role="group" aria-label="班別"><button type="button" data-fcsh="day" aria-pressed="false">早</button><button type="button" data-fcsh="eve" aria-pressed="false">午</button><button type="button" data-fcsh="night" aria-pressed="false">晚</button></span><select id="fcShift" hidden><option value="">不指定</option><option value="day">早班</option><option value="eve">午班</option><option value="night">晚班</option></select></div>
             <div class="field"><label for="fcStart">開始時間</label><input type="time" id="fcStart" value="08:30" required></div>
             <div class="field"><label for="fcEnd">結束時間</label><input type="time" id="fcEnd" value="09:30" required></div>
-            <div class="field"><span class="lb">中途離開</span><label class="fc-mid"><input type="checkbox" id="fcMid"> 請到當診結束</label></div>
+            <div class="field"><span class="lb">中途離開</span><label class="fc-mid"><input type="checkbox" id="fcMid"> 且到當診結束</label></div>
             <div class="field"><span class="lb">時數</span><div id="fcCalc" style="padding-block:6px;font-weight:500;white-space:nowrap">1 小時</div></div>
-            <div class="field" style="flex:1;min-width:140px"><label for="fcNote">備註</label><input id="fcNote" placeholder="例如：陪同家人就醫"></div>
+            <div class="field" style="flex:1;min-width:140px"><label for="fcNote">事由（必填）</label><input id="fcNote" placeholder="例如：陪同母親回診、照顧生病的孩子"></div>
             <button class="primary" type="submit" data-w>登記</button>
           </form>
           <div class="lv-title-row"><h3 class="subhead" id="fcTitle"></h3><span class="lv-range" id="fcRange" data-lvrange="fc"></span></div>
@@ -785,7 +795,7 @@ body.gated .shell{display:none;}
           </div>
           <h3 class="subhead">特休統計</h3>
           <div class="pv-annual" id="pvAnnual"></div>
-          <div class="lv-title-row" style="margin-top:16px"><h3 class="subhead">事件假統計</h3><label class="lv-range" style="font-size:.8rem;color:var(--sub)">假別 <select id="pvKindFilter" style="width:auto;padding:2px 6px;font-size:.8rem"><option value="">全部</option><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>育嬰假</option></select></label></div>
+          <div class="lv-title-row" style="margin-top:16px"><h3 class="subhead">事件假統計</h3><label class="lv-range" style="font-size:.8rem;color:var(--sub)">假別 <select id="pvKindFilter" style="width:auto;padding:2px 6px;font-size:.8rem"><option value="">全部</option><option>婚假</option><option>喪假</option><option>產檢假</option><option>產假</option><option>流產產假</option><option>育嬰假</option><option>彈性育嬰假</option><option>陪產假（陪產檢假）</option><option>病假</option><option>公假</option></select></label></div>
           <div class="scroll-x"><table class="list" id="pvTable"></table></div>
         </div>
         <div class="card">
@@ -1040,7 +1050,17 @@ const proofFileCache={};
 let weekMeta={}; // weeks/{wk} 的最後修改者 {by,name,at}
 let presence={},presOn=false,presLast=''; // 正在編輯班表的人 presence/{uid}
 const PRES_TTL=70000; // 每 10 秒更新一次，超過 70 秒沒更新視為已離開
-let leaveReqs=[]; // 助理自己送出、等待審核（pending）或被退回（rejected）的請假；leaves 只放已核准的
+let leaveReqs=[];
+// 假別改名：舊資料的「陪產假」讀進來時換成新名稱
+const RENAMED={'陪產假':'陪產假（陪產檢假）'};
+const normType=o=>{if(o){if(RENAMED[o.type])o.type=RENAMED[o.type];if(RENAMED[o.kind])o.kind=RENAMED[o.kind];}return o;};
+let monthLeavePaint=null;
+let rangeOverride=null;
+// 這些假別的事由、日期等問題與起訖日在同一個視窗一次問（整月排假不另外先問起訖日）
+const ONE_WIN=['病假','公假','婚假','喪假','產檢假','陪產假（陪產檢假）','彈性育嬰假']; // 陪產假（陪產檢假）：在「預產期＋起訖日」視窗改過的起訖日，重新送出表單時套用 // 整月排假視窗開著時的重畫函式（資料變動時一起更新月曆）
+// 整月排假時這些假別要詢問起訖日，改走請假表單的完整流程（事件、上限、證明）
+const RANGE_TYPES=['病假','事假','公假','婚假','喪假','產檢假','陪產假（陪產檢假）','彈性育嬰假','補休','不可上班','其他'];
+const REASON_TYPES=['事假','補休','不可上班','其他']; // 助理請這些假要在備註說明理由 // 助理自己送出、等待審核（pending）或被退回（rejected）的請假；leaves 只放已核准的
 let lotteries={},lotBets={}; // 排休抽籤 lottery/{YYYY-MM}、lotteryBets/{YYYY-MM}_{輪次}_{sid}
 let pevents=[]; // 個人假事件 {id,staffId,kind,date,rel,months,end,child,note}
 // 出勤（打卡裝置 kiosk.html 寫入）：只有排班管理以上會載入
@@ -1123,6 +1143,75 @@ let poolMode='basic'; // 左方「基本／加診」切換，只影響之後新�
 let leaveIdx=new Map();
 // 請假審核：助理、醫師自己登記（沒有排班管理以上權限）的請假／休假要等管理者核准才生效
 const isLeaveReq=l=>l.status==='pending'||l.status==='rejected';
+// 已核准的請假有待審的取消／變更申請（請假列表顯示「等待核准刪除／變更」）
+function reqSiblings(r){
+  const ev=r.pevId||r.eventId||null,isC=r.kind==='cancel';
+  return leaveReqs.filter(x=>x.id!==r.id&&x.status==='pending'&&(x.kind==='cancel')===isC&&x.staffId===r.staffId&&x.type===r.type&&
+    (ev?(x.pevId||x.eventId)===ev:!(x.pevId||x.eventId)&&Math.abs((x.reqAt||0)-(r.reqAt||0))<5000)).sort((a,b)=>a.date.localeCompare(b.date));
+}
+// 有同一批的其他申請時詢問：只處理這一筆，或整批一起
+// 月制育嬰假：撤回或取消只能以「月」為單位，從最後面往前減；剩下的要 0 個月（全部）或至少 6 個月
+const ccMonthsOf=e=>e.months||Math.max(1,Math.round((dayDiff(e.date,e.end)+1)/30.44));
+function ccMonthsDialog(ev,verb,onPick){
+  const n=ccMonthsOf(ev),opts=[],minCut=verb==='取消'&&needReview(ev.staffId)?ymd(new Date()):'';
+  for(let k=1;k<=n;k++){const left=n-k;if(left&&left<6)continue;const cut=left?addMo(ev.date,left):ev.date;if(minCut&&cut<minCut)continue;opts.push({k,left,cut});}
+  if(!opts.length){toast(pastMsg,'warn');return;}
+  dialog(`<h3>${verb}育嬰假（以月為單位）</h3><p>${esc(PEV.育嬰假.desc(ev))}：${fmtD(ev.date)}～${fmtD(ev.end)}，共 ${n} 個月。育嬰假以月為單位，只能從最後面往前${verb}，剩下的至少要 6 個月。</p>
+    <div class="opts">${opts.slice().reverse().map((o,i)=>`<label><input type="radio" name="ccm" value="${o.k}"${i?'':' checked'}><span>${o.left?`${verb}最後 ${o.k} 個月`:`全部${verb}（${n} 個月）`}<small>${o.left?`${fmtD(o.cut)} 起${verb}，保留 ${fmtD(ev.date)}～${fmtD(addD(o.cut,-1))}（${o.left} 個月）`:`${fmtD(ev.date)}～${fmtD(ev.end)} 全部${verb}`}</small></span></label>`).join('')}</div>`,
+    ov=>{const k=Number(ov.querySelector('input[name=ccm]:checked').value),o=opts.find(x=>x.k===k);onPick(o.cut,o.left,n);},verb);
+}
+// 取消核准後：依剩下的請假更新連續假事件的結束日（育嬰假一併更新月數）
+function ccFixEnd(evId){
+  const ev=pevents.find(e=>e.id===evId);if(!ev||!PEV[ev.kind]?.auto)return;
+  const ds=leaves.filter(l=>l.eventId===evId).map(l=>l.date).sort();if(!ds.length)return;
+  const end=ds[ds.length-1];if(ev.end&&end>=ev.end)return;
+  store.pev(Object.assign({},ev,{end},ev.kind==='育嬰假'?{months:Math.max(1,Math.round((dayDiff(ev.date,end)+1)/30.44))}:{}));
+}
+// 以天計的連續假：選「從哪一天起」撤回／取消到最後一天，保留前面連續的部分
+function tailDialog(type,dates,verb,def,onPick,minDate){
+  const ds=dates.slice().sort(),z=ds[ds.length-1];let a=ds[0];
+  if(minDate&&minDate>a){const f=ds.find(d=>d>=minDate);if(!f){toast(pastMsg,'warn');return;}a=f;}
+  def=def&&def>=a&&def<=z?def:a;
+  dialog(`<h3>${verb}${esc(type)}（只能從最後面往前減）</h3><p>${esc(type)}須連續：${fmtD(ds[0])}～${fmtD(z)}，共 ${ds.length} 天。只能從某一天起${verb}到最後一天，前面保留的部分維持連續。${a>ds[0]?`已經過去的日子不能${verb}，最早從 ${fmtD(a)} 起。`:''}</p>
+    <div class="field"><label for="tlFrom">從這一天起${verb}</label><input type="date" id="tlFrom" value="${def}" min="${a}" max="${z}"></div><p class="hint" id="tlInfo" style="margin-top:8px"></p>`,
+    ov=>{const c=ov.querySelector('#tlFrom').value;if(!c||c<a||c>z){toast(`請選 ${fmtD(a)}～${fmtD(z)} 之間的日期。`,'warn');return false;}onPick(c,ds.filter(d=>d>=c),ds.filter(d=>d<c));},verb);
+  const ov=[...document.querySelectorAll('.overlay')].pop(),inp=ov.querySelector('#tlFrom'),info=ov.querySelector('#tlInfo');
+  const upd=()=>{const c=inp.value,n=ds.filter(d=>d>=c).length,k=ds.length-n;info.textContent=c<a||c>z?'':k?`${verb} ${fmtD(c)}～${fmtD(z)}（${n} 天），保留 ${fmtD(a)}～${fmtD(addD(c,-1))}（${k} 天）`:`全部${verb}（${n} 天）`;};
+  inp.addEventListener('input',upd);upd();
+}
+function askBatch(r,verb,doOne,doAll){
+  const sib=reqSiblings(r);if(!sib.length){doOne();return;}
+  if(r.type==='育嬰假'&&r.eventId&&verb==='撤回'&&r.kind!=='cancel'){ // 取消申請的撤回仍整段一起
+    const ev=pevents.find(e=>e.id===r.eventId);
+    if(ev){ccMonthsDialog(ev,'撤回',(cut,left)=>{
+      const all=[r,...sib].filter(x=>x.date>=cut);
+      doAll(all);
+      if(left)store.pev(Object.assign({},ev,{end:addD(cut,-1),months:left})); // 撤回後事件改成剩下的月數
+      else if(!leaves.some(l=>l.eventId===ev.id))store.delPev(ev.id); // 全部撤回、也沒有已核准的：事件一併刪除
+    });return;}
+  }
+  if(contLeave(r)&&verb==='撤回'&&r.kind!=='cancel'){ // 以天計的連續假：從某天起撤回到最後一天
+    const all=[r,...sib],ev=pevents.find(e=>e.id===r.eventId);
+    tailDialog(r.type,all.map(x=>x.date),'撤回',r.date,(cut,gone,keep)=>{doAll(all.filter(x=>x.date>=cut));if(ev&&!keep.length&&!leaves.some(l=>l.eventId===ev.id))store.delPev(ev.id);if(ev&&keep.length)store.pev(Object.assign({},ev,{end:keep[keep.length-1]}));});
+    return;
+  }
+  if(contLeave(r)&&verb!=='核准'){ // 須連續的假：取消申請的撤回、退回只能整段一起（核准可以單筆）
+    const all=[r,...sib].sort((a,b)=>a.date.localeCompare(b.date));
+    dialog(`<h3>${esc(r.type)}須連續，只能整段一起${verb}</h3><p>${esc(fullName(byId(r.staffId)))} 的${esc(r.type)}${r.kind==='cancel'?'取消申請':''}共 <b>${all.length}</b> 筆（${md(parseYmd(all[0].date))}～${md(parseYmd(all[all.length-1].date))}），要全部一起${verb}嗎？</p>`,()=>doAll(all),`全部${verb}（${all.length} 筆）`);
+    return;
+  }
+  const all=[r,...sib].sort((a,b)=>a.date.localeCompare(b.date)),ev=r.pevId||r.eventId,e0=ev&&pevents.find(x=>x.id===ev),desc=e0&&PEV[e0.kind]?PEV[e0.kind].desc(e0):'';
+  const ds=all.map(x=>md(parseYmd(x.date))),dl=ds.length>12?ds.slice(0,12).join('、')+` …等 ${ds.length} 天`:ds.join('、'),isC=r.kind==='cancel';
+  dialog(`<h3>一起${verb}${ev?'同一件事':'同一次送出'}的${isC?'取消申請':'請假'}？</h3><p>${esc(fullName(byId(r.staffId)))} 的${esc(r.type||'')}${desc?`（${esc(desc)}）`:''}共有 <b>${all.length}</b> 筆${isC?'取消申請':''}待審核：</p><p class="att-mute" style="font-size:.85rem">${dl}</p><p>要全部一起${verb}，還是只${verb} ${md(parseYmd(r.date))} 這一筆？</p>`,()=>doAll(all),`全部${verb}（${all.length} 筆）`);
+  const dov=[...document.querySelectorAll('.overlay')].pop(),b=document.createElement('button');b.textContent=`只${verb}這一筆`;b.onclick=()=>{dov.remove();doOne();};dov.querySelector('.acts [data-ok]').before(b);
+}
+// 連續假：系統自動排入的產假、流產產假、育嬰假必須連續，不能單獨變更或刪除其中幾天
+const contLeave=l=>!!(l&&l.eventId&&PEV[l.type]?.auto);
+const contMsg=l=>`${l.type}須連續，不能單獨變更其中幾天。要縮短請按「刪除」，從某一天起取消到最後；要改日期請取消整段後重新登記。`;
+const pastLeave=l=>!!l&&l.date<ymd(new Date())&&!isLeaveReq(l)&&leaves.some(x=>x.id===l.id);
+const pastMsg='已經核准且日期已過去的請假，不能申請取消或變更。如有問題請洽管理者。';
+const pendOf=l=>leaveReqs.find(r=>r.status==='pending'&&(r.replaces===l.id||(r.staffId===l.staffId&&r.date===l.date)));
+document.addEventListener('click',e=>{const b=e.target.closest('[data-lrwithdraw]');if(!b)return;const r=leaveReqs.find(x=>x.id===b.dataset.lrwithdraw);if(r&&(canWrite||r.staffId===myStaffId())){const w=r.kind==='cancel'?'刪除':'變更';askBatch(r,'撤回',()=>{store.delLeaveReq(r.id);toast(`已撤回${w}申請，原本的請假維持不變。`);},all=>{all.forEach(x=>store.delLeaveReq(x.id));toast(`已撤回 ${all.length} 筆${w}申請，原本的請假維持不變。`);});}});
 const needReview=sid=>!canWrite&&['assistant','doctor'].includes(byId(sid)?.role);
 // role：'assistant' 顯示在助理請假分頁（#lvReqCard）、'doctor' 顯示在醫師休假分頁（#dcReqCard）
 // 各假別需要檢附的證明文件與說明（助理的請假表單、整月排假、審核、對照表共用；醫師休假不需檢附）
@@ -1130,18 +1219,32 @@ const LEAVE_PROOF={
   婚假:{doc:'戶口名簿影本、結婚登記證明書或身分證換發影本',note:'須於登記日前 10 日起、3 個月內請畢（經公司同意可延至 1 年內）'},
   喪假:{doc:'訃聞、死亡證明書、除戶謄本或可證明親屬關係之戶籍謄本',note:'視與死者的親等關係給予不同天數'},
   病假:{doc:'診斷證明書或醫院、診所就醫門診收據',note:''},
-  產假:{doc:'媽媽手冊、出生證明書或診斷證明',note:'最多 56 天（含例假日）須連續，最早由預產期前 28 天（含例假日）開始請'},
+  產假:{doc:'媽媽手冊、出生證明書或診斷證明',note:'最多 56 天（含例假日）須連續；起始日不得早於預產期前 28 天，生產當天算第 1 天，最後一天最晚為生產日後第 55 天'},
   產檢假:{doc:'媽媽手冊或診斷證明',note:'最多 7 天'},
-  陪產假:{doc:'媽媽手冊、出生證明書或診斷證明',note:'分娩當日及前後共 15 日（含例假日）內請完，最多 7 天'},
-  流產產假:{doc:'診斷證明',note:'妊娠滿 20 週以上流產者 56 天；妊娠 3 個月以上未滿 20 週流產者 28 天；妊娠 2 個月以上未滿 3 個月流產者 7 天；妊娠未滿 2 個月流產者 5 天（皆含例假日）'},
+  '陪產假（陪產檢假）':{doc:'媽媽手冊、出生證明書或診斷證明',note:'懷孕期間（陪產檢）到預產期後 15 日內請，最多 7 天，可分次請'},
+  流產產假:{doc:'診斷證明',note:'須連續請；妊娠滿 20 週以上流產者 56 天；妊娠 3 個月以上未滿 20 週流產者 28 天；妊娠 2 個月以上未滿 3 個月流產者 7 天；妊娠未滿 2 個月流產者 5 天（皆含例假日）'},
   家庭照顧假:{doc:'需檢附合理證明',note:'至少以 1 小時為單位；上班到中途請到當診結束，以 0.5 小時為單位'},
+  育嬰假:{doc:'子女的戶口名簿、戶籍謄本或出生證明',note:'以月為單位（最短 6 個月），每名子女在滿 3 歲前最長 2 年，應於 10 日前提出'},
+  彈性育嬰假:{doc:'子女的戶口名簿、戶籍謄本或出生證明',note:'以日為單位，每名子女合計 30 日為限（算在 2 年內），可於 1 日前提出'},
   公假:{doc:'兵役召集令（教召）、法院傳票、政府機關公文或選務工作聘書等',note:'必須是因依法令規定或政府指派執行公務，方得請領'},
 };
 const proofHtml=t=>{const p=LEAVE_PROOF[t];return p?`📎 <b>${esc(t)}</b>需檢附：${esc(p.doc)}${p.note?`<br><span>${esc(p.note)}</span>`:''}`:'';};
 // 請假表單：選到需要證明的假別時，在表單下方顯示提示
 function paintProof(form){const el=form.nextElementSibling?.classList.contains('lv-proof')?form.nextElementSibling:null;if(!el)return;const h=form.dataset.role==='doctor'?'':proofHtml(form.querySelector('[data-n="type"]')?.value); /* 醫師不需檢附證明 */el.innerHTML=h;el.hidden=!h;}
 // ---- 請假證明上傳 ----
-const proofsOf=(sid,date)=>proofs.filter(p=>p.staffId===sid&&(p.dates||[]).includes(date));
+// 某天請假所屬的事件（喪假、婚假、產檢假的 pevId；產假、流產產假的 eventId）；舊資料沒有記錄時，只有一件事件涵蓋這天才算
+function leaveEvId(sid,date){
+  const l=leaves.find(x=>x.staffId===sid&&x.date===date&&PEV[x.type])||leaveReqs.find(x=>x.staffId===sid&&x.date===date&&x.status==='pending'&&PEV[x.type]);
+  if(!l)return null;if(l.pevId||l.eventId)return l.pevId||l.eventId;
+  const cov=typeof pevCovering==='function'?pevCovering(sid,l.type,[date]):[];return cov.length===1?cov[0].id:null;
+}
+// 證明：上傳時勾選的日期，或屬於同一件事（同一人過世的喪假等）的請假都共用
+const proofEvId=p=>p.pevId||(p.dates||[]).map(d=>leaveEvId(p.staffId,d)).find(Boolean)||null; // 舊證明沒有 pevId：依上傳時勾選的日期推算所屬事件
+// 證明共用的群組：一般是事件本身；育嬰假與彈性育嬰假以「子女生日」為群組，同一名子女的兩種假共用證明
+const evChild=evId=>{const e=pevents.find(x=>x.id===evId);return e?.kind==='育嬰假'?e.child:e?.kind==='彈性育嬰假'?e.date:null;};
+const evGroup=evId=>{if(!evId)return null;const c=evChild(evId);return c?'child:'+c:evId;};
+const proofsOf=(sid,date,type)=>{const fc=type==='家庭照顧假';if(fc)return proofs.filter(p=>p.staffId===sid&&p.type==='家庭照顧假'&&(p.dates||[]).includes(date));
+  const g=evGroup(leaveEvId(sid,date));return proofs.filter(p=>p.staffId===sid&&p.type!=='家庭照顧假'&&((p.dates||[]).includes(date)||(g&&evGroup(proofEvId(p))===g)));};
 const proofKeepMonths=()=>cfg.proofKeepMonths??24; // 保存期限（月），0＝永久保存
 // 同一次請假：同一人、同一假別往前後連續的日期（中間的週日、休診日略過）
 function leaveRun(sid,date,type){
@@ -1154,7 +1257,7 @@ function leaveRun(sid,date,type){
 // 狀態標籤：📎 n 份／📄 已收紙本／⚠ 未附證明；點一下開啟證明視窗
 function proofBadge(sid,date,type){
   if(byId(sid)?.role!=='assistant')return '';
-  const ps=proofsOf(sid,date),files=ps.filter(p=>p.kind==='file').length,paper=ps.some(p=>p.kind==='paper');
+  const ps=proofsOf(sid,date,type),files=ps.filter(p=>p.kind==='file').length,paper=ps.some(p=>p.kind==='paper');
   if(!files&&!paper&&!LEAVE_PROOF[type])return '';
   const can=canWrite||sid===myStaffId();if(!can)return '';
   const cls=files||paper?'ok':'warn',txt=[files?`📎 ${files} 份證明`:'',paper?'📄 已收紙本':''].filter(Boolean).join('・')||'⚠ 未附證明';
@@ -1184,34 +1287,60 @@ async function proofData(id){
   if(!db){try{return JSON.parse(localStorage.getItem(LOCAL_KEY+'_proof')||'{}')[id]||null;}catch(e){return null;}}
   const d=await db.doc('proofFiles/'+id).get();return proofFileCache[id]=d.exists?d.data().data:null;
 }
-function openProof(sid,date,type){
+// 送出需要證明的假別後詢問：要現在上傳嗎？按「上傳證明」開啟證明視窗，在那裡按「返回」會回到這裡
+function askProof(sid,date,type){
+  const pf=LEAVE_PROOF[type];if(!pf)return;
+  if(proofsOf(sid,date,type).length){toast(`已套用同一件事的證明（${proofsOf(sid,date,type).length} 份），不需要再上傳。`);return;}
+  dialog(`<h3>${esc(type)}需要檢附證明</h3><p class="lv-proof">📎 需檢附：${esc(pf.doc)}${pf.note?`<br><span>${esc(pf.note)}</span>`:''}</p><p>要現在上傳證明嗎？也可以之後在請假列表點「⚠ 未附證明」補上傳，或把紙本交給管理者。</p>`,()=>{setTimeout(()=>openProof(sid,date,type,()=>askProof(sid,date,type)),0);},'上傳證明',false,'稍後再說');
+}
+function missingProofs(){
+  const me=myStaffId(),mine=sid=>canWrite||sid===me,keepFrom=proofKeepMonths()?addMo(ymd(new Date()),-proofKeepMonths()):'';
+  const recs=[...leaves,...leaveReqs.filter(r=>r.status==='pending'&&r.kind!=='cancel')].filter(l=>LEAVE_PROOF[l.type]&&byId(l.staffId)?.role==='assistant'&&mine(l.staffId)&&l.date>=keepFrom);
+  const groups=new Map();
+  // 先依事件（或同一段連續日期）分組，每組只查一次有沒有證明
+  recs.forEach(l=>{const ev=l.pevId||l.eventId;
+    const g=ev?evGroup(ev):(l.staffId+'|'+l.type+'|'+leaveRun(l.staffId,l.date,l.type)[0]);
+    const x=groups.get(g)||{sid:l.staffId,type:l.type,dates:[]};x.dates.push(l.date);groups.set(g,x);});
+  for(const [g,x] of groups)if(String(g).includes('|')?x.dates.some(d=>proofsOf(x.sid,d,x.type).length):proofsOf(x.sid,x.dates[0],x.type).length)groups.delete(g); /* 事件組查第一天即可（證明依事件共用） */
+  familyCare.filter(f=>mine(f.staffId)&&byId(f.staffId)?.role==='assistant'&&f.date>=keepFrom&&!proofsOf(f.staffId,f.date,'家庭照顧假').length)
+    .forEach(f=>groups.set('fc|'+f.id,{sid:f.staffId,type:'家庭照顧假',dates:[f.date],time:f.start&&f.end?`${f.start}–${f.end}`:''}));
+  return [...groups.values()].map(x=>(x.dates.sort(),x)).sort((a,b)=>a.dates[0].localeCompare(b.dates[0])||codeOf(a.sid).localeCompare(codeOf(b.sid),'en',{numeric:true}));
+}
+function renderMissingProofs(){
+  const box=$('pfMissingCard'),list=missingProofs();box.hidden=!list.length;if(!list.length)return;
+  const rng=ds=>{const a=ds[0],z=ds[ds.length-1];return a===z?md(parseYmd(a)):`${md(parseYmd(a))}～${md(parseYmd(z))}（${ds.length} 天）`;};
+  box.innerHTML=`<div class="pf-missing-head">⚠ ${canWrite?'以下請假':'你有'} <b>${list.length}</b> 筆${canWrite?'':'請假'}尚未附證明${canWrite?'':'，請點一下上傳，或把紙本交給管理者'}</div>
+    <div class="pf-missing-list">${list.map(x=>`<button type="button" class="pf-missing-item" data-pf="${x.sid}|${x.dates[0]}|${esc(x.type)}">${canWrite?`<b>${esc(codeOf(x.sid))}</b> `:''}${esc(x.type)} ${rng(x.dates)}${x.time?' '+x.time:''}</button>`).join('')}</div>`;
+}
+function openProof(sid,date,type,onBack){ // onBack：從「要現在上傳證明嗎？」開啟時，按「返回」回到那個畫面
   const ov=document.createElement('div');ov.className='overlay';document.body.appendChild(ov);
+  const evId=type==='家庭照顧假'?null:leaveEvId(sid,date),ev=evId?pevents.find(e=>e.id===evId):null,evDesc=ev&&PEV[ev.kind]?PEV[ev.kind].desc(ev):'';
   const run=leaveRun(sid,date,type),rl=run.length>1?`${md(parseYmd(run[0]))}～${md(parseYmd(run[run.length-1]))} 共 ${run.length} 天`:'';
   const close=()=>{ov.remove();renderAll();};
   const paint=()=>{
-    const ps=proofsOf(sid,date),files=ps.filter(p=>p.kind==='file'),paper=ps.find(p=>p.kind==='paper'),pf=LEAVE_PROOF[type];
+    const ps=proofsOf(sid,date,type),files=ps.filter(p=>p.kind==='file'),paper=ps.find(p=>p.kind==='paper'),pf=LEAVE_PROOF[type];
     const canDel=p=>canWrite||(p.staffId===myStaffId()&&p.kind==='file');
     ov.innerHTML=`<div class="dialog pf-dlg" role="dialog" aria-modal="true"><h3>請假證明・${esc(fullName(byId(sid)))} ${md(parseYmd(date))} ${esc(type||'')}</h3>
       ${pf?`<p class="lv-proof">📎 需檢附：${esc(pf.doc)}</p>`:''}
       <div class="pf-list">${files.map(p=>`<div class="pf-item" data-pfid="${p.id}"><div class="pf-thumb">${p.mime==='application/pdf'?'<span class="pf-pdf">PDF</span>':'<span class="att-mute">載入中…</span>'}</div><div class="pf-meta"><b>${esc(p.name||'證明')}</b><small>${Math.round((p.size||0)/1024)} KB・${esc(p.byName||'')} ${p.at?fmtAt(p.at):''}${(p.dates||[]).length>1?`・${p.dates.length} 天共用`:''}</small></div><span class="pf-acts"><button type="button" class="small" data-pfopen="${p.id}">開啟</button>${canDel(p)?` <button type="button" class="small danger" data-pfdel="${p.id}">刪除</button>`:''}</span></div>`).join('')||'<p class="att-mute" style="margin:6px 0">還沒有上傳證明。</p>'}</div>
       <label class="pf-up"><input type="file" accept="image/*,application/pdf" multiple data-pfinput><span>＋ 上傳證明（拍照或選擇照片、PDF）</span></label>
-      ${rl?`<label class="pf-run"><input type="checkbox" data-pfrun checked> 同一次請假 ${rl}都套用這份證明</label>`:''}
+      ${evDesc?`<p class="pf-run">🔗 這份證明會自動套用到${evChild(evId)?`這名子女（生日 ${esc(fmtD(evChild(evId)))}）的所有育嬰假與彈性育嬰假`:`「${esc(evDesc)}」的所有${esc(type)}`}（包含之後再請的）。</p>`:rl?`<label class="pf-run"><input type="checkbox" data-pfrun checked> 同一次請假 ${rl}都套用這份證明</label>`:''}
       ${canWrite?`<label class="pf-run"><input type="checkbox" data-pfpaper ${paper?'checked':''}> 已收到紙本證明${paper?`<small class="att-mute">（${esc(paper.byName||'')} ${fmtAt(paper.at)}）</small>`:''}</label>`:''}
       <p class="hint">照片會自動壓縮。只有本人與排班管理以上的人看得到；證明保存 ${proofKeepMonths()?proofKeepMonths()+' 個月':'不限期'}，到期自動刪除。</p>
-      <div class="acts"><button type="button" class="primary" data-pfclose>完成</button></div></div>`;
+      <div class="acts">${files.length||paper?'<button type="button" class="primary" data-pfclose>完成</button>':'<button type="button" data-pfclose>返回</button>'}</div></div>`;
     files.forEach(p=>{if(p.mime==='application/pdf')return;proofData(p.id).then(d=>{const t=ov.querySelector(`[data-pfid="${p.id}"] .pf-thumb`);if(t)t.innerHTML=d?`<img src="${d}" alt="">`:'<span class="att-mute">讀取失敗</span>';});});
   };
   paint();
   ov.addEventListener('click',async e=>{
-    if(e.target===ov||e.target.closest('[data-pfclose]')){close();return;}
+    if(e.target===ov||e.target.closest('[data-pfclose]')){const back=onBack&&!proofsOf(sid,date,type).length;close();if(back)onBack();return;}
     const op=e.target.closest('[data-pfopen]');if(op){const d=await proofData(op.dataset.pfopen);if(!d){toast('讀取不到檔案。','warn');return;}const b=await (await fetch(d)).blob();window.open(URL.createObjectURL(b),'_blank');return;}
     const dl=e.target.closest('[data-pfdel]');if(dl){dialog('<h3>刪除這份證明？</h3><p>刪除後無法復原。</p>',async()=>{await store.delProof(dl.dataset.pfdel);paint();},'刪除',true);return;}
   });
   ov.addEventListener('change',async e=>{
     const dates=ov.querySelector('[data-pfrun]')?.checked?run:[date];
     if(e.target.matches('[data-pfpaper]')){
-      const cur=proofsOf(sid,date).find(p=>p.kind==='paper');
-      if(e.target.checked&&!cur)await store.addProof({staffId:sid,dates,type,kind:'paper',by:myId||'本機',byName:myName(),at:Date.now()});
+      const cur=proofsOf(sid,date,type).find(p=>p.kind==='paper');
+      if(e.target.checked&&!cur)await store.addProof({staffId:sid,dates,type,...(evId?{pevId:evId}:{}),kind:'paper',by:myId||'本機',byName:myName(),at:Date.now()});
       else if(!e.target.checked&&cur)await store.delProof(cur.id);
       paint();return;
     }
@@ -1220,7 +1349,7 @@ function openProof(sid,date,type){
     const up=ov.querySelector('.pf-up span');up.textContent='上傳中…';
     let ok=0;
     for(const f of fl){
-      try{const {data,mime}=await proofEncode(f);await store.addProof({staffId:sid,dates,type,kind:'file',name:f.name,mime,size:Math.round(data.length*0.75),by:myId||'本機',byName:myName(),at:Date.now()},data);ok++;}
+      try{const {data,mime}=await proofEncode(f);await store.addProof({staffId:sid,dates,type,...(evId?{pevId:evId}:{}),kind:'file',name:f.name,mime,size:Math.round(data.length*0.75),by:myId||'本機',byName:myName(),at:Date.now()},data);ok++;}
       catch(err){toast(err.message||'上傳失敗。','warn');}
     }
     if(ok)toast(`已上傳 ${ok} 份證明。`);
@@ -1259,14 +1388,25 @@ function renderLeaveReqs(role){
     <p class="desc">${canWrite?`${ROLE[role]}自己送出的${word}（新增、修改、取消）核准後才會生效；退回時可以填寫原因。`:`你送出的${word}要等管理者核准才會生效，核准前可以撤回。被退回的申請可以刪除。`}</p>
     ${pend.length?`<div class="hol-scroll"><table class="list">${head}<tbody>${pend.map(r=>row(r,r=>canWrite?`<button class="small primary" data-lrok="${r.id}">核准</button> <button class="small danger" data-lrno="${r.id}">退回</button>`:`<button class="small" data-lrdel="${r.id}">撤回</button>`)).join('')}</tbody></table></div>`:`<p class="att-mute">沒有待審核的${word}。</p>`}
     ${rej.length?`<h4 style="margin:14px 0 6px">被退回的申請</h4><div class="hol-scroll"><table class="list">${head}<tbody>${rej.map(r=>row(r,r=>`<button class="small" data-lrdel="${r.id}">刪除</button>`)).join('')}</tbody></table></div>`:''}`;
+  // 一次最多顯示 10 列，其餘上下捲動
+  box.querySelectorAll('.hol-scroll').forEach(w=>{w.style.overflowY='auto';limitRows(w,10);});
 }
 ['lvReqCard','dcReqCard'].forEach(cid=>document.getElementById(cid).addEventListener('click',e=>{
   const role=cid==='dcReqCard'?'doctor':'assistant';
-  const ok=e.target.closest('[data-lrok]');if(ok&&canWrite){const r=leaveReqs.find(x=>x.id===ok.dataset.lrok);store.reviewLeave(ok.dataset.lrok,true);if(r)toast(`已核准 ${codeOf(r.staffId)} ${r.date.slice(5).replace('-','/')} 的請假申請。`);return;}
+  const ok=e.target.closest('[data-lrok]');if(ok&&canWrite){const r=leaveReqs.find(x=>x.id===ok.dataset.lrok);if(!r)return;
+    const one=()=>{store.reviewLeave(r.id,true);toast(`已核准 ${codeOf(r.staffId)} ${r.date.slice(5).replace('-','/')} 的請假申請。`);};
+    // 同一件事（或同一次送出）還有其他待審的申請時，詢問要不要一起核准
+    askBatch(r,'核准',one,async all=>{for(const x of all)await store.reviewLeave(x.id,true);toast(`已核准${r.kind==='cancel'?'取消':''} ${codeOf(r.staffId)} 的${r.type||'請假'} ${all.length} 筆。`);});
+    return;}
   if(e.target.closest('[data-lrall]')&&canWrite){const ps=leaveReqs.filter(r=>r.status==='pending'&&byId(r.staffId)?.role===role);dialog(`<h3>全部核准</h3><p>核准 ${ps.length} 筆待審核的請假申請？</p>`,async()=>{for(const r of ps)await store.reviewLeave(r.id,true);toast(`已核准 ${ps.length} 筆請假申請。`);},'全部核准');return;}
   const no=e.target.closest('[data-lrno]');if(no&&canWrite){const r=leaveReqs.find(x=>x.id===no.dataset.lrno);if(!r)return;
+    // 須連續的假：同一段的申請整段一起退回
+    if(contLeave(r)&&reqSiblings(r).length){const all=[r,...reqSiblings(r)];
+      dialog(`<h3>${esc(r.type)}須連續，只能整段一起退回</h3><p>${esc(fullName(byId(r.staffId)))} 的${esc(r.type)}共 ${all.length} 筆會一起退回。</p><label class="lb" for="lrReason">退回原因（選填）</label><input id="lrReason" type="text" maxlength="100" style="width:100%">`,()=>{const why=(document.getElementById('lrReason')?.value||'').trim();all.forEach(x=>store.reviewLeave(x.id,false,why));toast(`已退回 ${all.length} 筆。`);},`全部退回（${all.length} 筆）`,true);return;}
     dialog(`<h3>退回請假申請</h3><p>${esc(fullName(byId(r.staffId)))} ${r.date.slice(5).replace('-','/')} ${esc(r.type||'')}</p><label class="lb" for="lrReason">退回原因（選填）</label><input id="lrReason" type="text" maxlength="100" style="width:100%">`,()=>{store.reviewLeave(r.id,false,(document.getElementById('lrReason')?.value||'').trim());toast('已退回。');},'退回',true);return;}
-  const del=e.target.closest('[data-lrdel]');if(del){const r=leaveReqs.find(x=>x.id===del.dataset.lrdel);if(r&&(canWrite||r.staffId===myStaffId())){store.delLeaveReq(r.id);toast(r.status==='pending'?'已撤回申請。':'已刪除。');}return;}
+  const del=e.target.closest('[data-lrdel]');if(del){const r=leaveReqs.find(x=>x.id===del.dataset.lrdel);if(r&&(canWrite||r.staffId===myStaffId())){
+    if(r.status!=='pending'){store.delLeaveReq(r.id);toast('已刪除。');return;}
+    askBatch(r,'撤回',()=>{store.delLeaveReq(r.id);toast('已撤回申請。');},all=>{all.forEach(x=>store.delLeaveReq(x.id));toast(`已撤回 ${all.length} 筆申請。`);});}return;}
 }));
 function buildLeaveIdx(){
   leaveIdx=new Map();
@@ -1299,7 +1439,7 @@ function loadKioskLocal(){
 }
 function saveKioskLocal(fn){try{const d=JSON.parse(localStorage.getItem(KIOSK_KEY)||'null')||{};fn(d);localStorage.setItem(KIOSK_KEY,JSON.stringify(d));}catch(e){}}
 function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];}}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
@@ -1425,7 +1565,9 @@ const store={
     leaveReqs=leaveReqs.filter(x=>x.id!==id);
     // 新增／修改核准後沿用申請的 id（同一份文件改成已核准）；取消的申請文件刪掉
     if(r.kind==='cancel'){if(db)await queue('leaves/'+id,()=>db.doc('leaves/'+id).delete());}
-    return this.leavesBulk(adds,dels,true);
+    const done=this.leavesBulk(adds,dels,true);
+    if(r.kind==='cancel'&&r.eventId)setTimeout(()=>ccFixEnd(r.eventId),0);
+    return done;
   },
   async leave(l){
     if(needReview(l.staffId))return this.leaveReq(Object.assign({},l,{status:'pending',kind:'add',reqAt:Date.now()}));
@@ -1435,6 +1577,7 @@ const store={
     return queue('leaves/'+id,()=>db.doc('leaves/'+id).set(body));
   },
   async putLeave(l){
+    if(needReview(l.staffId)&&pastLeave(leaves.find(x=>x.id===l.id))){toast(pastMsg,'warn');return;}
     if(needReview(l.staffId)){
       if(leaveReqs.some(x=>x.id===l.id))return this.leaveReq(Object.assign({},l,{status:'pending',reqAt:Date.now()}));
       return this.leaveReq(Object.assign({},l,{id:uid('lr'),status:'pending',kind:'edit',replaces:l.id,reqAt:Date.now()}));
@@ -1446,6 +1589,7 @@ const store={
   },
   async delLeave(id){
     const old=leaves.find(x=>x.id===id);
+    if(old&&needReview(old.staffId)&&pastLeave(old)){toast(pastMsg,'warn');return;}
     if(old&&needReview(old.staffId)){const {id:_,...rest}=old;return this.leaveReq(Object.assign(rest,{id:uid('lr'),status:'pending',kind:'cancel',replaces:id,reqAt:Date.now()}));}
     if(!old&&leaveReqs.some(x=>x.id===id))return this.delLeaveReq(id);
     leaves=leaves.filter(x=>x.id!==id);buildLeaveIdx();renderAll();
@@ -1621,7 +1765,7 @@ function start(acc){
     const mt={};snap.docs.forEach(d=>{const v=d.data();w[d.id]=decCells(v);weeksExist.add(d.id);if(v.at)mt[d.id]={by:v.by||'',name:v.name||'',at:v.at};});
     weeks=w;weekMeta=mt;done('weeks');
   },onErr);
-  db.collection('leaves').onSnapshot(snap=>{const all=snap.docs.map(d=>Object.assign({id:d.id},d.data()));leaves=all.filter(l=>!isLeaveReq(l));leaveReqs=all.filter(isLeaveReq);buildLeaveIdx();done('leaves');},onErr);
+  db.collection('leaves').onSnapshot(snap=>{const all=snap.docs.map(d=>normType(Object.assign({id:d.id},d.data())));leaves=all.filter(l=>!isLeaveReq(l));leaveReqs=all.filter(isLeaveReq);buildLeaveIdx();done('leaves');setTimeout(pevCleanup,3000);},onErr);
   db.collection('familyCare').onSnapshot(snap=>{familyCare=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('fc');},onErr);
   db.collection('makeups').onSnapshot(snap=>{makeups=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
   db.collection('baselines').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();m[d.id]={ym:v.ym||d.id,at:v.at,by:v.by,weeks:Object.fromEntries(Object.entries(v.weeks||{}).map(([wk,c])=>[wk,decCells({c})]))};});baselines=m;renderAll();},onErr);
@@ -1629,10 +1773,10 @@ function start(acc){
   db.collection('presence').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());presence=m;renderPresence();},e=>console.warn(e));
   // 請假證明：管理者看全部，本人只看自己的（檔案內容點開時才讀取）
   {const q=mng?db.collection('leaveProofs'):sid?db.collection('leaveProofs').where('staffId','==',sid):null;
-   if(q)q.onSnapshot(snap=>{proofs=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();if(mng)proofCleanup();},e=>console.warn(e));}
+   if(q)q.onSnapshot(snap=>{proofs=snap.docs.map(d=>normType(Object.assign({id:d.id},d.data())));renderAll();if(mng)proofCleanup();},e=>console.warn(e));}
   db.collection('lottery').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotteries=m;renderAll();},e=>console.warn(e));
   db.collection('lotteryBets').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotBets=m;renderAll();},e=>console.warn(e));
-  db.collection('personalEvents').onSnapshot(snap=>{pevents=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
+  db.collection('personalEvents').onSnapshot(snap=>{pevents=snap.docs.map(d=>normType(Object.assign({id:d.id},d.data())));pevLoaded=true;renderAll();if(loaded.leaves)setTimeout(pevCleanup,3000);},onErr);
   db.doc('config/main').onSnapshot(snap=>{cfg=Object.assign(clone(DEFAULT_CFG),snap.exists?clone(snap.data()):{});done('cfg');},onErr);
   // 自己的權限被改掉時重新載入，讓畫面與資料讀取範圍跟著更新
   const recheck=d=>{if(isAdmin)return;if(!d||d.perm!==acc.perm||d.staffId!==acc.staffId)location.reload();};
@@ -1737,7 +1881,7 @@ function renderAll(){
   $('undoBtn').disabled=!canWrite||!schedHist.length||viewingLocked();
   if(prefs.tab==='pay'&&!canSeePay())prefs.tab='schedule';
   $('attTabBtn').hidden=!(canWrite||viewOnlyAssistant());
-  [['assistant','leaveTabBtn','助理請假'],['doctor','docleaveTabBtn','醫師休假']].forEach(([role,bid,lb])=>{const n=leaveReqs.filter(r=>r.status==='pending'&&(canWrite||r.staffId===myStaffId())&&byId(r.staffId)?.role===role).length;$(bid).textContent=n?`${lb}（${n}）`:lb;});
+  [['assistant','leaveTabBtn','助理請假'],['doctor','docleaveTabBtn','醫師休假']].forEach(([role,bid,lb])=>{const n=leaveReqs.filter(r=>r.status==='pending'&&(canWrite||r.staffId===myStaffId())&&byId(r.staffId)?.role===role).length,m=role==='assistant'?missingProofs().length:0;$(bid).textContent=n||m?`${lb}（${[n?n:'',m?`缺證明 ${m}`:''].filter(Boolean).join('・')}）`:lb;});
   {const show=canSeeOtRev(),n=otRevList('pending').length;$('otRevTabBtn').hidden=!show;$('otRevTabBtn').textContent=n?`加班審核（${n}）`:'加班審核';if(prefs.tab==='otrev'&&!show)prefs.tab='schedule';}
   if(prefs.tab==='att'&&!canWrite&&!viewOnlyAssistant())prefs.tab='schedule';
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
@@ -1759,6 +1903,7 @@ function renderAll(){
   if(prefs.tab==='holidays') renderHolidays();
   if(prefs.tab==='pay') renderPay(mi,counts);
   if(prefs.tab==='lottery') renderLottery();
+  if(monthLeavePaint)monthLeavePaint();
   if(db&&(prefs.tab==='schedule')!==presOn||presOn&&presLast!==monthInfo().ym+schedViewOf()){presLast=monthInfo().ym+schedViewOf();setTimeout(presenceTick,0);}
   renderPresence();
   if(prefs.tab==='att') renderAtt(mi);
@@ -1998,14 +2143,14 @@ function renderFamilyCare(mi){
   $('fcTitle').textContent=`${lr.label} 家庭照顧假`;$('fcRange').innerHTML=rangeCtl(lr,mi);
   const rows=familyCare.filter(l=>l.date>=lr.a&&l.date<=lr.z).sort((x,y)=>(k(x,y)*fcSort.dir)||byDate(x,y));
   const th=(key,label,cls='')=>`<th${cls}><button type="button" class="th-btn${fcSort.key===key?' on':''}" data-fcsort="${key}" aria-label="依${label}排序">${label}<span>${fcSort.key===key?(fcSort.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
-  $('fcTable').innerHTML=`<thead><tr>${th('date','日期')}${th('staff','助理')}${th('shift','班別')}${th('time','時間段')}${th('hours','時數',' class="num"')}<th>備註</th><th></th></tr></thead><tbody>`+
+  $('fcTable').innerHTML=`<thead><tr>${th('date','日期')}${th('staff','助理')}${th('shift','班別')}${th('time','時間段')}${th('hours','時數',' class="num"')}<th>事由</th><th></th></tr></thead><tbody>`+
     (rows.length?rows.map(l=>{const d=parseYmd(l.date);const sh=SHIFTS.find(x=>x.id===l.shift);
       if(editingFc===l.id)return `<tr data-fcrow="${l.id}"><td><input type="date" data-e="date" value="${l.date}" aria-label="日期"></td><td>${esc(fullName(byId(l.staffId)))}</td>
         <td><select data-e="shift" aria-label="班別"><option value="">不指定</option>${SHIFTS.map(x=>`<option value="${x.id}"${x.id===l.shift?' selected':''}>${x.name}</option>`).join('')}</select></td>
         <td style="white-space:nowrap"><input type="time" data-e="start" value="${l.start||''}" aria-label="開始時間" style="width:auto"> – <input type="time" data-e="end" value="${l.end||''}" aria-label="結束時間" style="width:auto"></td>
         <td class="num" data-e="calc">${l.hours} 小時</td><td><input data-e="note" value="${esc(l.note||'')}" aria-label="備註"></td>
         <td class="num" style="white-space:nowrap"><button class="small primary" data-fcsave="${l.id}">儲存</button> <button class="small" data-fccancel>取消</button></td></tr>`;
-      return `<tr data-date="${l.date}"><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${sh?sh.name:'—'}</td><td>${l.start&&l.end?`${l.start}–${l.end}`:'—'}</td><td class="num">${l.hours} 小時${l.mid?'<br><small class="att-mute">中途至當診結束</small>':''}</td><td>${esc(l.note||'')}</td><td class="num" style="white-space:nowrap">${canLeaveFor(l.staffId)?`<button class="small" data-editfc="${l.id}">變更</button> <button class="small danger" data-delfc="${l.id}">刪除</button>`:''}</td></tr>`;}).join('')
+      return `<tr data-date="${l.date}"><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${sh?sh.name:'—'}</td><td>${l.start&&l.end?`${l.start}–${l.end}`:'—'}</td><td class="num">${l.hours} 小時${l.mid?'<br><small class="att-mute">中途至當診結束</small>':''}${proofBadge(l.staffId,l.date,'家庭照顧假')}</td><td>${esc(l.note||'')}</td><td class="num" style="white-space:nowrap">${canLeaveFor(l.staffId)?`<button class="small" data-editfc="${l.id}">變更</button> <button class="small danger" data-delfc="${l.id}">刪除</button>`:''}</td></tr>`;}).join('')
     :`<tr><td colspan="7" class="empty">${lr.label}還沒有家庭照顧假紀錄。</td></tr>`)+'</tbody>';
   const tot={};familyCare.forEach(l=>{if(!l.date.startsWith(yr))return;const t=(tot[l.staffId]=tot[l.staffId]||{m:0,y:0});t.y+=l.hours;if(l.date>=a&&l.date<=z)t.m+=l.hours;});
   {const n=limitRows($('fcScroll'),3);$('fcHint').hidden=n<=3;if(!leaveScrolled.fc)leaveScrolled.fc=scrollToUpcoming($('fcScroll'));}
@@ -2044,6 +2189,13 @@ const fmtD=s=>s?s.replace(/-/g,'/'):'—';
 const hireOf=sid=>byId(sid)?.hireDate||privateInfo[sid]?.hireDate||'';
 const resignOf=sid=>byId(sid)?.resignDate||privateInfo[sid]?.resignDate||'';
 // 區間內某假別的已請天數：婚假／喪假／產檢假整天算 1 天；事後補登只請部分診時，兩診算一天（最多 1 天）
+// 事件假（婚假、喪假、產檢假）的已請天數：請假紀錄的 pevId 指向所屬事件；沒有 pevId 的舊資料依可請期間判斷
+const lvDay=l=>{const c=(l.shifts||[]).length;return c>=SHIFTS.length?1:Math.min(1,c/PER_DAY);};
+const evBelongs=(e,l)=>{if(l.staffId!==e.staffId||l.type!==e.kind)return false;if(l.pevId||l.eventId)return (l.pevId||l.eventId)===e.id; /* 有記錄所屬事件（pevId，或連續假的 eventId）就只認那一件 */const i=PEV[e.kind].info(e);return l.date>=i.from&&l.date<=i.to;};
+const evUsed=(e,skip=new Set())=>leaves.filter(l=>evBelongs(e,l)&&!skip.has(l.date)).reduce((n,l)=>n+lvDay(l),0);
+const evPending=(e,skip=new Set())=>leaveReqs.filter(r=>r.status==='pending'&&r.kind!=='cancel'&&evBelongs(e,r)&&!skip.has(r.date)).reduce((n,r)=>n+lvDay(r),0);
+// 這次請假對應的事件：喪假選定的那一件或剛登記的新事件，否則用涵蓋這些日期、最近的一件
+const pevFor=(sid,type,dates)=>{const cov=pevCovering(sid,type,dates);return cov.find(e=>e.id===pevPickedId)||cov.slice().sort((a,b)=>b.date.localeCompare(a.date))[0]||null;};
 const usedDays=(sid,type,from,to)=>leaves.reduce((n,l)=>{if(l.staffId!==sid||l.type!==type||l.date<from||l.date>to)return n;const c=(l.shifts||[]).length;return n+(c>=SHIFTS.length?1:Math.min(1,c/PER_DAY));},0);
 // 特休以小時計：額度＝天數 × 8 小時；只能整天請，每請一天扣 7 小時
 const ANNUAL_QUOTA_H=8,ANNUAL_TAKE_H=7;
@@ -2062,20 +2214,29 @@ function annualLeave(sid,ref=ymd(new Date())){
 }
 // 喪假與逝者關係、流產產假妊娠期間的選項（請假登記時的詢問視窗使用）
 const PEV_REL_OPTS='<option value="8">父母、養父母、繼父母、配偶（8 日）</option><option value="6">祖父母、子女、配偶之父母（6 日）</option><option value="3">曾祖父母、兄弟姊妹、配偶之祖父母（3 日）</option>';
-const PEV_MONTH_OPTS='<option value="28">3 個月以上（4 星期）</option><option value="7">2 個月以上未滿 3 個月（1 星期）</option><option value="5">未滿 2 個月（5 日）</option>';
+const PEV_MONTH_OPTS='<option value="56">20 週以上（56 日）</option><option value="28" selected>3 個月以上未滿 20 週（28 日）</option><option value="7">2 個月以上未滿 3 個月（1 星期）</option><option value="5">未滿 2 個月（5 日）</option>';
 // 事件假：依事件日期算出額度、可請期間；產假／流產產假／育嬰假為連續假（auto），已請＝自動排入的天數
 const PEV={
   婚假:{lb:'結婚登記日',info:e=>({quota:14,from:addD(e.date,-10),to:addYr(e.date,1)}),desc:e=>`結婚登記日 ${fmtD(e.date)}`},
   喪假:{lb:'死亡日',info:e=>({quota:Number(e.rel)||8,from:e.date,to:addD(e.date,100)}),desc:e=>`死亡日 ${fmtD(e.date)}・${{8:'父母／配偶',6:'祖父母／子女／配偶之父母',3:'曾祖父母／兄弟姊妹／配偶之祖父母'}[e.rel]||''}`},
   產檢假:{lb:'預產期',info:e=>({quota:7,from:addD(e.date,-280),to:e.date}),desc:e=>`預產期 ${fmtD(e.date)}`},
   // 產假、流產產假：可請 quota 天，實際請到結束日 end（不一定請滿）
-  產假:{lb:'產假起始日',auto:true,max:()=>56,info:e=>({quota:56,from:e.date,to:e.end||addD(e.date,55)}),desc:e=>`起始日 ${fmtD(e.date)}`},
-  流產產假:{lb:'流產日（起始日）',auto:true,max:e=>Number(e.months)||5,info:e=>{const q=Number(e.months)||5;return {quota:q,from:e.date,to:e.end||addD(e.date,q-1)};},desc:e=>`流產日 ${fmtD(e.date)}・${{28:'妊娠 3 個月以上',7:'妊娠 2–3 個月',5:'妊娠未滿 2 個月'}[e.months]||''}`},
-  育嬰假:{lb:'育嬰假起始日',auto:true,info:e=>({quota:dayDiff(e.date,e.end)+1,from:e.date,to:e.end}),desc:e=>`子女生日 ${fmtD(e.child)}`},
+  // 產假：填預產期（生產日期）與起始日；起始日不得早於預產期前 28 天，最後一天最晚為生產日後第 55 天
+  產假:{lb:'產假起始日',auto:true,max:()=>56,info:e=>({quota:56,from:e.date,to:e.end||addD(e.date,55)}),desc:e=>`${e.due?`預產期 ${fmtD(e.due)}・`:''}起始日 ${fmtD(e.date)}`},
+  流產產假:{lb:'流產日（起始日）',auto:true,max:e=>Number(e.months)||5,info:e=>{const q=Number(e.months)||5;return {quota:q,from:e.date,to:e.end||addD(e.date,q-1)};},desc:e=>`流產日 ${fmtD(e.date)}・${{56:'妊娠 20 週以上',28:'妊娠 3 個月以上未滿 20 週',7:'妊娠 2–3 個月',5:'妊娠未滿 2 個月'}[e.months]||''}`},
+  // 陪產假（陪產檢假）：懷孕期間（預產期前 280 天起）到預產期後 15 日內、最多 7 天
+  '陪產假（陪產檢假）':{lb:'預產期（生產日期）',info:e=>({quota:7,from:addD(e.date,-280),to:addD(e.date,15)}),desc:e=>`預產期 ${fmtD(e.date)}`},
+  // 病假、公假：每次請假都是新的事件（事由＋這次的起訖日期），只用來讓這次請的幾天共用同一份證明
+  病假:{lb:'病假日期',newEach:true,info:e=>({quota:dayDiff(e.date,e.end||e.date)+1,from:e.date,to:e.end||e.date}),desc:e=>`${e.reason||'病假'}・${fmtD(e.date)}${e.end&&e.end!==e.date?'～'+fmtD(e.end):''}`},
+  公假:{lb:'公假日期',newEach:true,info:e=>({quota:dayDiff(e.date,e.end||e.date)+1,from:e.date,to:e.end||e.date}),desc:e=>`${e.reason||'公假'}・${fmtD(e.date)}${e.end&&e.end!==e.date?'～'+fmtD(e.end):''}`},
+  // 育嬰假：以月為單位（最短 6 個月），每名子女在滿 3 歲前合計最長 2 年（含彈性育嬰假），應於 10 日前提出
+  育嬰假:{lb:'育嬰假起始日',auto:true,info:e=>({quota:dayDiff(e.date,e.end)+1,from:e.date,to:e.end}),desc:e=>`子女生日 ${fmtD(e.child)}・${e.months?e.months+' 個月':''}`},
+  // 彈性育嬰假：以日為單位，每名子女合計 30 日（算在 2 年內），可於 1 日前提出；事件＝這名子女（date 為子女生日）
+  彈性育嬰假:{lb:'子女生日',info:e=>({quota:30,from:e.date,to:addD(addYr(e.date,3),-1)}),desc:e=>`子女生日 ${fmtD(e.date)}`},
 };
 function pevStatus(e){
   const k=PEV[e.kind];if(!k)return null;const i=k.info(e),t=ymd(new Date());
-  const used=k.auto?leaves.filter(l=>l.eventId===e.id).length:usedDays(e.staffId,e.kind,i.from,i.to);
+  const used=k.auto?leaves.filter(l=>l.eventId===e.id).length:evUsed(e);
   const left=Math.max(0,i.quota-used);let st;
   if(k.auto)st=t<i.from?`${fmtD(i.from)} 開始`:t>i.to?'已結束':`進行中（還有 ${dayDiff(t,i.to)+1} 天）`;
   else st=t>i.to?(left?`<span style="color:var(--warn)">已過期，未休 ${left} 天失效</span>`:'已休完'):left?`期限 ${fmtD(i.to)}（剩 ${dayDiff(t,i.to)} 天）`:'已休完';
@@ -2113,7 +2274,9 @@ function renderPersonal(mi){
       <div class="pv-bar"><i style="width:${Math.min(100,a.usedH/a.quotaH*100)}%${over?';background:var(--warn)':''}"></i></div>${takenTxt}`;})();
   // 表頭按鈕排序（預設依事件日期新到舊）；狀態依「進行中／未開始／期限內 → 已結束／已休完 → 已過期」
   const kf=$('pvKindFilter').value; // 依假別篩選（空白＝全部）
-  const list=pevents.filter(e=>e.staffId===pvSid&&PEV[e.kind]&&(!kf||e.kind===kf)).map(e=>({e,s:pevStatus(e)}));
+  // 只列出已有核准請假的事件；還在審核中（或全部被撤回）的不算進個人假統計
+  const approvedEv=e=>leaves.some(l=>l.eventId===e.id||evBelongs(e,l));
+  const list=pevents.filter(e=>e.staffId===pvSid&&PEV[e.kind]&&(!kf||e.kind===kf)&&approvedEv(e)).map(e=>({e,s:pevStatus(e)}));
   const kinds=Object.keys(PEV);
   const stRank=({s})=>{const t=s.st.replace(/<[^>]+>/g,'');return t.includes('過期')?2:/已結束|已休完/.test(t)?1:0;};
   const PS={kind:(x,y)=>kinds.indexOf(x.e.kind)-kinds.indexOf(y.e.kind),event:(x,y)=>x.e.date.localeCompare(y.e.date),quota:(x,y)=>x.s.quota-y.s.quota,
@@ -2126,8 +2289,8 @@ function renderPersonal(mi){
     (list.length?list.map(({e,s})=>{if(!s)return '';const [bg,fg]=leaveColor(e.kind);
       return `<tr><td><span class="pill" style="background:${bg};color:${fg}">${esc(e.kind)}</span></td><td>${esc(PEV[e.kind].desc(e))}${e.note?`<br><small style="color:var(--faint)">${esc(e.note)}</small>`:''}</td>
         <td class="num">${s.quota} 天</td><td style="white-space:nowrap">${fmtD(s.from)}</td><td style="white-space:nowrap">${fmtD(s.to)}</td><td class="num">${s.used} 天</td><td class="num"><b>${s.left} 天</b></td><td>${s.st}</td>
-        <td class="num">${canLeaveFor(e.staffId)?`<button class="small danger" data-delpev="${e.id}">刪除</button>`:''}</td></tr>`;}).join('')
-    :(kf?`<tr><td colspan="9" class="empty">還沒有${kf}紀錄。</td></tr>`:'<tr><td colspan="9" class="empty">還沒有事件假。在「請假登記」登記婚假、喪假、產檢假、產假、流產產假或育嬰假時會一併建立。</td></tr>'))+'</tbody>';
+        <td></td></tr>`;}).join('')
+    :(kf?`<tr><td colspan="9" class="empty">還沒有${kf}紀錄。</td></tr>`:'<tr><td colspan="9" class="empty">還沒有已核准的事件假。登記婚假、喪假、產檢假、產假、流產產假、陪產假（陪產檢假）、病假、公假或育嬰假時會建立事件，請假核准後才會列在這裡。</td></tr>'))+'</tbody>';
 }
 // 事假補診：不需登記，以當月排班表中的「加診」診數抵事假
 // 可切換月份或整年；出勤津貼按月判斷，整年時逐月列出
@@ -2155,6 +2318,7 @@ function renderMakeup(mi){
 const whenOf=l=>l.when==='after'?'after':'before';
 function renderLeave(mi,roles){
   roles.forEach(renderLeaveReqs);
+  if(roles.includes('assistant'))renderMissingProofs();
   document.querySelectorAll('.leave-form').forEach(paintProof);
   if(roles.includes('assistant'))renderProofTable();
   if(roles.includes('assistant')){
@@ -2211,8 +2375,8 @@ function renderLeave(mi,roles){
             <td class="num" style="white-space:nowrap"><button class="small primary" data-lvsave="${l.id}">儲存</button> <button class="small" data-lvcancel>取消</button></td></tr>`;
         }
         return `<tr data-date="${l.date}"${faded(l)?` class="faded" title="${whenOf(l)==='after'?'事後':'事前'}登記的請假，請切換到「${whenOf(l)==='after'?'事後':'事前'}」修改"`:''}><td>${md(d)}（${DAYS[dow]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&l.type==='生理假'?(s=>s?` <span class="pill warn">${s>=(l.shifts||[]).length?'視同病假':`${s} 診視同病假`}</span>`:'')(menSickShifts(l)):''}${role==='assistant'&&!faded(l)?proofBadge(l.staffId,l.date,l.type):''}</td><td>${esc(l.note||'')}</td>
-          <td>${clash.length?`<span class="pill warn">已排${SHIFTS.filter(s=>clash.includes(s.id)).map(s=>s.short).join('、')}班</span>`:'<span class="pill">無衝突</span>'}</td>
-          <td class="num" style="white-space:nowrap">${faded(l)?`<span class="pill">${whenOf(l)==='after'?'事後':'事前'}</span>`:canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
+          <td>${clash.length?`<span class="pill warn">已排${SHIFTS.filter(s=>clash.includes(s.id)).map(s=>s.short).join('、')}班</span>`:'<span class="pill">無衝突</span>'}${pendOf(l)?`<div><span class="pill warn">${pendOf(l).kind==='cancel'?'等待核准刪除':'等待核准變更'}</span></div>`:''}</td>
+          <td class="num" style="white-space:nowrap">${faded(l)?`<span class="pill">${whenOf(l)==='after'?'事後':'事前'}</span>`:!canWrite&&needReview(l.staffId)&&pastLeave(l)?`<span class="att-mute" style="font-size:.75rem">已過去</span>`:pendOf(l)&&!canWrite?`<button class="small" data-lrwithdraw="${pendOf(l).id}">撤回申請</button>`:canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
       }).join(''):`<tr><td colspan="7" class="empty">${lr.label}還沒有${ROLE[role]}${word}紀錄。</td></tr>`)+'</tbody>';
     {const n=limitRows($('leaveScroll-'+pk),10);$('leaveHint-'+pk).hidden=n<=10;if(pk==='doctor'&&lvDocScrollTop){$('leaveScroll-doctor').scrollTop=0;lvDocScrollTop=false;}if(pk!=='doctor'&&!leaveScrolled[pk])leaveScrolled[pk]=scrollToUpcoming($('leaveScroll-'+pk));}
   });
@@ -2319,7 +2483,7 @@ const festivalsIn=ym=>Object.entries(FESTIVALS[ym.slice(0,4)]||{}).filter(([,d])
 // 個資的生日改變時，把月份同步到人員資料（只寫月份）
 function syncBirthMonth(sid,birthday){const s=byId(sid);if(!s||!canWrite)return;const bm=birthday?Number(birthday.slice(5,7)):0;if((Number(s.birthMonth)||0)===bm)return;const n=clone(s);if(bm)n.birthMonth=bm;else delete n.birthMonth;store.staff(n);}
 const birthMonthOf=sid=>{const b=privateInfo[sid]?.birthday;return b?Number(b.slice(5,7)):Number(byId(sid)?.birthMonth)||0;};
-const PAY_TYPES=['排休','特休','生理假','病假','事假','公假','婚假','喪假','產檢假','產假','流產產假','陪產假','育嬰假','補休','颱風假','原住民族歲時祭儀','不可上班','其他'];
+const PAY_TYPES=['排休','特休','生理假','病假','事假','公假','婚假','喪假','產檢假','產假','流產產假','陪產假（陪產檢假）','育嬰假','彈性育嬰假','補休','颱風假','原住民族歲時祭儀','不可上班','其他'];
 const DEFAULT_DEDUCT={事假:1,病假:0.5,生理假:0.5,不可上班:1,其他:1};
 // 薪資計算規則可依月份不同：cfg.payByMonth[YYYY-MM] 從該月起生效，之後沒有另外設定的月份沿用；更早的月份用 cfg.pay（舊版共用設定）
 const payRuleMonth=ym=>Object.keys(cfg.payByMonth||{}).filter(k=>k<=ym).sort().pop()||null;
@@ -2370,11 +2534,37 @@ function fcLimitIssue(sid,date,hours){
 }
 const menSickShifts=l=>l.type==='生理假'?(yearLeave(l.staffId,l.date.slice(0,4)).asSick.get(l.date)||0):0;
 // 婚假：結婚登記日前 10 日起、3 個月內請畢；3 個月後（1 年內）需經公司同意
-const marriageLate=(sid,date)=>{const e=pevents.find(x=>x.staffId===sid&&x.kind==='婚假'&&date>=PEV.婚假.info(x).from&&date<=PEV.婚假.info(x).to);return !!e&&date>addMo(e.date,3);};
+const marriageLate=(sid,date)=>{const e=pevFor(sid,'婚假',[date]);return !!e&&date>addMo(e.date,3);};
 function leaveLimitIssues(sid,extra){
   const over=[],info=[];
   const late=extra.filter(x=>x.type==='婚假'&&marriageLate(sid,x.date)).map(x=>x.date).sort();
   const consent=late.length?[`${codeOf(sid)} 的婚假 ${late.map(fmtD).join('、')} 已超過結婚登記日 3 個月，需經公司同意。`]:[];
+  // 事件假（婚假、喪假、產檢假）：已請（含待審核）＋這次 不能超過該事件可請天數
+  const dayOf=x=>{const c=(x.shifts||[]).length;return c>=SHIFTS.length?1:Math.min(1,c/PER_DAY);};
+  [...new Set(extra.map(x=>x.type))].filter(t=>PEV[t]&&!PEV[t].auto).forEach(t=>{
+    const ds=extra.filter(x=>x.type===t),cov=pevCovering(sid,t,ds.map(x=>x.date));if(!cov.length)return;
+    const ev=pevFor(sid,t,ds.map(x=>x.date)),i=PEV[t].info(ev);
+    const newDates=new Set(ds.map(x=>x.date));
+    // 已請＝已核准＋待審核（這次重新送出的日期不重複計算）
+    const used=evUsed(ev,newDates)+evPending(ev,newDates);
+    const add=ds.reduce((n,x)=>n+dayOf(x),0),r2=v=>Math.round(v*100)/100;
+    if(PEV[t].span){ // 同一事件的日子（已核准＋待審核＋這次）最早到最晚相隔不能超過 span 日
+      const all=[...leaves.filter(l=>evBelongs(ev,l)),...leaveReqs.filter(r=>r.status==='pending'&&r.kind!=='cancel'&&evBelongs(ev,r))].map(l=>l.date).concat([...newDates]).sort();
+      const gap=dayDiff(all[0],all[all.length-1]);
+      if(gap>PEV[t].span)over.push(`${codeOf(sid)} 的${t}（${PEV[t].desc(ev)}）請假日期從 ${fmtD(all[0])} 到 ${fmtD(all[all.length-1])} 相隔 ${gap} 日，同一事件前後不能超過 ${PEV[t].span} 日`);
+    }
+    if(used+add>i.quota+1e-9)over.push(`${codeOf(sid)} 的${t}（${PEV[t].desc(ev)}）可請 ${i.quota} 天，已請 ${r2(used)} 天，這次 ${r2(add)} 天，超過 ${r2(used+add-i.quota)} 天`);
+  });
+  // 彈性育嬰假：可於 1 日前提出（當天或之前的日子不能申請）；和月制育嬰假合計不超過 2 年
+  {const fx=extra.filter(x=>x.type==='彈性育嬰假');
+   if(fx.length){
+     const today=ymd(new Date()),early=fx.filter(x=>x.date<=today).map(x=>x.date);
+     if(early.length&&(fx[0].when||'before')==='before')over.push(`彈性育嬰假應於 1 日前提出，${early.map(fmtD).join('、')} 已來不及`);
+     const ev=pevFor(sid,'彈性育嬰假',fx.map(x=>x.date));
+     if(ev){const cu=childLeaveUsed(sid,ev.date),add=fx.reduce((n,x)=>n+((x.shifts||[]).length>=SHIFTS.length?1:Math.min(1,(x.shifts||[]).length/PER_DAY)),0),fxUsed=evUsed(ev,new Set(fx.map(x=>x.date)))+evPending(ev,new Set(fx.map(x=>x.date)));
+       const tot=cu.months+fxUsed+add;
+       if(tot>cu.cap)over.push(`${codeOf(sid)} 這名子女（生日 ${fmtD(ev.date)}）的育嬰假合計最長 2 年（${cu.cap} 天），已請 ${cu.months+fxUsed} 天，這次 ${add} 天`);}
+   }}
   [...new Set(extra.map(x=>x.date.slice(0,4)))].forEach(y=>{
     const b=yearLeave(sid,y),a=yearLeave(sid,y,extra);
     if(a.per>LEAVE_LIMITS.事假&&a.per>b.per)over.push(`${codeOf(sid)} ${y} 年事假${a.fc?'＋家庭照顧假':''}將達 ${a.per} 天，超過 ${LEAVE_LIMITS.事假} 天`);
@@ -2404,7 +2594,19 @@ function absentForPay(mi,sid){
   return attMonth(mi,sid).s.absent;
 }
 function calcPay(mi,counts,s,rec){
-  const P=payCfg(mi.ym),r=rec||payRec(s.id,mi.ym);
+  const P=payCfg(mi.ym);let r=rec||payRec(s.id,mi.ym);
+  // 育嬰假（月制）：整個月都在育嬰假 → 不發任何薪資（含津貼、獎金），也不扣勞健保；
+  // 只有部分天數 → 育嬰假期間的上班日每天算 2 診 × 每診設定薪資扣除，津貼照發、勞健保照扣
+  const ymA=ymd(mi.first),ymZ=ymd(mi.last);
+  const ccDays=[...new Set(leaves.filter(l=>l.staffId===s.id&&l.type==='育嬰假'&&l.date>=ymA&&l.date<=ymZ).map(l=>l.date))];
+  const ccFull=ccDays.length>=mi.dates.length;
+  if(ccFull)r=Object.assign({},r,{base:0,attend:0,perf:0,skill:0,duty:0,selfInd:0,selfTeam:0,stars:0,otMin:0,labor:0,health:0,dependents:0,items:[],lateMin:0,earlyMin:0});
+  const isWorkDay=k=>{const d=parseYmd(k),dow=(d.getDay()+6)%7;return d.getDay()!==0&&!holidayOf(k)&&!SHIFTS.every(sh=>isClosed(dow,sh.id));};
+  const ccWork=ccFull?0:ccDays.filter(isWorkDay).length,ccDeduct=Math.round(ccWork*2*P.shiftPay);
+  // 彈性育嬰假：事後補登依請假診數、事前每天算 2 診，× 每診設定薪資扣除；不影響出勤津貼
+  const flexN=leaves.filter(l=>l.staffId===s.id&&l.type==='彈性育嬰假'&&l.date>=ymA&&l.date<=ymZ).reduce((n,l)=>n+(l.when==='after'?(l.shifts||[]).length:2),0);
+  const flexDeduct=Math.round(flexN*P.shiftPay);
+  const SPECIAL=['育嬰假','彈性育嬰假']; // 這兩種假另外計算，不套用一般的請假扣薪比例
   const c=counts[s.id]||{hours:0,ot:0};
   // 加診薪資＝加診數 × 3.5 小時換算分鐘 × 每分鐘金額；All班加給＝單日超時（上滿三班每天 0.5 小時）換算分鐘 × 每分鐘金額；加班薪資＝加班/拖診分鐘數 × 每分鐘金額
   const extraMin=Math.round((c.extra||0)*3.5*60),allMin=Math.round((c.ot||0)*60),allDays=Math.round((c.ot||0)/0.5);
@@ -2421,7 +2623,7 @@ function calcPay(mi,counts,s,rec){
   if((r.earlyMin||0)>P.earlyLimit)lostReasons.push(`早退 ${r.earlyMin} 分鐘，超過 ${P.earlyLimit} 分鐘`);
   // 曠職：曠職診數 × 每診設定薪資 × 曠職扣薪比例；有曠職的月份可設定不發出勤津貼
   const absRaw=absentForPay(mi,s.id),absN=absRaw||0,absentUnknown=absRaw===null;
-  const absentDeduct=Math.round(absN*P.shiftPay*(Number(P.absentRate)||0));
+  const absentDeduct=ccFull?0:Math.round(absN*P.shiftPay*(Number(P.absentRate)||0));
   if(absN&&Number(P.absentNoAttend))lostReasons.push(`曠職 ${absN} 診`);
   const attendLost=lostReasons.length>0;
   // 病假：每診扣出勤津貼的一定比例（預設 1/4），最多扣到 0
@@ -2433,19 +2635,22 @@ function calcPay(mi,counts,s,rec){
   const gifts=[];
   if(birthMonthOf(s.id)===Number(mi.ym.slice(5,7))&&P.birthdayBonus)gifts.push({label:'生日禮金',amount:P.birthdayBonus});
   festivalsIn(mi.ym).forEach(n=>{if(P.festivalBonus)gifts.push({label:`${n}三節獎金`,amount:P.festivalBonus});});
+  if(ccFull)gifts.length=0;
   // 國定假日上班：每診另加「國定假日上班加給」＝每診設定薪資 × 倍數（預設 1，即每診加 595）
   const holDays=[];mi.dates.forEach(({key,wk,dow})=>{const hn=natHolidayOf(key);if(!hn)return;const n=SHIFTS.filter(sh=>getCell(wk,dow+'_'+sh.id).some(a=>a.includes(s.id))).length;if(n)holDays.push({key,name:hn,n});});
   const holShifts=holDays.reduce((n,x)=>n+x.n,0),holPay=Math.round(holShifts*P.shiftPay*P.holidayRate);
   const giftPay=gifts.reduce((n,g)=>n+g.amount,0);
-  const autoNote=gifts.map(g=>`${g.label} ${money(g.amount)} 元`).concat(holShifts?[`國定假日上班加給 ${holShifts} 診（${holDays.map(x=>`${md(parseYmd(x.key))}${x.name}`).join('、')}）${money(holPay)} 元`]:[]).join('、');
+  const autoNote=(ccFull?['育嬰假整月：不發薪資（含津貼、獎金），不扣勞健保']:[]).concat(gifts.map(g=>`${g.label} ${money(g.amount)} 元`).concat(holShifts?[`國定假日上班加給 ${holShifts} 診（${holDays.map(x=>`${md(parseYmd(x.key))}${x.name}`).join('、')}）${money(holPay)} 元`]:[])).join('、');
   const gross=r.base+allow+extraPay+allPay+otPay+bonus+starPay+giftPay+holPay;
   const healthTotal=r.health*(1+(r.dependents||0)),late=(r.lateMin||0)*P.latePerMin,early=(r.earlyMin||0)*P.earlyPerMin;
-  const fcHours=fcHoursOf(mi,s.id),fcDeduct=fcHours*P.fcPerHour;
-  const leaveDeduct=Math.round(Object.entries(lvN).reduce((n,[t,c])=>n+c*P.shiftPay*(P.deduct[t]||0),0)+fcDeduct);
+  const fcHours=ccFull?0:fcHoursOf(mi,s.id),fcDeduct=fcHours*P.fcPerHour;
+  const leaveDeduct=ccFull?0:Math.round(Object.entries(lvN).filter(([t])=>!SPECIAL.includes(t)).reduce((n,[t,c])=>n+c*P.shiftPay*(P.deduct[t]||0),0)+fcDeduct+ccDeduct+flexDeduct);
   const adj=(r.items||[]).reduce((n,x)=>n+(Number(x.amount)||0),0);
   const deduct=r.labor+healthTotal+late+early+leaveDeduct+absentDeduct;
   // 請假明細文字（表格提示與編輯視窗共用）
-  const lvParts=Object.entries(lvN).map(([t,c])=>`${t} ${c} 診 × ${P.deduct[t]||0}`);
+  const lvParts=Object.entries(lvN).filter(([t])=>!SPECIAL.includes(t)).map(([t,c])=>`${t} ${c} 診 × ${P.deduct[t]||0}`);
+  if(ccFull)lvParts.push('育嬰假整月，不發薪資');else if(ccWork)lvParts.push(`育嬰假 ${ccWork} 個上班日 × 2 診 × ${money(P.shiftPay)} 元`);
+  if(flexN&&!ccFull)lvParts.push(`彈性育嬰假 ${flexN} 診 × ${money(P.shiftPay)} 元`);
   if(fcHours)lvParts.push(`家庭照顧假 ${fcHours} 小時 × ${P.fcPerHour} 元`);
   return {early,absN,absentDeduct,absentUnknown,r,schedOtMin,extraMin,extraPay,allMin,allPay,allDays,otMin,otPay,starPay,gifts,giftPay,autoNote,holDays,holShifts,holPay,allow,attendPaid,attendLost,attendNote,sickCut,lostReasons,shiN,mkN,bonus,gross,healthTotal,late,lvN,fcHours,leaveDeduct,lvParts,adj,deduct,netRaw:gross-deduct+adj,net:Math.ceil((gross-deduct+adj)/10)*10 /* 實發無條件進位到十位數 */,netRound:Math.ceil((gross-deduct+adj)/10)*10-(gross-deduct+adj)};
 }
@@ -2921,6 +3126,7 @@ $('tab-lottery').addEventListener('change',e=>{
   lotPatch({[k]:v});
 });
 setInterval(lotTick,1000);
+setTimeout(()=>{if(!db)pevCleanup();},3000); // 本機模式：開啟後清掉空事件（正式模式在資料載入後執行）
 // ---------- 誰正在編輯班表 ----------
 
 
@@ -4499,12 +4705,15 @@ document.querySelectorAll('.leave-form').forEach(form=>{form.addEventListener('c
 document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('submit',e=>{
   e.preventDefault();
   const role=form.dataset.role;const word=role==='doctor'?'休假':'請假';const f=n=>form.querySelector(`[data-n="${n}"]`);
+  if(rangeOverride&&rangeOverride.sid===f('staff').value&&rangeOverride.type===f('type').value){f('from').value=rangeOverride.from;f('to').value=rangeOverride.to;}
+  rangeOverride=null;
   const sid=f('staff').value;if(!canLeaveFor(sid)){toast('你沒有權限登記這位人員的'+word+'。','warn');return;}const from=f('from').value||f('to').value;const to=f('to').value||from; // 只填一個日期時，開始與結束視為同一天
   const shifts=[...form.querySelectorAll('[data-sh]')].filter(x=>x.checked).map(x=>x.dataset.sh);
   if(!sid||!from){toast(`請選擇${ROLE[role]}與日期。`,'warn');return;}
   if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
   if(to<from){toast('結束日期不能早於開始日期。','warn');return;}
   const note=f('note').value.trim();const type=f('type').value;
+  if(role==='assistant'&&REASON_TYPES.includes(type)&&!note){toast(`請在「備註」說明${type}的理由。`,'warn');f('note').focus();return;}
   let sun=0,hol=0;const dates=[];
   for(let d=parseYmd(from);ymd(d)<=to&&dates.length<62;d.setDate(d.getDate()+1)){
     const key=ymd(d);
@@ -4531,22 +4740,26 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
       const dup=leaves.find(l=>l.staffId===sid&&l.date===key);
       if(dup&&!needReview(sid))store.delLeave(dup.id);
       const merged=dup?[...new Set([...(dup.shifts||[]),...shifts])]:shifts;
-      store.leave({id:uid('l'),staffId:sid,date:key,shifts:SHIFTS.map(s=>s.id).filter(s=>merged.includes(s)),type,note:note||dup?.note||'',when:form.dataset.when||'before',createdAt:Date.now()});
+      const pv=PEV[type]&&!PEV[type].auto?pevFor(sid,type,dates):null;
+      store.leave({...(pv?{pevId:pv.id}:{}),id:uid('l'),staffId:sid,date:key,shifts:SHIFTS.map(s=>s.id).filter(s=>merged.includes(s)),type,note:note||dup?.note||'',when:form.dataset.when||'before',createdAt:Date.now()});
     });
     f('note').value='';f('to').value='';
+    pevPicked=null;pevPickedId=null; // 這次的請假已經記到事件上，清掉暫時的選擇
     const skip=[sun?`${sun} 個週日`:'',hol?`${hol} 個休診日`:''].filter(Boolean).join('、');
     const pfAct=role==='assistant'&&LEAVE_PROOF[type]?{label:'上傳證明',fn:()=>openProof(sid,dates[0],type)}:undefined;
-    toast(`${needReview(sid)?'已送出申請':'已登記'} ${codeOf(sid)} ${dates.length} 天${word}${needReview(sid)?'，等待管理者審核':''}${skip?`（已略過 ${skip}）`:''}。${shifts.length<SHIFTS.length&&role==='assistant'&&(form.dataset.when||'before')==='before'?'事前請假以日為單位，已登記為全天。':''}${chk.info.join('')}`,'',pfAct);
+    toast(`${needReview(sid)?'已送出申請':'已登記'} ${codeOf(sid)} ${dates.length} 天${word}${needReview(sid)?'，等待管理者審核':''}${skip?`（已略過 ${skip}）`:''}。${shifts.length<SHIFTS.length&&role==='assistant'&&(form.dataset.when||'before')==='before'?'事前請假以日為單位，已登記為全天。':''}${chk.info.join('')}`);
+    // 需要檢附證明的假別：送出後直接詢問要不要現在上傳
+    if(pfAct)setTimeout(()=>askProof(sid,dates[0],type),0);
   };
   const go=chk.consent?.length?()=>dialog(`<h3>需經公司同意</h3><p>${chk.consent.map(esc).join('<br>')}</p><p>婚假須於結婚登記日前 10 日起、3 個月內請畢；經公司同意可延至 1 年內。確定要登記嗎？</p>`,apply,needReview(sid)?'送出申請':'仍要登記'):apply;
   if(!chk.over.length)return go();
-  if(!canWrite){toast(`無法登記：${chk.over.join('；')}。請洽診所管理者。`,'warn');return;}
-  dialog(`<h3>超過年度請假上限</h3><p>${chk.over.map(esc).join('<br>')}</p><p>確定仍要登記嗎？</p>`,()=>setTimeout(go,0),'仍要登記',true);
+  if(!canWrite){pevPicked=null;pevPickedId=null;toast(`無法登記：${chk.over.join('；')}。請洽診所管理者。`,'warn');return;}
+  dialog(`<h3>超過請假上限</h3><p>${chk.over.map(esc).join('<br>')}</p><p>確定仍要登記嗎？</p>`,()=>setTimeout(go,0),'仍要登記',true);
 }));
 // ---------- 整月排假 ----------
 // 月曆彈窗：上方選假別、左方選助理，把助理拖到某天的早／午／晚格子即登記請假（手機可先點助理再點格子），點格子裡的代號取消該班
 // 每種假別一個固定顏色（背景, 文字），月曆標籤與上方假別按鈕共用
-const LEAVE_COLORS={特休:['#2E7D32','#fff'],排休:['#C0CA33','#263238'],事假:['#C62828','#fff'],病假:['#EF6C00','#fff'],公假:['#1565C0','#fff'],婚假:['#D81B60','#fff'],喪假:['#455A64','#fff'],產假:['#6A1B9A','#fff'],陪產假:['#3949AB','#fff'],生理假:['#FBC02D','#3E2723'],補休:['#00897B','#fff'],颱風假:['#0288D1','#fff'],原住民族歲時祭儀:['#AD1457','#fff'],不可上班:['#212121','#fff'],其他:['#8D6E63','#fff'],產檢假:['#BA68C8','#fff'],流產產假:['#4E342E','#fff'],育嬰假:['#90A4AE','#263238']};
+const LEAVE_COLORS={彈性育嬰假:['#B0BEC5','#263238'],特休:['#2E7D32','#fff'],排休:['#C0CA33','#263238'],事假:['#C62828','#fff'],病假:['#EF6C00','#fff'],公假:['#1565C0','#fff'],婚假:['#D81B60','#fff'],喪假:['#455A64','#fff'],產假:['#6A1B9A','#fff'],'陪產假（陪產檢假）':['#3949AB','#fff'],生理假:['#FBC02D','#3E2723'],補休:['#00897B','#fff'],颱風假:['#0288D1','#fff'],原住民族歲時祭儀:['#AD1457','#fff'],不可上班:['#212121','#fff'],其他:['#8D6E63','#fff'],產檢假:['#BA68C8','#fff'],流產產假:['#4E342E','#fff'],育嬰假:['#90A4AE','#263238']};
 const leaveColor=t=>LEAVE_COLORS[t]||['#757575','#fff'];
 const leaveTagStyle=t=>{const [bg,fg]=leaveColor(t);return `background:${bg};border-color:${bg};color:${fg}`;};
 // when：'before' 事前／'after' 事後（助理）；role：'assistant' 整月排假／'doctor' 整月排休（醫師沒有事前、事後之分，可以按診休假）
@@ -4564,7 +4777,7 @@ function openMonthLeave(when,role='assistant'){
     <p class="hint">選好假別後，把${who}代號拖到要${word}的班次；拖到日期上則整天（早午晚）都${word}。手機可以先點${who}、再點班次或日期。點班次裡的代號可以取消那一班。虛線框是等待審核的${word}申請（加刪除線的是取消申請），點一下可以撤回。</p></div>`;
   document.body.appendChild(ov);
   const q=s=>ov.querySelector(s);
-  const close=()=>{ov.remove();document.removeEventListener('keydown',onKey);renderAll();};
+  const close=()=>{ov.remove();document.removeEventListener('keydown',onKey);monthLeavePaint=null;renderAll();};
   const onKey=e=>{if(e.key==='Escape'&&document.querySelector('.overlay:last-of-type')===ov)close();};
   document.addEventListener('keydown',onKey);
   const paint=()=>{
@@ -4574,6 +4787,7 @@ function openMonthLeave(when,role='assistant'){
     q('#mlTypes').innerHTML=types.map(t=>`<button type="button" data-mltype="${esc(t)}" aria-pressed="${t===type}"${t===type?` style="${leaveTagStyle(t)}"`:''}><i class="ml-dot" style="background:${leaveColor(t)[0]}"></i>${esc(t)}</button>`).join('');
     const list=activeStaff(role).filter(s=>canWrite||s.id===myStaffId());
     if(sel&&!list.some(s=>s.id===sel))sel=null;
+    if(list.length===1)sel=list[0].id; // 只有自己一個人（登記本人請假以下）：直接選好，不用先點自己的代號
     q('#mlStaff').innerHTML=list.map(s=>`<div class="chip ${role}${sel===s.id?' sel':''}" draggable="true" tabindex="0" data-mlsid="${s.id}" title="${esc(fullName(s))}"><span class="nm">${esc(s.code||s.name)}</span></div>`).join('')||`<div class="hint" style="margin:0">尚無${who}。</div>`;
     const shown=new Set(list.map(s=>s.id));
     let html=DAYS.map(d=>`<div class="ml-dow">週${d}</div>`).join('');
@@ -4611,6 +4825,31 @@ function openMonthLeave(when,role='assistant'){
   // shs：要請假的班次（拖到格子是一班；拖到日期是當天所有看診班次）
   const addLeave=(sid,date,shs)=>{
     if(!canLeaveFor(sid)){toast(`你沒有權限登記這位人員的${word}。`,'warn');return;}
+    // 病假、事假、公假、婚假、喪假、產檢假、陪產假（陪產檢假）：先詢問起訖日，再交給請假表單走完整流程
+    // 陪產假（陪產檢假）第一次請（還沒有事件）：預產期與起訖日在同一個視窗詢問，這裡不先問起訖日
+    if(!doc&&ONE_WIN.includes(type)){ // 事由、日期等問題與起訖日在同一個視窗問
+      const form=document.querySelector(`.leave-form[data-when="${when}"]`),q=n=>form.querySelector(`[data-n="${n}"]`);
+      q('staff').value=sid;q('from').value=date;q('to').value=date;q('type').value=type;q('note').value='';
+      if(when==='after')form.querySelectorAll('[data-sh]').forEach(c=>c.checked=shs.includes(c.dataset.sh));
+      remember(sid,date);setTimeout(()=>form.requestSubmit(),0);return;
+    }
+    if(!doc&&RANGE_TYPES.includes(type)){
+      const shTxt=when==='before'?'全天':SHIFTS.filter(s=>shs.includes(s.id)).map(s=>s.name).join('、');
+      dialog(`<h3>${esc(codeOf(sid))} ${esc(type)}・起訖日期</h3><p>班別：${shTxt}。週日與休診日會自動略過。</p>
+        <div class="form-row"><div class="field"><label for="rgFrom">開始日期</label><input type="date" id="rgFrom" value="${date}"></div><div class="field"><label for="rgTo">結束日期</label><input type="date" id="rgTo" value="${date}"></div></div>
+        <div class="field" style="margin-top:8px"><label for="rgNote">${REASON_TYPES.includes(type)?'理由（必填）':'備註'}</label><input id="rgNote" placeholder="${REASON_TYPES.includes(type)?'例如：家中有事、處理私人事務':'選填'}"></div>`,o=>{
+        if(REASON_TYPES.includes(type)&&!o.querySelector('#rgNote').value.trim()){toast(`請說明${type}的理由。`,'warn');o.querySelector('#rgNote').focus();return false;}
+        const a=o.querySelector('#rgFrom').value,b=o.querySelector('#rgTo').value||a;
+        if(!a){toast('請填開始日期。','warn');return false;}
+        if(b<a){toast('結束日期不能早於開始日期。','warn');return false;}
+        const form=document.querySelector(`.leave-form[data-when="${when}"]`),q=n=>form.querySelector(`[data-n="${n}"]`);
+        q('staff').value=sid;q('from').value=a;q('to').value=b;q('type').value=type;q('note').value=o.querySelector('#rgNote').value.trim();
+        if(when==='after')form.querySelectorAll('[data-sh]').forEach(c=>c.checked=shs.includes(c.dataset.sh));
+        remember(sid,date);
+        setTimeout(()=>form.requestSubmit(),0);
+      },'下一步');
+      return;
+    }
     const dup=leaveReqs.find(r=>r.status==='pending'&&r.kind!=='cancel'&&r.staffId===sid&&r.date===date)||leaves.find(l=>l.staffId===sid&&l.date===date);
     // 事前、事後各自管理：當天已有另一邊登記的請假時，不能在這裡更動
     if(dup&&other(dup)){const o=whenOf(dup)==='after'?'事後':'事前';toast(`${codeOf(sid)} ${date.slice(5).replace('-','/')} 已有${o}登記的${dup.type||'請假'}，請切換到「${o}」修改。`,'warn');return;}
@@ -4624,18 +4863,22 @@ function openMonthLeave(when,role='assistant'){
       remember(sid,date);
       const extra=doc?{}:{when};
       if(dup)store.putLeave(Object.assign({},dup,{shifts,type},extra));
-      else store.leave(Object.assign({id:uid('l'),staffId:sid,date,shifts,type,note:'',createdAt:Date.now()},extra));
+      else{const pv=!doc&&PEV[type]&&!PEV[type].auto?pevFor(sid,type,[date]):null;store.leave(Object.assign({id:uid('l'),staffId:sid,date,shifts,type,note:'',createdAt:Date.now()},pv?{pevId:pv.id}:{},extra));}
+      pevPicked=null;pevPickedId=null;
       const sn=shs.length===3||(!doc&&when==='before')?'全天':SHIFTS.filter(s=>shs.includes(s.id)).map(s=>s.name).join('、');
       toast(`${needReview(sid)?'已送出申請':'已登記'} ${codeOf(sid)} ${date.slice(5).replace('-','/')} ${sn}${type}${needReview(sid)?'（待審核）':''}。${dup&&dup.type!==type?`當天其他班次也一併改為${type}。`:''}${chk.info.join('')}`);
       paint();
+      // 需要檢附證明的假別：同一段連續假（同人同假別）在這個視窗裡只詢問一次，已經有證明就不問
+      if(!doc&&LEAVE_PROOF[type]){const run=leaveRun(sid,date,type),key=sid+type+run[0];if(!pfAsked.has(key)&&!run.some(k=>proofsOf(sid,k,type).length)){pfAsked.add(key);setTimeout(()=>askProof(sid,date,type),0);}}
     };
     const go=chk.consent?.length?()=>dialog(`<h3>需經公司同意</h3><p>${chk.consent.map(esc).join('<br>')}</p><p>婚假須於結婚登記日前 10 日起、3 個月內請畢；經公司同意可延至 1 年內。確定要登記嗎？</p>`,apply,needReview(sid)?'送出申請':'仍要登記'):apply;
     if(!chk.over.length)return go();
-    if(!canWrite){toast(`無法登記：${chk.over.join('；')}。請洽診所管理者。`,'warn');return;}
-    dialog(`<h3>超過年度請假上限</h3><p>${chk.over.map(esc).join('<br>')}</p><p>確定仍要登記嗎？</p>`,()=>setTimeout(go,0),'仍要登記',true);
+    if(!canWrite){pevPicked=null;pevPickedId=null;toast(`無法登記：${chk.over.join('；')}。請洽診所管理者。`,'warn');return;}
+    dialog(`<h3>超過請假上限</h3><p>${chk.over.map(esc).join('<br>')}</p><p>確定仍要登記嗎？</p>`,()=>setTimeout(go,0),'仍要登記',true);
   };
   // 回復前一動作：每次排假／取消前，記下該人員當天原本的請假紀錄；復原時換回原本的紀錄
-  const history=[];
+  const history=[],pfAsked=new Set();
+  monthLeavePaint=()=>{if(document.body.contains(ov))paint();else monthLeavePaint=null;}; // pfAsked：這個視窗裡已經詢問過要不要上傳證明的連續假
   const remember=(sid,date)=>history.push({sid,date,prev:leaves.filter(l=>l.staffId===sid&&l.date===date).map(clone)});
   const undo=()=>{
     const h=history.pop();if(!h){toast('沒有可以回復的動作。');return;}
@@ -4645,6 +4888,7 @@ function openMonthLeave(when,role='assistant'){
   };
   const removeShift=(id,sh)=>{
     const l=leaves.find(x=>x.id===id);if(!l)return;
+    if(contLeave(l)){if(needReview(l.staffId)&&pastLeave(l)){toast(pastMsg,'warn');return;}cancelCont(l);return;}
     if(!canLeaveFor(l.staffId)){toast(`你沒有權限取消這筆${word}。`,'warn');return;}
     // 特休、排休、婚假、喪假只能整天，取消其中一班就取消當天全部
     const whole=isWholeDay(l);
@@ -4660,7 +4904,9 @@ function openMonthLeave(when,role='assistant'){
     if(e.target.closest('[data-mlundo]')){undo();return;}
     if(e.target.closest('[data-mlnow]')){off=0;paint();return;} // 跳回今天所在的月份
     const tb=e.target.closest('[data-mltype]');if(tb){type=tb.dataset.mltype;paint();return;}
-    const rq=e.target.closest('[data-mlreq]');if(rq){const r=leaveReqs.find(x=>x.id===rq.dataset.mlreq);if(r&&(canWrite||r.staffId===myStaffId())){store.delLeaveReq(r.id);toast(`已撤回 ${codeOf(r.staffId)} ${r.date.slice(5).replace('-','/')} 的請假申請。`);paint();}return;}
+    const rq=e.target.closest('[data-mlreq]');if(rq){const r=leaveReqs.find(x=>x.id===rq.dataset.mlreq);if(r&&(canWrite||r.staffId===myStaffId())){
+      if(contLeave(r))askBatch(r,'撤回',()=>{store.delLeaveReq(r.id);paint();},all=>{all.forEach(x=>store.delLeaveReq(x.id));toast(`已撤回 ${all.length} 筆${r.type}申請。`);paint();});
+      else{store.delLeaveReq(r.id);toast(`已撤回 ${codeOf(r.staffId)} ${r.date.slice(5).replace('-','/')} 的請假申請。`);paint();}}return;}
     const tag=e.target.closest('[data-mldel]');if(tag){removeShift(tag.dataset.mldel,tag.dataset.sh);return;}
     if(e.target.closest('.ml-tag.faded')){const o=when==='after'?'事前':'事後';toast(`這是${o}登記的請假，請切換到「${o}」的整月排假修改。`);return;}
     const chip=e.target.closest('[data-mlsid]');if(chip){sel=sel===chip.dataset.mlsid?null:chip.dataset.mlsid;paint();return;}
@@ -4694,6 +4940,7 @@ $('fcForm').addEventListener('submit',e=>{
   if(!sid||!date){toast('請選擇助理與日期。','warn');return;}
   if(byId(sid)?.role!=='assistant'){toast('家庭照顧假僅限助理。','warn');return;}
   if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休診日不需要登記家庭照顧假。','warn');return;}
+  if(!$('fcNote').value.trim()){toast('請填寫家庭照顧假的事由。','warn');$('fcNote').focus();return;}
   const c=fcCalc();
   if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
   if(c.mid){const sh=SHIFTS.find(x=>x.id===$('fcShift').value);if(!sh||$('fcEnd').value!==sh.time.split('-')[1]){toast('中途請到當診結束時，結束時間需為當診結束時間。','warn');return;}}
@@ -4701,22 +4948,44 @@ $('fcForm').addEventListener('submit',e=>{
   const apply=()=>{
     store.fc({id:uid('f'),staffId:sid,date,shift:$('fcShift').value||null,start:$('fcStart').value,end:$('fcEnd').value,hours:c.hours,...(c.mid?{mid:true}:{}),note:$('fcNote').value.trim(),createdAt:Date.now()});
     $('fcNote').value='';toast(`已登記 ${codeOf(sid)} 家庭照顧假 ${c.hours} 小時。`);
+    setTimeout(()=>askProof(sid,date,'家庭照顧假'),0);
   };
   // 與事假合計每年上限 14 天
   const over=fcLimitIssue(sid,date,c.hours);
   if(!over)return apply();
   if(!canWrite){toast(`無法登記：${over}。請洽診所管理者。`,'warn');return;}
-  dialog(`<h3>超過年度請假上限</h3><p>${esc(over)}</p><p>確定仍要登記嗎？</p>`,apply,'仍要登記',true);
+  dialog(`<h3>超過請假上限</h3><p>${esc(over)}</p><p>確定仍要登記嗎？</p>`,apply,'仍要登記',true);
 });
 $('ylStaff').addEventListener('change',renderAll);
 // 個人假統計
 $('pvStaff').addEventListener('change',e=>{pvSid=e.target.value;renderAll();});
 // 從一組欄位（個人假統計表單或登記請假時的詢問彈窗）組出事件；資料不完整時提示並回傳 null
+// 每名子女（以生日辨別）已用的育嬰假天數：月制育嬰假的期間＋彈性育嬰假（已核准＋待審核）
+const evHasLeave=e=>leaves.some(l=>l.eventId===e.id)||leaveReqs.some(r=>r.status==='pending'&&r.kind!=='cancel'&&r.eventId===e.id);
+function childLeaveUsed(sid,child,skip=new Set()){
+  // 只算底下還有請假（已核准或審核中）的育嬰假；全部撤回／取消的不算
+  const months=pevents.filter(e=>e.staffId===sid&&e.kind==='育嬰假'&&e.child===child&&!skip.has(e.id)&&evHasLeave(e)).reduce((n,e)=>n+dayDiff(e.date,e.end)+1,0);
+  const fx=pevents.filter(e=>e.staffId===sid&&e.kind==='彈性育嬰假'&&e.date===child);
+  const flex=fx.reduce((n,e)=>n+evUsed(e)+evPending(e),0);
+  return {months,flex,total:months+flex,cap:dayDiff(child,addYr(child,2))};
+}
 function readEvent(sid,kind,get){
   const date=get('date');if(!date){toast(`請填寫${PEV[kind].lb}。`,'warn');return null;}
   const ev={id:uid('e'),staffId:sid,kind,date,note:(get('note')||'').trim(),createdAt:Date.now()};
   if(kind==='喪假')ev.rel=get('rel');
+  if(PEV[kind].newEach){
+    const r=(get('reason')||'').trim(),rk=get('reasonK');
+    if(kind==='病假'&&!r){toast('請填寫病假事由。','warn');return null;}
+    if(kind==='公假'&&rk==='其他'&&!r){toast('請填寫公假說明。','warn');return null;}
+    ev.reason=kind==='公假'?(rk+(r?'：'+r:'')):r;ev.end=get('end')||date;
+  }
   if(kind==='流產產假')ev.months=get('months');
+  if(kind==='產假'){
+    const due=get('due');if(!due){toast('請填寫預產期（生產日期）。','warn');return null;}
+    if(date<addD(due,-28)){toast(`產假起始日不得早於預產期前 28 天（${fmtD(addD(due,-28))}）。`,'warn');return null;}
+    {const end=get('end');if(end&&end>addD(due,55)){toast(`產假最後一天最晚為生產日後第 55 天（${fmtD(addD(due,55))}）。生產當天算第 1 天，最多連續 56 天。`,'warn');return null;}}
+    ev.due=due;
+  }
   if(kind==='產假'||kind==='流產產假'){
     const max=PEV[kind].max(ev),last=addD(date,max-1),end=get('end')||last;
     if(end<date){toast('結束日不能早於起始日。','warn');return null;}
@@ -4724,11 +4993,20 @@ function readEvent(sid,kind,get){
     ev.end=end;
   }
   if(kind==='育嬰假'){
-    const child=get('child'),end=get('end');
-    if(!child||!end){toast('請填寫子女生日與育嬰假結束日。','warn');return null;}
-    if(end<date){toast('結束日不能早於起始日。','warn');return null;}
-    if(end>addD(addYr(date,2),-1)){toast('育嬰假最長 2 年。','warn');return null;}
+    const child=get('child'),n=Number(get('ym'))||0;
+    if(!child){toast('請填寫子女生日。','warn');return null;}
+    if(n<6){toast('育嬰假以月為單位，最短 6 個月。','warn');return null;}
+    const end=addD(addMo(date,n),-1);ev.months=n;
+    // 應於 10 日前提出：助理本人不能送出，管理者登記時提醒
+    if(dayDiff(ymd(new Date()),date)<10){if(!canWrite){toast(`育嬰假應於 10 日前提出，起始日最早為 ${fmtD(addD(ymd(new Date()),10))}。`,'warn');return null;}toast('提醒：育嬰假應於 10 日前提出。','warn');}
+    if(date<child){toast('育嬰假起始日不能早於子女生日。','warn');return null;}
     if(end>=addYr(child,3)){toast(`育嬰假須在子女滿 3 歲（${fmtD(addYr(child,3))}）前結束。`,'warn');return null;}
+    // 同一名子女（以子女生日判斷）可以分次請，合計最長 2 年，期間不能重疊
+    const same=pevents.filter(e=>e.staffId===sid&&e.kind==='育嬰假'&&e.child===child&&evHasLeave(e)); // 已撤回或全部取消的不算重疊
+    const ov=same.find(e=>!(end<e.date||date>e.end));
+    if(ov){toast(`和已登記的育嬰假（${fmtD(ov.date)}～${fmtD(ov.end)}）期間重疊。`,'warn');return null;}
+    const cu=childLeaveUsed(sid,child),add=dayDiff(date,end)+1;
+    if(cu.total+add>cu.cap){toast(`同一名子女的育嬰假合計最長 2 年（${cu.cap} 天，含彈性育嬰假）：已請 ${cu.total} 天${cu.flex?`（其中彈性 ${cu.flex} 天）`:''}，這次 ${add} 天，超過 ${cu.total+add-cu.cap} 天。`,'warn');return null;}
     Object.assign(ev,{child,end});
   }
   return ev;
@@ -4745,15 +5023,95 @@ function registerEvent(ev,done){
     store.pev(ev);
     store.leavesBulk(dates.map(date=>({id:uid('l'),staffId:sid,date,shifts:SHIFTS.map(s=>s.id),type:kind,note:`${kind}（自動）`,eventId:ev.id,createdAt:Date.now()})),clash.map(l=>l.id));
     fin();
+    if(byId(sid)?.role==='assistant'&&LEAVE_PROOF[kind])setTimeout(()=>askProof(sid,dates[0],kind),0); // 產假、流產產假：排入後一樣詢問要不要上傳證明
   },'登記並排假');
 }
 // 登記請假前檢查個人假統計需要的資料：回傳 'hire'（特休缺到職日）、'event'（缺事件）或 null
 const skipHire=new Set();
+// 喪假可能是不同親屬過世：已有喪事可以對應時先問「這次是哪一件」；選好後記在 pevPicked，重新送出時不再問
+let pevPicked=null,pevPickedId=null; // pevPickedId：這次請假對應的事件（喪假選定的那一件、或剛登記的新事件）
+const pevKey=(sid,type,dates)=>sid+'|'+type+'|'+dates.slice().sort().join(',');
+// 事件底下還有沒有請假（已核准或待審核）；全部被撤回或刪除的事件不再當作「同一件事」的選項，新請的假視為新事件
+const pevAlive=e=>e.id===pevPickedId||leaves.some(l=>l.eventId===e.id||evBelongs(e,l))||leaveReqs.some(r=>r.status==='pending'&&r.kind!=='cancel'&&evBelongs(e,r));
+const pevCovering=(sid,type,dates)=>pevents.filter(e=>{if(e.staffId!==sid||e.kind!==type)return false;const i=PEV[type].info(e);return dates.every(d=>d>=i.from&&d<=i.to)&&pevAlive(e);});
+// 已登錄的子女（育嬰假的子女生日、彈性育嬰假的事件）：請假日期都在出生後、滿 3 歲前的才列出
+// 這名子女的彈性育嬰假事件（有重複時優先用底下還有請假的那一件）
+const fxOf=(sid,child)=>{const l=pevents.filter(e=>e.staffId===sid&&e.kind==='彈性育嬰假'&&e.date===child);return l.find(pevAlive)||l[0]||null;};
+// 清掉沒有任何請假（已核准或審核中）、建立超過 1 天的事件：撤回、退回或刪光請假後留下的空事件（管理者開啟時執行）
+let pevCleaned=false,pevLoaded=false; // pevLoaded：正式模式下事件資料已載入
+function pevCleanup(){
+  if(pevCleaned||!canWrite||(db&&!pevLoaded))return;pevCleaned=true;
+  const old=Date.now()-864e5;
+  pevents.filter(e=>(e.createdAt||0)<old&&!leaves.some(l=>(l.eventId||l.pevId)===e.id)&&!leaveReqs.some(r=>(r.eventId||r.pevId)===e.id)&&![...leaves,...leaveReqs.filter(r=>r.status==='pending')].some(l=>!l.eventId&&!l.pevId&&PEV[e.kind]&&evBelongs(e,l))).forEach(e=>store.delPev(e.id)); /* 沒有歸屬的舊請假（已核准或審核中）落在期間內的也保留 */
+}
+// 起訖日欄位（事件視窗、是不是同一件事視窗共用）與即時天數（週日、休診日不計）
+const rangeFields=(a,b)=>`<div class="field" style="margin-bottom:8px"><label for="aqFrom">開始日期</label><input type="date" id="aqFrom" value="${a}"></div><div class="field" style="margin-bottom:8px"><label for="aqTo">結束日期</label><input type="date" id="aqTo" value="${b}"><div class="aq-days" id="aqPDays"></div>`;
+const sid0=ov=>ov.dataset.sid||myStaffId(); // 視窗所屬人員
+function rangeDaysWatch(ov,type,sid){
+  if(sid)ov.dataset.sid=sid;
+  if(type==='陪產假（陪產檢假）')return; // 陪產假另外處理（含上限）
+  const upd=()=>{const a=ov.querySelector('#aqFrom')?.value,b=ov.querySelector('#aqTo')?.value,el=ov.querySelector('#aqPDays');if(!el)return;
+    if(!a||!b){el.textContent='';return;}if(b<a){el.className='aq-days bad';el.textContent='結束日期不能早於開始日期';return;}
+    const n=paternityDays(a,b).length,q=quotaNow();
+    if(!q){el.className='aq-days';el.textContent=`共 ${n} 天（週日、休診日不計）`;return;}
+    const left=q.quota-q.used,over=n-left,r2=v=>Math.round(v*100)/100;
+    el.className='aq-days'+(over>0?' bad':'');
+    el.textContent=`共 ${n} 天（週日、休診日不計）／可請 ${q.quota} 天${q.used?`，已請 ${r2(q.used)} 天`:''}${over>0?`，超過 ${r2(over)} 天`:`，請完還剩 ${r2(left-n)} 天`}`;};
+  // 可請天數：新事件依填的資料（婚假 14、喪假依親屬關係、產檢假 7）；選了既有的事件就扣掉已請（含審核中）
+  const quotaNow=()=>{
+    const pick=ov.querySelector('input[name=pvw]:checked');
+    if(pick&&pick.value!=='new'){const e=pevents.find(x=>x.id===pick.value);if(!e)return null;return {quota:PEV[e.kind].info(e).quota,used:evUsed(e)+evPending(e)};}
+    if(type==='彈性育嬰假'){
+      const kid=ov.querySelector('input[name=pvk]:checked'),c=kid&&kid.value!=='new'?kid.value:(ov.querySelector('input[name=pvk]')?null:ov.querySelector('#aqDate')?.value);
+      if(!c)return {quota:30,used:0};
+      const fx=fxOf(sid0(ov),c),used=fx?evUsed(fx)+evPending(fx):0,cu=childLeaveUsed(sid0(ov),c);
+      return {quota:Math.min(30,used+Math.max(0,cu.cap-cu.total)),used};
+    }
+    if(type==='婚假')return {quota:14,used:0};
+    if(type==='產檢假')return {quota:7,used:0};
+    if(type==='喪假'){const v=Number(ov.querySelector('#aqRel')?.value);return v?{quota:v,used:0}:null;}
+    return null;
+  };
+  ov.addEventListener('input',upd);ov.addEventListener('change',upd);upd();
+}
+const paternityDays=(a,b)=>{const o=[];for(let d=a;d<=b;d=addD(d,1)){if(parseYmd(d).getDay()===0||holidayOf(d))continue;o.push(d);}return o;};
+function kidsOf(sid,dates){
+  const ds=dates.slice().sort(),a=ds[0],z=ds[ds.length-1];
+  const bd=new Set();
+  pevents.forEach(e=>{if(e.staffId!==sid)return;if(e.kind==='育嬰假'?!evHasLeave(e):e.kind==='彈性育嬰假'?!pevAlive(e):true)return;const c=e.kind==='育嬰假'?e.child:e.kind==='彈性育嬰假'?e.date:null;if(c&&a>=c&&z<addYr(c,3))bd.add(c);});
+  return [...bd].sort().reverse();
+}
+const CONT_EXT=['產假','流產產假']; // 可以接續上一段的連續假
+const contCandidates=(sid,type,dates)=>{const a=dates.slice().sort()[0];return pevents.filter(e=>e.staffId===sid&&e.kind===type&&evHasLeave(e)&&a>=e.date&&a<=addD(e.date,PEV[type].info(e).quota-1));};
+function contExtend(e,start,left,after){
+  const type=e.kind,due=type==='產假'&&e.due?e.due:null;
+  let maxEnd=addD(start,left-1);if(due&&maxEnd>addD(due,55))maxEnd=addD(due,55);
+  if(maxEnd<start){toast(`已經到生產日後第 55 天，不能再接續${type}。`,'warn');return;}
+  dialog(`<h3>接續${esc(type)}</h3><p>${esc(PEV[type].desc(e))}。${esc(type)}須連續，這次從上一段的隔天 <b>${fmtD(start)}</b> 開始。</p>
+    <div class="field"><label>開始日期</label><input type="date" value="${start}" disabled></div>
+    <div class="field" style="margin-top:8px"><label for="ctEnd">結束日期</label><input type="date" id="ctEnd" value="${maxEnd}" min="${start}" max="${maxEnd}"><div class="aq-days" id="ctDays"></div></div>`,ov=>{
+    const end=ov.querySelector('#ctEnd').value;
+    if(!end||end<start||end>maxEnd){toast(`結束日期要在 ${fmtD(start)}～${fmtD(maxEnd)} 之間。`,'warn');return false;}
+    const ds=[];for(let d=start;d<=end;d=addD(d,1))ds.push(d);
+    store.leavesBulk(ds.map(date=>({id:uid('l'),staffId:e.staffId,date,shifts:SHIFTS.map(s=>s.id),type,note:`${type}（自動）`,eventId:e.id,createdAt:Date.now()})),leaves.filter(l=>l.staffId===e.staffId&&ds.includes(l.date)).map(l=>l.id));
+    store.pev(Object.assign({},e,{end}));
+    toast(`已${needReview(e.staffId)?'送出申請':'登記'}接續的${type} ${ds.length} 天（${fmtD(start)}～${fmtD(end)}）。`);
+    after&&after();
+    if(byId(e.staffId)?.role==='assistant'&&LEAVE_PROOF[type])setTimeout(()=>askProof(e.staffId,start,type),0);
+  },'接續');
+  const ov=[...document.querySelectorAll('.overlay')].pop(),inp=ov.querySelector('#ctEnd'),el=ov.querySelector('#ctDays');
+  const upd=()=>{const end=inp.value;if(!end||end<start){el.className='aq-days bad';el.textContent='結束日期不能早於開始日期';return;}const n=dayDiff(start,end)+1;el.className='aq-days'+(end>maxEnd?' bad':'');el.textContent=end>maxEnd?`超過可請範圍（最晚 ${fmtD(maxEnd)}）`:`這次 ${n} 天（含例假日），還可請 ${left} 天`;};
+  inp.addEventListener('input',upd);inp.addEventListener('change',upd);upd();
+}
 function missingInfo(sid,type,dates){
   if(type==='特休')return !hireOf(sid)&&canWrite&&!skipHire.has(sid)?'hire':null;
   if(!PEV[type])return null;
-  const covered=pevents.some(e=>{if(e.staffId!==sid||e.kind!==type)return false;const i=PEV[type].info(e);return dates.every(d=>d>=i.from&&d<=i.to);});
-  return covered?null:'event';
+  const cov=pevCovering(sid,type,dates),picked=pevPicked===pevKey(sid,type,dates);
+  if(PEV[type].newEach)return picked&&cov.length?null:'event';
+  if(type==='彈性育嬰假'){if(picked&&cov.length)return null;return kidsOf(sid,dates).length?'child':'event';}
+  if(CONT_EXT.includes(type))return contCandidates(sid,type,dates).length?'cont':'event';
+  if(!cov.length)return 'event';
+  return picked?null:'which';
 }
 // 跳出彈窗詢問缺少的資料。retry：資料補齊後重新登記原本的請假；連續假改由事件自動排假，完成後呼叫 after
 function askLeaveInfo(sid,type,dates,retry,after){
@@ -4769,37 +5127,161 @@ function askLeaveInfo(sid,type,dates,retry,after){
     },'登記');
     return true;
   }
-  const k=PEV[type],first=dates.slice().sort()[0];
+  let key=pevKey(sid,type,dates);
+  if(need==='cont'){
+    const cands=contCandidates(sid,type,dates),first=dates.slice().sort()[0];
+    const info=e=>{const ds=[...leaves,...leaveReqs.filter(r=>r.status==='pending'&&r.kind!=='cancel')].filter(l=>l.eventId===e.id).map(l=>l.date).sort();const q=PEV[type].info(e).quota;return {last:ds[ds.length-1],n:ds.length,q};};
+    dialog(`<h3>這次${esc(type)}是不是同一件事？</h3><p>${who} 已經登記過下列${esc(type)}。是同一件事就選它，這次的假會<b>接續在上一段之後</b>（${esc(type)}須連續），並自動套用同一份證明；不是的話請選「新的事件」。</p>
+      <div class="opts">${cands.map((e,i)=>{const x=info(e);return `<label><input type="radio" name="pvc" value="${e.id}"${i?'':' checked'}><span>${esc(PEV[type].desc(e))}<small>已請 ${fmtD(e.date)}～${fmtD(x.last)}，共 ${x.n} 天；可請 ${x.q} 天，剩 ${Math.max(0,x.q-x.n)} 天</small></span></label>`;}).join('')}
+      <label><input type="radio" name="pvc" value="new"><span>新的事件<small>${type==='產假'?'另一次生產，填寫預產期與起始日':'另一次流產，填寫流產日與妊娠期間'}</small></span></label></div>`,ov=>{
+      const v=ov.querySelector('input[name=pvc]:checked').value;
+      if(v==='new'){setTimeout(askEvent,0);return;}
+      const e=pevents.find(x=>x.id===v),x=info(e),start=addD(x.last,1),left=x.q-x.n;
+      if(left<=0){toast(`這件${type}已經請滿 ${x.q} 天。`,'warn');return;}
+      setTimeout(()=>contExtend(e,start,left,after),0);
+    },'下一步');
+    return true;
+  }
+  if(need==='child'){
+    const kids=kidsOf(sid,dates),r2=v=>Math.round(v*100)/100;
+    dialog(`<h3>這次彈性育嬰假是哪一名子女？</h3><p>${who} 已經登錄過下列未滿 3 歲的子女。是同一名子女就選他（會累計天數、共用同一份證明）；不是的話請選「其他子女」並填寫生日。</p>
+      <div class="opts">${kids.map((c,i)=>{const fx=fxOf(sid,c),used=fx?evUsed(fx)+evPending(fx):0,cu=childLeaveUsed(sid,c);
+        return `<label><input type="radio" name="pvk" value="${c}"${i?'':' checked'}><span>子女生日 ${fmtD(c)}<small>彈性育嬰假已請 ${r2(used)} 天，剩 ${r2(Math.max(0,30-used))} 天；育嬰假合計已用 ${cu.total} ／ ${cu.cap} 天</small></span></label>`;}).join('')}
+      <label><input type="radio" name="pvk" value="new"><span>其他子女<small>填寫這名子女的生日</small></span></label></div><h4 style="margin:12px 0 6px">這次請假的日期</h4>${rangeFields(dates.slice().sort()[0],dates.slice().sort().pop())}</div>`,ov=>{
+      const v=ov.querySelector('input[name=pvk]:checked').value;
+      const ra=ov.querySelector('#aqFrom').value,rb=ov.querySelector('#aqTo').value||ra;if(!ra||rb<ra){toast('請確認開始與結束日期。','warn');return false;}const nd=paternityDays(ra,rb);if(!nd.length){toast('這段期間都是週日或休診日。','warn');return false;}
+      rangeOverride={sid,type,from:ra,to:rb};dates=nd;key=pevKey(sid,type,nd);
+      if(v==='new'){setTimeout(askEvent,0);return;}
+      // 選了已登錄的子女：沿用（或建立）這名子女的彈性育嬰假事件
+      let fx=fxOf(sid,v);
+      if(!fx){fx={id:uid('e'),staffId:sid,kind:'彈性育嬰假',date:v,note:'',createdAt:Date.now()};store.pev(fx);}
+      pevPicked=key;pevPickedId=fx.id;setTimeout(retry,0);
+    },'下一步');
+    rangeDaysWatch(document.querySelector('.overlay:last-of-type'),type,sid);
+    return true;
+  }
+  if(need==='which'){
+    const cov=pevCovering(sid,type,dates);
+    const newTip={喪假:'另一位親屬過世，填寫死亡日與親屬關係',婚假:'填寫新的結婚登記日',產檢假:'另一次懷孕，填寫預產期',產假:'另一次生產，填寫產假起始日',流產產假:'另一次流產，填寫流產日與妊娠期間','陪產假（陪產檢假）':'另一次生產，填寫預產期'}[type]||`填寫新的${PEV[type].lb}`;
+    dialog(`<h3>這次${esc(type)}是不是同一件事？</h3><p>${who} 已經登記過下列${esc(type)}，這次請的日期在它們的期限內。是同一件事就選它（會自動套用同一份證明）；不是的話請選「新的事件」。</p>
+      <div class="opts">${cov.map((e,i)=>{const st=pevStatus(e),pd=evPending(e),r2=v=>Math.round(v*100)/100;return `<label><input type="radio" name="pvw" value="${e.id}"${i?'':' checked'}><span>${esc(PEV[type].desc(e))}<small>可請 ${st.quota} 天，已核准 ${r2(st.used)} 天${pd?`、待審核 ${r2(pd)} 天`:''}，剩 ${r2(Math.max(0,st.quota-st.used-pd))} 天</small></span></label>`;}).join('')}
+      <label><input type="radio" name="pvw" value="new"><span>新的事件<small>${esc(newTip)}</small></span></label></div>${ONE_WIN.includes(type)?'<h4 style="margin:12px 0 6px">這次請假的日期</h4>'+rangeFields(dates.slice().sort()[0],dates.slice().sort().pop())+'</div>':''}`,ov=>{
+      const v=ov.querySelector('input[name=pvw]:checked').value;
+      if(ONE_WIN.includes(type)){const a=ov.querySelector('#aqFrom').value,b=ov.querySelector('#aqTo').value||a;if(!a||b<a){toast('請確認開始與結束日期。','warn');return false;}const nd=paternityDays(a,b);if(!nd.length){toast('這段期間都是週日或休診日。','warn');return false;}
+        if(v==='new'){dates=nd;key=pevKey(sid,type,nd);rangeOverride={sid,type,from:a,to:b};}else{rangeOverride={sid,type,from:a,to:b};pevPicked=pevKey(sid,type,nd);pevPickedId=v;setTimeout(retry,0);return;}}
+      if(v==='new')setTimeout(askEvent,0);
+      else if(PEV[type].auto){const e=pevents.find(x=>x.id===v);toast(`這段期間已經自動排入${type}（${PEV[type].desc(e)}），不需要另外登記。`);after&&after();}
+      else{pevPicked=key;pevPickedId=v;setTimeout(retry,0);}
+    },'下一步');
+    if(ONE_WIN.includes(type))rangeDaysWatch(document.querySelector('.overlay:last-of-type'),type,sid);
+    return true;
+  }
+  askEvent();return true;
+  function askEvent(){
+  const k=PEV[type],first=dates.slice().sort()[0],last=dates.slice().sort().pop();
+  // 產假：有產檢假的預產期時，預設起始日為生產日
+  const due=type==='產假'?pevents.filter(e=>e.staffId===sid&&e.kind==='產檢假'&&pevAlive(e)).sort((a,b)=>b.date.localeCompare(a.date))[0]:null;
+  const today=ymd(new Date()),notPast=d=>d<today?today:d; // 自動帶入的開始日不早於今天
+  const firstDef=type==='產假'&&due?notPast(due.date):first; // 預設生產當天為第 1 天
   const opt=(id,html)=>`<div class="field" style="margin-bottom:8px"><label for="${id}">`+html;
-  dialog(`<h3>${esc(type)}需要的資料</h3><p>${who} 的${esc(type)}要先登記${k.lb}，系統才能計算可請天數與期限。${k.auto?`<br>登記後會自動排入整段${esc(type)}（含假日），取代這次選的日期。`:''}</p>
-    ${opt('aqDate',`${k.lb}</label><input type="date" id="aqDate" value="${k.auto?first:''}"></div>`)}
+  dialog(`<h3>${esc(type)}需要的資料</h3><p>${k.newEach?`請填寫這次${esc(type)}的事由；這次請的幾天會共用同一份證明。`:`${who} 的${esc(type)}要先登記${k.lb}，系統才能計算可請天數與期限。`}${k.auto?`<br>登記後會自動排入整段${esc(type)}（含假日），取代這次選的日期。`:''}</p>
+    ${k.newEach?(ONE_WIN.includes(type)?`<input type="hidden" id="aqDate" value="${first}"><input type="hidden" id="aqEnd" value="${last}">`:`<p style="margin:0 0 8px">日期：<b>${fmtD(first)}${last!==first?' ～ '+fmtD(last):''}</b></p><input type="hidden" id="aqDate" value="${first}"><input type="hidden" id="aqEnd" value="${last}">`)
+      :(type==='產假'?opt('aqDue',`預產期（生產日期）</label><input type="date" id="aqDue" value="${due?due.date:''}"><small style="color:var(--faint)">生產當天算第 1 天，往後連續 56 天；起始日不得早於預產期前 28 天，最後一天最晚為生產日後第 55 天</small></div>`):'')+opt('aqDate',`${k.lb}</label><input type="date" id="aqDate" value="${k.auto?firstDef:''}">${type==='產假'&&due?`<small style="color:var(--faint)">依預產期 ${fmtD(due.date)} 預設為生產當天（不早於今天），可修改</small>`:''}</div>`)}
+    ${ONE_WIN.includes(type)?rangeFields(first,last)+(type==='陪產假（陪產檢假）'?`<small style="color:var(--faint)">最多 7 天（週日、休診日不計），可在預產期前（陪產檢）請，最晚在預產期（生產日期）後 15 天內請完</small>`:'')+'</div>':''}
+    ${type==='病假'?opt('aqReason','事由</label><input id="aqReason" placeholder="例如：感冒就醫、腸胃炎" maxlength="60"></div>'):''}
+    ${type==='公假'?opt('aqReasonK','公假事由</label><select id="aqReasonK"><option>兵役召集（教召）</option><option>法院傳票</option><option>政府機關指派</option><option>選務工作</option><option>其他</option></select></div>')+opt('aqReason','說明</label><input id="aqReason" placeholder="例如：○○地方法院出庭" maxlength="60"></div>'):''}
     ${type==='喪假'?opt('aqRel',`與逝者關係</label>`+'<select id="aqRel">'+PEV_REL_OPTS+'</select>'+'</div>'):''}
     ${type==='流產產假'?opt('aqMonths',`妊娠期間</label>`+'<select id="aqMonths">'+PEV_MONTH_OPTS+'</select>'+'</div>'):''}
-    ${type==='育嬰假'?opt('aqChild','子女生日</label><input type="date" id="aqChild"></div>')+opt('aqEnd','育嬰假結束日</label><input type="date" id="aqEnd"></div>'):''}
-    ${type==='產假'||type==='流產產假'?opt('aqEnd',`結束日</label><input type="date" id="aqEnd" value="${addD(first,k.max({months:'28'})-1)}"><small style="color:var(--faint)">預設請滿；不一定要請完所有天數，可以改短</small></div>`):''}
+    ${type==='育嬰假'?'<p class="hint" style="margin:0 0 8px">以月為單位，最短 6 個月；每名子女在滿 3 歲前合計最長 2 年（含彈性育嬰假），可以分次請；應於 10 日前提出。</p>'+opt('aqChild','子女生日</label><input type="date" id="aqChild"></div>')+opt('aqYm','期間</label><select id="aqYm">'+Array.from({length:19},(_,i)=>`<option value="${i+6}">${i+6} 個月</option>`).join('')+'</select><div class="aq-days" id="aqYmEnd"></div></div>'):''}
+    ${type==='彈性育嬰假'?'<p class="hint" style="margin:0 0 8px">以日為單位，每名子女合計 30 日（算在育嬰假 2 年內），可於 1 日前提出。請填這名子女的生日。</p>':''}
+    ${type==='產假'||type==='流產產假'?opt('aqEnd',`結束日</label><input type="date" id="aqEnd" value="${(e=>type==='產假'&&due&&e>addD(due.date,55)?addD(due.date,55):e)(addD(firstDef,k.max({months:'28'})-1))}"><small style="color:var(--faint)">預設請滿；不一定要請完所有天數，可以改短</small><div class="aq-days" id="aqDays"></div></div>`):''}
     ${opt('aqNote','備註</label><input id="aqNote" placeholder="選填"></div>')}`,ov=>{
-    const map={date:'aqDate',rel:'aqRel',months:'aqMonths',child:'aqChild',end:'aqEnd',note:'aqNote'};
+    if(ONE_WIN.includes(type)&&k.newEach){ov.querySelector('#aqDate').value=ov.querySelector('#aqFrom').value;ov.querySelector('#aqEnd').value=ov.querySelector('#aqTo').value||ov.querySelector('#aqFrom').value;}
+    const map={due:'aqDue',date:'aqDate',rel:'aqRel',months:'aqMonths',child:'aqChild',end:'aqEnd',note:'aqNote',reason:'aqReason',reasonK:'aqReasonK',ym:'aqYm'};
     const ev=readEvent(sid,type,f=>ov.querySelector('#'+map[f])?.value||'');if(!ev)return false;
     if(!k.auto){
-      const i=k.info(ev),out=dates.filter(d=>d<i.from||d>i.to);
+      const i=k.info(ev),out=ONE_WIN.includes(type)?[]:dates.filter(d=>d<i.from||d>i.to);
       if(out.length){toast(`${out.map(fmtD).join('、')} 不在${type}可請期間（${fmtD(i.from)}～${fmtD(i.to)}）內，請確認${k.lb}。`,'warn');return false;}
+      if(ONE_WIN.includes(type)){
+        const a=ov.querySelector('#aqFrom').value,b=ov.querySelector('#aqTo').value||a,due=ev.date;
+        if(!a){toast('請填開始日期。','warn');return false;}
+        if(b<a){toast('結束日期不能早於開始日期。','warn');return false;}
+        if(type!=='陪產假（陪產檢假）'){const nd=paternityDays(a,b);if(!nd.length){toast('這段期間都是週日或休診日。','warn');return false;}
+          const bad=nd.filter(d=>d<i.from||d>i.to);if(bad.length){toast(`${bad.map(fmtD).join('、')} 不在${type}可請期間（${fmtD(i.from)}～${fmtD(i.to)}）內，請確認${k.lb}或日期。`,'warn');return false;}
+          rangeOverride={sid,type,from:a,to:b};pevPicked=pevKey(sid,type,nd);pevPickedId=ev.id;registerEvent(ev,()=>setTimeout(retry,0));return;}
+        if(a<addD(due,-280)||b>addD(due,15)){toast(`陪產假（陪產檢假）須在懷孕期間到預產期（生產日期）後 15 天內請完（${fmtD(addD(due,-280))}～${fmtD(addD(due,15))}）。`,'warn');return false;}
+        const nd=paternityDays(a,b);if(!nd.length){toast('這段期間都是週日或休診日。','warn');return false;}
+        if(nd.length>7){toast(`陪產假（陪產檢假）最多 7 天，這次 ${nd.length} 天。`,'warn');return false;}
+        rangeOverride={sid,type,from:a,to:b};pevPicked=pevKey(sid,type,nd);pevPickedId=ev.id;
+        registerEvent(ev,()=>setTimeout(retry,0));return;
+      }
+      pevPicked=key;pevPickedId=ev.id; // 剛登記的新事件：重新送出時不再詢問是哪一件
       registerEvent(ev,()=>setTimeout(retry,0));
     }else setTimeout(()=>registerEvent(ev,after),0);
   },'下一步');
+  if(ONE_WIN.includes(type))rangeDaysWatch(document.querySelector('.overlay:last-of-type'),type,sid);
+  if(type==='陪產假（陪產檢假）'){ // 陪產假：期間與 7 天上限
+    const pov=document.querySelector('.overlay:last-of-type');
+    const upd=()=>{const a=pov.querySelector('#aqFrom').value,b=pov.querySelector('#aqTo').value,due=pov.querySelector('#aqDate').value,el=pov.querySelector('#aqPDays');
+      if(!a||!b){el.textContent='';return;}if(b<a){el.className='aq-days bad';el.textContent='結束日期不能早於開始日期';return;}
+      const n=paternityDays(a,b).length,out=due&&(a<addD(due,-280)||b>addD(due,15));
+      el.className='aq-days'+(n>7||out?' bad':'');el.textContent=out?`超出可請期間（懷孕期間到預產期後 15 天：${fmtD(addD(due,-280))}～${fmtD(addD(due,15))}）`:`共 ${n} 天（週日、休診日不計）／最多 7 天${n>7?`，超過 ${n-7} 天`:''}`;};
+    pov.addEventListener('input',upd);pov.addEventListener('change',upd);upd();
+  }
+  if(type==='育嬰假'){ // 依起始日與月數即時算出結束日，並顯示這名子女的 2 年合計
+    const yov=document.querySelector('.overlay:last-of-type');
+    const upd=()=>{const a=yov.querySelector('#aqDate').value,n=Number(yov.querySelector('#aqYm').value),c=yov.querySelector('#aqChild').value,el=yov.querySelector('#aqYmEnd');
+      if(!a||!n){el.textContent='';return;}
+      const end=addD(addMo(a,n),-1),[y,m,d]=end.split('-').map(Number),days=dayDiff(a,end)+1;
+      let txt=`請到 ${y} 年 ${m} 月 ${d} 日（共 ${n} 個月、${days} 天）`,bad=false;
+      if(c){const cu=childLeaveUsed(sid,c),left=cu.cap-cu.total;
+        if(end>=addYr(c,3)){bad=true;txt+=`；超過子女滿 3 歲（${fmtD(addYr(c,3))}）`;}
+        else if(days>left){bad=true;txt+=`；這名子女育嬰假合計已用 ${cu.total} 天，最多 ${cu.cap} 天，超過 ${days-left} 天`;}
+        else txt+=`；這名子女合計還剩 ${left-days} 天`;}
+      if(a<ymd(new Date())||dayDiff(ymd(new Date()),a)<10){txt+='；應於 10 日前提出';if(!canWrite)bad=true;}
+      el.className='aq-days'+(bad?' bad':'');el.textContent=txt;};
+    yov.addEventListener('input',upd);yov.addEventListener('change',upd);upd();
+  }
   if(type==='產假'||type==='流產產假'){ // 改起始日或妊娠期間時，結束日跟著改成請滿的最後一天
     const aov=document.querySelector('.overlay:last-of-type');
-    aov.addEventListener('change',x=>{if(x.target.id!=='aqDate'&&x.target.id!=='aqMonths')return;const d=aov.querySelector('#aqDate').value;if(d)aov.querySelector('#aqEnd').value=addD(d,k.max({months:aov.querySelector('#aqMonths')?.value})-1);});
+    // 起訖日旁即時換算天數（含例假日），超過上限標紅
+    const showDays=()=>{const a=aov.querySelector('#aqDate')?.value,b=aov.querySelector('#aqEnd')?.value,el=aov.querySelector('#aqDays');if(!el)return;
+      const max=k.max({months:aov.querySelector('#aqMonths')?.value||'28'});
+      if(!a||!b){el.textContent='';return;}const n=dayDiff(a,b)+1,dv=aov.querySelector('#aqDue')?.value,late=dv&&b>addD(dv,55);
+      const early=dv&&a<addD(dv,-28);if(early){el.className='aq-days bad';el.textContent=`起始日早於預產期前 28 天（最早 ${fmtD(addD(dv,-28))}）`;return;}
+      if(late){el.className='aq-days bad';el.textContent=`結束日超過生產日後第 55 天（最晚 ${fmtD(addD(dv,55))}）`;return;}
+      el.className='aq-days'+(n>max||n<1?' bad':'');el.textContent=n<1?'結束日不能早於起始日':`共 ${n} 天（含例假日）／最多 ${max} 天${n>max?`，超過 ${n-max} 天`:n<max&&!(dv&&b>=addD(dv,55))?`，還可請 ${max-n} 天`:n<max?`（已到生產日後第 55 天）`:''}`;};
+    aov.addEventListener('change',()=>setTimeout(showDays,0));aov.addEventListener('input',showDays);showDays();
+    // 產假：填預產期後，起始日預設為生產日
+    aov.addEventListener('change',x=>{if(x.target.id!=='aqDue'||!x.target.value)return;const st=notPast(x.target.value),d=aov.querySelector('#aqDate');d.value=st;d.dispatchEvent(new Event('change',{bubbles:true}));});
+    // 結束日還沒手動改過時，改起始日（或妊娠期間）會把結束日跟著改成請滿；手動改過結束日後就保留，只重新計算天數
+    let endTouched=false;
+    aov.addEventListener('input',x=>{if(x.target.id==='aqEnd')endTouched=true;});
+    aov.addEventListener('change',x=>{if(x.target.id==='aqEnd'){endTouched=true;return;}if(x.target.id!=='aqDate'&&x.target.id!=='aqMonths')return;if(endTouched)return;const d=aov.querySelector('#aqDate').value;if(d){let e=addD(d,k.max({months:aov.querySelector('#aqMonths')?.value})-1);const dv=aov.querySelector('#aqDue')?.value;if(dv&&e>addD(dv,55))e=addD(dv,55);aov.querySelector('#aqEnd').value=e;}}); /* 產假的結束日不超過生產日後第 55 天 */
   }
-  return true;
+  }
 }
-$('pvTable').addEventListener('click',e=>{
-  const b=e.target.closest('[data-delpev]');if(!b)return;const ev=pevents.find(x=>x.id===b.dataset.delpev);if(!ev||!canLeaveFor(ev.staffId))return;
-  const auto=leaves.filter(l=>l.eventId===ev.id);
-  dialog(`<h3>刪除${esc(ev.kind)}事件？</h3><p>${esc(PEV[ev.kind]?.desc(ev)||'')}${auto.length?`<br>系統自動排入的 ${auto.length} 天${esc(ev.kind)}也會一併刪除。`:''}</p>`,()=>{
-    if(auto.length)store.leavesBulk([],auto.map(l=>l.id));
-    store.delPev(ev.id);toast('已刪除事件。');
-  },'刪除',true);
-});
+// 取消連續假（產假、流產產假、育嬰假）：只能從某一天（育嬰假以月）起取消到最後；事件依剩下的請假同步
+function cancelCont(l){
+  const ev=pevents.find(x=>x.id===l.eventId);if(!ev||!canLeaveFor(ev.staffId))return;
+  const auto=leaves.filter(x=>x.eventId===ev.id);if(!auto.length)return;
+  if(ev.kind==='育嬰假'){
+    ccMonthsDialog(ev,'取消',(cut,left)=>{
+      const ids=auto.filter(x=>x.date>=cut).map(x=>x.id);
+      store.leavesBulk([],ids);
+      if(needReview(ev.staffId)){toast(`已送出取消育嬰假 ${ids.length} 天（${fmtD(cut)} 起）的申請，等待管理者審核。`);return;}
+      if(left)store.pev(Object.assign({},ev,{end:addD(cut,-1),months:left}));
+      toast(left?`已取消 ${fmtD(cut)} 起的育嬰假，保留 ${left} 個月。`:'已取消整段育嬰假。');
+    });
+    return;
+  }
+  tailDialog(ev.kind,auto.map(x=>x.date),'取消',l.date,(cut,gone,keep)=>{
+    store.leavesBulk([],auto.filter(x=>x.date>=cut).map(x=>x.id));
+    if(needReview(ev.staffId)){toast(`已送出取消${ev.kind} ${gone.length} 天（${fmtD(cut)} 起）的申請，等待管理者審核。`);return;}
+    if(keep.length)store.pev(Object.assign({},ev,{end:keep[keep.length-1]}));
+    toast(keep.length?`已取消 ${fmtD(cut)} 起的${ev.kind}，保留 ${keep.length} 天。`:`已取消整段${ev.kind}。`);
+  },needReview(ev.staffId)?ymd(new Date()):null);
+}
 // 基本／加診切換
 document.querySelector('.pool .seg').addEventListener('click',e=>{
   const b=e.target.closest('[data-mode]');if(!b)return;
@@ -4875,6 +5357,7 @@ $('fcTable').addEventListener('click',e=>{
     const c=fcCalc(q('start'),q('end'),fcMidKeep(old,q('shift'),q('end')));
     if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
     {const clash=fcVsLeave(old.staffId,q('date'),{start:q('start'),end:q('end'),shift:q('shift')||null});if(clash){toast(clash,'warn');return;}}
+    if(!q('note').trim()){toast('請填寫家庭照顧假的事由。','warn');return;}
     editingFc=null;
     store.putFc(Object.assign({},old,{date:q('date'),shift:q('shift')||null,start:q('start'),end:q('end'),hours:c.hours,mid:!!c.mid,note:q('note').trim()}));
     toast(`已變更家庭照顧假，共 ${c.hours} 小時。`);return;
@@ -4903,7 +5386,7 @@ document.querySelectorAll('.leave-table').forEach(tb=>tb.addEventListener('click
   const so=e.target.closest('[data-lvsort]');if(so){const k=so.dataset.lvsort,r=so.dataset.role,cur=lvSorts[r];lvSorts[r]=cur.key===k?{key:k,dir:-cur.dir}:{key:k,dir:1};renderAll();$('leaveScroll-'+r).scrollTop=0;return;}
   const lvId=(e.target.closest('[data-editleave],[data-lvsave],[data-delleave]')||{}).dataset;const lvRec=lvId&&leaves.find(x=>x.id===(lvId.editleave||lvId.lvsave||lvId.delleave));
   if(lvRec&&!canLeaveFor(lvRec.staffId)){toast('你沒有權限修改這筆紀錄。','warn');return;}
-  const ed=e.target.closest('[data-editleave]');if(ed){editingLeave=ed.dataset.editleave;renderAll();return;}
+  const ed=e.target.closest('[data-editleave]');if(ed){const l=leaves.find(x=>x.id===ed.dataset.editleave);if(needReview(l?.staffId)&&pastLeave(l)){toast(pastMsg,'warn');return;}if(contLeave(l)){toast(contMsg(l),'warn');return;}editingLeave=ed.dataset.editleave;renderAll();return;}
   if(e.target.closest('[data-lvcancel]')){editingLeave=null;renderAll();return;}
   const sv=e.target.closest('[data-lvsave]');
   if(sv){
@@ -4913,13 +5396,15 @@ document.querySelectorAll('.leave-table').forEach(tb=>tb.addEventListener('click
     if(!date){toast('請選擇日期。','warn');return;}
     if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休診日不需要登記'+(byId(old.staffId)?.role==='doctor'?'休假':'請假')+'。','warn');return;}
     if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
+    {const t=row.querySelector('[data-e=type]').value,n=row.querySelector('[data-e=note]').value.trim();if(byId(old.staffId)?.role==='assistant'&&REASON_TYPES.includes(t)&&!n){toast(`請在備註說明${t}的理由。`,'warn');row.querySelector('[data-e=note]').focus();return;}}
     if(leaves.some(x=>x.id!==old.id&&x.staffId===old.staffId&&x.date===date)){toast(`${codeOf(old.staffId)} 在 ${date.slice(5).replace('-','/')} 已經有${byId(old.staffId)?.role==='doctor'?'休假':'請假'}紀錄。`,'warn');return;}
     if(byId(old.staffId)?.role==='assistant'){const clash=leaveVsFc(old.staffId,date,isWholeDay(old)?SHIFTS.map(s=>s.id):shifts);if(clash){toast(clash,'warn');return;}}
     editingLeave=null;
     store.putLeave(Object.assign({},old,{date,shifts,type:row.querySelector('[data-e=type]').value,note:row.querySelector('[data-e=note]').value.trim()}));
     toast(byId(old.staffId)?.role==='doctor'?'已變更休假。':'已變更請假。');return;
   }
-  const b=e.target.closest('[data-delleave]');if(b){const l=leaves.find(x=>x.id===b.dataset.delleave);store.delLeave(b.dataset.delleave);if(l&&needReview(l.staffId))toast('已送出取消的申請，管理者核准前原本的'+(l.staffId&&byId(l.staffId)?.role==='doctor'?'休假':'請假')+'仍然有效。');}
+  const b=e.target.closest('[data-delleave]');if(b&&contLeave(leaves.find(x=>x.id===b.dataset.delleave))){const l=leaves.find(x=>x.id===b.dataset.delleave);if(needReview(l.staffId)&&pastLeave(l)){toast(pastMsg,'warn');return;}cancelCont(l);return;}
+  if(b){const l=leaves.find(x=>x.id===b.dataset.delleave);store.delLeave(b.dataset.delleave);if(l&&needReview(l.staffId))toast('已送出取消的申請，管理者核准前原本的'+(l.staffId&&byId(l.staffId)?.role==='doctor'?'休假':'請假')+'仍然有效。');}
 }));
 
 // staff
