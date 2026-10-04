@@ -124,11 +124,14 @@ service cloud.firestore {
     match /config/{id}     { allow read: if canView(); allow write: if canManage(); }
 
     // 請假、家庭照顧假：排班管理以上可改所有人；一般助理只能新增/變更/刪除自己的
+    // 請假／休假：助理、醫師自己登記的只能是待審申請（status 'pending'），由排班管理以上核准（拿掉 status）或退回（'rejected'）；
+    // 本人可以撤回待審或刪除被退回的申請，已核准的只能由管理者改或刪。
+    function selfLeaveOK(d) { return isSelf(d.staffId) && d.get('status', '') == 'pending'; }
     match /leaves/{id} {
       allow read: if canView();
-      allow create: if canManage() || isSelf(request.resource.data.staffId);
-      allow update: if canManage() || (isSelf(resource.data.staffId) && isSelf(request.resource.data.staffId));
-      allow delete: if canManage() || isSelf(resource.data.staffId);
+      allow create: if canManage() || selfLeaveOK(request.resource.data);
+      allow update: if canManage() || (selfLeaveOK(resource.data) && selfLeaveOK(request.resource.data));
+      allow delete: if canManage() || (isSelf(resource.data.staffId) && resource.data.get('status', '') in ['pending', 'rejected']);
     }
     match /familyCare/{id} {
       allow read: if canView();
