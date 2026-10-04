@@ -241,6 +241,8 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .proof-table td{vertical-align:top;font-size:.8rem;}
 .proof-table td:nth-child(2){min-width:200px;}
 .proof-table td:nth-child(3){min-width:240px;color:var(--sub);}
+.fc-mid{display:flex;align-items:center;gap:6px;padding-block:6px;white-space:nowrap;cursor:pointer;font-size:.85rem;}
+.fc-mid input{width:18px;height:18px;margin:0;accent-color:var(--accent);}
 .lot-set-acts{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
 .lot-round{font-size:.8rem;color:var(--sub);padding:5px 0;border-top:1px dashed var(--line);}
 .lot-dlg{max-width:520px;}
@@ -713,14 +715,15 @@ body.gated .shell{display:none;}
         <div class="card" id="proofCard"></div>
         <div class="card">
           <h2>家庭照顧假</h2>
-          <p class="lv-proof">📎 <b>家庭照顧假</b>需檢附：需檢附合理證明<br><span>至少以 1 小時為單位</span></p>
-          <p class="desc">僅限助理。填寫時間段後自動計算時數，以 1 小時為最小單位，未滿 1 小時的部分以 1 小時計；超過 3 小時但不超過 3.5 小時（一個診）時記 3.5 小時。家庭照顧假另外記錄，不會影響排班。</p>
+          <p class="lv-proof">📎 <b>家庭照顧假</b>需檢附：需檢附合理證明<br><span>至少以 1 小時為單位；上班到中途請到當診結束，以 0.5 小時為單位</span></p>
+          <p class="desc">僅限助理。填寫時間段後自動計算時數，以 1 小時為最小單位，未滿 1 小時的部分以 1 小時計；超過 3 小時但不超過 3.5 小時（一個診）時記 3.5 小時。上班到中途請假到當診結束時，勾選「請到當診結束」，結束時間固定為當診結束時間，以 0.5 小時為最小單位，未滿 0.5 小時以 0.5 小時計。家庭照顧假另外記錄，不會影響排班。</p>
           <form class="form-row" id="fcForm" style="margin-bottom:14px">
             <div class="field"><label for="fcStaff">助理</label><select id="fcStaff" required></select></div>
             <div class="field"><label for="fcDate">日期</label><input type="date" id="fcDate" required></div>
             <div class="field"><label for="fcShift">班別</label><select id="fcShift"><option value="">不指定</option><option value="day">早班</option><option value="eve">午班</option><option value="night">晚班</option></select></div>
             <div class="field"><label for="fcStart">開始時間</label><input type="time" id="fcStart" value="08:30" required></div>
             <div class="field"><label for="fcEnd">結束時間</label><input type="time" id="fcEnd" value="09:30" required></div>
+            <div class="field"><span class="lb">中途離開</span><label class="fc-mid"><input type="checkbox" id="fcMid"> 請到當診結束</label></div>
             <div class="field"><span class="lb">時數</span><div id="fcCalc" style="padding-block:6px;font-weight:500;white-space:nowrap">1 小時</div></div>
             <div class="field" style="flex:1;min-width:140px"><label for="fcNote">備註</label><input id="fcNote" placeholder="例如：陪同家人就醫"></div>
             <button class="primary" type="submit" data-w>登記</button>
@@ -1084,7 +1087,7 @@ const LEAVE_PROOF={
   產檢假:{doc:'媽媽手冊或診斷證明',note:'最多 7 天'},
   陪產假:{doc:'媽媽手冊、出生證明書或診斷證明',note:'分娩當日及前後共 15 日（含例假日）內請完，最多 7 天'},
   流產產假:{doc:'診斷證明',note:'妊娠滿 20 週以上流產者 56 天；妊娠 3 個月以上未滿 20 週流產者 28 天；妊娠 2 個月以上未滿 3 個月流產者 7 天；妊娠未滿 2 個月流產者 5 天（皆含例假日）'},
-  家庭照顧假:{doc:'需檢附合理證明',note:'至少以 1 小時為單位'},
+  家庭照顧假:{doc:'需檢附合理證明',note:'至少以 1 小時為單位；上班到中途請到當診結束，以 0.5 小時為單位'},
   公假:{doc:'兵役召集令（教召）、法院傳票、政府機關公文或選務工作聘書等',note:'必須是因依法令規定或政府指派執行公務，方得請領'},
 };
 const proofHtml=t=>{const p=LEAVE_PROOF[t];return p?`📎 <b>${esc(t)}</b>需檢附：${esc(p.doc)}${p.note?`<br><span>${esc(p.note)}</span>`:''}`:'';};
@@ -1705,6 +1708,7 @@ const codeHtml=id=>{const c=esc(codeOf(id));const m=byId(id)?.role==="doctor"&&/
 function renderWeeks(mi){
   const liveView=prefs.tab==='schedule'&&schedViewOf()==='live'; // 異動班表：排入有請假的診次也維持原本顏色
   const today=ymd(new Date());
+  const keepX={ym:$('weeks').dataset.ym,x:[...document.querySelectorAll('#weeks .table-wrap')].map(el=>el.scrollLeft)};$('weeks').dataset.ym=mi.ym;
   $('weeks').innerHTML=mi.mondays.map(mon=>{
     const wk=ymd(mon);const sun=new Date(mon);sun.setDate(mon.getDate()+6);
     const days=[...Array(7)].map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return {d,key:ymd(d),out:d.getMonth()!==mi.first.getMonth()};});
@@ -1773,6 +1777,8 @@ function renderWeeks(mi){
     return `<div class="week"><div class="week-head"><span>${md(mon)} – ${md(sun)}</span>${canWrite?`<span style="display:flex;gap:6px"><button class="small" data-tplweek="${wk}">一鍵帶入醫師班表</button><button class="small" data-clear="${wk}">清空本週</button></span>`:''}</div>
       <div class="table-wrap"><table class="grid"><thead><tr><th class="shift-label"></th>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
   }).join('');
+  // 重畫後還原每週表格的左右捲動位置（點選人員、排班等操作不會跳回週一）
+  if(keepX.ym===mi.ym)document.querySelectorAll('#weeks .table-wrap').forEach((el,i)=>{if(keepX.x[i])el.scrollLeft=keepX.x[i];});
 }
 
 // 列表標題旁的「◀ 月｜年 ▶」查看期間按鈕
@@ -1806,7 +1812,7 @@ function renderFamilyCare(mi){
         <td style="white-space:nowrap"><input type="time" data-e="start" value="${l.start||''}" aria-label="開始時間" style="width:auto"> – <input type="time" data-e="end" value="${l.end||''}" aria-label="結束時間" style="width:auto"></td>
         <td class="num" data-e="calc">${l.hours} 小時</td><td><input data-e="note" value="${esc(l.note||'')}" aria-label="備註"></td>
         <td class="num" style="white-space:nowrap"><button class="small primary" data-fcsave="${l.id}">儲存</button> <button class="small" data-fccancel>取消</button></td></tr>`;
-      return `<tr data-date="${l.date}"><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${sh?sh.name:'—'}</td><td>${l.start&&l.end?`${l.start}–${l.end}`:'—'}</td><td class="num">${l.hours} 小時</td><td>${esc(l.note||'')}</td><td class="num" style="white-space:nowrap">${canLeaveFor(l.staffId)?`<button class="small" data-editfc="${l.id}">變更</button> <button class="small danger" data-delfc="${l.id}">刪除</button>`:''}</td></tr>`;}).join('')
+      return `<tr data-date="${l.date}"><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${sh?sh.name:'—'}</td><td>${l.start&&l.end?`${l.start}–${l.end}`:'—'}</td><td class="num">${l.hours} 小時${l.mid?'<br><small class="att-mute">中途至當診結束</small>':''}</td><td>${esc(l.note||'')}</td><td class="num" style="white-space:nowrap">${canLeaveFor(l.staffId)?`<button class="small" data-editfc="${l.id}">變更</button> <button class="small danger" data-delfc="${l.id}">刪除</button>`:''}</td></tr>`;}).join('')
     :`<tr><td colspan="7" class="empty">${lr.label}還沒有家庭照顧假紀錄。</td></tr>`)+'</tbody>';
   const tot={};familyCare.forEach(l=>{if(!l.date.startsWith(yr))return;const t=(tot[l.staffId]=tot[l.staffId]||{m:0,y:0});t.y+=l.hours;if(l.date>=a&&l.date<=z)t.m+=l.hours;});
   {const n=limitRows($('fcScroll'),3);$('fcHint').hidden=n<=3;if(!leaveScrolled.fc)leaveScrolled.fc=scrollToUpcoming($('fcScroll'));}
@@ -4398,9 +4404,10 @@ $('fcForm').addEventListener('submit',e=>{
   if(parseYmd(date).getDay()===0||holidayOf(date)){toast('週日與休診日不需要登記家庭照顧假。','warn');return;}
   const c=fcCalc();
   if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
+  if(c.mid){const sh=SHIFTS.find(x=>x.id===$('fcShift').value);if(!sh||$('fcEnd').value!==sh.time.split('-')[1]){toast('中途請到當診結束時，結束時間需為當診結束時間。','warn');return;}}
   {const clash=fcVsLeave(sid,date,{start:$('fcStart').value,end:$('fcEnd').value,shift:$('fcShift').value||null});if(clash){toast(clash,'warn');return;}}
   const apply=()=>{
-    store.fc({id:uid('f'),staffId:sid,date,shift:$('fcShift').value||null,start:$('fcStart').value,end:$('fcEnd').value,hours:c.hours,note:$('fcNote').value.trim(),createdAt:Date.now()});
+    store.fc({id:uid('f'),staffId:sid,date,shift:$('fcShift').value||null,start:$('fcStart').value,end:$('fcEnd').value,hours:c.hours,...(c.mid?{mid:true}:{}),note:$('fcNote').value.trim(),createdAt:Date.now()});
     $('fcNote').value='';toast(`已登記 ${codeOf(sid)} 家庭照顧假 ${c.hours} 小時。`);
   };
   // 與事假合計每年上限 14 天
@@ -4509,10 +4516,12 @@ document.querySelector('.pool .seg').addEventListener('click',e=>{
   document.querySelector('.pool').classList.toggle('extra-mode',poolMode==='extra');
   toast(poolMode==='extra'?'加診模式：之後排入的助理都算加診。':'基本模式。');
 });
-function fcCalc(a=$('fcStart').value,b=$('fcEnd').value){
+function fcCalc(a=$('fcStart').value,b=$('fcEnd').value,mid=$('fcMid').checked){
   if(!a||!b)return null;
   const toM=t=>{const [h,m]=t.split(':').map(Number);return h*60+m;};
   const mins=toM(b)-toM(a);if(mins<=0)return null;
+  // 上班到中途請到當診結束：以 0.5 小時為單位進位
+  if(mid)return {mins,hours:Math.max(0.5,Math.ceil(mins/30)/2),mid:true};
   // 一個診 3.5 小時：超過 3 小時且不超過 3.5 小時時記 3.5 小時，其餘以 1 小時為單位進位
   return {mins,hours:mins>180&&mins<=210?3.5:Math.max(1,Math.ceil(mins/60))};
 }
@@ -4522,8 +4531,21 @@ function showFcCalc(){
   el.style.color='';const raw=c.mins/60;
   el.textContent=raw===c.hours?`${c.hours} 小時`:`${c.hours} 小時（實際 ${raw.toFixed(1).replace(/\.0$/,'')}）`;
 }
+// 中途請到當診結束：班別沒選時依開始時間判斷是哪一診，結束時間固定為該診結束時間
+// 變更既有紀錄：原本是中途請到當診結束、而且結束時間仍是該診結束時間時，維持 0.5 小時為單位
+const fcMidKeep=(old,shift,end)=>{const sh=SHIFTS.find(x=>x.id===shift);return !!(old?.mid&&sh&&end===sh.time.split('-')[1]);};
+const fcShiftAt=t=>SHIFTS.find(sh=>{const [a,b]=sh.time.split('-');return t>=a&&t<b;});
+function fcSyncMid(){
+  const on=$('fcMid').checked;$('fcEnd').disabled=on;
+  if(!on){showFcCalc();return;}
+  let sh=SHIFTS.find(x=>x.id===$('fcShift').value)||fcShiftAt($('fcStart').value);
+  if(!sh){toast('開始時間不在任何一診的看診時間內，請先選班別或修改開始時間。','warn');$('fcMid').checked=false;$('fcEnd').disabled=false;return;}
+  $('fcShift').value=sh.id;$('fcEnd').value=sh.time.split('-')[1];showFcCalc();
+}
+$('fcMid').addEventListener('change',fcSyncMid);
+$('fcStart').addEventListener('change',()=>{if($('fcMid').checked)fcSyncMid();});
 ['fcStart','fcEnd'].forEach(id=>$(id).addEventListener('input',showFcCalc));
-$('fcShift').addEventListener('change',()=>{const sh=SHIFTS.find(x=>x.id===$('fcShift').value);if(!sh)return;const [a]=sh.time.split('-');$('fcStart').value=a;const [h,m]=a.split(':').map(Number);const e=h*60+m+60;$('fcEnd').value=`${pad(Math.floor(e/60))}:${pad(e%60)}`;showFcCalc();});
+$('fcShift').addEventListener('change',()=>{const sh=SHIFTS.find(x=>x.id===$('fcShift').value);if(!sh)return;if($('fcMid').checked){$('fcEnd').value=sh.time.split('-')[1];if($('fcStart').value<sh.time.split('-')[0]||$('fcStart').value>=$('fcEnd').value)$('fcStart').value=sh.time.split('-')[0];showFcCalc();return;}const [a]=sh.time.split('-');$('fcStart').value=a;const [h,m]=a.split(':').map(Number);const e=h*60+m+60;$('fcEnd').value=`${pad(Math.floor(e/60))}:${pad(e%60)}`;showFcCalc();});
 // ---------- 家庭照顧假與請假不得同時段 ----------
 const hm=t=>{const [h,m]=String(t).split(':').map(Number);return h*60+m;};
 // 家庭照顧假佔用的班次：依時間段與各班看診時間（例：早班 08:30-12:00）是否重疊；沒填時間時以指定班別為準
@@ -4555,18 +4577,19 @@ $('fcTable').addEventListener('click',e=>{
     const q=k=>row.querySelector(`[data-e=${k}]`).value;
     if(!q('date')){toast('請選擇日期。','warn');return;}
     if(parseYmd(q('date')).getDay()===0||holidayOf(q('date'))){toast('週日與休診日不需要登記家庭照顧假。','warn');return;}
-    const c=fcCalc(q('start'),q('end'));
+    const c=fcCalc(q('start'),q('end'),fcMidKeep(old,q('shift'),q('end')));
     if(!c){toast('請填寫開始與結束時間，結束時間要晚於開始時間。','warn');return;}
     {const clash=fcVsLeave(old.staffId,q('date'),{start:q('start'),end:q('end'),shift:q('shift')||null});if(clash){toast(clash,'warn');return;}}
     editingFc=null;
-    store.putFc(Object.assign({},old,{date:q('date'),shift:q('shift')||null,start:q('start'),end:q('end'),hours:c.hours,note:q('note').trim()}));
+    store.putFc(Object.assign({},old,{date:q('date'),shift:q('shift')||null,start:q('start'),end:q('end'),hours:c.hours,mid:!!c.mid,note:q('note').trim()}));
     toast(`已變更家庭照顧假，共 ${c.hours} 小時。`);return;
   }
   const b=e.target.closest('[data-delfc]');if(b)store.delFc(b.dataset.delfc);
 });
 $('fcTable').addEventListener('input',e=>{
   const row=e.target.closest('[data-fcrow]');if(!row||!['start','end'].includes(e.target.dataset.e))return;
-  const c=fcCalc(row.querySelector('[data-e=start]').value,row.querySelector('[data-e=end]').value);
+  const old=familyCare.find(x=>x.id===row.dataset.fcrow);
+  const c=fcCalc(row.querySelector('[data-e=start]').value,row.querySelector('[data-e=end]').value,fcMidKeep(old,row.querySelector('[data-e=shift]')?.value,row.querySelector('[data-e=end]').value));
   row.querySelector('[data-e=calc]').textContent=c?`${c.hours} 小時`:'—';
 });
 // 特休、排休、婚假、喪假只能請全天：選到這些假別或點任一班次時，早午晚三個班自動全部勾選
