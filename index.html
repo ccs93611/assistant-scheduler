@@ -270,6 +270,12 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .pf-run{display:flex;align-items:center;gap:6px;font-size:.82rem;margin:6px 0;cursor:pointer;}
 .pf-keep{margin-top:12px;font-size:.82rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .pf-keep input{width:5em;}
+.gap.why{cursor:help;}
+.why-list{display:flex;flex-direction:column;gap:4px;max-height:50vh;overflow:auto;}
+.why-row{display:grid;grid-template-columns:110px 1fr;gap:8px;padding:5px 8px;border-radius:6px;background:var(--warn-soft);font-size:.8rem;}
+.why-row.ok{background:var(--accent-soft);}
+.why-row span{color:var(--sub);}
+.why-row.ok span{color:var(--ok);font-weight:600;}
 .lot-set-acts{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
 .lot-round{font-size:.8rem;color:var(--sub);padding:5px 0;border-top:1px dashed var(--line);}
 .lot-dlg{max-width:520px;}
@@ -1949,7 +1955,7 @@ function renderWeeks(mi){
             body=L.order.map(id=>{if(!here.has(id)||tch.has(id))return '<div class="item ph" aria-hidden="true"></div>';const ls=[...tch].filter(([,t])=>t===id).map(([l])=>l);return ls.length?`<div class="dstack teach-group" title="${esc(codeOf(id))} 教育 ${esc(ls.map(codeOf).join('、'))}">${itemH(id)}${ls.map(l=>itemH(l,' learn',learnNote(l))).join('')}</div>`:itemH(id);}).join(''); // 有學員時，教育者與學員上下疊在同一欄
           }
           const miss=x.out?0:Math.max(0,need(pi)-here.size);gaps+=miss+man;
-          const items=body+`<div class="gap manual${selectedId===GAP?' hl':''}" draggable="${canWrite}" data-item="${GAP}" data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" title="待補缺口：拖入人員即可補上">${canWrite?'<button class="rm" data-rm aria-label="移除缺口">×</button>':''}</div>`.repeat(man)+'<div class="gap"></div>'.repeat(miss)+'<div class="item ph" aria-hidden="true"></div>'.repeat(Math.max(0,L.extra-miss-man));
+          const items=body+`<div class="gap manual${selectedId===GAP?' hl':''}" draggable="${canWrite}" data-item="${GAP}" data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" title="待補缺口：拖入人員即可補上">${canWrite?'<button class="rm" data-rm aria-label="移除缺口">×</button>':''}</div>`.repeat(man)+(p.role==='assistant'&&canWrite?`<div class="gap why" data-why="${wk}|${ck}|${pi}" title="缺人：點一下查看為什麼沒有排人"></div>`:'<div class="gap"></div>').repeat(miss)+'<div class="item ph" aria-hidden="true"></div>'.repeat(Math.max(0,L.extra-miss-man));
           return `<div class="pos${p.role==='doctor'?' doc':''}" data-pos data-wk="${wk}" data-ck="${ck}" data-pi="${pi}" data-date="${x.key}" data-sh="${sh.id}" tabindex="-1" title="${pi===FOLLOW?'跟診：先排醫師，助理拖到醫師下方':p.label+'（限'+ROLE[p.role]+'）'}"><div class="pos-label">${p.label}</div><div class="q-items">${items}</div></div>`;
         }).join('');
         return `<td class="slot${x.out?' out':''}"><div class="slot-grid">${cols}</div></td>`;
@@ -3543,6 +3549,7 @@ function autoSchedule(fillOnly){
           const from=cells[i][3].includes(X)?3:(cells[i][0].includes(X)?0:-2);
           if(from<0)return;
           if(cur[k]&&isExcluded(from,cur[k]))return; // 被換下的跟診助理要能去流動或主櫃
+          if(from===0&&!cur[k])return; // 這一診沒有跟診助理可以換回主櫃時，不能把主櫃的人調走（主櫃優先於跟診）
           plan.push({i,from});
         });
         // 只取連續的一段，才算連貫
@@ -3601,6 +3608,39 @@ function confirmOthers(wks,what,fn){
   dialog(`<h3>這幾週剛被其他人修改過</h3><p>${ls}</p><p>${esc(what)}會改寫這些週的班表，可能蓋掉他們剛做的修改。確定要繼續嗎？</p>`,fn,'仍要繼續',true);
 }
 const monthWks=(mi=monthInfo())=>mi.mondays.map(m=>ymd(m));
+// 缺口診斷：列出每位助理目前能不能排進這個崗位、不能的原因
+function gapWhy(wk,ck,pi){
+  const [dw,shId]=ck.split('_'),dow=Number(dw),sh=SHIFTS.find(x=>x.id===shId);
+  const d=parseYmd(wk);d.setDate(d.getDate()+dow);const key=ymd(d),mi=monthInfo(),counts=monthCounts(mi);
+  const cell=getCell(wk,ck),maxD=cfg.maxPerDay||2,MAXF=Number.isFinite(cfg.maxFullDays)?cfg.maxFullDays:10,MAXDN=Number.isFinite(cfg.maxDN)?cfg.maxDN:2;
+  const nh=(cfg.nhOnly||[]).filter(id=>byId(id));
+  const rows=activeStaff('assistant').map(a=>{
+    const why=[],info=[];
+    if(isTraining(a.id))why.push('教育中（不自動排）');
+    if(exclOnly(pi,a.id))why.push(`在「${POS[pi].label}」的排除名單`);
+    if(pi===4&&nh.length&&!nh.includes(a.id))why.push('不在健保限定名單');
+    const lv=leaves.find(l=>l.staffId===a.id&&l.date===key&&(l.shifts||[]).includes(shId));
+    if(lv)why.push(`請假（${lv.type||'請假'}）`);
+    const rq=leaveReqs.find(r=>r.staffId===a.id&&r.date===key&&r.status==='pending'&&r.kind!=='cancel');
+    if(rq)info.push(`有待審核的${rq.type||'請假'}申請`);
+    const inPos=cell.findIndex(x=>ppl(x).includes(a.id));
+    if(inPos>=0)why.push(`已排在這一診的${POS[inPos].label}`);
+    const on=SHIFTS.filter(x=>getCell(wk,dow+'_'+x.id).some(y=>ppl(y).includes(a.id))).map(x=>x.id);
+    if(inPos<0&&on.length>=maxD)why.push(`當天已排 ${on.length} 班（每日上限 ${maxD} 班）`);
+    const c=counts[a.id]||{hours:0,fullDays:0,dn:0},cap=reasonableDays(mi,a.id),OT=otMax();
+    if(inPos<0&&!lv&&c.hours+3.5>cap+OT+1e-9)why.push(`本月工時 ${Math.round(c.hours*10)/10}／${cap} 小時，再排會超過上限（最多加班 ${OT} 小時）`);
+    const nxt=SHIFTS.map(x=>x.id).filter(x=>on.includes(x)||x===shId);
+    if(inPos<0&&nxt.length===3&&c.fullDays>=MAXF)why.push(`全天班已 ${c.fullDays} 次（上限 ${MAXF}）`);
+    if(inPos<0&&nxt.length===2&&nxt.join()==='day,night'&&c.dn>=MAXDN)why.push(`早＋晚已 ${c.dn} 次（上限 ${MAXDN}）`);
+    return {a,why,info};
+  });
+  const ok=rows.filter(r=>!r.why.length);
+  dialog(`<h3>${md(d)}（${DAYS[dow]}）${sh.name} ${POS[pi].label} 為什麼沒有排人？</h3>
+    <p class="desc" style="margin:0 0 8px">${ok.length?`目前有 <b>${ok.length}</b> 位助理可以排進來：可以直接拖進來，或再按「自動排班 → 只補空缺」。`:'目前沒有任何助理可以排進來，原因如下。'}</p>
+    <div class="why-list">${rows.sort((x,y)=>(x.why.length>0)-(y.why.length>0)).map(r=>`<div class="why-row${r.why.length?'':' ok'}"><b>${esc(fullName(r.a))}</b><span>${r.why.length?r.why.map(esc).join('；'):'✓ 目前可以排'}${r.info.length?` <small class="att-mute">（${r.info.map(esc).join('；')}）</small>`:''}</span></div>`).join('')}</div>
+    <p class="hint">自動排班依序排：主櫃 → 跟診 → 健保 → 流動（晚 → 午 → 早）→ 副櫃（午 → 晚 → 早），前面的崗位先挑人。這裡顯示的是「現在」的狀態；如果有人目前可以排，通常是自動排班之後班表、請假或工時有變動（例如之後才核准請假、手動移動人員），或排班時他的工時已經到上限。</p>`,()=>{},'關閉');document.querySelector('.overlay:last-of-type [data-x]')?.remove();
+}
+document.getElementById('weeks').addEventListener('click',e=>{const g=e.target.closest('.gap.why');if(!g||selectedId)return;e.stopPropagation();const [wk,ck,pi]=g.dataset.why.split('|');gapWhy(wk,ck,Number(pi));},true);
 function undoSched(){
   if(!canWrite||origBlocked())return;
   const e=schedHist.pop();if(!e){toast('沒有可以回復的動作。');renderAll();return;}
