@@ -241,6 +241,8 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .proof-table td{vertical-align:top;font-size:.8rem;}
 .proof-table td:nth-child(2){min-width:200px;}
 .proof-table td:nth-child(3){min-width:240px;color:var(--sub);}
+.fc-seg button{min-width:44px;padding:8px 14px;font-size:.88rem;}
+#fcShift[hidden]{display:none;}
 .fc-mid{display:flex;align-items:center;gap:6px;padding-block:6px;white-space:nowrap;cursor:pointer;font-size:.85rem;}
 .fc-mid input{width:18px;height:18px;margin:0;accent-color:var(--accent);}
 .presence[hidden]{display:none;}
@@ -738,7 +740,6 @@ body.gated .shell{display:none;}
           <p class="hint" id="leaveHint-after" hidden>上下捲動可查看其他請假日期。</p>
           </div>
         </div>
-        <div class="card" id="proofCard"></div>
         <div class="card">
           <h2>家庭照顧假</h2>
           <p class="lv-proof">📎 <b>家庭照顧假</b>需檢附：需檢附合理證明<br><span>至少以 1 小時為單位；上班到中途請到當診結束，以 0.5 小時為單位</span></p>
@@ -746,7 +747,7 @@ body.gated .shell{display:none;}
           <form class="form-row" id="fcForm" style="margin-bottom:14px">
             <div class="field"><label for="fcStaff">助理</label><select id="fcStaff" required></select></div>
             <div class="field"><label for="fcDate">日期</label><input type="date" id="fcDate" required></div>
-            <div class="field"><label for="fcShift">班別</label><select id="fcShift"><option value="">不指定</option><option value="day">早班</option><option value="eve">午班</option><option value="night">晚班</option></select></div>
+            <div class="field"><span class="lb">班別</span><span class="seg fc-seg" id="fcShiftSeg" role="group" aria-label="班別"><button type="button" data-fcsh="day" aria-pressed="false">早</button><button type="button" data-fcsh="eve" aria-pressed="false">午</button><button type="button" data-fcsh="night" aria-pressed="false">晚</button></span><select id="fcShift" hidden><option value="">不指定</option><option value="day">早班</option><option value="eve">午班</option><option value="night">晚班</option></select></div>
             <div class="field"><label for="fcStart">開始時間</label><input type="time" id="fcStart" value="08:30" required></div>
             <div class="field"><label for="fcEnd">結束時間</label><input type="time" id="fcEnd" value="09:30" required></div>
             <div class="field"><span class="lb">中途離開</span><label class="fc-mid"><input type="checkbox" id="fcMid"> 請到當診結束</label></div>
@@ -784,6 +785,7 @@ body.gated .shell{display:none;}
           <div class="lv-title-row"><h3 class="subhead" id="mkTitle"></h3><span class="lv-range" id="mkRange" data-lvrange="mk"></span></div>
           <div class="scroll-x"><table class="list" id="mkSummary"></table></div>
         </div>
+        <div class="card" id="proofCard"></div>
       </div>
     </section>
 
@@ -4771,11 +4773,14 @@ function fcSyncMid(){
   if(!on){showFcCalc();return;}
   let sh=SHIFTS.find(x=>x.id===$('fcShift').value)||fcShiftAt($('fcStart').value);
   if(!sh){toast('開始時間不在任何一診的看診時間內，請先選班別或修改開始時間。','warn');$('fcMid').checked=false;$('fcEnd').disabled=false;return;}
-  $('fcShift').value=sh.id;$('fcEnd').value=sh.time.split('-')[1];showFcCalc();
+  $('fcShift').value=sh.id;paintFcSeg();$('fcEnd').value=sh.time.split('-')[1];showFcCalc();
 }
 $('fcMid').addEventListener('change',fcSyncMid);
 $('fcStart').addEventListener('change',()=>{if($('fcMid').checked)fcSyncMid();});
 ['fcStart','fcEnd'].forEach(id=>$(id).addEventListener('input',showFcCalc));
+// 班別按鈕（早／午／晚）對應隱藏的選單；再點一次同一班即取消
+const paintFcSeg=()=>document.querySelectorAll('#fcShiftSeg [data-fcsh]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.fcsh===$('fcShift').value)));
+$('fcShiftSeg').addEventListener('click',e=>{const b=e.target.closest('[data-fcsh]');if(!b)return;const v=$('fcShift').value===b.dataset.fcsh?'':b.dataset.fcsh;$('fcShift').value=v;$('fcShift').dispatchEvent(new Event('change'));if(!v&&$('fcMid').checked){$('fcMid').checked=false;fcSyncMid();}paintFcSeg();});
 $('fcShift').addEventListener('change',()=>{const sh=SHIFTS.find(x=>x.id===$('fcShift').value);if(!sh)return;if($('fcMid').checked){$('fcEnd').value=sh.time.split('-')[1];if($('fcStart').value<sh.time.split('-')[0]||$('fcStart').value>=$('fcEnd').value)$('fcStart').value=sh.time.split('-')[0];showFcCalc();return;}const [a]=sh.time.split('-');$('fcStart').value=a;const [h,m]=a.split(':').map(Number);const e=h*60+m+60;$('fcEnd').value=`${pad(Math.floor(e/60))}:${pad(e%60)}`;showFcCalc();});
 // ---------- 家庭照顧假與請假不得同時段 ----------
 const hm=t=>{const [h,m]=String(t).split(':').map(Number);return h*60+m;};
