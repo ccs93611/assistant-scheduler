@@ -249,6 +249,25 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .pres-dot{width:9px;height:9px;border-radius:50%;background:#2E7D32;box-shadow:0 0 0 3px rgba(46,125,50,.25);animation:presBlink 1.6s infinite;}
 .pres-dot.off{background:var(--faint);box-shadow:none;animation:none;}
 @keyframes presBlink{50%{opacity:.35}}
+.pf-badge{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:1px 8px;font-size:.7rem;cursor:pointer;white-space:nowrap;margin-top:2px;}
+.pf-badge.warn{border-color:var(--warn);color:var(--warn);background:var(--warn-soft);}
+.pf-badge.ok{border-color:var(--ok);color:var(--ok);}
+.pf-dlg{max-width:560px;}
+.pf-list{display:flex;flex-direction:column;gap:8px;margin:8px 0;}
+.pf-item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:6px;}
+@media (max-width:600px){.pf-item{grid-template-columns:64px minmax(0,1fr);}.pf-acts{grid-column:1/-1;text-align:right;}}
+.pf-thumb{width:64px;height:64px;flex:none;border-radius:6px;background:var(--slot);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:.7rem;}
+.pf-thumb img{width:100%;height:100%;object-fit:cover;}
+.pf-pdf{font-weight:800;color:var(--warn);}
+.pf-meta{flex:1;min-width:0;display:flex;flex-direction:column;font-size:.8rem;}
+.pf-meta b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pf-meta small{color:var(--faint);}
+.pf-acts{white-space:nowrap;}
+.pf-up{display:block;border:1.5px dashed var(--accent);border-radius:8px;padding:12px;text-align:center;cursor:pointer;color:var(--accent);font-weight:600;margin:6px 0;}
+.pf-up input{display:none;}
+.pf-run{display:flex;align-items:center;gap:6px;font-size:.82rem;margin:6px 0;cursor:pointer;}
+.pf-keep{margin-top:12px;font-size:.82rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.pf-keep input{width:5em;}
 .lot-set-acts{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
 .lot-round{font-size:.8rem;color:var(--sub);padding:5px 0;border-top:1px dashed var(--line);}
 .lot-dlg{max-width:520px;}
@@ -1005,6 +1024,8 @@ let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, us
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], privateInfo={}, isAdmin=true;
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
 let makeups=[]; // 舊版手動登記的事假補班 {id,staffId,date,shifts,note}，已不再使用
+let proofs=[]; // 請假證明 leaveProofs/{id}：{staffId,dates[],type,kind:'file'|'paper',name,mime,size,by,byName,at}；檔案內容另存 proofFiles/{id}
+const proofFileCache={};
 let weekMeta={}; // weeks/{wk} 的最後修改者 {by,name,at}
 let presence={},presOn=false,presLast=''; // 正在編輯班表的人 presence/{uid}
 const PRES_TTL=70000; // 每 10 秒更新一次，超過 70 秒沒更新視為已離開
@@ -1108,11 +1129,108 @@ const LEAVE_PROOF={
 const proofHtml=t=>{const p=LEAVE_PROOF[t];return p?`📎 <b>${esc(t)}</b>需檢附：${esc(p.doc)}${p.note?`<br><span>${esc(p.note)}</span>`:''}`:'';};
 // 請假表單：選到需要證明的假別時，在表單下方顯示提示
 function paintProof(form){const el=form.nextElementSibling?.classList.contains('lv-proof')?form.nextElementSibling:null;if(!el)return;const h=form.dataset.role==='doctor'?'':proofHtml(form.querySelector('[data-n="type"]')?.value); /* 醫師不需檢附證明 */el.innerHTML=h;el.hidden=!h;}
+// ---- 請假證明上傳 ----
+const proofsOf=(sid,date)=>proofs.filter(p=>p.staffId===sid&&(p.dates||[]).includes(date));
+const proofKeepMonths=()=>cfg.proofKeepMonths??24; // 保存期限（月），0＝永久保存
+// 同一次請假：同一人、同一假別往前後連續的日期（中間的週日、休診日略過）
+function leaveRun(sid,date,type){
+  const has=k=>leaves.concat(leaveReqs.filter(r=>r.status==='pending'&&r.kind!=='cancel')).some(l=>l.staffId===sid&&l.date===k&&l.type===type);
+  const skip=k=>parseYmd(k).getDay()===0||!!holidayOf(k);
+  const out=[date];
+  for(const dir of [-1,1]){let k=addD(date,dir),n=0;while(n++<70){if(has(k))out.push(k);else if(!skip(k))break;k=addD(k,dir);}}
+  return out.sort();
+}
+// 狀態標籤：📎 n 份／📄 已收紙本／⚠ 未附證明；點一下開啟證明視窗
+function proofBadge(sid,date,type){
+  if(byId(sid)?.role!=='assistant')return '';
+  const ps=proofsOf(sid,date),files=ps.filter(p=>p.kind==='file').length,paper=ps.some(p=>p.kind==='paper');
+  if(!files&&!paper&&!LEAVE_PROOF[type])return '';
+  const can=canWrite||sid===myStaffId();if(!can)return '';
+  const cls=files||paper?'ok':'warn',txt=[files?`📎 ${files} 份證明`:'',paper?'📄 已收紙本':''].filter(Boolean).join('・')||'⚠ 未附證明';
+  return ` <button type="button" class="pf-badge ${cls}" data-pf="${sid}|${date}|${esc(type||'')}">${txt}</button>`;
+}
+// 照片壓縮成 JPEG（最長邊 1600px，品質逐步降低）直到小於約 900KB；PDF 需小於 700KB
+async function proofEncode(file){
+  const readURL=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(f);});
+  if(file.type==='application/pdf'){if(file.size>700*1024)throw new Error(`${file.name} 超過 700 KB，請改拍照上傳或壓縮後再上傳。`);return {data:await readURL(file),mime:'application/pdf'};}
+  if(!file.type.startsWith('image/'))throw new Error(`${file.name} 不是圖片或 PDF。`);
+  const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error(`${file.name} 無法讀取。`));readURL(file).then(u=>i.src=u,no);});
+  let max=1600,q=0.8,data='';
+  for(let n=0;n<8;n++){
+    const sc=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement('canvas');
+    c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+    const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);
+    data=c.toDataURL('image/jpeg',q);if(data.length<900000)break;
+    if(q>0.5)q-=0.15;else max=Math.round(max*0.8);
+  }
+  // 原檔（JPEG／PNG／WebP）比壓縮後還小、而且尺寸不大時直接用原檔
+  if(/^image\/(jpeg|png|webp)$/.test(file.type)&&Math.max(img.width,img.height)<=1600){const orig=await readURL(file);if(orig.length<data.length&&orig.length<900000)return {data:orig,mime:file.type};}
+  if(data.length>=900000)throw new Error(`${file.name} 太大，壓縮後仍超過 1 MB。`);
+  return {data,mime:'image/jpeg'};
+}
+async function proofData(id){
+  if(proofFileCache[id])return proofFileCache[id];
+  if(!db){try{return JSON.parse(localStorage.getItem(LOCAL_KEY+'_proof')||'{}')[id]||null;}catch(e){return null;}}
+  const d=await db.doc('proofFiles/'+id).get();return proofFileCache[id]=d.exists?d.data().data:null;
+}
+function openProof(sid,date,type){
+  const ov=document.createElement('div');ov.className='overlay';document.body.appendChild(ov);
+  const run=leaveRun(sid,date,type),rl=run.length>1?`${md(parseYmd(run[0]))}～${md(parseYmd(run[run.length-1]))} 共 ${run.length} 天`:'';
+  const close=()=>{ov.remove();renderAll();};
+  const paint=()=>{
+    const ps=proofsOf(sid,date),files=ps.filter(p=>p.kind==='file'),paper=ps.find(p=>p.kind==='paper'),pf=LEAVE_PROOF[type];
+    const canDel=p=>canWrite||(p.staffId===myStaffId()&&p.kind==='file');
+    ov.innerHTML=`<div class="dialog pf-dlg" role="dialog" aria-modal="true"><h3>請假證明・${esc(fullName(byId(sid)))} ${md(parseYmd(date))} ${esc(type||'')}</h3>
+      ${pf?`<p class="lv-proof">📎 需檢附：${esc(pf.doc)}</p>`:''}
+      <div class="pf-list">${files.map(p=>`<div class="pf-item" data-pfid="${p.id}"><div class="pf-thumb">${p.mime==='application/pdf'?'<span class="pf-pdf">PDF</span>':'<span class="att-mute">載入中…</span>'}</div><div class="pf-meta"><b>${esc(p.name||'證明')}</b><small>${Math.round((p.size||0)/1024)} KB・${esc(p.byName||'')} ${p.at?fmtAt(p.at):''}${(p.dates||[]).length>1?`・${p.dates.length} 天共用`:''}</small></div><span class="pf-acts"><button type="button" class="small" data-pfopen="${p.id}">開啟</button>${canDel(p)?` <button type="button" class="small danger" data-pfdel="${p.id}">刪除</button>`:''}</span></div>`).join('')||'<p class="att-mute" style="margin:6px 0">還沒有上傳證明。</p>'}</div>
+      <label class="pf-up"><input type="file" accept="image/*,application/pdf" multiple data-pfinput><span>＋ 上傳證明（拍照或選擇照片、PDF）</span></label>
+      ${rl?`<label class="pf-run"><input type="checkbox" data-pfrun checked> 同一次請假 ${rl}都套用這份證明</label>`:''}
+      ${canWrite?`<label class="pf-run"><input type="checkbox" data-pfpaper ${paper?'checked':''}> 已收到紙本證明${paper?`<small class="att-mute">（${esc(paper.byName||'')} ${fmtAt(paper.at)}）</small>`:''}</label>`:''}
+      <p class="hint">照片會自動壓縮。只有本人與排班管理以上的人看得到；證明保存 ${proofKeepMonths()?proofKeepMonths()+' 個月':'不限期'}，到期自動刪除。</p>
+      <div class="acts"><button type="button" class="primary" data-pfclose>完成</button></div></div>`;
+    files.forEach(p=>{if(p.mime==='application/pdf')return;proofData(p.id).then(d=>{const t=ov.querySelector(`[data-pfid="${p.id}"] .pf-thumb`);if(t)t.innerHTML=d?`<img src="${d}" alt="">`:'<span class="att-mute">讀取失敗</span>';});});
+  };
+  paint();
+  ov.addEventListener('click',async e=>{
+    if(e.target===ov||e.target.closest('[data-pfclose]')){close();return;}
+    const op=e.target.closest('[data-pfopen]');if(op){const d=await proofData(op.dataset.pfopen);if(!d){toast('讀取不到檔案。','warn');return;}const b=await (await fetch(d)).blob();window.open(URL.createObjectURL(b),'_blank');return;}
+    const dl=e.target.closest('[data-pfdel]');if(dl){dialog('<h3>刪除這份證明？</h3><p>刪除後無法復原。</p>',async()=>{await store.delProof(dl.dataset.pfdel);paint();},'刪除',true);return;}
+  });
+  ov.addEventListener('change',async e=>{
+    const dates=ov.querySelector('[data-pfrun]')?.checked?run:[date];
+    if(e.target.matches('[data-pfpaper]')){
+      const cur=proofsOf(sid,date).find(p=>p.kind==='paper');
+      if(e.target.checked&&!cur)await store.addProof({staffId:sid,dates,type,kind:'paper',by:myId||'本機',byName:myName(),at:Date.now()});
+      else if(!e.target.checked&&cur)await store.delProof(cur.id);
+      paint();return;
+    }
+    if(!e.target.matches('[data-pfinput]'))return;
+    const fl=[...e.target.files];if(!fl.length)return;
+    const up=ov.querySelector('.pf-up span');up.textContent='上傳中…';
+    let ok=0;
+    for(const f of fl){
+      try{const {data,mime}=await proofEncode(f);await store.addProof({staffId:sid,dates,type,kind:'file',name:f.name,mime,size:Math.round(data.length*0.75),by:myId||'本機',byName:myName(),at:Date.now()},data);ok++;}
+      catch(err){toast(err.message||'上傳失敗。','warn');}
+    }
+    if(ok)toast(`已上傳 ${ok} 份證明。`);
+    paint();
+  });
+}
+document.addEventListener('change',e=>{if(e.target.id!=='proofKeep'||!canWrite)return;const v=parseInt(e.target.value,10);if(!(v>=0)){toast('請填 0 以上的整數。','warn');return;}const n=clone(cfg);n.proofKeepMonths=v;store.cfg(n);proofCleaned=false;toast(v?`證明檔案保存 ${v} 個月。`:'證明檔案永久保存。');});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-pf]');if(!b)return;const [sid,date,type]=b.dataset.pf.split('|');openProof(sid,date,type);});
+// 保存期限：管理者載入時刪除請假最後一天已超過期限的證明
+let proofCleaned=false;
+function proofCleanup(){
+  if(proofCleaned||!canWrite)return;const m=proofKeepMonths();if(!m)return;proofCleaned=true;
+  const cut=addMo(ymd(new Date()),-m);
+  proofs.filter(p=>(p.dates||[]).length&&p.dates.slice().sort().pop()<cut).forEach(p=>store.delProof(p.id));
+}
 function renderProofTable(){
-  const box=$('proofCard');if(box.dataset.done)return;box.dataset.done=1;
+  const box=$('proofCard');if(box.dataset.done===String(canWrite)+proofKeepMonths())return;box.dataset.done=String(canWrite)+proofKeepMonths();
   box.innerHTML=`<details class="proof-details"><summary><h2 style="display:inline">假別與證明文件</h2> <span class="att-mute">（點開查看）</span></summary>
     <div class="hol-scroll" style="margin-top:10px"><table class="list proof-table"><thead><tr><th>假別</th><th>常見需檢附的證明文件</th><th>說明</th></tr></thead><tbody>${Object.entries(LEAVE_PROOF).map(([t,p])=>`<tr><td><b>${esc(t)}</b></td><td>${esc(p.doc)}</td><td>${esc(p.note)||'<span class="att-mute">—</span>'}</td></tr>`).join('')}</tbody></table></div>
-    <p class="hint">送出請假時，請把證明文件交給管理者；審核時會在申請旁顯示需檢附的文件。</p></details>`;
+    <p class="hint">請假後可以在請假列表或申請清單按「⚠ 未附證明」上傳照片或 PDF；也可以把紙本交給管理者，由管理者勾選「已收到紙本證明」。</p></details>
+    ${canWrite?`<div class="pf-keep">證明檔案保存 <input type="number" min="0" step="1" id="proofKeep" value="${proofKeepMonths()}"> 個月 <small class="att-mute">（填 0 ＝永久保存；預設 24 個月，以請假最後一天起算，到期自動刪除）</small></div>`:''}`;
 }
 function renderLeaveReqs(role){
   const box=$(role==='doctor'?'dcReqCard':'lvReqCard'),me=myStaffId(),word=role==='doctor'?'休假':'請假';
@@ -1124,7 +1242,7 @@ function renderLeaveReqs(role){
   const KIND={add:'新增',edit:'修改',cancel:'取消'};
   const shTxt=r=>(r.shifts||[]).length===SHIFTS.length?'全天':SHIFTS.filter(s=>(r.shifts||[]).includes(s.id)).map(s=>s.short).join('');
   const dl=r=>{const d=parseYmd(r.date);return `${md(d)}（${DAYS[(d.getDay()+6)%7]}）`;};
-  const row=(r,acts)=>`<tr><td>${dl(r)}</td><td>${esc(fullName(byId(r.staffId)))}</td><td><span class="pill${r.kind==='cancel'?' warn':''}">${KIND[r.kind]||'新增'}</span></td><td>${shTxt(r)}</td><td>${esc(r.type||'')}${whenOf(r)==='after'?' <small class="att-mute">事後</small>':''}${r.type==='婚假'&&r.kind!=='cancel'&&marriageLate(r.staffId,r.date)?'<div class="att-bad" style="font-size:.72rem">⚠ 超過結婚登記日 3 個月，需經公司同意</div>':''}${LEAVE_PROOF[r.type]&&r.kind!=='cancel'&&role!=='doctor'?`<div class="lr-proof" title="${esc(LEAVE_PROOF[r.type].note)}">📎 ${esc(LEAVE_PROOF[r.type].doc)}</div>`:''}</td><td>${esc(r.note||'')}${r.status==='rejected'?`<div class="att-bad">由 ${esc(r.reviewerName||'管理者')} 退回${r.reason?'：'+esc(r.reason):''}</div>`:''}</td><td class="att-mute">${r.reqAt?fmtAt(r.reqAt):''}</td><td class="lr-acts">${acts(r)}</td></tr>`;
+  const row=(r,acts)=>`<tr><td>${dl(r)}</td><td>${esc(fullName(byId(r.staffId)))}</td><td><span class="pill${r.kind==='cancel'?' warn':''}">${KIND[r.kind]||'新增'}</span></td><td>${shTxt(r)}</td><td>${esc(r.type||'')}${whenOf(r)==='after'?' <small class="att-mute">事後</small>':''}${r.type==='婚假'&&r.kind!=='cancel'&&marriageLate(r.staffId,r.date)?'<div class="att-bad" style="font-size:.72rem">⚠ 超過結婚登記日 3 個月，需經公司同意</div>':''}${LEAVE_PROOF[r.type]&&r.kind!=='cancel'&&role!=='doctor'?`<div class="lr-proof" title="${esc(LEAVE_PROOF[r.type].note)}">📎 ${esc(LEAVE_PROOF[r.type].doc)}</div>`:''}${r.kind!=='cancel'&&role!=='doctor'?proofBadge(r.staffId,r.date,r.type):''}</td><td>${esc(r.note||'')}${r.status==='rejected'?`<div class="att-bad">由 ${esc(r.reviewerName||'管理者')} 退回${r.reason?'：'+esc(r.reason):''}</div>`:''}</td><td class="att-mute">${r.reqAt?fmtAt(r.reqAt):''}</td><td class="lr-acts">${acts(r)}</td></tr>`;
   const head='<thead><tr><th>日期</th><th>人員</th><th>申請</th><th>班別</th><th>假別</th><th>備註</th><th>申請時間</th><th></th></tr></thead>';
   box.innerHTML=`<div class="lv-title-row"><h2 style="margin:0">${canWrite?word+'審核':'我的'+word+'申請'}</h2>${pend.length?`<span class="pill warn">待審 ${pend.length} 筆</span>`:''}<span style="flex:1"></span>${canWrite&&pend.length>1?'<button class="small primary" data-lrall>全部核准</button>':''}</div>
     <p class="desc">${canWrite?`${ROLE[role]}自己送出的${word}（新增、修改、取消）核准後才會生效；退回時可以填寫原因。`:`你送出的${word}要等管理者核准才會生效，核准前可以撤回。被退回的申請可以刪除。`}</p>
@@ -1169,8 +1287,8 @@ function loadKioskLocal(){
   }catch(e){}
 }
 function saveKioskLocal(fn){try{const d=JSON.parse(localStorage.getItem(KIOSK_KEY)||'null')||{};fn(d);localStorage.setItem(KIOSK_KEY,JSON.stringify(d));}catch(e){}}
-function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];}}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
@@ -1250,6 +1368,21 @@ const store={
     return queue('config/main',()=>db.doc('config/main').set(next));
   },
   // 請假申請（審核）：{id,staffId,date,status:'pending',kind:'add'|'edit'|'cancel',replaces?,…請假欄位}
+  // 上傳證明：檔案內容（dataURL）存 proofFiles/{id}，清單資料存 leaveProofs/{id}
+  async addProof(meta,data){
+    const id=uid('pf');meta=Object.assign({id},meta);
+    proofs=proofs.concat([meta]);if(data)proofFileCache[id]=data;renderAll();
+    if(!db){saveLocal();if(data){try{const k=LOCAL_KEY+'_proof';const m=JSON.parse(localStorage.getItem(k)||'{}');m[id]=data;localStorage.setItem(k,JSON.stringify(m));}catch(e){toast('本機空間不足，檔案沒有存起來。','warn');}}return;}
+    const {id:_,...body}=meta;
+    if(data)await db.doc('proofFiles/'+id).set({staffId:meta.staffId,data});
+    return db.doc('leaveProofs/'+id).set(body).catch(handleWriteError);
+  },
+  async delProof(id){
+    const p=proofs.find(x=>x.id===id);proofs=proofs.filter(x=>x.id!==id);delete proofFileCache[id];renderAll();
+    if(!db){saveLocal();try{const k=LOCAL_KEY+'_proof';const m=JSON.parse(localStorage.getItem(k)||'{}');delete m[id];localStorage.setItem(k,JSON.stringify(m));}catch(e){}return;}
+    await db.doc('leaveProofs/'+id).delete().catch(handleWriteError);
+    if(p?.kind==='file')await db.doc('proofFiles/'+id).delete().catch(()=>{});
+  },
   async leaveReq(r){
     r=r.kind==='cancel'?r:fullDayAnnual(r);
     // 同一人同一天只保留最新的一筆待審申請
@@ -1483,6 +1616,9 @@ function start(acc){
   db.collection('baselines').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();m[d.id]={ym:v.ym||d.id,at:v.at,by:v.by,weeks:Object.fromEntries(Object.entries(v.weeks||{}).map(([wk,c])=>[wk,decCells({c})]))};});baselines=m;renderAll();},onErr);
   // 正在編輯班表的人（每 10 秒更新一次，超過 70 秒沒更新視為已離開）
   db.collection('presence').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());presence=m;renderPresence();},e=>console.warn(e));
+  // 請假證明：管理者看全部，本人只看自己的（檔案內容點開時才讀取）
+  {const q=mng?db.collection('leaveProofs'):sid?db.collection('leaveProofs').where('staffId','==',sid):null;
+   if(q)q.onSnapshot(snap=>{proofs=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();if(mng)proofCleanup();},e=>console.warn(e));}
   db.collection('lottery').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotteries=m;renderAll();},e=>console.warn(e));
   db.collection('lotteryBets').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotBets=m;renderAll();},e=>console.warn(e));
   db.collection('personalEvents').onSnapshot(snap=>{pevents=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
@@ -2061,7 +2197,7 @@ function renderLeave(mi,roles){
             <td><input data-e="note" value="${esc(l.note||'')}" aria-label="備註"></td><td></td>
             <td class="num" style="white-space:nowrap"><button class="small primary" data-lvsave="${l.id}">儲存</button> <button class="small" data-lvcancel>取消</button></td></tr>`;
         }
-        return `<tr data-date="${l.date}"${faded(l)?` class="faded" title="${whenOf(l)==='after'?'事後':'事前'}登記的請假，請切換到「${whenOf(l)==='after'?'事後':'事前'}」修改"`:''}><td>${md(d)}（${DAYS[dow]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&l.type==='生理假'?(s=>s?` <span class="pill warn">${s>=(l.shifts||[]).length?'視同病假':`${s} 診視同病假`}</span>`:'')(menSickShifts(l)):''}</td><td>${esc(l.note||'')}</td>
+        return `<tr data-date="${l.date}"${faded(l)?` class="faded" title="${whenOf(l)==='after'?'事後':'事前'}登記的請假，請切換到「${whenOf(l)==='after'?'事後':'事前'}」修改"`:''}><td>${md(d)}（${DAYS[dow]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&l.type==='生理假'?(s=>s?` <span class="pill warn">${s>=(l.shifts||[]).length?'視同病假':`${s} 診視同病假`}</span>`:'')(menSickShifts(l)):''}${role==='assistant'&&!faded(l)?proofBadge(l.staffId,l.date,l.type):''}</td><td>${esc(l.note||'')}</td>
           <td>${clash.length?`<span class="pill warn">已排${SHIFTS.filter(s=>clash.includes(s.id)).map(s=>s.short).join('、')}班</span>`:'<span class="pill">無衝突</span>'}</td>
           <td class="num" style="white-space:nowrap">${faded(l)?`<span class="pill">${whenOf(l)==='after'?'事後':'事前'}</span>`:canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
       }).join(''):`<tr><td colspan="7" class="empty">${lr.label}還沒有${ROLE[role]}${word}紀錄。</td></tr>`)+'</tbody>';
@@ -4338,7 +4474,8 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
     });
     f('note').value='';f('to').value='';
     const skip=[sun?`${sun} 個週日`:'',hol?`${hol} 個休診日`:''].filter(Boolean).join('、');
-    toast(`${needReview(sid)?'已送出申請':'已登記'} ${codeOf(sid)} ${dates.length} 天${word}${needReview(sid)?'，等待管理者審核':''}${skip?`（已略過 ${skip}）`:''}。${shifts.length<SHIFTS.length&&role==='assistant'&&(form.dataset.when||'before')==='before'?'事前請假以日為單位，已登記為全天。':''}${chk.info.join('')}`);
+    const pfAct=role==='assistant'&&LEAVE_PROOF[type]?{label:'上傳證明',fn:()=>openProof(sid,dates[0],type)}:undefined;
+    toast(`${needReview(sid)?'已送出申請':'已登記'} ${codeOf(sid)} ${dates.length} 天${word}${needReview(sid)?'，等待管理者審核':''}${skip?`（已略過 ${skip}）`:''}。${shifts.length<SHIFTS.length&&role==='assistant'&&(form.dataset.when||'before')==='before'?'事前請假以日為單位，已登記為全天。':''}${chk.info.join('')}`,'',pfAct);
   };
   const go=chk.consent?.length?()=>dialog(`<h3>需經公司同意</h3><p>${chk.consent.map(esc).join('<br>')}</p><p>婚假須於結婚登記日前 10 日起、3 個月內請畢；經公司同意可延至 1 年內。確定要登記嗎？</p>`,apply,needReview(sid)?'送出申請':'仍要登記'):apply;
   if(!chk.over.length)return go();

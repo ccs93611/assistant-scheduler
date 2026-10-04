@@ -46,7 +46,8 @@ HTML（7 個 <section id="tab-*">）
   - 「助理請假」與「醫師休假」分頁最上方：管理者看到「請假審核」／「休假審核」（核准、退回可填原因、全部核准）；本人看到「我的請假申請」／「我的休假申請」（待審可撤回、被退回的可刪除）。分頁列顯示待審筆數。整月排假／整月排休裡待審的申請以虛線框顯示（取消申請加刪除線），點一下撤回。
   - 核准：新增／修改換掉當天原本的請假（申請內容已含原本班次），記錄 `approvedBy, approvedByName, approvedAt`；取消則刪除原本那筆。退回：`status:'rejected', reason, reviewerName, reviewedAt`。
   - 規則：助理、醫師本人只能建立 `status:'pending'` 的請假／休假、只能刪除待審或被退回的；已核准的只有排班管理以上能改。
-  - **證明文件提示**：`LEAVE_PROOF` 列出婚假、喪假、病假、產假、產檢假、陪產假、流產產假、家庭照顧假、公假常見需檢附的證明文件與說明。請假表單、整月排假選到這些假別時顯示提示；審核表格在假別下方列出需檢附的文件；「助理請假」分頁有「假別與證明文件」對照表（點開查看）。只適用助理，醫師休假不需檢附證明。目前只是提示，不上傳檔案。
+  - **證明文件提示**：`LEAVE_PROOF` 列出婚假、喪假、病假、產假、產檢假、陪產假、流產產假、家庭照顧假、公假常見需檢附的證明文件與說明。請假表單、整月排假選到這些假別時顯示提示；審核表格在假別下方列出需檢附的文件；「助理請假」分頁有「假別與證明文件」對照表（點開查看）。只適用助理，醫師休假不需檢附證明。
+  - **上傳證明**：請假列表、審核／我的申請表格的假別旁顯示「⚠ 未附證明」「📎 n 份證明」「📄 已收紙本」，點一下開啟證明視窗：上傳照片或 PDF（照片自動壓縮成 JPEG、最長邊 1600px、小於約 900KB；PDF 需小於 700KB），可勾選「同一次請假（同人同假別的連續日期）都套用」；管理者可勾選「已收到紙本證明」。送出需要證明的假別後，提示訊息也有「上傳證明」按鈕。資料：清單 `leaveProofs/{id}`（`staffId, dates[], type, kind:'file'|'paper', name, mime, size, by, byName, at`），檔案內容 `proofFiles/{id}`（`staffId, data` dataURL，點開時才讀取）。只有本人與排班管理以上看得到；本人只能上傳、刪除自己的檔案，紙本標記只有管理者能做。保存期限 `config/main.proofKeepMonths`（預設 24 個月、0＝永久，在「假別與證明文件」卡片設定），以請假最後一天起算，管理者開啟系統時自動刪除過期證明。
 - **familyCare**：`{id, staffId, date, shift, start, end, hours, note}`
 - **cfg**：`need[5]`（每崗位人數）、`maxPerDay`、`otMax`、`maxFullDays`、`maxDN`、`nhOnly`、`closed{"dow_shift":true}`、`holidays{date:{name}}`、預設醫師班表、排除名單
 - **privateInfo / accessLinks**：人員個資、帳號與權限（view / self / manage / super）
@@ -104,6 +105,7 @@ HTML（7 個 <section id="tab-*">）
 | 路徑 | 內容 |
 |---|---|
 | `weeks/{週一日期}` | `c.{dow}_{shift}` 等欄位，值是 JSON 字串（因為 Firestore 不接受巢狀陣列）；`by, name, at` 為最後修改者與時間 |
+| `leaveProofs/{id}`、`proofFiles/{id}` | 請假證明清單與檔案內容（見「請假審核」） |
 | `presence/{uid}` | 正在編輯班表的人 `{name, email, ym, view, at}`，每 10 秒更新、超過 70 秒視為離開 |
 | `baselines/{YYYY-MM}` | 原始班表（定案時的當月班表） |
 | `staff/{id}`、`leaves/{id}`、`familyCare/{id}`、`config/main` | 同上方資料模型 |

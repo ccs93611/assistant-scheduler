@@ -135,6 +135,18 @@ service cloud.firestore {
       allow update: if canManage() || (selfLeaveOK(resource.data) && selfLeaveOK(request.resource.data));
       allow delete: if canManage() || (isSelf(resource.data.staffId) && resource.data.get('status', '') in ['pending', 'rejected']);
     }
+    // 請假證明：只有本人與排班管理以上看得到。本人可以上傳、刪除自己的檔案；「已收到紙本」（kind 'paper'）只有管理者能標記
+    match /leaveProofs/{id} {
+      allow read: if canManage() || (signedIn() && resource.data.staffId == mySid());
+      allow create: if canManage() || (isSelf(request.resource.data.staffId) && request.resource.data.kind == 'file');
+      allow update: if canManage();
+      allow delete: if canManage() || (isSelf(resource.data.staffId) && resource.data.kind == 'file');
+    }
+    match /proofFiles/{id} {
+      allow read: if canManage() || (signedIn() && resource.data.staffId == mySid());
+      allow create: if canManage() || isSelf(request.resource.data.staffId);
+      allow delete: if canManage() || isSelf(resource.data.staffId);
+    }
     match /familyCare/{id} {
       allow read: if canView();
       allow create: if canManage() || isSelf(request.resource.data.staffId);
