@@ -243,6 +243,11 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .proof-table td:nth-child(3){min-width:240px;color:var(--sub);}
 .fc-mid{display:flex;align-items:center;gap:6px;padding-block:6px;white-space:nowrap;cursor:pointer;font-size:.85rem;}
 .fc-mid input{width:18px;height:18px;margin:0;accent-color:var(--accent);}
+.presence{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:0 0 10px;padding:8px 12px;border-radius:8px;background:var(--extra);color:var(--extra-ink);font-size:.82rem;}
+.presence small{flex-basis:100%;opacity:.8;font-size:.72rem;}
+.pres-dot{width:9px;height:9px;border-radius:50%;background:#2E7D32;box-shadow:0 0 0 3px rgba(46,125,50,.25);animation:presBlink 1.6s infinite;}
+.pres-dot.off{background:var(--faint);box-shadow:none;animation:none;}
+@keyframes presBlink{50%{opacity:.35}}
 .lot-set-acts{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
 .lot-round{font-size:.8rem;color:var(--sub);padding:5px 0;border-top:1px dashed var(--line);}
 .lot-dlg{max-width:520px;}
@@ -625,6 +630,7 @@ body.gated .shell{display:none;}
             <span class="hint" style="margin:0">定案後可開放助理換班</span>
           </div>
           <div class="banner" id="origNote" hidden></div>
+          <div class="presence" id="presenceBar" hidden></div>
           <div class="weeks" id="weeks"></div>
         </div>
       </div>
@@ -998,6 +1004,9 @@ let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, us
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], privateInfo={}, isAdmin=true;
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
 let makeups=[]; // 舊版手動登記的事假補班 {id,staffId,date,shifts,note}，已不再使用
+let weekMeta={}; // weeks/{wk} 的最後修改者 {by,name,at}
+let presence={},presOn=false,presLast=''; // 正在編輯班表的人 presence/{uid}
+const PRES_TTL=70000; // 每 10 秒更新一次，超過 70 秒沒更新視為已離開
 let leaveReqs=[]; // 助理自己送出、等待審核（pending）或被退回（rejected）的請假；leaves 只放已核准的
 let lotteries={},lotBets={}; // 排休抽籤 lottery/{YYYY-MM}、lotteryBets/{YYYY-MM}_{輪次}_{sid}
 let pevents=[]; // 個人假事件 {id,staffId,kind,date,rel,months,end,child,note}
@@ -1013,10 +1022,15 @@ let prefs=loadPrefs();
 prefs.tab='schedule'; // 每次開啟（登入）都先顯示排班表
 // 排班的回復紀錄：每筆是 {週一日期: 變更前的格子}，同一個動作改到的週合成一筆
 let schedHist=[], histSkip=false, histTick=false;
-function histPush(wk){
+// 回復紀錄：每一步記下自己改過的診次 {wk:{ck:{b:改前,a:改後}}}，回復時只還原這些診次（別人後來改過的就不動）
+function histPush(wk,patch){
   if(histSkip)return;
   if(!histTick){schedHist.push({});if(schedHist.length>50)schedHist.shift();histTick=true;queueMicrotask(()=>{histTick=false;});}
-  const e=schedHist[schedHist.length-1];if(!(wk in e))e[wk]=weeks[wk]?clone(weeks[wk]):null;
+  const e=schedHist[schedHist.length-1];e[wk]=e[wk]||{};
+  Object.keys(patch).forEach(ck=>{
+    if(!(ck in e[wk]))e[wk][ck]={b:weeks[wk]&&ck in weeks[wk]?clone(weeks[wk][ck]):null};
+    e[wk][ck].a=patch[ck]==null?null:clone(patch[ck]);
+  });
 }
 let selectedId=null, lastUndo=null, editingHol=null, editingLeave=null, editingFc=null, editingStaff=null;
 
@@ -1164,18 +1178,43 @@ function decCells(data){if(data.cells)return clone(data.cells);const o={};Object
 const isWholeDay=l=>l.when!=='after'&&byId(l.staffId)?.role==='assistant';
 const fullDayAnnual=l=>isWholeDay(l)&&(l.shifts||[]).length!==SHIFTS.length?Object.assign({},l,{shifts:SHIFTS.map(s=>s.id)}):l;
 const store={
-  async cells(wk,patch){ // patch: {ck: arrs}
-    histPush(wk);
-    weeks[wk]=Object.assign({},weeks[wk]||{},patch);
+  // patch: {ck: arrs}，值為 null 表示刪除該診次的資料
+  // 多人同時編輯：以交易讀取最新內容；崗位格（0_day 這類）只覆蓋自己有變動的崗位，其他崗位保留別人的修改
+  async cells(wk,patch){
+    const prev=weeks[wk]||{};
+    patch=Object.fromEntries(Object.entries(patch).filter(([k,v])=>JSON.stringify(v??null)!==JSON.stringify(prev[k]??null)));
+    if(!Object.keys(patch).length)return;
+    histPush(wk,patch);
+    const nw=Object.assign({},prev);Object.entries(patch).forEach(([k,v])=>{if(v==null)delete nw[k];else nw[k]=v;});
+    weeks[wk]=nw;weekMeta[wk]={by:myId||'本機',name:myName(),at:Date.now()};
     renderAll();
     if(!db){saveLocal();return;}
-    return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({c:encCells(patch)},{merge:true});weeksExist.add(wk);});
+    const ref=db.doc('weeks/'+wk),J=v=>JSON.stringify(v??null);
+    return queue('weeks/'+wk,()=>db.runTransaction(async t=>{
+      const snap=await t.get(ref),data=snap.exists?snap.data():{},cur=decCells(data),out={};
+      Object.entries(patch).forEach(([ck,v])=>{
+        if(v==null){out[ck]=null;return;}
+        const old=prev[ck],now=cur[ck];
+        if(/^\d_/.test(ck)&&Array.isArray(v)&&Array.isArray(now)){
+          const m=[0,1,2,3,4].map(i=>J(v[i])!==J(old?.[i])?(v[i]||[]):(now[i]||[]));
+          out[ck]=m;
+        }else out[ck]=v;
+      });
+      const meta={by:myId||'',name:myName(),at:Date.now()};
+      if(data.cells){ // 舊格式（cells 欄位）：整份改寫成新格式
+        const all=Object.assign({},cur);Object.entries(out).forEach(([k,v])=>{if(v==null)delete all[k];else all[k]=v;});
+        t.set(ref,Object.assign({c:encCells(all)},meta));
+      }else{
+        const c={};Object.entries(out).forEach(([k,v])=>c[k]=v==null?firebase.firestore.FieldValue.delete():JSON.stringify(v));
+        t.set(ref,Object.assign({c},meta),{merge:true});
+      }
+    }).then(()=>weeksExist.add(wk)));
   },
-  async week(wk,cells){ // full replace
-    histPush(wk);
-    weeks[wk]=cells;renderAll();
-    if(!db){saveLocal();return;}
-    return queue('weeks/'+wk,async()=>{await db.doc('weeks/'+wk).set({c:encCells(cells)});weeksExist.add(wk);});
+  // 整週替換：只寫出和目前不同的診次（沒有的診次刪除），避免蓋掉別人在其他診次的修改
+  async week(wk,cells){
+    const prev=weeks[wk]||{},patch={};
+    new Set([...Object.keys(prev),...Object.keys(cells||{})]).forEach(k=>{patch[k]=cells&&k in cells?cells[k]:null;});
+    return this.cells(wk,patch);
   },
   async mk(l){
     makeups.push(l);renderAll();
@@ -1434,13 +1473,15 @@ function start(acc){
   db.collection('staff').onSnapshot(snap=>{staff=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('staff');},onErr);
   db.collection('weeks').onSnapshot(snap=>{
     const w={};weeksExist=new Set();
-    snap.docs.forEach(d=>{w[d.id]=decCells(d.data());weeksExist.add(d.id);});
-    weeks=w;done('weeks');
+    const mt={};snap.docs.forEach(d=>{const v=d.data();w[d.id]=decCells(v);weeksExist.add(d.id);if(v.at)mt[d.id]={by:v.by||'',name:v.name||'',at:v.at};});
+    weeks=w;weekMeta=mt;done('weeks');
   },onErr);
   db.collection('leaves').onSnapshot(snap=>{const all=snap.docs.map(d=>Object.assign({id:d.id},d.data()));leaves=all.filter(l=>!isLeaveReq(l));leaveReqs=all.filter(isLeaveReq);buildLeaveIdx();done('leaves');},onErr);
   db.collection('familyCare').onSnapshot(snap=>{familyCare=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('fc');},onErr);
   db.collection('makeups').onSnapshot(snap=>{makeups=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
   db.collection('baselines').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();m[d.id]={ym:v.ym||d.id,at:v.at,by:v.by,weeks:Object.fromEntries(Object.entries(v.weeks||{}).map(([wk,c])=>[wk,decCells({c})]))};});baselines=m;renderAll();},onErr);
+  // 正在編輯班表的人（每 10 秒更新一次，超過 70 秒沒更新視為已離開）
+  db.collection('presence').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());presence=m;renderPresence();},e=>console.warn(e));
   db.collection('lottery').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotteries=m;renderAll();},e=>console.warn(e));
   db.collection('lotteryBets').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotBets=m;renderAll();},e=>console.warn(e));
   db.collection('personalEvents').onSnapshot(snap=>{pevents=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
@@ -1568,6 +1609,8 @@ function renderAll(){
   if(prefs.tab==='holidays') renderHolidays();
   if(prefs.tab==='pay') renderPay(mi,counts);
   if(prefs.tab==='lottery') renderLottery();
+  if(db&&(prefs.tab==='schedule')!==presOn||presOn&&presLast!==monthInfo().ym+schedViewOf()){presLast=monthInfo().ym+schedViewOf();setTimeout(presenceTick,0);}
+  renderPresence();
   if(prefs.tab==='att') renderAtt(mi);
   if(prefs.tab==='otrev') renderOtRev();
 }
@@ -2714,6 +2757,31 @@ $('tab-lottery').addEventListener('change',e=>{
   lotPatch({[k]:v});
 });
 setInterval(lotTick,1000);
+// ---------- 誰正在編輯班表 ----------
+
+
+function presenceTick(){
+  if(!db||!fbAuth?.currentUser)return;
+  const uid=fbAuth.currentUser.uid,ref=db.doc('presence/'+uid);
+  const on=prefs.tab==='schedule'&&canWrite&&!document.hidden;
+  if(on){presOn=true;ref.set({name:myName(),email:myId||'',ym:monthInfo().ym,view:schedViewOf(),at:Date.now()}).catch(e=>console.warn(e));}
+  else if(presOn){presOn=false;ref.delete().catch(()=>{});}
+}
+function renderPresence(){
+  const bar=$('presenceBar');if(!bar)return;
+  const me=fbAuth?.currentUser?.uid,ym=monthInfo().ym;
+  const others=Object.entries(presence).filter(([id,p])=>id!==me&&Date.now()-(p.at||0)<PRES_TTL);
+  const here=others.filter(([,p])=>p.ym===ym),else_=others.filter(([,p])=>p.ym!==ym);
+  bar.hidden=!(prefs.tab==='schedule'&&canWrite&&others.length);
+  if(bar.hidden)return;
+  const nm=p=>esc(p.name||p.email||'有人');
+  bar.innerHTML=(here.length?`<span class="pres-dot"></span><b>${here.map(([,p])=>nm(p)).join('、')}</b> 也在編輯${monthInfo().label}班表`:'')+
+    (else_.length?`${here.length?'；':'<span class="pres-dot off"></span>'}${else_.map(([,p])=>`${nm(p)}（${Number(p.ym.slice(5))}月）`).join('、')} 正在看其他月份`:'')+
+    (here.length?'<small>同一診次請避免同時修改；你們改的內容會即時同步。</small>':'');
+}
+setInterval(()=>{presenceTick();renderPresence();},10000);
+document.addEventListener('visibilitychange',presenceTick);
+window.addEventListener('pagehide',()=>{if(presOn&&db&&fbAuth?.currentUser)db.doc('presence/'+fbAuth.currentUser.uid).delete().catch(()=>{});});
 // 標題下方的時鐘
 function clockTick(){const d=new Date();$('monthLabel').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${DAYS[(d.getDay()+6)%7]}） ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;}
 clockTick();setInterval(clockTick,1000);
@@ -3384,11 +3452,35 @@ function autoSchedule(fillOnly){
   Object.entries(work).forEach(([wk,cells])=>store.week(wk,cells));
   toast(`已排入 ${added} 個崗位${daily||topUp?`（其中 ${[daily?`${daily} 班是為讓每人每天至少一班`:'',topUp?`${topUp} 班是為補滿合理工時`:''].filter(Boolean).join('、')}而加排）`:''}${swaps||mswaps?`，並對調${' '+[swaps?`${swaps} 組流動與跟診`:'',mswaps?`${mswaps} 組流動與主櫃`:''].filter(Boolean).join('、')}，讓跟診與主櫃更連貫`:''}${fullSwaps?`；另有 ${fullSwaps} 位全天班醫師改由流動的全天班助理整天跟診`:''}${fullMain?`；${fullMain} 天的主櫃改由流動的全天班助理整天擔任`:''}${pairMain?`；${pairMain} 天的主櫃和流動互換，讓早午或午晚由同一人擔任`:''}${lastFix?`；最後再調整 ${lastFix} 位醫師的跟診，讓跟診助理更連貫`:''}${subToFlow?`；${subToFlow} 位副櫃助理調到缺人的流動`:''}${shortage?`，還有 ${shortage} 個缺口找不到符合規則的人員`:''}${forcedDays.length?`。為了每天至少一班而超過合理工時：${forcedDays.slice(0,6).join('、')}${forcedDays.length>6?` 等 ${forcedDays.length} 天`:''}`:''}${missDay.length?`。無法排入當天任何一班：${missDay.slice(0,8).join('、')}${missDay.length>8?` 等 ${missDay.length} 天`:''}`:''}${short.length?`。未能排滿合理工時：${short.join('、')}`:''}。`,(shortage||short.length||missDay.length||forcedDays.length)?'warn':'',{label:'復原',fn:undoAuto});
 }
+// 目前登入者的顯示名稱（班表「誰在編輯」與最後修改者）
+const myName=()=>{const s=byId(myStaffId());return s?fullName(s):(myId||'').split('@')[0]||'管理者';};
+// 整週覆蓋的操作（清空、帶入醫師班表、自動排班、復原）前：這幾週 10 分鐘內被別人改過就先確認
+function confirmOthers(wks,what,fn){
+  const me=myId||'本機',hits=[...new Set(wks)].map(wk=>[wk,weekMeta[wk]]).filter(([,m])=>m&&m.by&&m.by!==me&&Date.now()-m.at<10*60000);
+  if(!hits.length)return fn();
+  const ls=hits.map(([wk,m])=>`${md(parseYmd(wk))} 那週：${esc(m.name||m.by)}，${Math.max(1,Math.round((Date.now()-m.at)/60000))} 分鐘前`).join('<br>');
+  dialog(`<h3>這幾週剛被其他人修改過</h3><p>${ls}</p><p>${esc(what)}會改寫這些週的班表，可能蓋掉他們剛做的修改。確定要繼續嗎？</p>`,fn,'仍要繼續',true);
+}
+const monthWks=(mi=monthInfo())=>mi.mondays.map(m=>ymd(m));
 function undoSched(){
   if(!canWrite||origBlocked())return;
   const e=schedHist.pop();if(!e){toast('沒有可以回復的動作。');renderAll();return;}
-  histSkip=true;try{Object.entries(e).forEach(([wk,c])=>store.week(wk,c||{}));}finally{histSkip=false;}
-  selectedId=null;renderAll();toast('已回復上一動作。');
+  let kept=0;const J=v=>JSON.stringify(v??null);
+  histSkip=true;try{Object.entries(e).forEach(([wk,cks])=>{
+    const patch={};
+    Object.entries(cks).forEach(([ck,{b,a}])=>{
+      const cur=weeks[wk]?.[ck];
+      if(J(cur)===J(a)){patch[ck]=b;return;}
+      // 崗位格：別人後來改過其中幾個崗位時，只還原仍是自己改後樣子的崗位
+      if(/^\d_/.test(ck)&&Array.isArray(cur)){
+        const m=[0,1,2,3,4].map(i=>J(cur[i])===J(a?.[i])?(b?.[i]||[]):(kept++,cur[i]||[]));
+        patch[ck]=m;return;
+      }
+      kept++;
+    });
+    store.cells(wk,patch);
+  });}finally{histSkip=false;}
+  selectedId=null;renderAll();toast(kept?'已回復上一動作；其他人之後改過的部分保留不動。':'已回復上一動作。');
 }
 $('undoBtn').onclick=undoSched;
 document.addEventListener('keydown',e=>{
@@ -3397,9 +3489,10 @@ document.addEventListener('keydown',e=>{
   e.preventDefault();undoSched();
 });
 function undoAuto(){
-  if(!lastUndo)return;const u=lastUndo;lastUndo=null;
+  if(!lastUndo)return;const u=lastUndo;
+  confirmOthers(Object.keys(u),'復原',()=>{lastUndo=null;
   Object.entries(u).forEach(([wk,cells])=>store.week(wk,cells||{}));
-  toast('已復原到變更前的班表。');
+  toast('已復原到變更前的班表。');});
 }
 
 // ---------- dialogs & toasts ----------
@@ -4018,7 +4111,7 @@ $('tplBtn').onclick=()=>{if(origBlocked())return;
   dialog(`<h3>帶入醫師班表・${monthInfo().label}</h3><p>依「排班規則」裡的預設醫師班表，把醫師排進本月每一天的跟診。休診、休診日與醫師休假的時段會自動跳過。</p>
     <div class="opts"><label><input type="radio" name="tm" value="fill" checked><span>只補沒有醫師的時段<small>已經排了醫師的時段保持不動</small></span></label>
     <label><input type="radio" name="tm" value="all"><span>覆蓋本月醫師<small>以預設班表為準；不在預設裡的醫師會移除，他們的跟診助理也一併移除</small></span></label></div>`,
-    ov=>applyDocTemplate(ov.querySelector('input[name=tm]:checked').value==='all'),'帶入');
+    ov=>{const all=ov.querySelector('input[name=tm]:checked').value==='all';setTimeout(()=>confirmOthers(monthWks(),'帶入醫師班表',()=>applyDocTemplate(all)),0);},'帶入');
 };
 function applyDocTemplate(overwrite,dates){
   if(!canWrite)return;
@@ -4055,7 +4148,7 @@ $('autoBtn').onclick=()=>{if(origBlocked())return;
   dialog(`<h3>自動排班・${monthInfo().label}</h3><p>依需求人數、請假、每日上限與工時規則排班，並讓每個人的班數盡量平均。</p>
     <div class="opts"><label><input type="radio" name="am" value="fill" checked><span>只補空缺<small>保留已經排好的人，只填入空的崗位</small></span></label>
     <label><input type="radio" name="am" value="all"><span>整月重新排<small>清除本月所有助理的排班後重新產生；醫師保留不動</small></span></label></div>`,
-    ov=>autoSchedule(ov.querySelector('input[name=am]:checked').value==='fill'),'開始排班');
+    ov=>{const fill=ov.querySelector('input[name=am]:checked').value==='fill';setTimeout(()=>confirmOthers(monthWks(),'自動排班',()=>autoSchedule(fill)),0);},'開始排班');
 };
 // 清空本月：只清除本月日期的排班（跨月的週只動本月那幾天），可復原
 // 原始／異動班表切換、定案
@@ -4077,11 +4170,11 @@ $('clearMonthBtn').onclick=()=>{
   if(!canWrite||origBlocked())return;
   const mi=monthInfo();const days=busyDays(mi.dates.map(x=>x.key));
   if(!days.length){toast(`${mi.label}還沒有排班。`);return;}
-  dialog(`<h3>清空 ${mi.label}？</h3><p>本月 ${days.length} 天的排班都會移除，包含醫師、助理、跟診配對與加診標記。請假、休診日與規則不受影響。清空後可以按「復原」還原。</p>`,()=>{
+  confirmOthers(monthWks(mi),'清空本月',()=>dialog(`<h3>清空 ${mi.label}？</h3><p>本月 ${days.length} 天的排班都會移除，包含醫師、助理、跟診配對與加診標記。請假、休診日與規則不受影響。清空後可以按「復原」還原。</p>`,()=>{
     const before={};mi.mondays.forEach(m=>{const wk=ymd(m);before[wk]=weeks[wk]?clone(weeks[wk]):null;});
     lastUndo=before;clearDays(days);
     toast(`已清空 ${mi.label} 的排班。`,'',{label:'復原',fn:undoAuto});
-  },'清空本月',true);
+  },'清空本月',true));
 };
 
 const weeksEl=$('weeks');
@@ -4169,11 +4262,11 @@ weeksEl.addEventListener('click',e=>{
     if(!Object.values(cfg.docTpl||{}).some(a=>a&&a.length)){toast('還沒設定預設醫師班表，請先到「排班規則」設定。','warn');return;}
     const mon=parseYmd(tw.dataset.tplweek);
     const mi=monthInfo();const inM=k=>k>=ymd(mi.first)&&k<=ymd(mi.last); // 只帶入本月，不跨月
-    applyDocTemplate(false,[...Array(7)].map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return {wk:tw.dataset.tplweek,dow:i,key:ymd(d)};}).filter(x=>inM(x.key)));
+    confirmOthers([tw.dataset.tplweek],'一鍵帶入醫師班表',()=>applyDocTemplate(false,[...Array(7)].map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return {wk:tw.dataset.tplweek,dow:i,key:ymd(d)};}).filter(x=>inM(x.key))));
     return;
   }
   const clr=e.target.closest('[data-clear]');
-  if(clr){const wk=clr.dataset.clear;dialog(`<h3>清空 ${md(parseYmd(wk))} 這一週？</h3><p>這週所有排班都會被移除。</p>`,()=>{lastUndo={[wk]:weeks[wk]?clone(weeks[wk]):null};store.week(wk,{});toast('已清空本週。','',{label:'復原',fn:undoAuto});},'清空',true);return;}
+  if(clr){const wk=clr.dataset.clear;confirmOthers([wk],'清空本週',()=>dialog(`<h3>清空 ${md(parseYmd(wk))} 這一週？</h3><p>這週所有排班都會被移除。</p>`,()=>{lastUndo={[wk]:weeks[wk]?clone(weeks[wk]):null};store.week(wk,{});toast('已清空本週。','',{label:'復原',fn:undoAuto});},'清空',true));return;}
   const rm=e.target.closest('[data-rm]');
   if(rm){const it=rm.closest('[data-item]');removeFrom(it.dataset.item,it.dataset.wk,it.dataset.ck,Number(it.dataset.pi));return;}
   const it=e.target.closest('[data-item]');

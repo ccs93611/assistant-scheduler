@@ -47,6 +47,8 @@ service cloud.firestore {
     // 班表、人員、設定：所有已開通的人可看，排班管理以上可改
     // 打卡裝置要讀班表（判斷上班／下班）與人員名單（顯示姓名）
     match /weeks/{wk}      { allow read: if canView() || isKiosk(); allow write: if canManage(); }
+    // 誰正在編輯班表：presence/{uid}，只能寫自己的；排班管理以上才會寫入
+    match /presence/{uid}  { allow read: if canView(); allow write: if signedIn() && request.auth.uid == uid && canManage(); allow delete: if signedIn() && request.auth.uid == uid; }
     // 原始班表（定案時的當月班表）：所有已開通的人可看，排班管理以上可定案
     match /baselines/{ym}  { allow read: if canView(); allow write: if canManage(); }
     match /staff/{id}      { allow read: if canView() || isKiosk(); allow write: if canManage(); }

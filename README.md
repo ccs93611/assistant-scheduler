@@ -91,11 +91,20 @@ HTML（7 個 <section id="tab-*">）
 - 其他人要由超級管理員到「人員名單 → 權限」填入 Gmail 並選擇權限，才能登入。新設定時預設為「僅檢視」。
 - 「停權」（人員名單，離職左邊）：超級管理員可以暫停某人的登入，保留帳號綁定，`access/{Gmail}.perm` 改為 `suspended`、原本的權限存在 `prevPerm`；被停權的人登入後只會看到停權訊息，Firestore 規則也不給任何讀寫權限。按「恢復權限」還原。
 
+### 多人同時編輯班表
+
+- **即時同步**：班表以 Firestore 即時同步，別人的修改約一秒內出現。
+- **誰在編輯**：排班管理以上的人開著排班表分頁時寫入 `presence/{自己的 uid}`；班表上方顯示「XXX 也在編輯 2026年 10月班表」（看其他月份的人另外列出）。
+- **只寫有變動的診次**：`store.cells` 以交易讀取最新內容再寫入；崗位格（`0_day` 這類，5 個崗位）只覆蓋自己有變動的崗位，其他崗位保留別人的修改。`store.week`（整週替換）也改成只寫出不同的診次。
+- **回復（Ctrl+Z）**：每一步記下自己改過的診次改前／改後；回復時只還原仍是自己改後樣子的診次與崗位，別人之後改過的保留不動。
+- **整週覆蓋前確認**：清空本週、清空本月、一鍵帶入／帶入醫師班表、自動排班、復原，若這幾週 10 分鐘內被其他人改過，先跳出「這幾週剛被其他人修改過」確認。
+
 ### Firestore 資料結構
 
 | 路徑 | 內容 |
 |---|---|
-| `weeks/{週一日期}` | `c.{dow}_{shift}` 等欄位，值是 JSON 字串（因為 Firestore 不接受巢狀陣列） |
+| `weeks/{週一日期}` | `c.{dow}_{shift}` 等欄位，值是 JSON 字串（因為 Firestore 不接受巢狀陣列）；`by, name, at` 為最後修改者與時間 |
+| `presence/{uid}` | 正在編輯班表的人 `{name, email, ym, view, at}`，每 10 秒更新、超過 70 秒視為離開 |
 | `baselines/{YYYY-MM}` | 原始班表（定案時的當月班表） |
 | `staff/{id}`、`leaves/{id}`、`familyCare/{id}`、`config/main` | 同上方資料模型 |
 | `pay/{staffId}_{YYYY-MM}` | `{staffId, ym, base, attend, perf, skill, duty, otMin, selfInd, selfTeam, stars, labor, health, dependents, lateMin, items, note}` 當月薪資項目 |
