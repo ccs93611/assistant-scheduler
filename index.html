@@ -276,6 +276,9 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .why-row.ok{background:var(--accent-soft);}
 .why-row span{color:var(--sub);}
 .why-row.ok span{color:var(--ok);font-weight:600;}
+.lot-docs{margin-top:3px;padding-top:3px;border-top:1px dashed var(--line);font-size:.62rem;line-height:1.35;color:var(--doc);}
+.lot-docs i{font-style:normal;color:var(--faint);margin-right:3px;}
+.lv-title-row button.on{border-color:var(--doc);color:var(--doc);}
 .lot-set-acts{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
 .lot-round{font-size:.8rem;color:var(--sub);padding:5px 0;border-top:1px dashed var(--line);}
 .lot-dlg{max-width:520px;}
@@ -2624,6 +2627,7 @@ const isTraining=id=>(cfg.training||[]).includes(id);
 //   won{sid:[日期]},left{sid:下一輪可放的籌碼}}
 // lotteryBets/{YYYY-MM}_{輪次}_{sid}：{ym,round,sid,dates[],at}
 // 抽籤：亂數種子＝SHA-256(月份、輪次、開獎時間、所有人的籌碼)，任何人觸發結果都一樣，事後可以重算驗證
+let lotDocYm={}; // 排休抽籤月曆上顯示原始排班的醫師班表（只有排班管理以上、只在自己的畫面）
 let lotYm=null,lotRunning=false,lotSeen={},lotTimer=null;
 const LOT_DEF={chips:4,defQuota:2,roundMin:10,day:10,time:'22:00'};
 // 本月抽籤預設：存在 config/main.lotByMonth[YYYY-MM]；沒有調整的月份沿用前一個（最近一次調整的）月份
@@ -2769,12 +2773,18 @@ function lotReveal(){
     setTimeout(()=>{clearInterval(iv);sp.forEach(x=>{x.classList.remove('hot');x.classList.add(win.includes(x.dataset.s)?'win':'lose');});},1600);
   });
 }
+// 本月原始排班的醫師：定案後用原始班表（baselines），還沒定案用目前的班表
+function lotDoctorsOf(ym,key){
+  const d=parseYmd(key),wk=ymd(mondayOf(d)),dow=(d.getDay()+6)%7,b=baselines[ym];
+  const cellOf=ck=>{const c=b?b.weeks?.[wk]?.[ck]:weeks[wk]?.[ck];return Array.isArray(c)&&Array.isArray(c[FOLLOW])?c[FOLLOW]:[];};
+  return SHIFTS.map(sh=>({sh,docs:closedAt(dow,sh.id,key)?null:cellOf(dow+'_'+sh.id).filter(id=>byId(id)?.role==='doctor')}));
+}
 // ---- 畫面 ----
 function renderLottery(){
   if(!lotYm)lotYm=lotNextYm();
   const ym=lotYm,L=lotteries[ym],me=myStaffId(),admin=canWrite,root=$('lotRoot');
   const st={setup:'未開啟（助理還看不到）',open:'進行中',done:'抽籤完成，待管理者確認',confirmed:'已確認，已登記排休'};
-  let h=`<div class="card"><div class="lv-title-row"><h2 style="margin:0">${lotYmLabel(ym)} 排休抽籤</h2><span class="lv-range"><button class="small" data-lotnav="-1">◀</button> <button class="small" data-lotnav="1">▶</button></span><span style="flex:1"></span>${L?`<span class="pill">${st[L.status]||L.status}</span>`:''}</div>
+  let h=`<div class="card"><div class="lv-title-row"><h2 style="margin:0">${lotYmLabel(ym)} 排休抽籤</h2><span class="lv-range"><button class="small" data-lotnav="-1">◀</button> <button class="small" data-lotnav="1">▶</button></span><span style="flex:1"></span>${L&&admin?`<button class="small${lotDocYm[ym]?' on':''}" data-lotdocs>${lotDocYm[ym]?'隱藏醫師班表':'帶入本月原始排班醫師班表'}</button>`:''}${L?`<span class="pill">${st[L.status]||L.status}</span>`:''}</div>
     <p class="desc">每人有固定枚數的籌碼，放在想排休的日子（一天一枚）。抽籤時間到，想要同一天的人超過名額就抽籤；沒抽中的籌碼退回，當場進行下一輪，在時限內放到還有名額的日子，直到籌碼用完或名額排滿。時限內沒放的籌碼視為放棄。</p>`;
   if(!L){
     h+=admin?`<p>這個月的抽籤遊戲：<b>未開啟</b>。先設定每天的名額，設定好再開啟，助理才能開始放籌碼。</p><button class="primary" data-lotnew>設定 ${lotYmLabel(ym)} 名額</button>`:'<p class="att-mute">這個月還沒有開啟排休抽籤。</p>';
@@ -2806,7 +2816,8 @@ function renderLottery(){
       (L.status==='setup'&&admin?`<div class="lot-q">名額 <input class="lot-qi" type="number" min="0" max="20" step="1" inputmode="numeric" data-lotqi="${k}" value="${q}"></div>`:
        q?`<div class="lot-q">名額 ${left}／${q}</div>${L.status==='open'&&demand[k]&&(admin||L.showBets===true)?`<div class="lot-dem${demand[k]>left?' hot':''}">${demand[k]} 人想要</div>`:''}`:'<div class="lot-q att-mute">不開放</div>')+
       (winners.length?`<div class="lot-win">${winners.map(s=>`<span class="${s===me?'me':''}">${esc(codeOf(s))}</span>`).join('')}</div>`:'')+
-      (mine?'<div class="lot-chip">●</div>':'')+'</div>';
+      (mine?'<div class="lot-chip">●</div>':'')+
+      (admin&&lotDocYm[ym]?`<div class="lot-docs">${lotDoctorsOf(ym,k).map(({sh,docs})=>docs===null?'':`<div><i>${sh.short}</i>${docs.length?docs.map(id=>esc(codeOf(id).replace(/^dr\.?\s*/i,''))).join(' '):'<span class="att-mute">—</span>'}</div>`).join('')}</div>`:'')+'</div>';
   });
   h+='</div>';
   if(L.status==='open'&&L.participants.includes(me))h+='<p class="hint">點日子放籌碼、再點一次收回。可以一直改到本輪截止。「名額 1／2」＝還剩 1 個名額（共 2 個）；'+(L.showBets===true?'「3 人想要」是本輪目前放在這天的籌碼數。':'這個月不公開檯面上的籌碼，只看得到自己放的。')+'</p>';
@@ -2871,6 +2882,10 @@ $('tab-lottery').addEventListener('click',e=>{
     const n=clone(cfg);n.lotByMonth=Object.assign({},n.lotByMonth,{[lotYm]:{day,time,chips,defQuota:q,roundMin:rm}});store.cfg(n);toast(`已儲存 ${lotYmLabel(lotYm)} 的抽籤預設。`);return;}
   if(e.target.closest('[data-lotdel]')){dialog(`<h3>刪除排休抽籤</h3><p>刪除 ${lotYmLabel(lotYm)} 的排休抽籤設定。</p>`,()=>{store.lottery(lotYm,null);},'刪除',true);return;}
   if(e.target.closest('[data-lotshow]')&&canWrite){const L=lotteries[lotYm];lotPatch({showBets:!L.showBets});toast(!L.showBets?'玩家現在看得到檯面上的籌碼。':'已隱藏檯面上的籌碼，玩家只看得到自己的。');return;}
+  if(e.target.closest('[data-lotdocs]')&&canWrite){
+    const ym=lotYm;lotDocYm[ym]=!lotDocYm[ym];
+    if(lotDocYm[ym]){const has=lotDates(ym).some(k=>lotDoctorsOf(ym,k).some(x=>x.docs?.length));toast(has?`已帶入 ${lotYmLabel(ym)}${baselines[ym]?'原始班表（已定案）':'班表（尚未定案）'}的醫師，只有你的畫面看得到。`:`${lotYmLabel(ym)}的班表還沒有排醫師。`,has?'':'warn');}
+    renderAll();return;}
   if(e.target.closest('[data-lotverify]')){lotVerify(lotteries[lotYm]).then(r=>toast(r.ok?'驗證通過：每一輪重新計算的結果都和公布的一樣。':`驗證失敗：第 ${r.round} 輪重算結果不同。`,r.ok?'':'warn'));return;}
   if(e.target.closest('[data-lotconfirm]')){const L=lotteries[lotYm];
     const adds=[];Object.entries(L.won||{}).forEach(([sid,ks])=>ks.forEach(k=>{if(!leaves.some(l=>l.staffId===sid&&l.date===k))adds.push({id:uid('l'),staffId:sid,date:k,shifts:SHIFTS.map(s=>s.id),type:'排休',note:'排休抽籤',when:'before',createdAt:Date.now()});}));
