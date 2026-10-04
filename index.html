@@ -232,6 +232,15 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .ml-tag.pend{background:transparent!important;border:1.5px dashed var(--sub)!important;color:var(--sub)!important;}
 #lvReqCard .lr-acts,#dcReqCard .lr-acts{white-space:nowrap;}
 .pill.warn{background:var(--warn-soft);color:var(--warn);}
+.lv-proof{margin:0 0 14px;padding:8px 12px;border-radius:8px;background:var(--doc-soft);border-left:3px solid var(--doc);font-size:.8rem;line-height:1.6;}
+.lv-proof span{color:var(--sub);font-size:.75rem;}
+.lr-proof{font-size:.7rem;color:var(--sub);margin-top:2px;}
+.proof-details summary{cursor:pointer;list-style:none;}
+.proof-details summary::-webkit-details-marker{display:none;}
+.proof-table td:first-child{white-space:nowrap;}
+.proof-table td{vertical-align:top;font-size:.8rem;}
+.proof-table td:nth-child(2){min-width:200px;}
+.proof-table td:nth-child(3){min-width:240px;color:var(--sub);}
 .lot-set-acts{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
 .lot-round{font-size:.8rem;color:var(--sub);padding:5px 0;border-top:1px dashed var(--line);}
 .lot-dlg{max-width:520px;}
@@ -641,6 +650,7 @@ body.gated .shell{display:none;}
             <button class="primary" type="submit" data-w>登記</button>
             <button type="button" id="monthLeaveBtnDoc">整月排休</button>
           </form>
+          <p class="lv-proof" hidden></p>
           <div class="lv-title-row"><h3 class="subhead" id="leaveTitle-doctor"></h3><span class="lv-range" data-lvrange="dc"></span></div>
           <div class="hol-scroll" id="leaveScroll-doctor"><table class="list leave-table" id="leaveTable-doctor"></table></div>
           <p class="hint" id="leaveHint-doctor" hidden>上下捲動可查看其他休假日。</p>
@@ -671,6 +681,7 @@ body.gated .shell{display:none;}
             <button class="primary" type="submit" data-w>登記</button>
             <button type="button" id="monthLeaveBtn">整月排假</button>
           </form>
+          <p class="lv-proof" hidden></p>
           <div class="lv-title-row"><h3 class="subhead" id="leaveTitle-assistant"></h3><span class="lv-range" data-lvrange></span></div>
           <div class="hol-scroll" id="leaveScroll-assistant"><table class="list leave-table" id="leaveTable-assistant"></table></div>
           <p class="hint" id="leaveHint-assistant" hidden>上下捲動可查看其他請假日期。</p>
@@ -693,13 +704,16 @@ body.gated .shell{display:none;}
             <button class="primary" type="submit">登記</button>
             <button type="button" id="monthLeaveBtnAfter">整月排假</button>
           </form>
+          <p class="lv-proof" hidden></p>
           <div class="lv-title-row"><h3 class="subhead" id="leaveTitle-after"></h3><span class="lv-range" data-lvrange></span></div>
           <div class="hol-scroll" id="leaveScroll-after"><table class="list leave-table" id="leaveTable-after"></table></div>
           <p class="hint" id="leaveHint-after" hidden>上下捲動可查看其他請假日期。</p>
           </div>
         </div>
+        <div class="card" id="proofCard"></div>
         <div class="card">
           <h2>家庭照顧假</h2>
+          <p class="lv-proof">📎 <b>家庭照顧假</b>需檢附：需檢附合理證明<br><span>至少以 1 小時為單位</span></p>
           <p class="desc">僅限助理。填寫時間段後自動計算時數，以 1 小時為最小單位，未滿 1 小時的部分以 1 小時計；超過 3 小時但不超過 3.5 小時（一個診）時記 3.5 小時。家庭照顧假另外記錄，不會影響排班。</p>
           <form class="form-row" id="fcForm" style="margin-bottom:14px">
             <div class="field"><label for="fcStaff">助理</label><select id="fcStaff" required></select></div>
@@ -724,7 +738,7 @@ body.gated .shell{display:none;}
         </div>
         <div class="card" id="pvCard">
           <h2>個人假統計</h2>
-          <p class="desc">特休依到職日起算，每滿一年重新計算。婚假、喪假、產檢假、產假、流產產假、育嬰假在「請假登記」選這些假別時，系統會詢問事件日期（結婚日、死亡日、預產期等），才算出可請天數與期限；產假、流產產假、育嬰假會自動把整段期間（含假日）排入全天請假。特休以小時計：額度＝天數 × 8 小時，請整天扣 7 小時（事後補登單診扣 3.5 小時）；婚假、喪假、產檢假有請假的那天算 1 天。</p>
+          <p class="desc">特休依到職日起算，每滿一年重新計算。婚假、喪假、產檢假、產假、流產產假、育嬰假在「請假登記」選這些假別時，系統會詢問事件日期（結婚登記日、死亡日、預產期等），才算出可請天數與期限；產假、流產產假、育嬰假會自動把整段期間（含假日）排入全天請假。特休以小時計：額度＝天數 × 8 小時，請整天扣 7 小時（事後補登單診扣 3.5 小時）；婚假、喪假、產檢假有請假的那天算 1 天。</p>
           <div class="form-row" style="margin-bottom:12px">
             <div class="field" id="pvPick"><label for="pvStaff">助理</label><select id="pvStaff"></select></div>
             <div class="field"><span class="lb">到職日</span><div id="pvHire" style="padding-block:6px;font-weight:500"></div></div>
@@ -1061,6 +1075,27 @@ let leaveIdx=new Map();
 const isLeaveReq=l=>l.status==='pending'||l.status==='rejected';
 const needReview=sid=>!canWrite&&['assistant','doctor'].includes(byId(sid)?.role);
 // role：'assistant' 顯示在助理請假分頁（#lvReqCard）、'doctor' 顯示在醫師休假分頁（#dcReqCard）
+// 各假別需要檢附的證明文件與說明（助理的請假表單、整月排假、審核、對照表共用；醫師休假不需檢附）
+const LEAVE_PROOF={
+  婚假:{doc:'戶口名簿影本、結婚登記證明書或身分證換發影本',note:'須於登記日前 10 日起、3 個月內請畢（經公司同意可延至 1 年內）'},
+  喪假:{doc:'訃聞、死亡證明書、除戶謄本或可證明親屬關係之戶籍謄本',note:'視與死者的親等關係給予不同天數'},
+  病假:{doc:'診斷證明書或醫院、診所就醫門診收據',note:''},
+  產假:{doc:'媽媽手冊、出生證明書或診斷證明',note:'最多 56 天（含例假日）須連續，最早由預產期前 28 天（含例假日）開始請'},
+  產檢假:{doc:'媽媽手冊或診斷證明',note:'最多 7 天'},
+  陪產假:{doc:'媽媽手冊、出生證明書或診斷證明',note:'分娩當日及前後共 15 日（含例假日）內請完，最多 7 天'},
+  流產產假:{doc:'診斷證明',note:'妊娠滿 20 週以上流產者 56 天；妊娠 3 個月以上未滿 20 週流產者 28 天；妊娠 2 個月以上未滿 3 個月流產者 7 天；妊娠未滿 2 個月流產者 5 天（皆含例假日）'},
+  家庭照顧假:{doc:'需檢附合理證明',note:'至少以 1 小時為單位'},
+  公假:{doc:'兵役召集令（教召）、法院傳票、政府機關公文或選務工作聘書等',note:'必須是因依法令規定或政府指派執行公務，方得請領'},
+};
+const proofHtml=t=>{const p=LEAVE_PROOF[t];return p?`📎 <b>${esc(t)}</b>需檢附：${esc(p.doc)}${p.note?`<br><span>${esc(p.note)}</span>`:''}`:'';};
+// 請假表單：選到需要證明的假別時，在表單下方顯示提示
+function paintProof(form){const el=form.nextElementSibling?.classList.contains('lv-proof')?form.nextElementSibling:null;if(!el)return;const h=form.dataset.role==='doctor'?'':proofHtml(form.querySelector('[data-n="type"]')?.value); /* 醫師不需檢附證明 */el.innerHTML=h;el.hidden=!h;}
+function renderProofTable(){
+  const box=$('proofCard');if(box.dataset.done)return;box.dataset.done=1;
+  box.innerHTML=`<details class="proof-details"><summary><h2 style="display:inline">假別與證明文件</h2> <span class="att-mute">（點開查看）</span></summary>
+    <div class="hol-scroll" style="margin-top:10px"><table class="list proof-table"><thead><tr><th>假別</th><th>常見需檢附的證明文件</th><th>說明</th></tr></thead><tbody>${Object.entries(LEAVE_PROOF).map(([t,p])=>`<tr><td><b>${esc(t)}</b></td><td>${esc(p.doc)}</td><td>${esc(p.note)||'<span class="att-mute">—</span>'}</td></tr>`).join('')}</tbody></table></div>
+    <p class="hint">送出請假時，請把證明文件交給管理者；審核時會在申請旁顯示需檢附的文件。</p></details>`;
+}
 function renderLeaveReqs(role){
   const box=$(role==='doctor'?'dcReqCard':'lvReqCard'),me=myStaffId(),word=role==='doctor'?'休假':'請假';
   const mine=r=>(canWrite||r.staffId===me)&&byId(r.staffId)?.role===role;
@@ -1071,7 +1106,7 @@ function renderLeaveReqs(role){
   const KIND={add:'新增',edit:'修改',cancel:'取消'};
   const shTxt=r=>(r.shifts||[]).length===SHIFTS.length?'全天':SHIFTS.filter(s=>(r.shifts||[]).includes(s.id)).map(s=>s.short).join('');
   const dl=r=>{const d=parseYmd(r.date);return `${md(d)}（${DAYS[(d.getDay()+6)%7]}）`;};
-  const row=(r,acts)=>`<tr><td>${dl(r)}</td><td>${esc(fullName(byId(r.staffId)))}</td><td><span class="pill${r.kind==='cancel'?' warn':''}">${KIND[r.kind]||'新增'}</span></td><td>${shTxt(r)}</td><td>${esc(r.type||'')}${whenOf(r)==='after'?' <small class="att-mute">事後</small>':''}</td><td>${esc(r.note||'')}${r.status==='rejected'?`<div class="att-bad">由 ${esc(r.reviewerName||'管理者')} 退回${r.reason?'：'+esc(r.reason):''}</div>`:''}</td><td class="att-mute">${r.reqAt?fmtAt(r.reqAt):''}</td><td class="lr-acts">${acts(r)}</td></tr>`;
+  const row=(r,acts)=>`<tr><td>${dl(r)}</td><td>${esc(fullName(byId(r.staffId)))}</td><td><span class="pill${r.kind==='cancel'?' warn':''}">${KIND[r.kind]||'新增'}</span></td><td>${shTxt(r)}</td><td>${esc(r.type||'')}${whenOf(r)==='after'?' <small class="att-mute">事後</small>':''}${r.type==='婚假'&&r.kind!=='cancel'&&marriageLate(r.staffId,r.date)?'<div class="att-bad" style="font-size:.72rem">⚠ 超過結婚登記日 3 個月，需經公司同意</div>':''}${LEAVE_PROOF[r.type]&&r.kind!=='cancel'&&role!=='doctor'?`<div class="lr-proof" title="${esc(LEAVE_PROOF[r.type].note)}">📎 ${esc(LEAVE_PROOF[r.type].doc)}</div>`:''}</td><td>${esc(r.note||'')}${r.status==='rejected'?`<div class="att-bad">由 ${esc(r.reviewerName||'管理者')} 退回${r.reason?'：'+esc(r.reason):''}</div>`:''}</td><td class="att-mute">${r.reqAt?fmtAt(r.reqAt):''}</td><td class="lr-acts">${acts(r)}</td></tr>`;
   const head='<thead><tr><th>日期</th><th>人員</th><th>申請</th><th>班別</th><th>假別</th><th>備註</th><th>申請時間</th><th></th></tr></thead>';
   box.innerHTML=`<div class="lv-title-row"><h2 style="margin:0">${canWrite?word+'審核':'我的'+word+'申請'}</h2>${pend.length?`<span class="pill warn">待審 ${pend.length} 筆</span>`:''}<span style="flex:1"></span>${canWrite&&pend.length>1?'<button class="small primary" data-lrall>全部核准</button>':''}</div>
     <p class="desc">${canWrite?`${ROLE[role]}自己送出的${word}（新增、修改、取消）核准後才會生效；退回時可以填寫原因。`:`你送出的${word}要等管理者核准才會生效，核准前可以撤回。被退回的申請可以刪除。`}</p>
@@ -1831,7 +1866,7 @@ const PEV_REL_OPTS='<option value="8">父母、養父母、繼父母、配偶（
 const PEV_MONTH_OPTS='<option value="28">3 個月以上（4 星期）</option><option value="7">2 個月以上未滿 3 個月（1 星期）</option><option value="5">未滿 2 個月（5 日）</option>';
 // 事件假：依事件日期算出額度、可請期間；產假／流產產假／育嬰假為連續假（auto），已請＝自動排入的天數
 const PEV={
-  婚假:{lb:'結婚日',info:e=>({quota:14,from:addD(e.date,-10),to:addYr(e.date,1)}),desc:e=>`結婚日 ${fmtD(e.date)}`},
+  婚假:{lb:'結婚登記日',info:e=>({quota:14,from:addD(e.date,-10),to:addYr(e.date,1)}),desc:e=>`結婚登記日 ${fmtD(e.date)}`},
   喪假:{lb:'死亡日',info:e=>({quota:Number(e.rel)||8,from:e.date,to:addD(e.date,100)}),desc:e=>`死亡日 ${fmtD(e.date)}・${{8:'父母／配偶',6:'祖父母／子女／配偶之父母',3:'曾祖父母／兄弟姊妹／配偶之祖父母'}[e.rel]||''}`},
   產檢假:{lb:'預產期',info:e=>({quota:7,from:addD(e.date,-280),to:e.date}),desc:e=>`預產期 ${fmtD(e.date)}`},
   // 產假、流產產假：可請 quota 天，實際請到結束日 end（不一定請滿）
@@ -1921,6 +1956,8 @@ function renderMakeup(mi){
 const whenOf=l=>l.when==='after'?'after':'before';
 function renderLeave(mi,roles){
   roles.forEach(renderLeaveReqs);
+  document.querySelectorAll('.leave-form').forEach(paintProof);
+  if(roles.includes('assistant'))renderProofTable();
   if(roles.includes('assistant')){
     renderFamilyCare(mi);renderMakeup(mi);renderYearLeave(mi);renderPersonal(mi);
     // 請假登記：事前／事後切換
@@ -2133,15 +2170,19 @@ function fcLimitIssue(sid,date,hours){
   return a.per>LEAVE_LIMITS.事假&&a.per>b.per?`${codeOf(sid)} ${y} 年事假＋家庭照顧假將達 ${a.per} 天，超過 ${LEAVE_LIMITS.事假} 天`:'';
 }
 const menSickShifts=l=>l.type==='生理假'?(yearLeave(l.staffId,l.date.slice(0,4)).asSick.get(l.date)||0):0;
+// 婚假：結婚登記日前 10 日起、3 個月內請畢；3 個月後（1 年內）需經公司同意
+const marriageLate=(sid,date)=>{const e=pevents.find(x=>x.staffId===sid&&x.kind==='婚假'&&date>=PEV.婚假.info(x).from&&date<=PEV.婚假.info(x).to);return !!e&&date>addMo(e.date,3);};
 function leaveLimitIssues(sid,extra){
   const over=[],info=[];
+  const late=extra.filter(x=>x.type==='婚假'&&marriageLate(sid,x.date)).map(x=>x.date).sort();
+  const consent=late.length?[`${codeOf(sid)} 的婚假 ${late.map(fmtD).join('、')} 已超過結婚登記日 3 個月，需經公司同意。`]:[];
   [...new Set(extra.map(x=>x.date.slice(0,4)))].forEach(y=>{
     const b=yearLeave(sid,y),a=yearLeave(sid,y,extra);
     if(a.per>LEAVE_LIMITS.事假&&a.per>b.per)over.push(`${codeOf(sid)} ${y} 年事假${a.fc?'＋家庭照顧假':''}將達 ${a.per} 天，超過 ${LEAVE_LIMITS.事假} 天`);
     if(a.sickTotal>LEAVE_LIMITS.病假&&a.sickTotal>b.sickTotal)over.push(`${codeOf(sid)} ${y} 年病假（含生理假視同病假）將達 ${a.sickTotal} 天，超過 ${LEAVE_LIMITS.病假} 天`);
     if(a.menAsSick>b.menAsSick)info.push(`生理假已超過每年 ${LEAVE_LIMITS.生理假} 天，超過的 ${Math.round((a.menAsSick-b.menAsSick)*100)/100} 天視同病假。`);
   });
-  return {over,info};
+  return {over,info,consent};
 }
 
 // 請假扣款：各假別當月請假診數（一個班＝一診）× 每診薪資 × 扣薪比例；生理假第 4 天起算作病假
@@ -4157,6 +4198,7 @@ document.addEventListener('click',e=>{
   else if(e.target===to&&to.value){if(!fr.value)fr.value=to.value;else if(to.value<fr.value){toast('結束日期不能早於開始日期。','warn');to.value=fr.value;}}
   to.min=fr.value||'';
 }));
+document.querySelectorAll('.leave-form').forEach(form=>{form.addEventListener('change',e=>{if(e.target.dataset.n==='type')paintProof(form);});});
 document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('submit',e=>{
   e.preventDefault();
   const role=form.dataset.role;const word=role==='doctor'?'休假':'請假';const f=n=>form.querySelector(`[data-n="${n}"]`);
@@ -4182,11 +4224,11 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
     const want=when==='before'?SHIFTS.map(s=>s.id):shifts;
     for(const d of dates){const clash=leaveVsFc(sid,d,want);if(clash){toast(clash,'warn');return;}}
   }
-  // 個人假統計需要的資料（到職日、結婚日、死亡日…）缺少時先詢問；補齊後重新送出
+  // 個人假統計需要的資料（到職日、結婚登記日、死亡日…）缺少時先詢問；補齊後重新送出
   if(role==='assistant'&&askLeaveInfo(sid,type,dates,()=>form.requestSubmit(),()=>{f('note').value='';f('to').value='';}))return;
   // 年度上限：事假 14 天、病假 30 天（含生理假第 4 天起視同病假）
   const mergedOf=key=>{const dup=leaves.find(l=>l.staffId===sid&&l.date===key);return SHIFTS.map(s=>s.id).filter(s=>shifts.includes(s)||(dup?.shifts||[]).includes(s));};
-  const chk=role==='assistant'?leaveLimitIssues(sid,dates.map(date=>({date,type,shifts:mergedOf(date),when:form.dataset.when||'before'}))):{over:[],info:[]};
+  const chk=role==='assistant'?leaveLimitIssues(sid,dates.map(date=>({date,type,shifts:mergedOf(date),when:form.dataset.when||'before'}))):{over:[],info:[],consent:[]};
   const apply=()=>{
     dates.forEach(key=>{
       const dup=leaves.find(l=>l.staffId===sid&&l.date===key);
@@ -4198,9 +4240,10 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
     const skip=[sun?`${sun} 個週日`:'',hol?`${hol} 個休診日`:''].filter(Boolean).join('、');
     toast(`${needReview(sid)?'已送出申請':'已登記'} ${codeOf(sid)} ${dates.length} 天${word}${needReview(sid)?'，等待管理者審核':''}${skip?`（已略過 ${skip}）`:''}。${shifts.length<SHIFTS.length&&role==='assistant'&&(form.dataset.when||'before')==='before'?'事前請假以日為單位，已登記為全天。':''}${chk.info.join('')}`);
   };
-  if(!chk.over.length)return apply();
+  const go=chk.consent?.length?()=>dialog(`<h3>需經公司同意</h3><p>${chk.consent.map(esc).join('<br>')}</p><p>婚假須於結婚登記日前 10 日起、3 個月內請畢；經公司同意可延至 1 年內。確定要登記嗎？</p>`,apply,needReview(sid)?'送出申請':'仍要登記'):apply;
+  if(!chk.over.length)return go();
   if(!canWrite){toast(`無法登記：${chk.over.join('；')}。請洽診所管理者。`,'warn');return;}
-  dialog(`<h3>超過年度請假上限</h3><p>${chk.over.map(esc).join('<br>')}</p><p>確定仍要登記嗎？</p>`,apply,'仍要登記',true);
+  dialog(`<h3>超過年度請假上限</h3><p>${chk.over.map(esc).join('<br>')}</p><p>確定仍要登記嗎？</p>`,()=>setTimeout(go,0),'仍要登記',true);
 }));
 // ---------- 整月排假 ----------
 // 月曆彈窗：上方選假別、左方選助理，把助理拖到某天的早／午／晚格子即登記請假（手機可先點助理再點格子），點格子裡的代號取消該班
@@ -4218,6 +4261,7 @@ function openMonthLeave(when,role='assistant'){
   ov.innerHTML=`<div class="dialog ml-dialog" role="dialog" aria-modal="true">
     <div class="ml-head"><h3 id="mlTitle"></h3><span style="display:flex;gap:6px"><button class="small" data-mlundo disabled title="復原這個視窗裡的上一次排假或取消" style="margin-right:28px">↶ 回復前一動作</button><button class="small" data-mlnav="-1" aria-label="上個月">◀</button><button class="small" data-mlnow>本月</button><button class="small" data-mlnav="1" aria-label="下個月">▶</button><button class="small" data-mlclose>關閉</button></span></div>
     <div class="ml-types" id="mlTypes" role="group" aria-label="請假類別"></div>
+    <p class="lv-proof" id="mlProof" hidden></p>
     <div class="ml-body"><div class="ml-staff" id="mlStaff"></div><div class="ml-cal-wrap"><div class="ml-cal" id="mlCal"></div></div></div>
     <p class="hint">選好假別後，把${who}代號拖到要${word}的班次；拖到日期上則整天（早午晚）都${word}。手機可以先點${who}、再點班次或日期。點班次裡的代號可以取消那一班。虛線框是等待審核的${word}申請（加刪除線的是取消申請），點一下可以撤回。</p></div>`;
   document.body.appendChild(ov);
@@ -4228,6 +4272,7 @@ function openMonthLeave(when,role='assistant'){
   const paint=()=>{
     const mi=monthInfo(off),inMonth=new Set(mi.dates.map(x=>x.key));
     q('#mlTitle').innerHTML=doc?`${esc(mi.label)} 醫師整月排休`:`${esc(mi.label)} 整月排假（${when==='after'?'<span class="ml-after">事後</span>':'<span class="ml-before">事前</span>'}）`;
+    {const h=doc?'':proofHtml(type);q('#mlProof').innerHTML=h;q('#mlProof').hidden=!h;}
     q('#mlTypes').innerHTML=types.map(t=>`<button type="button" data-mltype="${esc(t)}" aria-pressed="${t===type}"${t===type?` style="${leaveTagStyle(t)}"`:''}><i class="ml-dot" style="background:${leaveColor(t)[0]}"></i>${esc(t)}</button>`).join('');
     const list=activeStaff(role).filter(s=>canWrite||s.id===myStaffId());
     if(sel&&!list.some(s=>s.id===sel))sel=null;
@@ -4276,7 +4321,7 @@ function openMonthLeave(when,role='assistant'){
     if(!doc&&askLeaveInfo(sid,type,[date],()=>addLeave(sid,date,shs),paint))return;
     if(dup&&shs.every(s=>(dup.shifts||[]).includes(s))&&dup.type===type)return;
     const shifts=SHIFTS.map(s=>s.id).filter(s=>shs.includes(s)||(dup?.shifts||[]).includes(s));
-    const chk=doc?{over:[],info:[]}:leaveLimitIssues(sid,[{date,type,shifts,when}]); // 年度上限只適用助理
+    const chk=doc?{over:[],info:[],consent:[]}:leaveLimitIssues(sid,[{date,type,shifts,when}]); // 年度上限只適用助理
     const apply=()=>{
       remember(sid,date);
       const extra=doc?{}:{when};
@@ -4286,9 +4331,10 @@ function openMonthLeave(when,role='assistant'){
       toast(`${needReview(sid)?'已送出申請':'已登記'} ${codeOf(sid)} ${date.slice(5).replace('-','/')} ${sn}${type}${needReview(sid)?'（待審核）':''}。${dup&&dup.type!==type?`當天其他班次也一併改為${type}。`:''}${chk.info.join('')}`);
       paint();
     };
-    if(!chk.over.length)return apply();
+    const go=chk.consent?.length?()=>dialog(`<h3>需經公司同意</h3><p>${chk.consent.map(esc).join('<br>')}</p><p>婚假須於結婚登記日前 10 日起、3 個月內請畢；經公司同意可延至 1 年內。確定要登記嗎？</p>`,apply,needReview(sid)?'送出申請':'仍要登記'):apply;
+    if(!chk.over.length)return go();
     if(!canWrite){toast(`無法登記：${chk.over.join('；')}。請洽診所管理者。`,'warn');return;}
-    dialog(`<h3>超過年度請假上限</h3><p>${chk.over.map(esc).join('<br>')}</p><p>確定仍要登記嗎？</p>`,apply,'仍要登記',true);
+    dialog(`<h3>超過年度請假上限</h3><p>${chk.over.map(esc).join('<br>')}</p><p>確定仍要登記嗎？</p>`,()=>setTimeout(go,0),'仍要登記',true);
   };
   // 回復前一動作：每次排假／取消前，記下該人員當天原本的請假紀錄；復原時換回原本的紀錄
   const history=[];
