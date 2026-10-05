@@ -116,6 +116,7 @@ main{padding-block:18px 48px;}
 .sched.sched-ref .pool .seg,.sched.sched-ref .pool .legend,.sched.sched-ref .pool > .hint{display:none;}
 .sched.sched-ref .pool .chip{cursor:default; pointer-events:none;}
 /* 我要加診（登記本人請假的助理）：加診模式時，異動班表上的缺人、缺口可以點 */
+#extraOpenBtn.xopen-on{background:var(--extra-bd); border-color:var(--extra-bd); color:#fff;}
 .self-extra-btn{margin-top:12px; width:100%; background:var(--extra-bd); border-color:var(--extra-bd); color:#fff; font-weight:600;}
 .self-extra-btn[aria-pressed="true"]{box-shadow:0 0 0 3px var(--extra); }
 body.self-extra-on #weeks .pos .gap.sx-ok{cursor:pointer; background:var(--extra); outline:2px dashed var(--extra-bd); outline-offset:-2px;}
@@ -694,6 +695,7 @@ body.gated .shell{display:none;}
             <span class="seg" id="schedViewSeg" role="group" aria-label="原始或異動班表"><button type="button" data-view="orig" aria-pressed="true">原始班表</button><button type="button" data-view="live" aria-pressed="false">異動班表</button></span>
             <span class="hint" id="baseInfo" style="margin:0"></span>
             <button type="button" class="small" id="baselineBtn" data-w>定案</button>
+            <button type="button" class="small" id="extraOpenBtn">開放加診</button>
             <span class="hint" id="baselineHint" style="margin:0">定案後可開放助理換班</span>
           </div>
           <div class="banner" id="origNote" hidden></div>
@@ -1071,6 +1073,7 @@ const PREF_KEY='clinic_roster_prefs_v1';
 let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, userNs=null, accessLinks={};
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], fcReqs=[], privateInfo={}, isAdmin=true;
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
+let extraOpen={}; // 開放助理自行加診的月份：extraOpen[YYYY-MM]={at,by,byName}
 let payPub={}; // 已發布的薪資月份：payPub[YYYY-MM]={at,by,byName}；發布後員工才看得到自己該月的薪資
 let makeups=[]; // 舊版手動登記的事假補班 {id,staffId,date,shifts,note}，已不再使用
 let proofs=[]; // 請假證明 leaveProofs/{id}：{staffId,dates[],type,kind:'file'|'paper',name,mime,size,by,byName,at}；檔案內容另存 proofFiles/{id}
@@ -1168,7 +1171,7 @@ function getTeach(wk,ck){const v=weeks[wk]?.['T'+ck];return Array.isArray(v)?v.f
 // 加診：weeks[wk]['X'+ck] 是該班以「加診」身分排入的助理 id
 function getExtra(wk,ck){const v=weeks[wk]?.['X'+ck];return Array.isArray(v)?v.filter(x=>typeof x==='string'):[];}
 let selfExtraMode=false; // 「我要加診」模式（登記本人請假的助理）
-const canSelfExtra=()=>effPerm()==='self'&&byId(myStaffId())?.role==='assistant'&&platformWrite;
+const canSelfExtra=()=>effPerm()==='self'&&byId(myStaffId())?.role==='assistant'&&platformWrite&&!!extraOpen[monthInfo().ym];
 let poolMode='basic'; // 左方「基本／加診」切換，只影響之後新排入的助理
 let leaveIdx=new Map();
 // 請假審核：助理、醫師自己登記（沒有排班管理以上權限）的請假／休假要等管理者核准才生效
@@ -1652,8 +1655,8 @@ function lvDraftLater(l){
   if(l.pevents)pevents=l.pevents;if(l.proofs)proofs=l.proofs;
   if(l.leaves||l.pevents||l.proofs){buildLeaveIdx();renderAll();}
 }
-function saveLocal(){if(lvDraft){lvDraft.dirty=true;return;}try{localStorage.setItem(LOCAL_KEY,JSON.stringify({payPub,staff,cfg,weeks,leaves,familyCare:familyCare.concat(fcReqs),privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=(d.familyCare||[]).filter(x=>!x.status);fcReqs=(d.familyCare||[]).filter(x=>x.status);privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};payPub=d.payPub||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
+function saveLocal(){if(lvDraft){lvDraft.dirty=true;return;}try{localStorage.setItem(LOCAL_KEY,JSON.stringify({extraOpen,payPub,staff,cfg,weeks,leaves,familyCare:familyCare.concat(fcReqs),privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=(d.familyCare||[]).filter(x=>!x.status);fcReqs=(d.familyCare||[]).filter(x=>x.status);privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};payPub=d.payPub||{};extraOpen=d.extraOpen||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
@@ -1710,6 +1713,16 @@ const store={
     makeups=makeups.filter(x=>x.id!==id);renderAll();
     if(!db){saveLocal();return;}
     return queue('makeups/'+id,()=>db.doc('makeups/'+id).delete());
+  },
+  // 開放／停止開放加診：obj 為 null 時停止；wks 為這個月涵蓋的週（週一日期）
+  async extraOpen(ym,obj,wks){
+    if(obj)extraOpen[ym]=obj;else delete extraOpen[ym];renderAll();
+    if(!db){saveLocal();return;}
+    await queue('extraOpen/'+ym,()=>obj?db.doc('extraOpen/'+ym).set(obj):db.doc('extraOpen/'+ym).delete());
+    for(const wk of wks){const ref=db.doc('extraOpenWk/'+wk);
+      await queue('extraOpenWk/'+wk,()=>db.runTransaction(async t=>{const sn=await t.get(ref),m=Object.assign({},sn.exists?sn.data().months||{}:{});
+        if(obj)m[ym]=true;else delete m[ym];
+        if(Object.keys(m).length)t.set(ref,{months:m});else if(sn.exists)t.delete(ref);}));}
   },
   async payPub(ym,obj){
     if(obj)payPub[ym]=obj;else delete payPub[ym];renderAll();
@@ -2073,6 +2086,7 @@ function start(acc){
     Object.keys(payPub).forEach(ym=>{if(paySubs[ym])return;const key=sid+'_'+ym;
       paySubs[ym]=db.doc('pay/'+key).onSnapshot(d=>{if(d.exists)pay[key]=clone(d.data());else delete pay[key];renderAll();},()=>{delete pay[key];renderAll();});});
     Object.keys(paySubs).forEach(ym=>{if(payPub[ym])return;paySubs[ym]();delete paySubs[ym];delete pay[sid+'_'+ym];});};
+  db.collection('extraOpen').onSnapshot(snap=>{extraOpen=docsTo(snap);renderAll();},e=>console.warn(e));
   db.collection('payPublish').onSnapshot(snap=>{payPub=docsTo(snap);syncPaySubs();renderAll();},e=>console.warn(e));
 }
 function showGate(kind,email){
@@ -2308,6 +2322,8 @@ function renderSchedule(mi){
   document.querySelectorAll('#schedViewSeg [data-view]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.view===view)));
   $('baseInfo').textContent=b?`${mi.label}已於 ${fmtAt(b.at)} 定案`:`${mi.label}尚未定案`;
   $('baselineBtn').textContent=b?'重新定案':'定案';
+  {const xb=$('extraOpenBtn'),on=!!extraOpen[mi.ym];xb.style.display=canWrite?'':'none';xb.disabled=!b&&!on;xb.title=b||on?'':'請先定案，才能開放助理自行加診';
+   xb.textContent=on?'停止開放加診':'開放加診';xb.classList.toggle('xopen-on',on);}
   const note=view==='orig'
     ?(b?'已定案：原始班表鎖定，只能查看；要修改請切換到「異動班表」。':'')
     :(b?'':'這個月還沒有定案，所以還沒有異動班表。請先在「原始班表」排班，按「定案」後會複製一份到這裡。');
@@ -4214,6 +4230,7 @@ const sxTarget=g=>{const pos=g.closest('[data-pos]');if(!pos)return null;return 
 function selfExtraProblem(t){
   const me=myStaffId(),P=POS[t.pi],sh=SHIFTS.find(x=>x.id===t.sh),d=parseYmd(t.date),when=`${md(d)} ${sh?.name||''}`;
   if(schedViewOf()!=='live')return '加診只能在異動班表進行。';
+  if(!extraOpen[t.date.slice(0,7)])return `${+t.date.slice(5,7)} 月還沒開放加診。`;
   if(P.role!=='assistant'&&t.pi!==FOLLOW)return `${P.label}只能排${ROLE[P.role]}。`;
   if(new Date(`${t.date}T${(sh?.time||'00:00').split('-')[0]}:00`)<=new Date())return `${when}已經開始或過去了，不能加診。`;
   if(getCell(t.wk,t.ck).some(a=>a.includes(me)))return `你在 ${when}已經有排班了。`;
@@ -4953,6 +4970,13 @@ $('autoBtn').onclick=()=>{if(origBlocked())return;
 // 清空本月：只清除本月日期的排班（跨月的週只動本月那幾天），可復原
 // 原始／異動班表切換、定案
 $('schedViewSeg').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;schedAuto=false;prefs.schedView=b.dataset.view;savePrefs();selectedId=null;renderAll();});
+$('extraOpenBtn').onclick=()=>{
+  if(!canWrite)return;
+  const mi=monthInfo(),on=!!extraOpen[mi.ym],wks=mi.mondays.map(m=>ymd(m));
+  if(on){dialog(`<h3>停止開放加診・${mi.label}</h3><p>停止後，助理就不能再自己加診；已經加的診次不受影響。</p>`,()=>{store.extraOpen(mi.ym,null,wks);toast(`已停止開放 ${mi.label} 加診。`);},'停止開放',true,'返回');return;}
+  if(!baselines[mi.ym]){toast('請先定案，才能開放助理自行加診。','warn');return;}
+  dialog(`<h3>開放加診・${mi.label}</h3><p>開放後，權限為「登記本人請假」的助理可以在異動班表按「我要加診」，自己補上缺人或缺口（算作加診）。</p>`,()=>{const me=byId(myStaffId());store.extraOpen(mi.ym,{at:Date.now(),by:myId||'本機',byName:me?fullName(me):(myId||'管理者')},wks);toast(`已開放 ${mi.label} 加診。`);},'開放加診');
+};
 $('baselineBtn').onclick=()=>{
   if(!canWrite)return;
   const mi=monthInfo(),exists=baselines[mi.ym];

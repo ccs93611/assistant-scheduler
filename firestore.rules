@@ -49,8 +49,9 @@ service cloud.firestore {
     match /weeks/{wk}      {
       allow read: if canView() || isKiosk();
       allow write: if canManage();
-      // 「我要加診」：登記本人請假的人可以改既有週班表的一個診次（格子、跟診配對、加診名單，最多 3 個欄位）
+      // 「我要加診」：排班管理開放加診的週（extraOpenWk/{週一}），登記本人請假的人可以改既有週班表的一個診次（格子、跟診配對、加診名單，最多 3 個欄位）
       allow update: if perm() == 'self'
+        && exists(/databases/$(database)/documents/extraOpenWk/$(wk))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['c', 'by', 'name', 'at'])
         && request.resource.data.c.diff(resource.data.c).affectedKeys().size() <= 3;
     }
@@ -211,6 +212,9 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/payPublish/$(resource.data.ym)));
       allow write: if isSuper();
     }
+    // 開放加診：extraOpen/{YYYY-MM} 給畫面判斷，extraOpenWk/{週一} 給上面的週班表規則判斷
+    match /extraOpen/{ym}   { allow read: if canView(); allow write: if canManage(); }
+    match /extraOpenWk/{wk} { allow read: if canView(); allow write: if canManage(); }
     match /payPublish/{ym} {
       allow read: if canView();
       allow write: if isSuper();
