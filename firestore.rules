@@ -147,11 +147,12 @@ service cloud.firestore {
       allow create: if canManage() || isSelf(request.resource.data.staffId);
       allow delete: if canManage() || isSelf(resource.data.staffId);
     }
+    // 家庭照顧假：規則同請假，本人只能新增、修改、刪除自己待審核（或被退回）的申請，核准後的紀錄只有管理者能改
     match /familyCare/{id} {
       allow read: if canView();
-      allow create: if canManage() || isSelf(request.resource.data.staffId);
-      allow update: if canManage() || (isSelf(resource.data.staffId) && isSelf(request.resource.data.staffId));
-      allow delete: if canManage() || isSelf(resource.data.staffId);
+      allow create: if canManage() || selfLeaveOK(request.resource.data);
+      allow update: if canManage() || (selfLeaveOK(resource.data) && selfLeaveOK(request.resource.data));
+      allow delete: if canManage() || (isSelf(resource.data.staffId) && resource.data.get('status', '') in ['pending', 'rejected']);
     }
 
     // 事假補班：規則同請假
