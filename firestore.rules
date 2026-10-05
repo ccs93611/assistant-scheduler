@@ -50,10 +50,13 @@ service cloud.firestore {
       allow read: if canView() || isKiosk();
       allow write: if canManage();
       // 「我要加診」：排班管理開放加診的週（extraOpenWk/{週一}），登記本人請假的人可以改既有週班表的一個診次（格子、跟診配對、加診名單，最多 3 個欄位）
+      // 「換班」：排班管理開放換班的週（swapOpenWk/{週一}），最多改同一週兩個診次（各含格子、跟診配對、加診名單、教育配對，共 8 個欄位）
       allow update: if perm() == 'self'
-        && exists(/databases/$(database)/documents/extraOpenWk/$(wk))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['c', 'by', 'name', 'at'])
-        && request.resource.data.c.diff(resource.data.c).affectedKeys().size() <= 3;
+        && ((exists(/databases/$(database)/documents/extraOpenWk/$(wk))
+             && request.resource.data.c.diff(resource.data.c).affectedKeys().size() <= 3)
+          || (exists(/databases/$(database)/documents/swapOpenWk/$(wk))
+             && request.resource.data.c.diff(resource.data.c).affectedKeys().size() <= 8));
     }
     // 誰正在編輯班表：presence/{uid}，只能寫自己的；排班管理以上才會寫入
     match /presence/{uid}  { allow read: if canView(); allow write: if signedIn() && request.auth.uid == uid && canManage(); allow delete: if signedIn() && request.auth.uid == uid; }
@@ -213,6 +216,14 @@ service cloud.firestore {
       allow write: if isSuper();
     }
     // 開放加診：extraOpen/{YYYY-MM} 給畫面判斷，extraOpenWk/{週一} 給上面的週班表規則判斷
+    // 開放換班與換班申請：申請人（from）提出，對象（to）同意或拒絕；兩人與排班管理以上看得到
+    match /swapOpen/{ym}    { allow read: if canView(); allow write: if canManage(); }
+    match /swapOpenWk/{wk}  { allow read: if canView(); allow write: if canManage(); }
+    match /swapReqs/{id} {
+      allow read: if canManage() || (signedIn() && (resource.data.from == mySid() || resource.data.to == mySid()));
+      allow create: if canManage() || (isSelf(request.resource.data.from) && request.resource.data.status == 'pending');
+      allow update, delete: if canManage() || (signedIn() && (resource.data.from == mySid() || resource.data.to == mySid()));
+    }
     match /extraOpen/{ym}   { allow read: if canView(); allow write: if canManage(); }
     match /extraOpenWk/{wk} { allow read: if canView(); allow write: if canManage(); }
     match /payPublish/{ym} {

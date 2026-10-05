@@ -116,6 +116,13 @@ main{padding-block:18px 48px;}
 .sched.sched-ref .pool .seg,.sched.sched-ref .pool .legend,.sched.sched-ref .pool > .hint{display:none;}
 .sched.sched-ref .pool .chip{cursor:default; pointer-events:none;}
 /* 我要加診（登記本人請假的助理）：加診模式時，異動班表上的缺人、缺口可以點 */
+#swapOpenBtn.sopen-on{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+.self-swap-btn{margin-top:8px; width:100%; background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600;}
+.self-swap-btn[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent-soft);}
+body.self-swap-on #weeks .item.sw-ok{cursor:pointer; outline:2px dashed var(--accent); outline-offset:1px;}
+body.self-swap-on #weeks .item.sw-picked{outline:3px solid var(--accent); outline-offset:1px; box-shadow:0 0 0 4px var(--accent-soft);}
+.swap-card{margin-bottom:10px;}
+.swap-card table td{vertical-align:middle;}
 #extraOpenBtn.xopen-on{background:var(--extra-bd); border-color:var(--extra-bd); color:#fff;}
 .self-extra-btn{margin-top:12px; width:100%; background:var(--extra-bd); border-color:var(--extra-bd); color:#fff; font-weight:600;}
 .self-extra-btn[aria-pressed="true"]{box-shadow:0 0 0 3px var(--extra); }
@@ -682,6 +689,7 @@ body.gated .shell{display:none;}
           <h2 class="pool-h">助理<span class="seg" role="group" aria-label="排班類型"><button type="button" data-mode="basic" aria-pressed="true">基本</button><button type="button" data-mode="extra" aria-pressed="false">加診</button></span></h2>
           <div class="chips" id="chipsAssistant"></div>
           <button type="button" class="self-extra-btn" id="selfExtraBtn" aria-pressed="false" hidden>我要加診</button>
+          <button type="button" class="self-swap-btn" id="selfSwapBtn" aria-pressed="false" hidden>我要換班</button>
           <div class="legend">
             <span><b style="background:var(--doc-soft);border:1px solid var(--doc)"></b>跟診（先排醫師，助理排在醫師下方）</span>
             <span><span class="chip gapchip" draggable="true" tabindex="0" data-chip="_gap" title="拖到班表可以多開一個待補的缺口"><b></b>缺口</span>尚未排滿（可拖曳到班表）</span>
@@ -696,9 +704,11 @@ body.gated .shell{display:none;}
             <span class="hint" id="baseInfo" style="margin:0"></span>
             <button type="button" class="small" id="baselineBtn" data-w>定案</button>
             <button type="button" class="small" id="extraOpenBtn">開放加診</button>
+            <button type="button" class="small" id="swapOpenBtn">開放換班</button>
             <span class="hint" id="baselineHint" style="margin:0">定案後可開放助理加診、換班</span>
           </div>
           <div class="banner" id="origNote" hidden></div>
+          <div class="card swap-card" id="swapCard" hidden></div>
           <div class="presence" id="presenceBar" hidden></div>
           <div class="weeks" id="weeks"></div>
         </div>
@@ -1073,6 +1083,8 @@ const PREF_KEY='clinic_roster_prefs_v1';
 let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, userNs=null, accessLinks={};
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], fcReqs=[], privateInfo={}, isAdmin=true;
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
+let swapOpen={}; // 開放助理換班的月份：swapOpen[YYYY-MM]={at,by,byName}
+let swapReqs=[]; // 換班申請：{id,from,to,a:{id,wk,ck,pi,date,sh},b:{…},status:'pending'|'accepted'|'rejected'|'void',at,doneAt}
 let extraOpen={}; // 開放助理自行加診的月份：extraOpen[YYYY-MM]={at,by,byName}
 let payPub={}; // 已發布的薪資月份：payPub[YYYY-MM]={at,by,byName}；發布後員工才看得到自己該月的薪資
 let makeups=[]; // 舊版手動登記的事假補班 {id,staffId,date,shifts,note}，已不再使用
@@ -1170,6 +1182,8 @@ function getLink(wk,ck){const v=weeks[wk]?.['L'+ck];return Array.isArray(v)?v.fi
 function getTeach(wk,ck){const v=weeks[wk]?.['T'+ck];return Array.isArray(v)?v.filter(x=>Array.isArray(x)&&x.length===2).map(x=>x.slice()):[];}
 // 加診：weeks[wk]['X'+ck] 是該班以「加診」身分排入的助理 id
 function getExtra(wk,ck){const v=weeks[wk]?.['X'+ck];return Array.isArray(v)?v.filter(x=>typeof x==='string'):[];}
+let selfSwapMode=false,swapPick=null; // 「我要換班」模式；swapPick＝已選的自己那一診
+const canSelfSwap=()=>effPerm()==='self'&&byId(myStaffId())?.role==='assistant'&&platformWrite&&!!swapOpen[monthInfo().ym];
 let selfExtraMode=false; // 「我要加診」模式（登記本人請假的助理）
 const canSelfExtra=()=>effPerm()==='self'&&byId(myStaffId())?.role==='assistant'&&platformWrite&&!!extraOpen[monthInfo().ym];
 let poolMode='basic'; // 左方「基本／加診」切換，只影響之後新排入的助理
@@ -1655,8 +1669,8 @@ function lvDraftLater(l){
   if(l.pevents)pevents=l.pevents;if(l.proofs)proofs=l.proofs;
   if(l.leaves||l.pevents||l.proofs){buildLeaveIdx();renderAll();}
 }
-function saveLocal(){if(lvDraft){lvDraft.dirty=true;return;}try{localStorage.setItem(LOCAL_KEY,JSON.stringify({extraOpen,payPub,staff,cfg,weeks,leaves,familyCare:familyCare.concat(fcReqs),privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=(d.familyCare||[]).filter(x=>!x.status);fcReqs=(d.familyCare||[]).filter(x=>x.status);privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};payPub=d.payPub||{};extraOpen=d.extraOpen||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
+function saveLocal(){if(lvDraft){lvDraft.dirty=true;return;}try{localStorage.setItem(LOCAL_KEY,JSON.stringify({swapOpen,swapReqs,extraOpen,payPub,staff,cfg,weeks,leaves,familyCare:familyCare.concat(fcReqs),privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=(d.familyCare||[]).filter(x=>!x.status);fcReqs=(d.familyCare||[]).filter(x=>x.status);privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};payPub=d.payPub||{};extraOpen=d.extraOpen||{};swapOpen=d.swapOpen||{};swapReqs=d.swapReqs||[];makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
@@ -1723,6 +1737,25 @@ const store={
       await queue('extraOpenWk/'+wk,()=>db.runTransaction(async t=>{const sn=await t.get(ref),m=Object.assign({},sn.exists?sn.data().months||{}:{});
         if(obj)m[ym]=true;else delete m[ym];
         if(Object.keys(m).length)t.set(ref,{months:m});else if(sn.exists)t.delete(ref);}));}
+  },
+  async swapOpen(ym,obj,wks){
+    if(obj)swapOpen[ym]=obj;else delete swapOpen[ym];renderAll();
+    if(!db){saveLocal();return;}
+    await queue('swapOpen/'+ym,()=>obj?db.doc('swapOpen/'+ym).set(obj):db.doc('swapOpen/'+ym).delete());
+    for(const wk of wks){const ref=db.doc('swapOpenWk/'+wk);
+      await queue('swapOpenWk/'+wk,()=>db.runTransaction(async t=>{const sn=await t.get(ref),m=Object.assign({},sn.exists?sn.data().months||{}:{});
+        if(obj)m[ym]=true;else delete m[ym];
+        if(Object.keys(m).length)t.set(ref,{months:m});else if(sn.exists)t.delete(ref);}));}
+  },
+  async swapReq(r){
+    swapReqs=swapReqs.filter(x=>x.id!==r.id).concat([r]);renderAll();
+    if(!db){saveLocal();return;}
+    const {id,...body}=r;return queue('swapReqs/'+id,()=>db.doc('swapReqs/'+id).set(body));
+  },
+  async delSwapReq(id){
+    swapReqs=swapReqs.filter(x=>x.id!==id);renderAll();
+    if(!db){saveLocal();return;}
+    return queue('swapReqs/'+id,()=>db.doc('swapReqs/'+id).delete());
   },
   async payPub(ym,obj){
     if(obj)payPub[ym]=obj;else delete payPub[ym];renderAll();
@@ -2086,6 +2119,12 @@ function start(acc){
     Object.keys(payPub).forEach(ym=>{if(paySubs[ym])return;const key=sid+'_'+ym;
       paySubs[ym]=db.doc('pay/'+key).onSnapshot(d=>{if(d.exists)pay[key]=clone(d.data());else delete pay[key];renderAll();},()=>{delete pay[key];renderAll();});});
     Object.keys(paySubs).forEach(ym=>{if(payPub[ym])return;paySubs[ym]();delete paySubs[ym];delete pay[sid+'_'+ym];});};
+  db.collection('swapOpen').onSnapshot(snap=>{swapOpen=docsTo(snap);renderAll();},e=>console.warn(e));
+  {const toArr=snap=>snap.docs.map(d=>Object.assign({id:d.id},d.data()));
+   if(mng)db.collection('swapReqs').onSnapshot(snap=>{swapReqs=toArr(snap);renderAll();},e=>console.warn(e));
+   else if(sid){let A=[],B=[];const merge=()=>{const m=new Map();A.concat(B).forEach(x=>m.set(x.id,x));swapReqs=[...m.values()];renderAll();};
+     db.collection('swapReqs').where('from','==',sid).onSnapshot(snap=>{A=toArr(snap);merge();},e=>console.warn(e));
+     db.collection('swapReqs').where('to','==',sid).onSnapshot(snap=>{B=toArr(snap);merge();},e=>console.warn(e));}}
   db.collection('extraOpen').onSnapshot(snap=>{extraOpen=docsTo(snap);renderAll();},e=>console.warn(e));
   db.collection('payPublish').onSnapshot(snap=>{payPub=docsTo(snap);syncPaySubs();renderAll();},e=>console.warn(e));
 }
@@ -2162,6 +2201,9 @@ function renderAll(){
   // 沒有排班權限：定案按鈕直接隱藏（不只是停用）；其他排班按鈕在下方依分頁一起處理
   ['baselineBtn','baselineHint'].forEach(id=>$(id).style.display=canWrite?'':'none');
   document.querySelector('#tab-schedule .sched').classList.toggle('sched-ref',!canWrite); // 左側只留人員代號作為對照
+  {const ok=canSelfSwap();if(!ok){selfSwapMode=false;swapPick=null;}const b=$('selfSwapBtn');b.hidden=!ok;b.setAttribute('aria-pressed',String(selfSwapMode));b.textContent=selfSwapMode?'結束換班模式':'我要換班';
+   document.body.classList.toggle('self-swap-on',selfSwapMode&&prefs.tab==='schedule'&&schedViewOf()==='live');}
+  {const n=swapReqs.filter(r=>r.status==='pending'&&r.to===myStaffId()).length,tb=document.querySelector('nav.tabs button[data-tab="schedule"]');if(tb)tb.textContent=n?`排班表（${n}）`:'排班表';}
   {const ok=canSelfExtra();if(!ok)selfExtraMode=false;const b=$('selfExtraBtn');b.hidden=!ok;b.setAttribute('aria-pressed',String(selfExtraMode));b.textContent=selfExtraMode?'結束加診模式':'我要加診';
    document.body.classList.toggle('self-extra-on',selfExtraMode&&prefs.tab==='schedule'&&schedViewOf()==='live');markSelfExtra();}
   $('payTabBtn').hidden=!canSeePay();
@@ -2324,6 +2366,9 @@ function renderSchedule(mi){
   $('baselineBtn').textContent=b?'重新定案':'定案';
   {const xb=$('extraOpenBtn'),on=!!extraOpen[mi.ym];xb.style.display=canWrite?'':'none';xb.disabled=!b&&!on;xb.title=b||on?'':'請先定案，才能開放助理自行加診';
    xb.textContent=on?'停止開放加診':'開放加診';xb.classList.toggle('xopen-on',on);}
+  {const sb=$('swapOpenBtn'),on=!!swapOpen[mi.ym];sb.style.display=canWrite?'':'none';sb.disabled=!b&&!on;sb.title=b||on?'':'請先定案，才能開放助理換班';
+   sb.textContent=on?'停止開放換班':'開放換班';sb.classList.toggle('sopen-on',on);}
+  renderSwapCard();
   const note=view==='orig'
     ?(b?'已定案：原始班表鎖定，只能查看；要修改請切換到「異動班表」。':'')
     :(b?'':'這個月還沒有定案，所以還沒有異動班表。請先在「原始班表」排班，按「定案」後會複製一份到這裡。');
@@ -2412,7 +2457,7 @@ function renderWeeks(mi){
   }).join('');
   // 重畫後還原每週表格的左右捲動位置（點選人員、排班等操作不會跳回週一）
   if(keepX.ym===mi.ym)document.querySelectorAll('#weeks .table-wrap').forEach((el,i)=>{if(keepX.x[i])el.scrollLeft=keepX.x[i];});
-  markSelfExtra();
+  markSelfExtra();markSelfSwap();
 }
 
 // 列表標題旁的「◀ 月｜年 ▶」查看期間按鈕
@@ -3702,8 +3747,8 @@ function swapProblem(a,b){
   }
   return '';
 }
-function swapItems(a,b){
-  if(!canWrite||origBlocked())return;
+function swapItems(a,b,bySwapReq){ // bySwapReq：助理同意換班申請時執行（不需排班權限）
+  if(!bySwapReq&&(!canWrite||origBlocked()))return;
   const bad=swapProblem(a,b);if(bad){toast(bad,'warn');return;}
   const same=a.wk===b.wk&&a.ck===b.ck;
   const exA=getExtra(a.wk,a.ck).includes(a.id),exB=getExtra(b.wk,b.ck).includes(b.id);
@@ -4222,7 +4267,7 @@ $('selfExtraBtn').addEventListener('click',()=>{
   if(selfExtraMode){selfExtraMode=false;renderAll();toast('已結束加診模式。');return;}
   if(!baselines[monthInfo().ym]){toast(`${monthInfo().label}還沒定案，沒有異動班表，暫時不能加診。`,'warn');return;}
   if(schedViewOf()!=='live'){schedAuto=false;prefs.schedView='live';savePrefs();}
-  selfExtraMode=true;selectedId=null;renderAll();
+  selfExtraMode=true;selfSwapMode=false;swapPick=null;selectedId=null;renderAll();
   toast('加診模式：點異動班表上的「缺人」或「缺口」就可以幫自己加診，再按一次按鈕結束。');
 });
 // 這一格缺人／缺口能不能讓自己加診：可以回傳空字串，不行回傳原因
@@ -4274,6 +4319,81 @@ function selfExtraAdd(t){
   const d=parseYmd(t.date),sh=SHIFTS.find(z=>z.id===t.sh);
   toast(`已幫你加診：${md(d)} ${sh?.name||''} ${POS[t.pi].label}。`);
 }
+// ---------- 換班 ----------
+const swT=el=>{const pos=el.closest('[data-pos]');if(!pos||!el.dataset.item||el.dataset.item===GAP)return null;return {id:el.dataset.item,wk:el.dataset.wk,ck:el.dataset.ck,pi:Number(el.dataset.pi),date:pos.dataset.date,sh:pos.dataset.sh};};
+const swSame=(x,y)=>x&&y&&x.id===y.id&&x.wk===y.wk&&x.ck===y.ck;
+const swSlotTxt=t=>{const d=parseYmd(t.date);return `${md(d)}（${DAYS[(d.getDay()+6)%7]}）${SHIFTS.find(z=>z.id===t.sh)?.name||''} ${POS[t.pi]?.label||''}`;};
+// 這一診能不能拿來換：可以回傳空字串
+function swapBase(t){
+  if(schedViewOf()!=='live')return '換班只能在異動班表進行。';
+  if(!swapOpen[t.date.slice(0,7)])return `${+t.date.slice(5,7)} 月還沒開放換班。`;
+  if(byId(t.id)?.role!=='assistant')return '只能和助理換班。';
+  const sh=SHIFTS.find(z=>z.id===t.sh);if(new Date(`${t.date}T${(sh?.time||'00:00').split('-')[0]}:00`)<=new Date())return '這一診已經開始或過去了。';
+  if(isTraining(t.id)||getTeach(t.wk,t.ck).some(z=>z[0]===t.id||z[1]===t.id))return '有教育配對的診次不能換班，請洽排班管理者。';
+  if(swapReqs.some(r=>r.status==='pending'&&(swSame(r.a,t)||swSame(r.b,t))))return '這一診已經有待確認的換班申請。';
+  return '';
+}
+const swapTargetProblem=(a,b)=>b.id===a.id?'不能和自己換班。':a.wk===b.wk&&a.ck===b.ck?'同一診內不能互換。':(swapBase(b)||swapProblem(a,b));
+// 換班模式：先亮自己可換的診次；選好後只亮已選的那一診與可以交換的對象
+function markSelfSwap(){
+  document.querySelectorAll('#weeks .item.sw-ok,#weeks .item.sw-picked').forEach(el=>el.classList.remove('sw-ok','sw-picked'));
+  if(!document.body.classList.contains('self-swap-on'))return;
+  const me=myStaffId();
+  document.querySelectorAll('#weeks .item[data-item]').forEach(el=>{const t=swT(el);if(!t)return;
+    if(swapPick&&swSame(swapPick,t)){el.classList.add('sw-picked');return;}
+    if(t.id===me){if(!swapPick&&!swapBase(t))el.classList.add('sw-ok');return;} // 選好自己的一診後，自己其他診次不再亮
+    if(swapPick&&!swapTargetProblem(swapPick,t))el.classList.add('sw-ok');});
+}
+$('selfSwapBtn').addEventListener('click',()=>{
+  if(!canSelfSwap())return;
+  if(selfSwapMode){selfSwapMode=false;swapPick=null;renderAll();toast('已結束換班模式。');return;}
+  if(!baselines[monthInfo().ym]){toast(`${monthInfo().label}還沒定案，沒有異動班表，暫時不能換班。`,'warn');return;}
+  if(schedViewOf()!=='live'){schedAuto=false;prefs.schedView='live';savePrefs();}
+  selfSwapMode=true;selfExtraMode=false;swapPick=null;selectedId=null;renderAll();
+  toast('換班模式：先點自己要換掉的那一診，再點要交換的對象。再按一次按鈕結束。');
+});
+document.getElementById('weeks').addEventListener('click',e=>{
+  if(!selfSwapMode||!canSelfSwap())return;
+  const el=e.target.closest('.item[data-item]'),t=el&&swT(el);if(!t)return;
+  e.stopPropagation();e.preventDefault();
+  const me=myStaffId();
+  if(t.id===me){ // 選自己的一診（再點一次取消）
+    if(swSame(swapPick,t)){swapPick=null;renderAll();return;}
+    const bad=swapBase(t);if(bad){toast(bad,'warn');return;}
+    swapPick=t;renderAll();toast(`已選 ${swSlotTxt(t)}，再點要交換的對象（亮起來的人）。`);return;
+  }
+  if(!swapPick){toast('請先點自己要換掉的那一診。','warn');return;}
+  const bad=swapTargetProblem(swapPick,t);if(bad){toast(bad,'warn');return;}
+  const a=swapPick;
+  dialog(`<h3>提出換班</h3><p>你的 <b>${swSlotTxt(a)}</b><br>⇄ ${esc(fullName(byId(t.id)))} 的 <b>${swSlotTxt(t)}</b></p><p>${esc(codeOf(t.id))} 同意後就會直接換班，你們會接手對方的崗位。</p>`,()=>{
+    store.swapReq({id:uid('sw'),from:me,to:t.id,a,b:t,status:'pending',at:Date.now()});swapPick=null;
+    toast(`已向 ${codeOf(t.id)} 提出換班，等對方同意。`);
+  },'送出換班申請');
+},true);
+// 換班申請卡片：本人看到自己提出的、別人找自己的；排班管理以上看到全部
+function renderSwapCard(){
+  const box=$('swapCard'),me=myStaffId(),mine=r=>canWrite||r.from===me||r.to===me;
+  const list=swapReqs.filter(mine).sort((x,y)=>(x.status==='pending'?0:1)-(y.status==='pending'?0:1)||(y.at||0)-(x.at||0)).slice(0,20);
+  box.hidden=!list.length||prefs.tab!=='schedule';if(box.hidden){box.innerHTML='';return;}
+  const ST={pending:['warn','等待對方同意'],accepted:['','已換班'],rejected:['','對方已拒絕'],void:['','已失效']};
+  box.innerHTML=`<div class="lv-title-row"><h2 style="margin:0">換班申請</h2></div><div class="hol-scroll"><table class="list"><tbody>${list.map(r=>{const [c,t]=ST[r.status]||['',r.status];
+    const acts=r.status==='pending'?(r.to===me?`<button class="small primary" data-swok="${r.id}">同意</button> <button class="small danger" data-swno="${r.id}">拒絕</button>`:r.from===me||canWrite?`<button class="small" data-swdel="${r.id}">撤回</button>`:'')
+      :(r.from===me||r.to===me||canWrite?`<button class="small" data-swdel="${r.id}">刪除</button>`:'');
+    return `<tr><td><b>${esc(codeOf(r.from))}</b> ${swSlotTxt(r.a)}</td><td>⇄</td><td><b>${esc(codeOf(r.to))}</b> ${swSlotTxt(r.b)}</td><td><span class="pill ${c}">${t}</span><div class="att-mute" style="font-size:.72rem">${fmtAt(r.doneAt||r.at)}</div></td><td class="lr-acts">${acts}</td></tr>`;}).join('')}</tbody></table></div>`;
+  box.querySelectorAll('.hol-scroll').forEach(w=>{w.style.overflowY='auto';limitRows(w,5);});
+}
+$('swapCard').addEventListener('click',e=>{
+  const me=myStaffId();
+  const ok=e.target.closest('[data-swok]');if(ok){const r=swapReqs.find(x=>x.id===ok.dataset.swok);if(!r||r.to!==me)return;
+    const still=getCell(r.a.wk,r.a.ck)[r.a.pi]?.includes(r.a.id)&&getCell(r.b.wk,r.b.ck)[r.b.pi]?.includes(r.b.id);
+    const bad=!still?'班表已經變動，這個換班申請失效了。':!swapOpen[r.a.date.slice(0,7)]||!swapOpen[r.b.date.slice(0,7)]?'這個月已經停止開放換班。':swapProblem(r.a,r.b);
+    if(bad){store.swapReq(Object.assign({},r,{status:'void',doneAt:Date.now()}));toast(bad,'warn');return;}
+    dialog(`<h3>同意換班？</h3><p>${esc(codeOf(r.from))} 的 <b>${swSlotTxt(r.a)}</b><br>⇄ 你的 <b>${swSlotTxt(r.b)}</b></p><p>同意後馬上換班，你會接手對方的崗位。</p>`,()=>{
+      swapItems(r.a,r.b,true);store.swapReq(Object.assign({},r,{status:'accepted',doneAt:Date.now()}));
+    },'同意換班');return;}
+  const no=e.target.closest('[data-swno]');if(no){const r=swapReqs.find(x=>x.id===no.dataset.swno);if(!r||r.to!==me)return;store.swapReq(Object.assign({},r,{status:'rejected',doneAt:Date.now()}));toast('已拒絕換班。');return;}
+  const del=e.target.closest('[data-swdel]');if(del){const r=swapReqs.find(x=>x.id===del.dataset.swdel);if(!r||!(canWrite||r.from===me||r.to===me))return;store.delSwapReq(r.id);toast(r.status==='pending'?'已撤回換班申請。':'已刪除。');}
+});
 document.getElementById('weeks').addEventListener('click',e=>{const g=e.target.closest('.gap.why');if(!g||selectedId)return;e.stopPropagation();const [wk,ck,pi]=g.dataset.why.split('|');gapWhy(wk,ck,Number(pi));},true);
 function undoSched(){
   if(!canWrite||origBlocked())return;
@@ -4970,6 +5090,13 @@ $('autoBtn').onclick=()=>{if(origBlocked())return;
 // 清空本月：只清除本月日期的排班（跨月的週只動本月那幾天），可復原
 // 原始／異動班表切換、定案
 $('schedViewSeg').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;schedAuto=false;prefs.schedView=b.dataset.view;savePrefs();selectedId=null;renderAll();});
+$('swapOpenBtn').onclick=()=>{
+  if(!canWrite)return;
+  const mi=monthInfo(),on=!!swapOpen[mi.ym],wks=mi.mondays.map(m=>ymd(m));
+  if(on){dialog(`<h3>停止開放換班・${mi.label}</h3><p>停止後，助理就不能再提出或同意換班；已經換好的不受影響，還在等對方同意的申請會失效。</p>`,()=>{store.swapOpen(mi.ym,null,wks);toast(`已停止開放 ${mi.label} 換班。`);},'停止開放',true,'返回');return;}
+  if(!baselines[mi.ym]){toast('請先定案，才能開放助理換班。','warn');return;}
+  dialog(`<h3>開放換班・${mi.label}</h3><p>開放後，權限為「登記本人請假」的助理可以在異動班表按「我要換班」，選自己的一診和別人的一診提出互換；對方同意後就直接換班（接手對方的崗位）。</p>`,()=>{const me=byId(myStaffId());store.swapOpen(mi.ym,{at:Date.now(),by:myId||'本機',byName:me?fullName(me):(myId||'管理者')},wks);toast(`已開放 ${mi.label} 換班。`);},'開放換班');
+};
 $('extraOpenBtn').onclick=()=>{
   if(!canWrite)return;
   const mi=monthInfo(),on=!!extraOpen[mi.ym],wks=mi.mondays.map(m=>ymd(m));
