@@ -115,6 +115,11 @@ main{padding-block:18px 48px;}
 /* 沒有排班權限：左側只留醫師、助理代號作為對照（不能拖曳），隱藏基本／加診切換、顏色說明與拖曳提示（診數照常顯示） */
 .sched.sched-ref .pool .seg,.sched.sched-ref .pool .legend,.sched.sched-ref .pool > .hint{display:none;}
 .sched.sched-ref .pool .chip{cursor:default; pointer-events:none;}
+/* 我要加診（登記本人請假的助理）：加診模式時，異動班表上的缺人、缺口可以點 */
+.self-extra-btn{margin-top:12px; width:100%; background:var(--extra-bd); border-color:var(--extra-bd); color:#fff; font-weight:600;}
+.self-extra-btn[aria-pressed="true"]{box-shadow:0 0 0 3px var(--extra); }
+body.self-extra-on #weeks .pos .gap.sx-ok{cursor:pointer; background:var(--extra); outline:2px dashed var(--extra-bd); outline-offset:-2px;}
+body.self-extra-on #weeks .pos .gap.sx-ok:hover{background:var(--extra-bd);}
 .pool h2{font-size:.8rem; letter-spacing:.08em; color:var(--sub); margin:0 0 8px; font-weight:500;}
 .pool h2 + .chips{margin-bottom:16px;}
 .chips{display:flex; flex-direction:column; gap:6px;}
@@ -675,6 +680,7 @@ body.gated .shell{display:none;}
           <div class="chips" id="chipsDoctor"></div>
           <h2 class="pool-h">助理<span class="seg" role="group" aria-label="排班類型"><button type="button" data-mode="basic" aria-pressed="true">基本</button><button type="button" data-mode="extra" aria-pressed="false">加診</button></span></h2>
           <div class="chips" id="chipsAssistant"></div>
+          <button type="button" class="self-extra-btn" id="selfExtraBtn" aria-pressed="false" hidden>我要加診</button>
           <div class="legend">
             <span><b style="background:var(--doc-soft);border:1px solid var(--doc)"></b>跟診（先排醫師，助理排在醫師下方）</span>
             <span><span class="chip gapchip" draggable="true" tabindex="0" data-chip="_gap" title="拖到班表可以多開一個待補的缺口"><b></b>缺口</span>尚未排滿（可拖曳到班表）</span>
@@ -1161,6 +1167,8 @@ function getLink(wk,ck){const v=weeks[wk]?.['L'+ck];return Array.isArray(v)?v.fi
 function getTeach(wk,ck){const v=weeks[wk]?.['T'+ck];return Array.isArray(v)?v.filter(x=>Array.isArray(x)&&x.length===2).map(x=>x.slice()):[];}
 // 加診：weeks[wk]['X'+ck] 是該班以「加診」身分排入的助理 id
 function getExtra(wk,ck){const v=weeks[wk]?.['X'+ck];return Array.isArray(v)?v.filter(x=>typeof x==='string'):[];}
+let selfExtraMode=false; // 「我要加診」模式（登記本人請假的助理）
+const canSelfExtra=()=>effPerm()==='self'&&byId(myStaffId())?.role==='assistant'&&platformWrite;
 let poolMode='basic'; // 左方「基本／加診」切換，只影響之後新排入的助理
 let leaveIdx=new Map();
 // 請假審核：助理、醫師自己登記（沒有排班管理以上權限）的請假／休假要等管理者核准才生效
@@ -2140,6 +2148,8 @@ function renderAll(){
   // 沒有排班權限：定案按鈕直接隱藏（不只是停用）；其他排班按鈕在下方依分頁一起處理
   ['baselineBtn','baselineHint'].forEach(id=>$(id).style.display=canWrite?'':'none');
   document.querySelector('#tab-schedule .sched').classList.toggle('sched-ref',!canWrite); // 左側只留人員代號作為對照
+  {const ok=canSelfExtra();if(!ok)selfExtraMode=false;const b=$('selfExtraBtn');b.hidden=!ok;b.setAttribute('aria-pressed',String(selfExtraMode));b.textContent=selfExtraMode?'結束加診模式':'我要加診';
+   document.body.classList.toggle('self-extra-on',selfExtraMode&&prefs.tab==='schedule'&&schedViewOf()==='live');markSelfExtra();}
   $('payTabBtn').hidden=!canSeePay();
   // 排班相關按鈕（含上個月／本月／下個月）只在「排班表」分頁顯示；其他分頁各自有月份或年份切換
   $('curMonth').textContent=monthInfo().label; // 上個月／下個月之間顯示目前班表的年月
@@ -2386,6 +2396,7 @@ function renderWeeks(mi){
   }).join('');
   // 重畫後還原每週表格的左右捲動位置（點選人員、排班等操作不會跳回週一）
   if(keepX.ym===mi.ym)document.querySelectorAll('#weeks .table-wrap').forEach((el,i)=>{if(keepX.x[i])el.scrollLeft=keepX.x[i];});
+  markSelfExtra();
 }
 
 // 列表標題旁的「◀ 月｜年 ▶」查看期間按鈕
@@ -4189,6 +4200,62 @@ function gapWhy(wk,ck,pi){
     <p class="desc" style="margin:0 0 8px">${ok.length?`目前有 <b>${ok.length}</b> 位助理可以排進來：可以直接拖進來，或再按「自動排班 → 只補空缺」。`:'目前沒有任何助理可以排進來，原因如下。'}</p>
     <div class="why-list">${rows.sort((x,y)=>(x.why.length>0)-(y.why.length>0)).map(r=>`<div class="why-row${r.why.length?'':' ok'}"><b>${esc(fullName(r.a))}</b><span>${r.why.length?r.why.map(esc).join('；'):'✓ 目前可以排'}${r.info.length?` <small class="att-mute">（${r.info.map(esc).join('；')}）</small>`:''}</span></div>`).join('')}</div>
     <p class="hint">自動排班依序排：主櫃 → 跟診 → 健保 → 流動（晚 → 午 → 早）→ 副櫃（午 → 晚 → 早），前面的崗位先挑人。這裡顯示的是「現在」的狀態；如果有人目前可以排，通常是自動排班之後班表、請假或工時有變動（例如之後才核准請假、手動移動人員），或排班時他的工時已經到上限。</p>`,()=>{},'關閉');document.querySelector('.overlay:last-of-type [data-x]')?.remove();
+}
+$('selfExtraBtn').addEventListener('click',()=>{
+  if(!canSelfExtra())return;
+  if(selfExtraMode){selfExtraMode=false;renderAll();toast('已結束加診模式。');return;}
+  if(!baselines[monthInfo().ym]){toast(`${monthInfo().label}還沒定案，沒有異動班表，暫時不能加診。`,'warn');return;}
+  if(schedViewOf()!=='live'){schedAuto=false;prefs.schedView='live';savePrefs();}
+  selfExtraMode=true;selectedId=null;renderAll();
+  toast('加診模式：點異動班表上的「缺人」或「缺口」就可以幫自己加診，再按一次按鈕結束。');
+});
+// 這一格缺人／缺口能不能讓自己加診：可以回傳空字串，不行回傳原因
+const sxTarget=g=>{const pos=g.closest('[data-pos]');if(!pos)return null;return {wk:pos.dataset.wk,ck:pos.dataset.ck,pi:Number(pos.dataset.pi),date:pos.dataset.date,sh:pos.dataset.sh,doc:g.closest('.dstack[data-doc]')?.dataset.doc||null};};
+function selfExtraProblem(t){
+  const me=myStaffId(),P=POS[t.pi],sh=SHIFTS.find(x=>x.id===t.sh),d=parseYmd(t.date),when=`${md(d)} ${sh?.name||''}`;
+  if(schedViewOf()!=='live')return '加診只能在異動班表進行。';
+  if(P.role!=='assistant'&&t.pi!==FOLLOW)return `${P.label}只能排${ROLE[P.role]}。`;
+  if(new Date(`${t.date}T${(sh?.time||'00:00').split('-')[0]}:00`)<=new Date())return `${when}已經開始或過去了，不能加診。`;
+  if(getCell(t.wk,t.ck).some(a=>a.includes(me)))return `你在 ${when}已經有排班了。`;
+  if(isTraining(me))return '教育中的助理不能自己加診，請洽排班管理者。';
+  if(t.pi===FOLLOW){ // 跟診：要有醫師，且醫師這一診沒有休假
+    const docs=ppl(getCell(t.wk,t.ck)[FOLLOW]).filter(z=>byId(z)?.role==='doctor');
+    if(!docs.length)return '這一診沒有醫師，不能加跟診。';
+    if(t.doc&&onLeave(t.doc,t.date,t.sh))return `${codeOf(t.doc)} 這一診休假，不能加跟診。`;
+    if(!t.doc&&docs.every(z=>onLeave(z,t.date,t.sh)))return '這一診的醫師都休假，不能加跟診。';
+  }
+  return '';
+}
+// 加診模式下，只有能加診的缺人／缺口亮起（.sx-ok）
+function markSelfExtra(){
+  document.querySelectorAll('#weeks .gap.sx-ok').forEach(g=>g.classList.remove('sx-ok'));
+  if(!document.body.classList.contains('self-extra-on'))return;
+  document.querySelectorAll('#weeks .pos .gap').forEach(g=>{const t=sxTarget(g);if(t&&!selfExtraProblem(t))g.classList.add('sx-ok');});
+}
+// 加診模式：點異動班表上的缺人（空格）或缺口
+document.getElementById('weeks').addEventListener('click',e=>{
+  if(!selfExtraMode||!canSelfExtra())return;
+  const g=e.target.closest('.gap'),t=g&&sxTarget(g);if(!t)return;
+  e.stopPropagation();e.preventDefault();
+  const bad=selfExtraProblem(t);if(bad){toast(bad,'warn');return;}
+  const P=POS[t.pi],sh=SHIFTS.find(x=>x.id===t.sh),d=parseYmd(t.date),lbl=`${md(d)}（${DAYS[(d.getDay()+6)%7]}）${sh?.name||''} ${P.label}`,me=myStaffId();
+  const dow=Number(t.ck.split('_')[0]),over=dayCount(t.wk,dow,me)+1>(cfg.maxPerDay||2);
+  dialog(`<h3>要加診嗎？</h3><p>${lbl}${t.doc?`（跟 ${esc(codeOf(t.doc))}）`:''}</p><p>同意後會把你排進這一診，算作<b>加診</b>。</p>${over?`<p class="att-bad">加上這一診，你當天會超過 ${cfg.maxPerDay||2} 班。</p>`:''}${onLeave(me,t.date,t.sh)?'<p class="att-bad">你這一診有請假，加診後請記得確認是否要取消請假。</p>':''}`,()=>{selfExtraAdd(t);},'同意加診');
+},true);
+// 把自己排進這一診（加診）：只改這一個診次的格子、跟診配對與加診名單
+function selfExtraAdd(t){
+  const me=myStaffId(),tgt=getCell(t.wk,t.ck);let lk=getLink(t.wk,t.ck);
+  if(tgt.some(a=>a.includes(me)))return;
+  if(t.pi===FOLLOW){
+    const docs=ppl(tgt[FOLLOW]).filter(z=>byId(z)?.role==='doctor'&&!onLeave(z,t.date,t.sh));if(!docs.length)return; // 休假的醫師不跟
+    const load=d=>lk.filter(z=>z[1]===d).length;
+    const doc=t.doc&&docs.includes(t.doc)?t.doc:docs.slice().sort((a,b)=>load(a)-load(b))[0];
+    tgt[FOLLOW].push(me);lk=lk.concat([[me,doc]]);
+  }else{const gi=tgt[t.pi].indexOf(GAP);if(gi>=0)tgt[t.pi].splice(gi,1);tgt[t.pi].push(me);}
+  const x=getExtra(t.wk,t.ck).filter(v=>v!==me).concat([me]);
+  store.cells(t.wk,{[t.ck]:tgt,['L'+t.ck]:lk,['X'+t.ck]:x});
+  const d=parseYmd(t.date),sh=SHIFTS.find(z=>z.id===t.sh);
+  toast(`已幫你加診：${md(d)} ${sh?.name||''} ${POS[t.pi].label}。`);
 }
 document.getElementById('weeks').addEventListener('click',e=>{const g=e.target.closest('.gap.why');if(!g||selectedId)return;e.stopPropagation();const [wk,ck,pi]=g.dataset.why.split('|');gapWhy(wk,ck,Number(pi));},true);
 function undoSched(){
