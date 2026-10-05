@@ -501,6 +501,8 @@ body.gated .shell{display:none;}
 .dialog.ml-dialog{max-width:1180px;}
 .ml-head{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
 .ml-head h3{margin:0;}
+.ml-foot{display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:10px;}
+.ml-dirty{font-size:.8rem; color:var(--warn); margin-right:auto;}
 .ml-types{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
 .ml-types button{padding:4px 10px; font-size:.8rem;}
 .ml-types button{display:inline-flex; align-items:center; gap:5px;}
@@ -1463,7 +1465,31 @@ function loadKioskLocal(){
   }catch(e){}
 }
 function saveKioskLocal(fn){try{const d=JSON.parse(localStorage.getItem(KIOSK_KEY)||'null')||{};fn(d);localStorage.setItem(KIOSK_KEY,JSON.stringify(d));}catch(e){}}
-function saveLocal(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
+// 整月排假草稿：視窗開著時，請假、事件、證明的變更只改畫面上的資料，按「登記」才寫入（或送出申請），按「取消」全部還原
+// {snap: 開始時的資料, ops: 待寫入的動作, later: 草稿期間收到的資料庫更新, dirty: 本機模式有要存檔}
+let lvDraft=null;
+function lvPersist(fn){if(lvDraft){lvDraft.ops.push(fn);if(monthLeavePaint)monthLeavePaint();return;}return fn();}
+function lvDraftStart(){lvDraft={snap:{leaves:leaves.slice(),leaveReqs:leaveReqs.slice(),pevents:pevents.slice(),proofs:proofs.slice(),pfc:Object.assign({},proofFileCache)},ops:[],later:{},dirty:false};}
+async function lvDraftCommit(){
+  const d=lvDraft;lvDraft=null;if(!d)return 0;
+  for(const op of d.ops){try{await op();}catch(e){console.error(e);}}
+  if(!d.ops.length)lvDraftLater(d.later);
+  if(d.dirty&&!db)saveLocal();
+  return d.ops.length;
+}
+function lvDraftCancel(){
+  const d=lvDraft;lvDraft=null;if(!d)return;
+  leaves=d.snap.leaves;leaveReqs=d.snap.leaveReqs;pevents=d.snap.pevents;proofs=d.snap.proofs;Object.keys(proofFileCache).forEach(k=>delete proofFileCache[k]);Object.assign(proofFileCache,d.snap.pfc);
+  lvDraftLater(d.later);buildLeaveIdx();renderAll();
+  if(d.dirty&&!db)saveLocal();
+}
+// 草稿期間收到的資料庫更新，草稿結束後再套用
+function lvDraftLater(l){
+  if(l.leaves){leaves=l.leaves.filter(x=>!isLeaveReq(x));leaveReqs=l.leaves.filter(isLeaveReq);}
+  if(l.pevents)pevents=l.pevents;if(l.proofs)proofs=l.proofs;
+  if(l.leaves||l.pevents||l.proofs){buildLeaveIdx();renderAll();}
+}
+function saveLocal(){if(lvDraft){lvDraft.dirty=true;return;}try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare,privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=d.familyCare||[];privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
@@ -1548,31 +1574,35 @@ const store={
   async addProof(meta,data){
     const id=uid('pf');meta=Object.assign({id},meta);
     proofs=proofs.concat([meta]);if(data)proofFileCache[id]=data;renderAll();
-    if(!db){saveLocal();if(data){try{const k=LOCAL_KEY+'_proof';const m=JSON.parse(localStorage.getItem(k)||'{}');m[id]=data;localStorage.setItem(k,JSON.stringify(m));}catch(e){toast('本機空間不足，檔案沒有存起來。','warn');}}return;}
+    return lvPersist(async()=>{if(!db){saveLocal();if(data){try{const k=LOCAL_KEY+'_proof';const m=JSON.parse(localStorage.getItem(k)||'{}');m[id]=data;localStorage.setItem(k,JSON.stringify(m));}catch(e){toast('本機空間不足，檔案沒有存起來。','warn');}}return;}
     const {id:_,...body}=meta;
     if(data)await db.doc('proofFiles/'+id).set({staffId:meta.staffId,data});
     return db.doc('leaveProofs/'+id).set(body).catch(handleWriteError);
+    });
   },
   async delProof(id){
     const p=proofs.find(x=>x.id===id);proofs=proofs.filter(x=>x.id!==id);delete proofFileCache[id];renderAll();
-    if(!db){saveLocal();try{const k=LOCAL_KEY+'_proof';const m=JSON.parse(localStorage.getItem(k)||'{}');delete m[id];localStorage.setItem(k,JSON.stringify(m));}catch(e){}return;}
+    return lvPersist(async()=>{if(!db){saveLocal();try{const k=LOCAL_KEY+'_proof';const m=JSON.parse(localStorage.getItem(k)||'{}');delete m[id];localStorage.setItem(k,JSON.stringify(m));}catch(e){}return;}
     await db.doc('leaveProofs/'+id).delete().catch(handleWriteError);
     if(p?.kind==='file')await db.doc('proofFiles/'+id).delete().catch(()=>{});
+    });
   },
   async leaveReq(r){
     r=r.kind==='cancel'?r:fullDayAnnual(r);
     // 同一人同一天只保留最新的一筆待審申請
     const old=leaveReqs.filter(x=>x.staffId===r.staffId&&x.date===r.date&&x.status==='pending'&&x.id!==r.id);
     leaveReqs=leaveReqs.filter(x=>!old.includes(x)&&x.id!==r.id).concat([r]);renderAll();
-    if(!db){saveLocal();return;}
+    return lvPersist(async()=>{if(!db){saveLocal();return;}
     old.forEach(x=>queue('leaves/'+x.id,()=>db.doc('leaves/'+x.id).delete()));
     const {id,...body}=r;
     return queue('leaves/'+id,()=>db.doc('leaves/'+id).set(body));
+    });
   },
   async delLeaveReq(id){
     leaveReqs=leaveReqs.filter(x=>x.id!==id);renderAll();
-    if(!db){saveLocal();return;}
+    return lvPersist(async()=>{if(!db){saveLocal();return;}
     return queue('leaves/'+id,()=>db.doc('leaves/'+id).delete());
+    });
   },
   // 核准：取消→刪掉原本的請假；新增／修改→換掉當天原本的請假（申請內容已含原本的班次）
   async reviewLeave(id,ok,reason){
@@ -1597,9 +1627,10 @@ const store={
   async leave(l){
     if(needReview(l.staffId))return this.leaveReq(Object.assign({},l,{status:'pending',kind:'add',reqAt:Date.now()}));
     l=fullDayAnnual(l);leaves.push(l);buildLeaveIdx();renderAll();
-    if(!db){saveLocal();return;}
+    return lvPersist(async()=>{if(!db){saveLocal();return;}
     const {id,...body}=l;
     return queue('leaves/'+id,()=>db.doc('leaves/'+id).set(body));
+    });
   },
   async putLeave(l){
     if(needReview(l.staffId)&&pastLeave(leaves.find(x=>x.id===l.id))){toast(pastMsg,'warn');return;}
@@ -1608,9 +1639,10 @@ const store={
       return this.leaveReq(Object.assign({},l,{id:uid('lr'),status:'pending',kind:'edit',replaces:l.id,reqAt:Date.now()}));
     }
     l=fullDayAnnual(l);leaves=leaves.map(x=>x.id===l.id?l:x);buildLeaveIdx();renderAll();
-    if(!db){saveLocal();return;}
+    return lvPersist(async()=>{if(!db){saveLocal();return;}
     const {id,...body}=l;
     return queue('leaves/'+id,()=>db.doc('leaves/'+id).set(body));
+    });
   },
   async delLeave(id){
     const old=leaves.find(x=>x.id===id);
@@ -1618,8 +1650,9 @@ const store={
     if(old&&needReview(old.staffId)){const {id:_,...rest}=old;return this.leaveReq(Object.assign(rest,{id:uid('lr'),status:'pending',kind:'cancel',replaces:id,reqAt:Date.now()}));}
     if(!old&&leaveReqs.some(x=>x.id===id))return this.delLeaveReq(id);
     leaves=leaves.filter(x=>x.id!==id);buildLeaveIdx();renderAll();
-    if(!db){saveLocal();return;}
+    return lvPersist(async()=>{if(!db){saveLocal();return;}
     return queue('leaves/'+id,()=>db.doc('leaves/'+id).delete());
+    });
   },
   // 一次新增／刪除多筆請假（產假、育嬰假等連續假），Firestore 以批次寫入
   async leavesBulk(adds,delIds,reviewed){
@@ -1630,7 +1663,7 @@ const store={
       return;
     }
     adds=adds.map(fullDayAnnual);const del=new Set(delIds);leaves=leaves.filter(l=>!del.has(l.id)).concat(adds);buildLeaveIdx();renderAll();
-    if(!db){saveLocal();return;}
+    return lvPersist(async()=>{if(!db){saveLocal();return;}
     const ops=[...delIds.map(id=>['d',id]),...adds.map(l=>['s',l])];
     try{
       for(let i=0;i<ops.length;i+=400){
@@ -1639,6 +1672,7 @@ const store={
         await b.commit();
       }
     }catch(e){handleWriteError(e);}
+    });
   },
   // 原始班表：Firestore 以 baselines/{YYYY-MM} 存，週班表同樣以 JSON 字串編碼（不接受巢狀陣列）
   async baseline(ym,obj){
@@ -1660,14 +1694,16 @@ const store={
   },
   async pev(e){
     pevents=pevents.filter(x=>x.id!==e.id).concat([e]);renderAll();
-    if(!db){saveLocal();return;}
+    return lvPersist(async()=>{if(!db){saveLocal();return;}
     const {id,...body}=e;
     return queue('personalEvents/'+id,()=>db.doc('personalEvents/'+id).set(body));
+    });
   },
   async delPev(id){
     pevents=pevents.filter(x=>x.id!==id);renderAll();
-    if(!db){saveLocal();return;}
+    return lvPersist(async()=>{if(!db){saveLocal();return;}
     return queue('personalEvents/'+id,()=>db.doc('personalEvents/'+id).delete());
+    });
   },
   async fc(l){
     familyCare.push(l);renderAll();
@@ -1790,7 +1826,7 @@ function start(acc){
     const mt={};snap.docs.forEach(d=>{const v=d.data();w[d.id]=decCells(v);weeksExist.add(d.id);if(v.at)mt[d.id]={by:v.by||'',name:v.name||'',at:v.at};});
     weeks=w;weekMeta=mt;done('weeks');
   },onErr);
-  db.collection('leaves').onSnapshot(snap=>{const all=snap.docs.map(d=>normType(Object.assign({id:d.id},d.data())));leaves=all.filter(l=>!isLeaveReq(l));leaveReqs=all.filter(isLeaveReq);buildLeaveIdx();done('leaves');setTimeout(pevCleanup,3000);},onErr);
+  db.collection('leaves').onSnapshot(snap=>{const all=snap.docs.map(d=>normType(Object.assign({id:d.id},d.data())));if(lvDraft){lvDraft.later.leaves=all;return;}leaves=all.filter(l=>!isLeaveReq(l));leaveReqs=all.filter(isLeaveReq);buildLeaveIdx();done('leaves');setTimeout(pevCleanup,3000);},onErr);
   db.collection('familyCare').onSnapshot(snap=>{familyCare=snap.docs.map(d=>Object.assign({id:d.id},d.data()));done('fc');},onErr);
   db.collection('makeups').onSnapshot(snap=>{makeups=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},onErr);
   db.collection('baselines').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();m[d.id]={ym:v.ym||d.id,at:v.at,by:v.by,weeks:Object.fromEntries(Object.entries(v.weeks||{}).map(([wk,c])=>[wk,decCells({c})]))};});baselines=m;renderAll();},onErr);
@@ -1798,10 +1834,10 @@ function start(acc){
   db.collection('presence').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());presence=m;renderPresence();},e=>console.warn(e));
   // 請假證明：管理者看全部，本人只看自己的（檔案內容點開時才讀取）
   {const q=mng?db.collection('leaveProofs'):sid?db.collection('leaveProofs').where('staffId','==',sid):null;
-   if(q)q.onSnapshot(snap=>{proofs=snap.docs.map(d=>normType(Object.assign({id:d.id},d.data())));renderAll();if(mng)proofCleanup();},e=>console.warn(e));}
+   if(q)q.onSnapshot(snap=>{const ps=snap.docs.map(d=>normType(Object.assign({id:d.id},d.data())));if(lvDraft){lvDraft.later.proofs=ps;return;}proofs=ps;renderAll();if(mng)proofCleanup();},e=>console.warn(e));}
   db.collection('lottery').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotteries=m;renderAll();},e=>console.warn(e));
   db.collection('lotteryBets').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());lotBets=m;renderAll();},e=>console.warn(e));
-  db.collection('personalEvents').onSnapshot(snap=>{pevents=snap.docs.map(d=>normType(Object.assign({id:d.id},d.data())));pevLoaded=true;renderAll();if(loaded.leaves)setTimeout(pevCleanup,3000);},onErr);
+  db.collection('personalEvents').onSnapshot(snap=>{const pe=snap.docs.map(d=>normType(Object.assign({id:d.id},d.data())));if(lvDraft){lvDraft.later.pevents=pe;pevLoaded=true;return;}pevents=pe;pevLoaded=true;renderAll();if(loaded.leaves)setTimeout(pevCleanup,3000);},onErr);
   db.doc('config/main').onSnapshot(snap=>{cfg=Object.assign(clone(DEFAULT_CFG),snap.exists?clone(snap.data()):{});done('cfg');},onErr);
   // 自己的權限被改掉時重新載入，讓畫面與資料讀取範圍跟著更新
   const recheck=d=>{if(isAdmin)return;if(!d||d.perm!==acc.perm||d.staffId!==acc.staffId)location.reload();};
@@ -4014,6 +4050,7 @@ function dialog(html,onOk,okLabel='確認',danger=false,cancelLabel='取消',onC
   ov.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
 }
 function toast(msg,kind='',action){
+  if(lvDraft&&kind!=='warn'&&/^已/.test(msg))msg=msg.replace(/^已送出/,'已排入').replace(/^已登記/,'已排入')+'（按「登記」後才會生效）';
   const t=document.createElement('div');t.className='toast '+kind;
   t.innerHTML=`<span>${esc(msg)}</span>`;
   if(action){const b=document.createElement('button');b.textContent=action.label;b.onclick=()=>{action.fn();t.remove();};t.appendChild(b);}
@@ -4827,15 +4864,21 @@ function openMonthLeave(when,role='assistant'){
   const other=l=>!doc&&whenOf(l)!==when; // 助理：另一邊（事前／事後）登記的假
   const ov=document.createElement('div');ov.className='overlay';
   ov.innerHTML=`<div class="dialog ml-dialog" role="dialog" aria-modal="true">
-    <div class="ml-head"><h3 id="mlTitle"></h3><span style="display:flex;gap:6px"><button class="small" data-mlundo disabled title="復原這個視窗裡的上一次排假或取消" style="margin-right:28px">↶ 回復前一動作</button><button class="small" data-mlnav="-1" aria-label="上個月">◀</button><button class="small" data-mlnow>本月</button><button class="small" data-mlnav="1" aria-label="下個月">▶</button><button class="small" data-mlclose>關閉</button></span></div>
+    <div class="ml-head"><h3 id="mlTitle"></h3><span style="display:flex;gap:6px"><button class="small" data-mlundo disabled title="復原這個視窗裡的上一次排假或取消" style="margin-right:28px">↶ 回復前一動作</button><button class="small" data-mlnav="-1" aria-label="上個月">◀</button><button class="small" data-mlnow>本月</button><button class="small" data-mlnav="1" aria-label="下個月">▶</button></span></div>
     <div class="ml-types" id="mlTypes" role="group" aria-label="請假類別"></div>
     <p class="lv-proof" id="mlProof" hidden></p>
     <div class="ml-body"><div class="ml-staff" id="mlStaff"></div><div class="ml-cal-wrap"><div class="ml-cal" id="mlCal"></div></div></div>
-    <p class="hint">選好假別後，把${who}代號拖到要${word}的班次；拖到日期上則整天（早午晚）都${word}。手機可以先點${who}、再點班次或日期。點班次裡的代號可以取消那一班。虛線框是等待審核的${word}申請（加刪除線的是取消申請），點一下可以撤回。</p></div>`;
+    <p class="hint">選好假別後，把${who}代號拖到要${word}的班次；拖到日期上則整天（早午晚）都${word}。手機可以先點${who}、再點班次或日期。點班次裡的代號可以取消那一班。虛線框是等待審核的${word}申請（加刪除線的是取消申請），點一下可以撤回。這個視窗裡的變更要按「登記」才會${doc?'儲存':'儲存或送出申請'}，按「取消」則全部不算。</p>
+    <div class="ml-foot"><span class="ml-dirty" id="mlDirty"></span><button class="primary" data-mlsave>登記</button><button data-mlcancel>取消</button></div></div>`;
   document.body.appendChild(ov);
   const q=s=>ov.querySelector(s);
+  lvDraftStart();
   const close=()=>{ov.remove();document.removeEventListener('keydown',onKey);monthLeavePaint=null;renderAll();};
-  const onKey=e=>{if(e.key==='Escape'&&document.querySelector('.overlay:last-of-type')===ov)close();};
+  const save=async()=>{const n=lvDraft?.ops.length||0;close();await lvDraftCommit();renderAll();
+    toast(n?(activeStaff(role).some(s=>needReview(s.id)&&(canWrite||s.id===myStaffId()))&&!canWrite?`已送出${word}申請，等待管理者審核。`:`已登記整月排${doc?'休':'假'}的變更。`):'沒有變更。');};
+  const cancel=()=>{const n=lvDraft?.ops.length||0;const go=()=>{lvDraftCancel();close();if(n)toast('已取消，這次的變更都沒有儲存。');};
+    if(!n){go();return;}dialog(`<h3>放棄這次的變更？</h3><p>這個視窗裡還有尚未登記的變更，取消後都不會儲存${doc?'':'或送出'}。</p>`,()=>setTimeout(go,0),'放棄變更',true);};
+  const onKey=e=>{if(e.key==='Escape'&&document.querySelector('.overlay:last-of-type')===ov)cancel();};
   document.addEventListener('keydown',onKey);
   const paint=()=>{
     const mi=monthInfo(off),inMonth=new Set(mi.dates.map(x=>x.key));
@@ -4878,6 +4921,7 @@ function openMonthLeave(when,role='assistant'){
     }});
     q('#mlCal').innerHTML=html;
     q('[data-mlundo]').disabled=!history.length;
+    q('#mlDirty').textContent=lvDraft?.ops.length?'有尚未登記的變更':'';
   };
   // shs：要請假的班次（拖到格子是一班；拖到日期是當天所有看診班次）
   const addLeave=(sid,date,shs)=>{
@@ -4956,7 +5000,8 @@ function openMonthLeave(when,role='assistant'){
     toast(whole?`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} 全天${l.type}。`:`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} ${SHIFTS.find(s=>s.id===sh).name}的${word}。`);paint();
   };
   ov.addEventListener('click',e=>{
-    if(e.target===ov||e.target.closest('[data-mlclose]')){close();return;}
+    if(e.target===ov||e.target.closest('[data-mlcancel]')){cancel();return;}
+    if(e.target.closest('[data-mlsave]')){save();return;}
     const nav=e.target.closest('[data-mlnav]');if(nav){off+=Number(nav.dataset.mlnav);paint();return;}
     if(e.target.closest('[data-mlundo]')){undo();return;}
     if(e.target.closest('[data-mlnow]')){off=0;paint();return;} // 跳回今天所在的月份
