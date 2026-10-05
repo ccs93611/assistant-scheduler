@@ -946,7 +946,7 @@ body.gated .shell{display:none;}
           <span class="hint" style="margin:0">下方的薪資與薪資計算規則都依這個月份。</span>
         </div>
         <div class="card">
-          <h2 id="payTitle">薪資</h2>
+          <div class="lv-title-row"><h2 id="payTitle" style="margin:0">薪資</h2><span style="flex:1"></span><span id="payPubBox"></span></div>
           <p class="desc" id="payDesc"></p>
           <div class="scroll-x"><table class="list pay-table" id="payTable"></table></div>
         </div>
@@ -1065,6 +1065,7 @@ const PREF_KEY='clinic_roster_prefs_v1';
 let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, userNs=null, accessLinks={};
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], fcReqs=[], privateInfo={}, isAdmin=true;
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
+let payPub={}; // 已發布的薪資月份：payPub[YYYY-MM]={at,by,byName}；發布後員工才看得到自己該月的薪資
 let makeups=[]; // 舊版手動登記的事假補班 {id,staffId,date,shifts,note}，已不再使用
 let proofs=[]; // 請假證明 leaveProofs/{id}：{staffId,dates[],type,kind:'file'|'paper',name,mime,size,by,byName,at}；檔案內容另存 proofFiles/{id}
 const proofFileCache={};
@@ -1643,8 +1644,8 @@ function lvDraftLater(l){
   if(l.pevents)pevents=l.pevents;if(l.proofs)proofs=l.proofs;
   if(l.leaves||l.pevents||l.proofs){buildLeaveIdx();renderAll();}
 }
-function saveLocal(){if(lvDraft){lvDraft.dirty=true;return;}try{localStorage.setItem(LOCAL_KEY,JSON.stringify({staff,cfg,weeks,leaves,familyCare:familyCare.concat(fcReqs),privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=(d.familyCare||[]).filter(x=>!x.status);fcReqs=(d.familyCare||[]).filter(x=>x.status);privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
+function saveLocal(){if(lvDraft){lvDraft.dirty=true;return;}try{localStorage.setItem(LOCAL_KEY,JSON.stringify({payPub,staff,cfg,weeks,leaves,familyCare:familyCare.concat(fcReqs),privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=(d.familyCare||[]).filter(x=>!x.status);fcReqs=(d.familyCare||[]).filter(x=>x.status);privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};payPub=d.payPub||{};makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
@@ -1701,6 +1702,11 @@ const store={
     makeups=makeups.filter(x=>x.id!==id);renderAll();
     if(!db){saveLocal();return;}
     return queue('makeups/'+id,()=>db.doc('makeups/'+id).delete());
+  },
+  async payPub(ym,obj){
+    if(obj)payPub[ym]=obj;else delete payPub[ym];renderAll();
+    if(!db){saveLocal();return;}
+    return queue('payPublish/'+ym,()=>obj?db.doc('payPublish/'+ym).set(obj):db.doc('payPublish/'+ym).delete());
   },
   async pay(key,obj){
     pay[key]=obj;renderAll();
@@ -2054,7 +2060,12 @@ function start(acc){
   if(sup)db.collection('punches').where('ot.status','==','pending').onSnapshot(revTo,e=>console.warn(e));
   else if(sid)db.collection('punches').where('ot.reviewer','==',sid).onSnapshot(revTo,e=>console.warn(e));
   if(sup)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
-  else if(sid)db.collection('pay').where('staffId','==',sid).onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
+  const paySubs={};
+  const syncPaySubs=()=>{if(sup||!sid)return;
+    Object.keys(payPub).forEach(ym=>{if(paySubs[ym])return;const key=sid+'_'+ym;
+      paySubs[ym]=db.doc('pay/'+key).onSnapshot(d=>{if(d.exists)pay[key]=clone(d.data());else delete pay[key];renderAll();},()=>{delete pay[key];renderAll();});});
+    Object.keys(paySubs).forEach(ym=>{if(payPub[ym])return;paySubs[ym]();delete paySubs[ym];delete pay[sid+'_'+ym];});};
+  db.collection('payPublish').onSnapshot(snap=>{payPub=docsTo(snap);syncPaySubs();renderAll();},e=>console.warn(e));
 }
 function showGate(kind,email){
   $('gate').hidden=false;document.body.classList.add('gated');const acts=$('gateActs'),msg=$('gateMsg');
@@ -2952,12 +2963,27 @@ function calcPay(mi,counts,s,rec){
 }
 // 薪資備註欄：自動備註（生日禮金、三節獎金）＋手動備註
 const payNoteHtml=p=>{const a=p.autoNote?`<span class="pay-auto">${esc(p.autoNote)}</span>`:"",m=p.r.note?esc(p.r.note):"";return a||m?[a,m].filter(Boolean).join("<br>"):`<span style="color:var(--faint)">—</span>`;};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-paypub]');if(!b||!payAdmin())return;
+  const mi=monthInfo(),ym=mi.ym;
+  if(b.dataset.paypub==='off'){dialog(`<h3>取消發布 ${esc(mi.label)} 薪資？</h3><p>取消後助理就看不到自己這個月的薪資，之後可以再發布。</p>`,()=>{store.payPub(ym,null);toast(`已取消發布 ${mi.label} 薪資。`);},'取消發布',true,'返回');return;}
+  const trial=staff.filter(s=>s.role==='assistant'&&s.active!==false&&!payRec(s.id,ym).saved);
+  dialog(`<h3>發布 ${esc(mi.label)} 薪資？</h3><p>發布後，每位助理都能在「薪資」看到自己這個月的薪資。發布後仍可修改，修改的內容助理會直接看到。</p>${trial.length?`<p class="att-bad">還有 ${trial.length} 人的薪資是「試算」（尚未儲存）：${trial.map(s=>esc(codeOf(s.id))).join('、')}。發布後他們看到的是試算金額。</p>`:''}`,()=>{const me=byId(myStaffId());store.payPub(ym,{at:Date.now(),by:myId||'本機',byName:me?fullName(me):(myId||'管理者')});toast(`已發布 ${mi.label} 薪資。`);},'發布薪資');
+});
 function renderPay(mi,counts){
   if(payAdmin())attSubscribe(mi); // 曠職扣款要看這個月的打卡
   $('payTitle').textContent=`${mi.label} 薪資`;
   if(document.activeElement!==$('payMonth'))$('payMonth').value=mi.ym;
+  const pub=payPub[mi.ym];
+  $('payPubBox').innerHTML=!payAdmin()?'':pub
+    ?`<span class="pill">已發布 ${fmtAt(pub.at)}</span> <button class="small" data-paypub="off">取消發布</button>`
+    :`<span class="pill warn">尚未發布</span> <button class="small primary" data-paypub="on">發布薪資</button>`;
+  // 員工：這個月還沒發布就不顯示薪資
+  if(!payAdmin()&&!pub){
+    $('payDesc').textContent='這個月的薪資還沒發布，管理者發布後就能在這裡看到。';
+    $('payTable').innerHTML='';$('payRulesCard').hidden=true;return;
+  }
   $('payDesc').textContent=payAdmin()
-    ?'按「編輯」填寫每個人這個月的薪資項目。本俸、勞保費、健保費、眷屬人數會自動帶入前一個月的數值；還沒儲存的月份顯示為「試算」。只有超級管理員看得到所有人的薪資，助理只看得到自己的。'
+    ?'按「編輯」填寫每個人這個月的薪資項目，確認後按右上角「發布薪資」，助理才看得到自己這個月的薪資。本俸、勞保費、健保費、眷屬人數會自動帶入前一個月的數值；還沒儲存的月份顯示為「試算」。只有超級管理員看得到所有人的薪資，助理只看得到自己的。'
     :'這是你這個月的薪資，實際金額以診所發放為準。';
   const list=payAdmin()?staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&(s.active!==false||counts[s.id])):[byId(myStaffId())].filter(Boolean);
   const z=v=>v?money(v):'<span style="color:var(--faint)">0</span>';

@@ -198,8 +198,14 @@ service cloud.firestore {
 
     // 薪資：只有超級管理員可看可改所有人；其他人（含排班管理）只能看自己的
     // pay/{staffId}_{YYYY-MM}：每人每月一筆
+    // 薪資：員工只能讀自己「已發布月份」的薪資（payPublish/{YYYY-MM} 存在才算已發布）
     match /pay/{id} {
-      allow read: if isSuper() || (signedIn() && resource.data.staffId == mySid());
+      allow read: if isSuper() || (signedIn() && resource.data.staffId == mySid()
+        && exists(/databases/$(database)/documents/payPublish/$(resource.data.ym)));
+      allow write: if isSuper();
+    }
+    match /payPublish/{ym} {
+      allow read: if canView();
       allow write: if isSuper();
     }
 
