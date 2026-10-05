@@ -1152,22 +1152,28 @@ function reqSiblings(r){
     (ev?(x.pevId||x.eventId)===ev:!(x.pevId||x.eventId)&&Math.abs((x.reqAt||0)-(r.reqAt||0))<5000)).sort((a,b)=>a.date.localeCompare(b.date));
 }
 // 有同一批的其他申請時詢問：只處理這一筆，或整批一起
-// 月制育嬰假：撤回或取消只能以「月」為單位，從最後面往前減；剩下的要 0 個月（全部）或至少 6 個月
-const ccMonthsOf=e=>e.months||Math.max(1,Math.round((dayDiff(e.date,e.end)+1)/30.44));
+// 育嬰假：起始日可以在月中，結束日必須是月底，最少一個月（起始日在 1 日時最早當月月底，否則最早下個月月底）
+const monthEndOf=d=>{const [y,m]=d.split('-').map(Number);return ymd(new Date(y,m,0));};
+const ccFirstEnd=start=>start.endsWith('-01')?monthEndOf(start):monthEndOf(addD(monthEndOf(start),1));
+const ccMonthsOf=e=>{const [y1,m1]=e.date.split('-').map(Number),[y2,m2]=e.end.split('-').map(Number);return (y2-y1)*12+m2-m1+1;}; // 跨幾個月份（第一個月可能不完整）
+const ccEndOpts=(start,cnt=36)=>{const o=[];if(!start)return o;let e=ccFirstEnd(start);for(let i=0;i<cnt;i++){o.push(e);e=monthEndOf(addD(e,1));}return o;};
+const ccSpanTxt=(a,b)=>{const n=ccMonthsOf({date:a,end:b});return a.endsWith('-01')?`${n} 個月`:`${n-1} 個月又 ${dayDiff(a,monthEndOf(a))+1} 天`;};
+// 撤回或取消：只能從最後面往前以「整個月」為單位減，剩下的結束日仍要是月底且至少一個月（或全部）
 function ccMonthsDialog(ev,verb,onPick){
-  const n=ccMonthsOf(ev),opts=[],minCut=verb==='取消'&&needReview(ev.staffId)?ymd(new Date()):'';
-  for(let k=1;k<=n;k++){const left=n-k;if(left&&left<6)continue;const cut=left?addMo(ev.date,left):ev.date;if(minCut&&cut<minCut)continue;opts.push({k,left,cut});}
+  const n=ccMonthsOf(ev),opts=[],minCut=verb==='取消'&&needReview(ev.staffId)?ymd(new Date()):'',first=ccFirstEnd(ev.date);
+  for(let cut=addD(monthEndOf(ev.date),1);cut<=ev.end;cut=addD(monthEndOf(cut),1)){if(addD(cut,-1)<first)continue;if(minCut&&cut<minCut)continue;const k=ccMonthsOf({date:cut,end:ev.end});opts.push({k,left:ccMonthsOf({date:ev.date,end:addD(cut,-1)}),cut});}
+  if(!minCut||ev.date>=minCut)opts.push({k:n,left:0,cut:ev.date});
   if(!opts.length){toast(pastMsg,'warn');return;}
-  dialog(`<h3>${verb}育嬰假（以月為單位）</h3><p>${esc(PEV.育嬰假.desc(ev))}：${fmtD(ev.date)}～${fmtD(ev.end)}，共 ${n} 個月。育嬰假以月為單位，只能從最後面往前${verb}，剩下的至少要 6 個月。</p>
-    <div class="opts">${opts.slice().reverse().map((o,i)=>`<label><input type="radio" name="ccm" value="${o.k}"${i?'':' checked'}><span>${o.left?`${verb}最後 ${o.k} 個月`:`全部${verb}（${n} 個月）`}<small>${o.left?`${fmtD(o.cut)} 起${verb}，保留 ${fmtD(ev.date)}～${fmtD(addD(o.cut,-1))}（${o.left} 個月）`:`${fmtD(ev.date)}～${fmtD(ev.end)} 全部${verb}`}</small></span></label>`).join('')}</div>`,
-    ov=>{const k=Number(ov.querySelector('input[name=ccm]:checked').value),o=opts.find(x=>x.k===k);onPick(o.cut,o.left,n);},verb);
+  dialog(`<h3>${verb}育嬰假（以月為單位）</h3><p>子女生日 ${fmtD(ev.child)}：${fmtD(ev.date)}～${fmtD(ev.end)}（${ccSpanTxt(ev.date,ev.end)}）。育嬰假只能從最後面往前以整個月${verb}，剩下的結束日仍要是月底、至少一個月。</p>
+    <div class="opts">${opts.slice().sort((x,y)=>x.k-y.k).map((o,i)=>`<label><input type="radio" name="ccm" value="${o.cut}"${i?'':' checked'}><span>${o.left?`${verb}最後 ${o.k} 個月`:`全部${verb}`}<small>${o.left?`${fmtD(o.cut)} 起${verb}，保留 ${fmtD(ev.date)}～${fmtD(addD(o.cut,-1))}（${ccSpanTxt(ev.date,addD(o.cut,-1))}）`:`${fmtD(ev.date)}～${fmtD(ev.end)} 全部${verb}`}</small></span></label>`).join('')}</div>`,
+    ov=>{const v=ov.querySelector('input[name=ccm]:checked').value,o=opts.find(x=>x.cut===v);onPick(o.cut,o.left,n);},verb);
 }
 // 取消核准後：依剩下的請假更新連續假事件的結束日（育嬰假一併更新月數）
 function ccFixEnd(evId){
   const ev=pevents.find(e=>e.id===evId);if(!ev||!PEV[ev.kind]?.auto)return;
   const ds=leaves.filter(l=>l.eventId===evId).map(l=>l.date).sort();if(!ds.length)return;
   const end=ds[ds.length-1];if(ev.end&&end>=ev.end)return;
-  store.pev(Object.assign({},ev,{end},ev.kind==='育嬰假'?{months:Math.max(1,Math.round((dayDiff(ev.date,end)+1)/30.44))}:{}));
+  store.pev(Object.assign({},ev,{end},ev.kind==='育嬰假'?{months:ccMonthsOf({date:ev.date,end})}:{}));
 }
 // 以天計的連續假：選「從哪一天起」撤回／取消到最後一天，保留前面連續的部分
 function tailDialog(type,dates,verb,def,onPick,minDate){
@@ -1226,7 +1232,7 @@ const LEAVE_PROOF={
   '陪產假（陪產檢假）':{doc:'媽媽手冊、出生證明書或診斷證明',note:'懷孕期間（陪產檢）到預產期後 15 日內請，最多 7 天，可分次請'},
   流產產假:{doc:'診斷證明',note:'須連續請；妊娠滿 20 週以上流產者 56 天；妊娠 3 個月以上未滿 20 週流產者 28 天；妊娠 2 個月以上未滿 3 個月流產者 7 天；妊娠未滿 2 個月流產者 5 天（皆含例假日）'},
   家庭照顧假:{doc:'需檢附合理證明',note:'至少以 1 小時為單位；上班到中途請到當診結束，以 0.5 小時為單位'},
-  育嬰假:{doc:'子女的戶口名簿、戶籍謄本或出生證明',note:'以月為單位（最短 6 個月），每名子女在滿 3 歲前最長 2 年，應於 10 日前提出'},
+  育嬰假:{doc:'子女的戶口名簿、戶籍謄本或出生證明',note:'至少一個月，起始日可在月中，結束日須為月底，每名子女在滿 3 歲前最長 2 年，應於 10 日前提出'},
   彈性育嬰假:{doc:'子女的戶口名簿、戶籍謄本或出生證明',note:'以日為單位，每名子女合計 30 日為限（算在 2 年內），可於 1 日前提出'},
   公假:{doc:'兵役召集令（教召）、法院傳票、政府機關公文或選務工作聘書等',note:'必須是因依法令規定或政府指派執行公務，方得請領'},
 };
@@ -2259,8 +2265,8 @@ const PEV={
   // 病假、公假：每次請假都是新的事件（事由＋這次的起訖日期），只用來讓這次請的幾天共用同一份證明
   病假:{lb:'病假日期',newEach:true,info:e=>({quota:dayDiff(e.date,e.end||e.date)+1,from:e.date,to:e.end||e.date}),desc:e=>`${e.reason||'病假'}・${fmtD(e.date)}${e.end&&e.end!==e.date?'～'+fmtD(e.end):''}`},
   公假:{lb:'公假日期',newEach:true,info:e=>({quota:dayDiff(e.date,e.end||e.date)+1,from:e.date,to:e.end||e.date}),desc:e=>`${e.reason||'公假'}・${fmtD(e.date)}${e.end&&e.end!==e.date?'～'+fmtD(e.end):''}`},
-  // 育嬰假：以月為單位（最短 6 個月），每名子女在滿 3 歲前合計最長 2 年（含彈性育嬰假），應於 10 日前提出
-  育嬰假:{lb:'育嬰假起始日',auto:true,info:e=>({quota:dayDiff(e.date,e.end)+1,from:e.date,to:e.end}),desc:e=>`子女生日 ${fmtD(e.child)}・${e.months?e.months+' 個月':''}`},
+  // 育嬰假：至少一個月，起始日可在月中、結束日須為月底，每名子女在滿 3 歲前合計最長 2 年（含彈性育嬰假），應於 10 日前提出
+  育嬰假:{lb:'育嬰假起始日',auto:true,info:e=>({quota:dayDiff(e.date,e.end)+1,from:e.date,to:e.end}),desc:e=>`子女生日 ${fmtD(e.child)}${e.date&&e.end?'・'+ccSpanTxt(e.date,e.end):''}`},
   // 彈性育嬰假：以日為單位，每名子女合計 30 日（算在 2 年內），可於 1 日前提出；事件＝這名子女（date 為子女生日）
   彈性育嬰假:{lb:'子女生日',info:e=>({quota:30,from:e.date,to:addD(addYr(e.date,3),-1)}),desc:e=>`子女生日 ${fmtD(e.date)}`},
 };
@@ -2642,13 +2648,18 @@ function absentForPay(mi,sid){
 function calcPay(mi,counts,s,rec){
   const P=payCfg(mi.ym);let r=rec||payRec(s.id,mi.ym);
   // 育嬰假（月制）：整個月都在育嬰假 → 不發任何薪資（含津貼、獎金），也不扣勞健保；
-  // 只有部分天數 → 育嬰假期間的上班日每天算 2 診 × 每診設定薪資扣除，津貼照發、勞健保照扣
+  // 只有部分天數 → 只有本俸依在職天數比例發放（不管假日，一個月一律以 30 天計），津貼、獎金照發；
+  //   勞保依在保天數（同樣以 30 天計）按比例扣；健保看月底：月底在育嬰假（不在保）就不扣，月底在保則整月扣
   const ymA=ymd(mi.first),ymZ=ymd(mi.last);
   const ccDays=[...new Set(leaves.filter(l=>l.staffId===s.id&&l.type==='育嬰假'&&l.date>=ymA&&l.date<=ymZ).map(l=>l.date))];
   const ccFull=ccDays.length>=mi.dates.length;
   if(ccFull)r=Object.assign({},r,{base:0,attend:0,perf:0,skill:0,duty:0,selfInd:0,selfTeam:0,stars:0,otMin:0,labor:0,health:0,dependents:0,items:[],lateMin:0,earlyMin:0});
-  const isWorkDay=k=>{const d=parseYmd(k),dow=(d.getDay()+6)%7;return d.getDay()!==0&&!holidayOf(k)&&!SHIFTS.every(sh=>isClosed(dow,sh.id));};
-  const ccWork=ccFull?0:ccDays.filter(isWorkDay).length,ccDeduct=Math.round(ccWork*2*P.shiftPay);
+  // 在職天數（30 天制）：育嬰假開始前的天數＋育嬰假結束後到月底的天數（以 30 減去結束日計，31 日不另計）
+  let ccStay=30;
+  if(ccDays.length&&!ccFull){const ds=ccDays.slice().sort(),d1=Number(ds[0].slice(8)),d2=Number(ds[ds.length-1].slice(8)),endAtMonthEnd=ds[ds.length-1]===ymZ;
+    ccStay=Math.max(0,Math.min(30,(d1-1)+(endAtMonthEnd?0:Math.max(0,30-d2))));}
+  const ccRatio=ccStay/30,ccHealthOff=!ccFull&&ccDays.includes(ymZ); // 月底在育嬰假＝月底不在保
+  if(ccDays.length&&!ccFull)r=Object.assign({},r,{base:Math.round((Number(r.base)||0)*ccRatio),labor:Math.round((Number(r.labor)||0)*ccRatio)},ccHealthOff?{health:0,dependents:0}:{});
   // 彈性育嬰假：事後補登依請假診數、事前每天算 2 診，× 每診設定薪資扣除；不影響出勤津貼
   const flexN=leaves.filter(l=>l.staffId===s.id&&l.type==='彈性育嬰假'&&l.date>=ymA&&l.date<=ymZ).reduce((n,l)=>n+(l.when==='after'?(l.shifts||[]).length:2),0);
   const flexDeduct=Math.round(flexN*P.shiftPay);
@@ -2686,16 +2697,16 @@ function calcPay(mi,counts,s,rec){
   const holDays=[];mi.dates.forEach(({key,wk,dow})=>{const hn=natHolidayOf(key);if(!hn)return;const n=SHIFTS.filter(sh=>getCell(wk,dow+'_'+sh.id).some(a=>a.includes(s.id))).length;if(n)holDays.push({key,name:hn,n});});
   const holShifts=holDays.reduce((n,x)=>n+x.n,0),holPay=Math.round(holShifts*P.shiftPay*P.holidayRate);
   const giftPay=gifts.reduce((n,g)=>n+g.amount,0);
-  const autoNote=(ccFull?['育嬰假整月：不發薪資（含津貼、獎金），不扣勞健保']:[]).concat(gifts.map(g=>`${g.label} ${money(g.amount)} 元`).concat(holShifts?[`國定假日上班加給 ${holShifts} 診（${holDays.map(x=>`${md(parseYmd(x.key))}${x.name}`).join('、')}）${money(holPay)} 元`]:[])).join('、');
+  const autoNote=(ccFull?['育嬰假整月：不發薪資（含津貼、獎金），不扣勞健保']:ccDays.length?[`育嬰假 ${ccDays.length} 天：本俸與勞保依在職 ${ccStay}／30 日比例${ccHealthOff?'，月底不在保不扣健保':'，健保照扣'}`]:[]).concat(gifts.map(g=>`${g.label} ${money(g.amount)} 元`).concat(holShifts?[`國定假日上班加給 ${holShifts} 診（${holDays.map(x=>`${md(parseYmd(x.key))}${x.name}`).join('、')}）${money(holPay)} 元`]:[])).join('、');
   const gross=r.base+allow+extraPay+allPay+otPay+bonus+starPay+giftPay+holPay;
   const healthTotal=r.health*(1+(r.dependents||0)),late=(r.lateMin||0)*P.latePerMin,early=(r.earlyMin||0)*P.earlyPerMin;
   const fcHours=ccFull?0:fcHoursOf(mi,s.id),fcDeduct=fcHours*P.fcPerHour;
-  const leaveDeduct=ccFull?0:Math.round(Object.entries(lvN).filter(([t])=>!SPECIAL.includes(t)).reduce((n,[t,c])=>n+c*P.shiftPay*(P.deduct[t]||0),0)+fcDeduct+ccDeduct+flexDeduct);
+  const leaveDeduct=ccFull?0:Math.round(Object.entries(lvN).filter(([t])=>!SPECIAL.includes(t)).reduce((n,[t,c])=>n+c*P.shiftPay*(P.deduct[t]||0),0)+fcDeduct+flexDeduct);
   const adj=(r.items||[]).reduce((n,x)=>n+(Number(x.amount)||0),0);
   const deduct=r.labor+healthTotal+late+early+leaveDeduct+absentDeduct;
   // 請假明細文字（表格提示與編輯視窗共用）
   const lvParts=Object.entries(lvN).filter(([t])=>!SPECIAL.includes(t)).map(([t,c])=>`${t} ${c} 診 × ${P.deduct[t]||0}`);
-  if(ccFull)lvParts.push('育嬰假整月，不發薪資');else if(ccWork)lvParts.push(`育嬰假 ${ccWork} 個上班日 × 2 診 × ${money(P.shiftPay)} 元`);
+  if(ccFull)lvParts.push('育嬰假整月，不發薪資');
   if(flexN&&!ccFull)lvParts.push(`彈性育嬰假 ${flexN} 診 × ${money(P.shiftPay)} 元`);
   if(fcHours)lvParts.push(`家庭照顧假 ${fcHours} 小時 × ${P.fcPerHour} 元`);
   return {early,absN,absentDeduct,absentUnknown,r,schedOtMin,extraMin,extraPay,allMin,allPay,allDays,otMin,otPay,starPay,gifts,giftPay,autoNote,holDays,holShifts,holPay,allow,attendPaid,attendLost,attendNote,sickCut,lostReasons,shiN,mkN,bonus,gross,healthTotal,late,lvN,fcHours,leaveDeduct,lvParts,adj,deduct,netRaw:gross-deduct+adj,net:Math.ceil((gross-deduct+adj)/10)*10 /* 實發無條件進位到十位數 */,netRound:Math.ceil((gross-deduct+adj)/10)*10-(gross-deduct+adj)};
@@ -5039,10 +5050,11 @@ function readEvent(sid,kind,get){
     ev.end=end;
   }
   if(kind==='育嬰假'){
-    const child=get('child'),n=Number(get('ym'))||0;
+    const child=get('child'),end=get('ym');
     if(!child){toast('請填寫子女生日。','warn');return null;}
-    if(n<6){toast('育嬰假以月為單位，最短 6 個月。','warn');return null;}
-    const end=addD(addMo(date,n),-1);ev.months=n;
+    if(!end||end!==monthEndOf(end)){toast('育嬰假的結束日要是月底。','warn');return null;}
+    if(end<ccFirstEnd(date)){toast(`育嬰假至少一個月，從 ${fmtD(date)} 開始最早請到 ${fmtD(ccFirstEnd(date))}。`,'warn');return null;}
+    ev.months=ccMonthsOf({date,end});
     // 應於 10 日前提出：助理本人不能送出，管理者登記時提醒
     if(dayDiff(ymd(new Date()),date)<10){if(!canWrite){toast(`育嬰假應於 10 日前提出，起始日最早為 ${fmtD(addD(ymd(new Date()),10))}。`,'warn');return null;}toast('提醒：育嬰假應於 10 日前提出。','warn');}
     if(date<child){toast('育嬰假起始日不能早於子女生日。','warn');return null;}
@@ -5238,7 +5250,7 @@ function askLeaveInfo(sid,type,dates,retry,after){
     ${type==='公假'?opt('aqReasonK','公假事由</label><select id="aqReasonK"><option>兵役召集（教召）</option><option>法院傳票</option><option>政府機關指派</option><option>選務工作</option><option>其他</option></select></div>')+opt('aqReason','說明</label><input id="aqReason" placeholder="例如：○○地方法院出庭" maxlength="60"></div>'):''}
     ${type==='喪假'?opt('aqRel',`與逝者關係</label>`+'<select id="aqRel">'+PEV_REL_OPTS+'</select>'+'</div>'):''}
     ${type==='流產產假'?opt('aqMonths',`妊娠期間</label>`+'<select id="aqMonths">'+PEV_MONTH_OPTS+'</select>'+'</div>'):''}
-    ${type==='育嬰假'?'<p class="hint" style="margin:0 0 8px">以月為單位，最短 6 個月；每名子女在滿 3 歲前合計最長 2 年（含彈性育嬰假），可以分次請；應於 10 日前提出。</p>'+opt('aqChild','子女生日</label><input type="date" id="aqChild"></div>')+opt('aqYm','期間</label><select id="aqYm">'+Array.from({length:19},(_,i)=>`<option value="${i+6}">${i+6} 個月</option>`).join('')+'</select><div class="aq-days" id="aqYmEnd"></div></div>'):''}
+    ${type==='育嬰假'?'<p class="hint" style="margin:0 0 8px">至少一個月；起始日可以在月中，結束日要是月底；每名子女在滿 3 歲前合計最長 2 年（含彈性育嬰假），可以分次請；應於 10 日前提出。</p>'+opt('aqChild','子女生日</label><input type="date" id="aqChild"></div>')+opt('aqYm','請到（月底）</label><select id="aqYm">'+ccEndOpts(firstDef).map(e=>`<option value="${e}">${fmtD(e)}</option>`).join('')+'</select><div class="aq-days" id="aqYmEnd"></div></div>'):''}
     ${type==='彈性育嬰假'?'<p class="hint" style="margin:0 0 8px">以日為單位，每名子女合計 30 日（算在育嬰假 2 年內），可於 1 日前提出。請填這名子女的生日。</p>':''}
     ${type==='產假'||type==='流產產假'?opt('aqEnd',`結束日</label><input type="date" id="aqEnd" value="${(e=>type==='產假'&&due&&e>addD(due.date,55)?addD(due.date,55):e)(addD(firstDef,k.max({months:'28'})-1))}"><small style="color:var(--faint)">預設請滿；不一定要請完所有天數，可以改短</small><div class="aq-days" id="aqDays"></div></div>`):''}
     ${opt('aqNote','備註</label><input id="aqNote" placeholder="選填"></div>')}`,ov=>{
@@ -5276,10 +5288,12 @@ function askLeaveInfo(sid,type,dates,retry,after){
   }
   if(type==='育嬰假'){ // 依起始日與月數即時算出結束日，並顯示這名子女的 2 年合計
     const yov=document.querySelector('.overlay:last-of-type');
-    const upd=()=>{const a=yov.querySelector('#aqDate').value,n=Number(yov.querySelector('#aqYm').value),c=yov.querySelector('#aqChild').value,el=yov.querySelector('#aqYmEnd');
-      if(!a||!n){el.textContent='';return;}
-      const end=addD(addMo(a,n),-1),[y,m,d]=end.split('-').map(Number),days=dayDiff(a,end)+1;
-      let txt=`請到 ${y} 年 ${m} 月 ${d} 日（共 ${n} 個月、${days} 天）`,bad=false;
+    let optFor=null;
+    const upd=()=>{const a=yov.querySelector('#aqDate').value,ys=yov.querySelector('#aqYm'),c=yov.querySelector('#aqChild').value,el=yov.querySelector('#aqYmEnd');
+      if(a!==optFor){optFor=a;const cur=ys.value,os=ccEndOpts(a);ys.innerHTML=os.map(e=>`<option value="${e}">${fmtD(e)}</option>`).join('');if(os.includes(cur))ys.value=cur;}
+      const end=ys.value;if(!a||!end){el.textContent='';return;}
+      const days=dayDiff(a,end)+1;
+      let txt=`${fmtD(a)}～${fmtD(end)}，共 ${ccSpanTxt(a,end)}（${days} 天）`,bad=false;
       if(c){const cu=childLeaveUsed(sid,c),left=cu.cap-cu.total;
         if(end>=addYr(c,3)){bad=true;txt+=`；超過子女滿 3 歲（${fmtD(addYr(c,3))}）`;}
         else if(days>left){bad=true;txt+=`；這名子女育嬰假合計已用 ${cu.total} 天，最多 ${cu.cap} 天，超過 ${days-left} 天`;}
