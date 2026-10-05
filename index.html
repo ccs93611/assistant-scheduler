@@ -112,8 +112,8 @@ main{padding-block:18px 48px;}
   width:220px; flex-shrink:0; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px;
   position:sticky; top:calc(env(safe-area-inset-top,0px) + 12px);
 }
-/* 沒有排班權限：左側只留醫師、助理代號作為對照（不能拖曳），隱藏基本／加診切換、診數、顏色說明與拖曳提示 */
-.sched.sched-ref .pool .seg,.sched.sched-ref .pool .legend,.sched.sched-ref .pool > .hint,.sched.sched-ref .pool .chip .cnt{display:none;}
+/* 沒有排班權限：左側只留醫師、助理代號作為對照（不能拖曳），隱藏基本／加診切換、顏色說明與拖曳提示（診數照常顯示） */
+.sched.sched-ref .pool .seg,.sched.sched-ref .pool .legend,.sched.sched-ref .pool > .hint{display:none;}
 .sched.sched-ref .pool .chip{cursor:default; pointer-events:none;}
 .pool h2{font-size:.8rem; letter-spacing:.08em; color:var(--sub); margin:0 0 8px; font-weight:500;}
 .pool h2 + .chips{margin-bottom:16px;}
@@ -732,7 +732,7 @@ body.gated .shell{display:none;}
         <div class="card pf-missing" id="pfMissingCard" hidden></div>
         <div class="card" id="lvReqCard" hidden></div>
         <div class="card" id="lvCard">
-          <div class="lv-head"><h2>請假登記</h2><span class="seg" id="lvWhenSeg" role="group" aria-label="事前或事後"><button type="button" data-when="before" aria-pressed="true">事前</button><button type="button" data-when="after" aria-pressed="false">事後</button></span></div>
+          <div class="lv-head"><h2 id="lvRegTitle">請假登記</h2><span class="seg" id="lvWhenSeg" role="group" aria-label="事前或事後"><button type="button" data-when="before" aria-pressed="true">事前</button><button type="button" data-when="after" aria-pressed="false">事後</button></span></div>
           <div id="lvPane-before">
           <p class="desc">事先安排的請假。自動排班會避開這些時段；已經排進去的會在班表上標紅。下方列表同時以淺灰色顯示事後補登的請假，方便對照。</p>
           <form class="form-row leave-form" data-role="assistant" data-when="before" style="margin-bottom:16px">
@@ -1238,7 +1238,7 @@ const contMsg=l=>`${l.type}須連續，不能單獨變更其中幾天。要縮�
 const pastLeave=l=>!!l&&l.date<ymd(new Date())&&!isLeaveReq(l)&&leaves.some(x=>x.id===l.id);
 const pastMsg='已經核准且日期已過去的請假，不能申請取消或變更。如有問題請洽管理者。';
 const pendOf=l=>leaveReqs.find(r=>r.status==='pending'&&(r.replaces===l.id||(r.staffId===l.staffId&&r.date===l.date)));
-document.addEventListener('click',e=>{const b=e.target.closest('[data-lrwithdraw]');if(!b)return;const r=leaveReqs.find(x=>x.id===b.dataset.lrwithdraw);if(r&&(canWrite||r.staffId===myStaffId())){const w=r.kind==='cancel'?'刪除':'變更';askBatch(r,'撤回',()=>{store.delLeaveReq(r.id);toast(`已撤回${w}申請，原本的請假維持不變。`);},all=>{all.forEach(x=>store.delLeaveReq(x.id));toast(`已撤回 ${all.length} 筆${w}申請，原本的請假維持不變。`);});}});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-lrwithdraw]');if(!b||viewOnly())return;const r=leaveReqs.find(x=>x.id===b.dataset.lrwithdraw);if(r&&(canWrite||r.staffId===myStaffId())){const w=r.kind==='cancel'?'刪除':'變更';askBatch(r,'撤回',()=>{store.delLeaveReq(r.id);toast(`已撤回${w}申請，原本的請假維持不變。`);},all=>{all.forEach(x=>store.delLeaveReq(x.id));toast(`已撤回 ${all.length} 筆${w}申請，原本的請假維持不變。`);});}});
 const needReview=sid=>!canWrite&&['assistant','doctor'].includes(byId(sid)?.role);
 // role：'assistant' 顯示在助理請假分頁（#lvReqCard）、'doctor' 顯示在醫師休假分頁（#dcReqCard）
 // 各假別需要檢附的證明文件與說明（助理的請假表單、整月排假、審核、對照表共用；醫師休假不需檢附）
@@ -1451,9 +1451,9 @@ function renderLeaveReqs(role){
   const head=`<thead><tr><th>${sel('date','日期',months)}</th>${who?`<th>${sel('sid','人員',ppl)}</th>`:''}<th>${sel('kind','申請',kinds)}</th><th>${sel('sh','班別',shs)}</th><th>${sel('type','假別',types)}</th><th>備註</th><th>申請時間</th><th>${Object.values(f).some(Boolean)?'<button class="small" data-rqclear>清除篩選</button>':''}</th></tr></thead>`;
   const filtered=Object.values(f).some(Boolean);
   box.innerHTML=`<div class="lv-title-row"><h2 style="margin:0">${canWrite?word+'審核':'我的'+word+'申請'}</h2>${role==='assistant'?reqWhenSeg(basePend,'data-rqwhen',fcP.length):''}${allPend.length?`<span class="pill warn">待審 ${filtered?`${pend.length}／${allPend.length}`:allPend.length} 筆</span>`:''}<span style="flex:1"></span>${canWrite&&allPend.length?'<button class="small" data-lrmonth>整月審核</button> ':''}${canWrite&&pend.length>1?`<button class="small primary" data-lrall>${filtered?`核准篩選的 ${pend.length} 筆`:'全部核准'}</button>`:''}</div>
-    <p class="desc">${canWrite?`${ROLE[role]}自己送出的${word}（新增、修改、取消）核准後才會生效；退回時可以填寫原因。`:`你送出的${word}要等管理者核准才會生效，核准前可以撤回。被退回的申請可以刪除。`}</p>
-    ${allPend.length?`<div class="hol-scroll"><table class="list">${head}<tbody>${pend.length?'':`<tr><td colspan="${who?8:7}" class="att-mute">沒有符合篩選的申請。</td></tr>`}${pend.map(r=>row(r,r=>canWrite?`<button class="small primary" data-lrok="${r.id}">核准</button> <button class="small danger" data-lrno="${r.id}">退回</button>`:`<button class="small" data-lrdel="${r.id}">撤回</button>`)).join('')}</tbody></table></div>`:`<p class="att-mute">沒有待審核的${role==='assistant'?(reqWhen==='after'?'事後':'事前'):''}${word}。</p>`}
-    ${allRej.length?`<h4 style="margin:14px 0 6px">被退回的申請</h4><div class="hol-scroll"><table class="list">${head}<tbody>${rej.map(r=>row(r,r=>`<button class="small" data-lrdel="${r.id}">刪除</button>`)).join('')}</tbody></table></div>`:''}`;
+    <p class="desc">${canWrite?`${ROLE[role]}自己送出的${word}（新增、修改、取消）核准後才會生效；退回時可以填寫原因。`:viewOnly()?`這些是你送出的${word}申請，管理者核准後才會生效。你目前的權限是僅檢視，無法撤回或刪除，如需修改請洽診所管理者。`:`你送出的${word}要等管理者核准才會生效，核准前可以撤回。被退回的申請可以刪除。`}</p>
+    ${allPend.length?`<div class="hol-scroll"><table class="list">${head}<tbody>${pend.length?'':`<tr><td colspan="${who?8:7}" class="att-mute">沒有符合篩選的申請。</td></tr>`}${pend.map(r=>row(r,r=>canWrite?`<button class="small primary" data-lrok="${r.id}">核准</button> <button class="small danger" data-lrno="${r.id}">退回</button>`:viewOnly()?'':`<button class="small" data-lrdel="${r.id}">撤回</button>`)).join('')}</tbody></table></div>`:`<p class="att-mute">沒有待審核的${role==='assistant'?(reqWhen==='after'?'事後':'事前'):''}${word}。</p>`}
+    ${allRej.length?`<h4 style="margin:14px 0 6px">被退回的申請</h4><div class="hol-scroll"><table class="list">${head}<tbody>${rej.map(r=>row(r,r=>viewOnly()?'':`<button class="small" data-lrdel="${r.id}">刪除</button>`)).join('')}</tbody></table></div>`:''}`;
   // 一次最多顯示 10 列，其餘上下捲動
   box.querySelectorAll('.hol-scroll').forEach(w=>{w.style.overflowY='auto';limitRows(w,10);});
 }
@@ -1466,9 +1466,9 @@ function renderFcReqs(box,basePend,fcP,fcR){
   const head=`<thead><tr><th>日期</th>${canWrite?'<th>人員</th>':''}<th>申請</th><th>班別</th><th>時間段</th><th class="num">時數</th><th>事由</th><th>申請時間</th><th></th></tr></thead>`;
   const pend=fcP.slice().sort(byD),rej=fcR.slice().sort((a,b)=>(b.reviewedAt||0)-(a.reviewedAt||0));
   box.innerHTML=`<div class="lv-title-row"><h2 style="margin:0">${canWrite?'請假審核':'我的請假申請'}</h2>${reqWhenSeg(basePend,'data-rqwhen',fcP.length)}${pend.length?`<span class="pill warn">待審 ${pend.length} 筆</span>`:''}<span style="flex:1"></span>${canWrite&&pend.length>1?'<button class="small primary" data-fcall>全部核准</button>':''}</div>
-    <p class="desc">${canWrite?'助理自己送出的家庭照顧假（新增、變更、刪除）核准後才會生效；退回時可以填寫原因。':'你送出的家庭照顧假要等管理者核准才會生效，核准前可以撤回。被退回的申請可以刪除。'}</p>
-    ${pend.length?`<div class="hol-scroll"><table class="list">${head}<tbody>${pend.map(r=>row(r,r=>canWrite?`<button class="small primary" data-fcok="${r.id}">核准</button> <button class="small danger" data-fcno="${r.id}">退回</button>`:`<button class="small" data-fcwd="${r.id}">撤回</button>`)).join('')}</tbody></table></div>`:'<p class="att-mute">沒有待審核的家庭照顧假。</p>'}
-    ${rej.length?`<h4 style="margin:14px 0 6px">被退回的申請</h4><div class="hol-scroll"><table class="list">${head}<tbody>${rej.map(r=>row(r,r=>`<button class="small" data-fcwd="${r.id}">刪除</button>`)).join('')}</tbody></table></div>`:''}`;
+    <p class="desc">${canWrite?'助理自己送出的家庭照顧假（新增、變更、刪除）核准後才會生效；退回時可以填寫原因。':viewOnly()?'這些是你送出的家庭照顧假申請，管理者核准後才會生效。你目前的權限是僅檢視，無法撤回或刪除，如需修改請洽診所管理者。':'你送出的家庭照顧假要等管理者核准才會生效，核准前可以撤回。被退回的申請可以刪除。'}</p>
+    ${pend.length?`<div class="hol-scroll"><table class="list">${head}<tbody>${pend.map(r=>row(r,r=>canWrite?`<button class="small primary" data-fcok="${r.id}">核准</button> <button class="small danger" data-fcno="${r.id}">退回</button>`:viewOnly()?'':`<button class="small" data-fcwd="${r.id}">撤回</button>`)).join('')}</tbody></table></div>`:'<p class="att-mute">沒有待審核的家庭照顧假。</p>'}
+    ${rej.length?`<h4 style="margin:14px 0 6px">被退回的申請</h4><div class="hol-scroll"><table class="list">${head}<tbody>${rej.map(r=>row(r,r=>viewOnly()?'':`<button class="small" data-fcwd="${r.id}">刪除</button>`)).join('')}</tbody></table></div>`:''}`;
   box.querySelectorAll('.hol-scroll').forEach(w=>{w.style.overflowY='auto';limitRows(w,10);});
 }
 ['lvReqCard','dcReqCard'].forEach(cid=>document.getElementById(cid).addEventListener('click',e=>{
@@ -1478,13 +1478,13 @@ function renderFcReqs(box,basePend,fcP,fcR){
   const fo=e.target.closest('[data-fcok]');if(fo&&canWrite){const r=fcReqs.find(x=>x.id===fo.dataset.fcok);if(r){store.reviewFc(r.id,true);toast(`已核准 ${codeOf(r.staffId)} ${r.date.slice(5).replace('-','/')} 的家庭照顧假申請。`);}return;}
   const fn=e.target.closest('[data-fcno]');if(fn&&canWrite){const r=fcReqs.find(x=>x.id===fn.dataset.fcno);if(r)dialog(`<h3>退回家庭照顧假申請</h3><p>${esc(fullName(byId(r.staffId)))} ${r.date.slice(5).replace('-','/')} ${r.start||''}–${r.end||''}</p><label class="lb" for="lrReason">退回原因（選填）</label><input id="lrReason" type="text" maxlength="100" style="width:100%">`,()=>{store.reviewFc(r.id,false,(document.getElementById('lrReason')?.value||'').trim());toast('已退回。');},'退回',true);return;}
   if(e.target.closest('[data-fcall]')&&canWrite){const ps=fcReqs.filter(r=>r.status==='pending'&&byId(r.staffId)?.role==='assistant');dialog(`<h3>全部核准</h3><p>核准 ${ps.length} 筆待審核的家庭照顧假申請？</p>`,async()=>{for(const r of ps)await store.reviewFc(r.id,true);toast(`已核准 ${ps.length} 筆家庭照顧假申請。`);},'全部核准');return;}
-  const fw=e.target.closest('[data-fcwd]');if(fw){const r=fcReqs.find(x=>x.id===fw.dataset.fcwd);if(r&&(canWrite||r.staffId===myStaffId())){store.delFcReq(r.id);toast(r.status==='pending'?'已撤回家庭照顧假申請。':'已刪除。');}return;}
+  const fw=e.target.closest('[data-fcwd]');if(fw&&!viewOnly()){const r=fcReqs.find(x=>x.id===fw.dataset.fcwd);if(r&&(canWrite||r.staffId===myStaffId())){store.delFcReq(r.id);toast(r.status==='pending'?'已撤回家庭照顧假申請。':'已刪除。');}return;}
   if(e.target.closest('[data-rqclear]')){reqFilter[role]={};renderLeaveReqs(role);return;}
   if(e.target.closest('[data-lrmonth]')&&canWrite){openMonthReview(role);return;}
   const ok=e.target.closest('[data-lrok]');if(ok&&canWrite){const r=leaveReqs.find(x=>x.id===ok.dataset.lrok);if(r)reqApprove(r);return;}
   if(e.target.closest('[data-lrall]')&&canWrite){const f=reqFilter[role],fl=Object.values(f).some(Boolean),ps=leaveReqs.filter(r=>r.status==='pending'&&byId(r.staffId)?.role===role&&reqWhenOk(r,role)&&reqPass(r,f));dialog(`<h3>${fl?'核准篩選的申請':'全部核准'}</h3><p>核准${fl?'目前篩選出來的':''} ${ps.length} 筆待審核的請假申請？</p>`,async()=>{for(const r of ps)await store.reviewLeave(r.id,true);toast(`已核准 ${ps.length} 筆請假申請。`);},'全部核准');return;}
   const no=e.target.closest('[data-lrno]');if(no&&canWrite){const r=leaveReqs.find(x=>x.id===no.dataset.lrno);if(r)reqReject(r);return;}
-  const del=e.target.closest('[data-lrdel]');if(del){const r=leaveReqs.find(x=>x.id===del.dataset.lrdel);if(r&&(canWrite||r.staffId===myStaffId())){
+  const del=e.target.closest('[data-lrdel]');if(del&&!viewOnly()){const r=leaveReqs.find(x=>x.id===del.dataset.lrdel);if(r&&(canWrite||r.staffId===myStaffId())){
     if(r.status!=='pending'){store.delLeaveReq(r.id);toast('已刪除。');return;}
     askBatch(r,'撤回',()=>{store.delLeaveReq(r.id);toast('已撤回申請。');},all=>{all.forEach(x=>store.delLeaveReq(x.id));toast(`已撤回 ${all.length} 筆申請。`);});}return;}
 }));
@@ -2596,6 +2596,7 @@ function renderLeave(mi,roles){
   if(roles.includes('assistant'))renderProofTable();
   if(roles.includes('assistant')){
     renderFamilyCare(mi);renderMakeup(mi);renderYearLeave(mi);renderPersonal(mi);
+    $('lvRegTitle').textContent=viewOnly()?'我的請假紀錄':'請假登記'; // 僅檢視沒有登記功能
     // 請假登記：事前／事後切換
     const w=prefs.lvWhen==='after'?'after':'before';
     $('lvPane-before').hidden=w!=='before';$('lvPane-after').hidden=w!=='after';
@@ -2666,7 +2667,7 @@ function renderLeave(mi,roles){
         }
         return `<tr data-date="${l.date}" data-lvid="${l.id}"${faded(l)?` class="faded" title="${whenOf(l)==='after'?'事後':'事前'}登記的請假，請切換到「${whenOf(l)==='after'?'事後':'事前'}」修改"`:''}><td>${md(d)}（${DAYS[dow]}）</td>${canWrite?`<td>${esc(fullName(byId(l.staffId)))}</td>`:''}<td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&l.type==='生理假'?(s=>s?` <span class="pill warn">${s>=(l.shifts||[]).length?'視同病假':`${s} 診視同病假`}</span>`:'')(menSickShifts(l)):''}${role==='assistant'&&!faded(l)?proofBadge(l.staffId,l.date,l.type):''}</td><td>${esc(l.note||'')}</td>
           <td>${clash.length?`<span class="pill warn">已排${SHIFTS.filter(s=>clash.includes(s.id)).map(s=>s.short).join('、')}班</span>`:'<span class="pill">無衝突</span>'}${pendOf(l)?`<div><span class="pill warn">${pendOf(l).kind==='cancel'?'等待核准刪除':'等待核准變更'}</span></div>`:''}</td>
-          <td class="num" style="white-space:nowrap">${faded(l)?`<span class="pill">${whenOf(l)==='after'?'事後':'事前'}</span>`:!canWrite&&needReview(l.staffId)&&pastLeave(l)?`<span class="att-mute" style="font-size:.75rem">已過去</span>`:pendOf(l)&&!canWrite?`<button class="small" data-lrwithdraw="${pendOf(l).id}">撤回申請</button>`:canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
+          <td class="num" style="white-space:nowrap">${faded(l)?`<span class="pill">${whenOf(l)==='after'?'事後':'事前'}</span>`:!canWrite&&needReview(l.staffId)&&pastLeave(l)?`<span class="att-mute" style="font-size:.75rem">已過去</span>`:pendOf(l)&&!canWrite?(viewOnly()?'':`<button class="small" data-lrwithdraw="${pendOf(l).id}">撤回申請</button>`):canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
       }).join(''):`<tr><td colspan="${canWrite?7:6}" class="empty">${lvFiltered?'沒有符合篩選的紀錄。':`${lr.label}還沒有${ROLE[role]}${word}紀錄。`}</td></tr>`)+'</tbody>';
     {const n=limitRows($('leaveScroll-'+pk),10);$('leaveHint-'+pk).hidden=n<=10;if(pk==='doctor'&&lvDocScrollTop){$('leaveScroll-doctor').scrollTop=0;lvDocScrollTop=false;}if(pk!=='doctor'&&!leaveScrolled[pk])leaveScrolled[pk]=scrollToUpcoming($('leaveScroll-'+pk));}
   });
