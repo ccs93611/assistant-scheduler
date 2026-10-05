@@ -112,6 +112,9 @@ main{padding-block:18px 48px;}
   width:220px; flex-shrink:0; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px;
   position:sticky; top:calc(env(safe-area-inset-top,0px) + 12px);
 }
+/* 沒有排班權限：左側只留醫師、助理代號作為對照（不能拖曳），隱藏基本／加診切換、診數、顏色說明與拖曳提示 */
+.sched.sched-ref .pool .seg,.sched.sched-ref .pool .legend,.sched.sched-ref .pool > .hint,.sched.sched-ref .pool .chip .cnt{display:none;}
+.sched.sched-ref .pool .chip{cursor:default; pointer-events:none;}
 .pool h2{font-size:.8rem; letter-spacing:.08em; color:var(--sub); margin:0 0 8px; font-weight:500;}
 .pool h2 + .chips{margin-bottom:16px;}
 .chips{display:flex; flex-direction:column; gap:6px;}
@@ -685,7 +688,7 @@ body.gated .shell{display:none;}
             <span class="seg" id="schedViewSeg" role="group" aria-label="原始或異動班表"><button type="button" data-view="orig" aria-pressed="true">原始班表</button><button type="button" data-view="live" aria-pressed="false">異動班表</button></span>
             <span class="hint" id="baseInfo" style="margin:0"></span>
             <button type="button" class="small" id="baselineBtn" data-w>定案</button>
-            <span class="hint" style="margin:0">定案後可開放助理換班</span>
+            <span class="hint" id="baselineHint" style="margin:0">定案後可開放助理換班</span>
           </div>
           <div class="banner" id="origNote" hidden></div>
           <div class="presence" id="presenceBar" hidden></div>
@@ -2123,10 +2126,13 @@ function renderAll(){
   else if(mode==='local') b.innerHTML='<div class="banner">目前無法連到共用資料庫，資料只會存在這台裝置的瀏覽器裡。</div>';
   else b.innerHTML='';
   document.querySelectorAll('[data-w]').forEach(el=>el.disabled=!canWrite);
+  // 沒有排班權限：定案按鈕直接隱藏（不只是停用）；其他排班按鈕在下方依分頁一起處理
+  ['baselineBtn','baselineHint'].forEach(id=>$(id).style.display=canWrite?'':'none');
+  document.querySelector('#tab-schedule .sched').classList.toggle('sched-ref',!canWrite); // 左側只留人員代號作為對照
   $('payTabBtn').hidden=!canSeePay();
   // 排班相關按鈕（含上個月／本月／下個月）只在「排班表」分頁顯示；其他分頁各自有月份或年份切換
   $('curMonth').textContent=monthInfo().label; // 上個月／下個月之間顯示目前班表的年月
-  ['prevMonth','curMonth','thisMonth','nextMonth','undoBtn','tplBtn','autoBtn','clearMonthBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'?'':'none');
+  ['prevMonth','curMonth','thisMonth','nextMonth','undoBtn','tplBtn','autoBtn','clearMonthBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'&&(canWrite||!['undoBtn','tplBtn','autoBtn','clearMonthBtn'].includes(id))?'':'none'); // 沒有排班權限時排班用的按鈕直接隱藏
   $('undoBtn').disabled=!canWrite||!schedHist.length||viewingLocked();
   if(prefs.tab==='pay'&&!canSeePay())prefs.tab='schedule';
   $('attTabBtn').hidden=!(canWrite||viewOnlyAssistant());
@@ -5068,7 +5074,7 @@ function openMonthLeave(when,role='assistant'){
     <div class="ml-types" id="mlTypes" role="group" aria-label="請假類別"></div>
     <p class="lv-proof" id="mlProof" hidden></p>
     <div class="ml-body"><div class="ml-staff" id="mlStaff"></div><div class="ml-cal-wrap"><div class="ml-cal" id="mlCal"></div></div></div>
-    <p class="hint">選好假別後，把${who}代號拖到要${word}的班次；拖到日期上則整天（早午晚）都${word}。手機可以先點${who}、再點班次或日期。點班次裡的代號可以取消那一班。虛線框是等待審核的${word}申請（加刪除線的是取消申請），點一下可以撤回。這個視窗裡的變更要按「登記」才會${doc?'儲存':'儲存或送出申請'}，按「取消」則全部不算。</p>
+    <p class="hint"><span id="mlHowTo"></span>點班次裡的代號可以取消那一班。虛線框是等待審核的${word}申請（加刪除線的是取消申請），點一下可以撤回。這個視窗裡的變更要按「登記」才會${doc?'儲存':'儲存或送出申請'}，按「取消」則全部不算。</p>
     <div class="ml-foot"><span class="ml-dirty" id="mlDirty"></span><button class="primary" data-mlsave>登記</button><button data-mlcancel>取消</button></div></div>`;
   document.body.appendChild(ov);
   const q=s=>ov.querySelector(s);
@@ -5087,6 +5093,9 @@ function openMonthLeave(when,role='assistant'){
     q('#mlTypes').innerHTML=types.map(t=>`<button type="button" data-mltype="${esc(t)}" aria-pressed="${t===type}"${t===type?` style="${leaveTagStyle(t)}"`:''}><i class="ml-dot" style="background:${leaveColor(t)[0]}"></i>${esc(t)}</button>`).join('');
     const list=activeStaff(role).filter(s=>canWrite||s.id===myStaffId());
     if(sel&&!list.some(s=>s.id===sel))sel=null;
+    // 只有自己一個人時不顯示人員欄，點班次或日期就是自己的假
+    q('#mlStaff').style.display=list.length===1?'none':'';
+    q('#mlHowTo').textContent=list.length===1?`選好假別後，點班次就${word}那一班，點日期則整天（早午晚）都${word}。`:`選好假別後，把${who}代號拖到要${word}的班次；拖到日期上則整天（早午晚）都${word}。手機可以先點${who}、再點班次或日期。`;
     if(list.length===1)sel=list[0].id; // 只有自己一個人（登記本人請假以下）：直接選好，不用先點自己的代號
     q('#mlStaff').innerHTML=list.map(s=>`<div class="chip ${role}${sel===s.id?' sel':''}" draggable="true" tabindex="0" data-mlsid="${s.id}" title="${esc(fullName(s))}"><span class="nm">${esc(s.code||s.name)}</span></div>`).join('')||`<div class="hint" style="margin:0">尚無${who}。</div>`;
     const shown=new Set(list.map(s=>s.id));
