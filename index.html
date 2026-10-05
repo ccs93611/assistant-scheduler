@@ -1424,6 +1424,7 @@ const reqPass=(r,f)=>(!f.date||r.date.slice(0,7)===f.date)&&(!f.sid||r.staffId==
 function renderLeaveReqs(role){
   const box=$(role==='doctor'?'dcReqCard':'lvReqCard'),me=myStaffId(),word=role==='doctor'?'休假':'請假';
   const mine=r=>(canWrite||r.staffId===me)&&byId(r.staffId)?.role===role;
+  if(!canWrite)delete reqFilter[role].sid;
   const f=reqFilter[role],basePend=leaveReqs.filter(r=>r.status==='pending'&&mine(r)),baseRej=leaveReqs.filter(r=>r.status==='rejected'&&mine(r));
   const allPend=basePend.filter(r=>reqWhenOk(r,role)),allRej=baseRej.filter(r=>reqWhenOk(r,role));
   const pend=allPend.filter(r=>reqPass(r,f)).sort((a,b)=>a.date.localeCompare(b.date)||codeOf(a.staffId).localeCompare(codeOf(b.staffId),'en',{numeric:true}));
@@ -1435,7 +1436,8 @@ function renderLeaveReqs(role){
   const KIND={add:'新增',edit:'修改',cancel:'取消'};
   const shTxt=reqShTxt;
   const dl=r=>{const d=parseYmd(r.date);return `${md(d)}（${DAYS[(d.getDay()+6)%7]}）`;};
-  const row=(r,acts)=>`<tr data-rqid="${r.id}"><td>${dl(r)}</td><td>${esc(fullName(byId(r.staffId)))}</td><td><span class="pill${r.kind==='cancel'?' warn':''}">${KIND[r.kind]||'新增'}</span></td><td>${shTxt(r)}</td><td>${esc(r.type||'')}${whenOf(r)==='after'?' <small class="att-mute">事後</small>':''}${r.type==='婚假'&&r.kind!=='cancel'&&marriageLate(r.staffId,r.date)?'<div class="att-bad" style="font-size:.72rem">⚠ 超過結婚登記日 3 個月，需經公司同意</div>':''}${LEAVE_PROOF[r.type]&&r.kind!=='cancel'&&role!=='doctor'?`<div class="lr-proof" title="${esc(LEAVE_PROOF[r.type].note)}">📎 ${esc(LEAVE_PROOF[r.type].doc)}</div>`:''}${r.kind!=='cancel'&&role!=='doctor'?proofBadge(r.staffId,r.date,r.type):''}</td><td>${esc(r.note||'')}${r.status==='rejected'?`<div class="att-bad">由 ${esc(r.reviewerName||'管理者')} 退回${r.reason?'：'+esc(r.reason):''}</div>`:''}</td><td class="att-mute">${r.reqAt?fmtAt(r.reqAt):''}</td><td class="lr-acts">${acts(r)}</td></tr>`;
+  const who=canWrite; // 管理者才顯示人員欄
+  const row=(r,acts)=>`<tr data-rqid="${r.id}"><td>${dl(r)}</td>${who?`<td>${esc(fullName(byId(r.staffId)))}</td>`:''}<td><span class="pill${r.kind==='cancel'?' warn':''}">${KIND[r.kind]||'新增'}</span></td><td>${shTxt(r)}</td><td>${esc(r.type||'')}${whenOf(r)==='after'?' <small class="att-mute">事後</small>':''}${r.type==='婚假'&&r.kind!=='cancel'&&marriageLate(r.staffId,r.date)?'<div class="att-bad" style="font-size:.72rem">⚠ 超過結婚登記日 3 個月，需經公司同意</div>':''}${LEAVE_PROOF[r.type]&&r.kind!=='cancel'&&role!=='doctor'?`<div class="lr-proof" title="${esc(LEAVE_PROOF[r.type].note)}">📎 ${esc(LEAVE_PROOF[r.type].doc)}</div>`:''}${r.kind!=='cancel'&&role!=='doctor'?proofBadge(r.staffId,r.date,r.type):''}</td><td>${esc(r.note||'')}${r.status==='rejected'?`<div class="att-bad">由 ${esc(r.reviewerName||'管理者')} 退回${r.reason?'：'+esc(r.reason):''}</div>`:''}</td><td class="att-mute">${r.reqAt?fmtAt(r.reqAt):''}</td><td class="lr-acts">${acts(r)}</td></tr>`;
   // 表頭的日期、人員、申請、班別、假別可以下拉選擇篩選
   const src=[...allPend,...allRej],uniq=a=>[...new Set(a)];
   const sel=(k,lb,opts)=>`<select class="rq-filter${f[k]?' on':''}" data-rqf="${k}"><option value="">${lb}</option>${opts.map(([v,t])=>`<option value="${esc(v)}"${f[k]===v?' selected':''}>${esc(t)}</option>`).join('')}</select>`;
@@ -1443,11 +1445,11 @@ function renderLeaveReqs(role){
   const ppl=uniq(src.map(r=>r.staffId)).sort((a,b)=>codeOf(a).localeCompare(codeOf(b),'en',{numeric:true})).map(id=>[id,fullName(byId(id))]);
   const kinds=uniq(src.map(r=>r.kind||'add')).sort((a,b)=>Object.keys(KIND).indexOf(a)-Object.keys(KIND).indexOf(b)).map(k=>[k,KIND[k]||'新增']);
   const shs=uniq(src.map(shTxt)).sort().map(x=>[x,x]),types=uniq(src.map(r=>r.type||'')).filter(Boolean).sort().map(x=>[x,x]);
-  const head=`<thead><tr><th>${sel('date','日期',months)}</th><th>${sel('sid','人員',ppl)}</th><th>${sel('kind','申請',kinds)}</th><th>${sel('sh','班別',shs)}</th><th>${sel('type','假別',types)}</th><th>備註</th><th>申請時間</th><th>${Object.values(f).some(Boolean)?'<button class="small" data-rqclear>清除篩選</button>':''}</th></tr></thead>`;
+  const head=`<thead><tr><th>${sel('date','日期',months)}</th>${who?`<th>${sel('sid','人員',ppl)}</th>`:''}<th>${sel('kind','申請',kinds)}</th><th>${sel('sh','班別',shs)}</th><th>${sel('type','假別',types)}</th><th>備註</th><th>申請時間</th><th>${Object.values(f).some(Boolean)?'<button class="small" data-rqclear>清除篩選</button>':''}</th></tr></thead>`;
   const filtered=Object.values(f).some(Boolean);
   box.innerHTML=`<div class="lv-title-row"><h2 style="margin:0">${canWrite?word+'審核':'我的'+word+'申請'}</h2>${role==='assistant'?reqWhenSeg(basePend,'data-rqwhen',fcP.length):''}${allPend.length?`<span class="pill warn">待審 ${filtered?`${pend.length}／${allPend.length}`:allPend.length} 筆</span>`:''}<span style="flex:1"></span>${canWrite&&allPend.length?'<button class="small" data-lrmonth>整月審核</button> ':''}${canWrite&&pend.length>1?`<button class="small primary" data-lrall>${filtered?`核准篩選的 ${pend.length} 筆`:'全部核准'}</button>`:''}</div>
     <p class="desc">${canWrite?`${ROLE[role]}自己送出的${word}（新增、修改、取消）核准後才會生效；退回時可以填寫原因。`:`你送出的${word}要等管理者核准才會生效，核准前可以撤回。被退回的申請可以刪除。`}</p>
-    ${allPend.length?`<div class="hol-scroll"><table class="list">${head}<tbody>${pend.length?'':`<tr><td colspan="8" class="att-mute">沒有符合篩選的申請。</td></tr>`}${pend.map(r=>row(r,r=>canWrite?`<button class="small primary" data-lrok="${r.id}">核准</button> <button class="small danger" data-lrno="${r.id}">退回</button>`:`<button class="small" data-lrdel="${r.id}">撤回</button>`)).join('')}</tbody></table></div>`:`<p class="att-mute">沒有待審核的${role==='assistant'?(reqWhen==='after'?'事後':'事前'):''}${word}。</p>`}
+    ${allPend.length?`<div class="hol-scroll"><table class="list">${head}<tbody>${pend.length?'':`<tr><td colspan="${who?8:7}" class="att-mute">沒有符合篩選的申請。</td></tr>`}${pend.map(r=>row(r,r=>canWrite?`<button class="small primary" data-lrok="${r.id}">核准</button> <button class="small danger" data-lrno="${r.id}">退回</button>`:`<button class="small" data-lrdel="${r.id}">撤回</button>`)).join('')}</tbody></table></div>`:`<p class="att-mute">沒有待審核的${role==='assistant'?(reqWhen==='after'?'事後':'事前'):''}${word}。</p>`}
     ${allRej.length?`<h4 style="margin:14px 0 6px">被退回的申請</h4><div class="hol-scroll"><table class="list">${head}<tbody>${rej.map(r=>row(r,r=>`<button class="small" data-lrdel="${r.id}">刪除</button>`)).join('')}</tbody></table></div>`:''}`;
   // 一次最多顯示 10 列，其餘上下捲動
   box.querySelectorAll('.hol-scroll').forEach(w=>{w.style.overflowY='auto';limitRows(w,10);});
@@ -1457,8 +1459,8 @@ function renderFcReqs(box,basePend,fcP,fcR){
   const dl=r=>{const d=parseYmd(r.date);return `${md(d)}（${DAYS[(d.getDay()+6)%7]}）`;};
   const orig=r=>r.replaces?familyCare.find(x=>x.id===r.replaces):null;
   const tm=r=>r.start&&r.end?`${r.start}–${r.end}`:'—',shn=r=>SHIFTS.find(x=>x.id===r.shift)?.name||'—';
-  const row=(r,acts)=>{const o=r.kind==='edit'?orig(r):null;return `<tr data-rqid="${r.id}"><td>${dl(r)}</td><td>${esc(fullName(byId(r.staffId)))}</td><td><span class="pill${r.kind==='cancel'?' warn':''}">${KIND[r.kind]||'新增'}</span></td><td>${shn(r)}</td><td style="white-space:nowrap">${tm(r)}${o&&(o.date!==r.date||tm(o)!==tm(r))?`<div class="att-mute" style="font-size:.72rem">原：${dl(o)} ${tm(o)}</div>`:''}</td><td class="num">${r.hours} 小時${r.mid?'<br><small class="att-mute">中途至當診結束</small>':''}${r.kind!=='cancel'?proofBadge(r.staffId,r.date,'家庭照顧假'):''}</td><td>${esc(r.note||'')}${r.status==='rejected'?`<div class="att-bad">由 ${esc(r.reviewerName||'管理者')} 退回${r.reason?'：'+esc(r.reason):''}</div>`:''}</td><td class="att-mute">${r.reqAt?fmtAt(r.reqAt):''}</td><td class="lr-acts">${acts(r)}</td></tr>`;};
-  const head='<thead><tr><th>日期</th><th>人員</th><th>申請</th><th>班別</th><th>時間段</th><th class="num">時數</th><th>事由</th><th>申請時間</th><th></th></tr></thead>';
+  const row=(r,acts)=>{const o=r.kind==='edit'?orig(r):null;return `<tr data-rqid="${r.id}"><td>${dl(r)}</td>${canWrite?`<td>${esc(fullName(byId(r.staffId)))}</td>`:''}<td><span class="pill${r.kind==='cancel'?' warn':''}">${KIND[r.kind]||'新增'}</span></td><td>${shn(r)}</td><td style="white-space:nowrap">${tm(r)}${o&&(o.date!==r.date||tm(o)!==tm(r))?`<div class="att-mute" style="font-size:.72rem">原：${dl(o)} ${tm(o)}</div>`:''}</td><td class="num">${r.hours} 小時${r.mid?'<br><small class="att-mute">中途至當診結束</small>':''}${r.kind!=='cancel'?proofBadge(r.staffId,r.date,'家庭照顧假'):''}</td><td>${esc(r.note||'')}${r.status==='rejected'?`<div class="att-bad">由 ${esc(r.reviewerName||'管理者')} 退回${r.reason?'：'+esc(r.reason):''}</div>`:''}</td><td class="att-mute">${r.reqAt?fmtAt(r.reqAt):''}</td><td class="lr-acts">${acts(r)}</td></tr>`;};
+  const head=`<thead><tr><th>日期</th>${canWrite?'<th>人員</th>':''}<th>申請</th><th>班別</th><th>時間段</th><th class="num">時數</th><th>事由</th><th>申請時間</th><th></th></tr></thead>`;
   const pend=fcP.slice().sort(byD),rej=fcR.slice().sort((a,b)=>(b.reviewedAt||0)-(a.reviewedAt||0));
   box.innerHTML=`<div class="lv-title-row"><h2 style="margin:0">${canWrite?'請假審核':'我的請假申請'}</h2>${reqWhenSeg(basePend,'data-rqwhen',fcP.length)}${pend.length?`<span class="pill warn">待審 ${pend.length} 筆</span>`:''}<span style="flex:1"></span>${canWrite&&pend.length>1?'<button class="small primary" data-fcall>全部核准</button>':''}</div>
     <p class="desc">${canWrite?'助理自己送出的家庭照顧假（新增、變更、刪除）核准後才會生效；退回時可以填寫原因。':'你送出的家庭照顧假要等管理者核准才會生效，核准前可以撤回。被退回的申請可以刪除。'}</p>
@@ -2392,6 +2394,7 @@ function renderFamilyCare(mi){
   let rows=familyCare.concat(fcReqs.filter(r=>r.status==='pending'&&r.kind==='add').map(r=>Object.assign({},r,{_req:1}))).filter(l=>l.date>=lr.a&&l.date<=lr.z).sort((x,y)=>(k(x,y)*fcSort.dir)||byDate(x,y));
   const fcPendOf=l=>fcReqs.find(r=>r.status==='pending'&&r.replaces===l.id);
   // 表頭下拉選擇篩選（選項只列出這段期間有的值）
+  if(!canWrite)delete fcFilter.staff;
   const f=fcFilter,uniq=a=>[...new Set(a)],dKey=l=>lr.year?l.date.slice(0,7):l.date,tKey=l=>l.start&&l.end?`${l.start}–${l.end}`:'—';
   const opts={date:uniq(rows.map(dKey)).sort().map(v=>[v,lr.year?`${Number(v.slice(5))} 月`:(d=>`${md(d)}（${DAYS[(d.getDay()+6)%7]}）`)(parseYmd(v))]),
     staff:uniq(rows.map(l=>l.staffId)).sort((x,y)=>codeOf(x).localeCompare(codeOf(y),'en',{numeric:true})).map(id=>[id,fullName(byId(id))]),
@@ -2403,19 +2406,19 @@ function renderFamilyCare(mi){
   const filtered=Object.keys(f).some(on);
   const fsel=key=>`<div><select class="rq-filter${on(key)?' on':''}" data-fcf="${key}" aria-label="篩選"><option value="*">全部</option>${opts[key].map(([v,t])=>`<option value="${esc(v)}"${f[key]===v?' selected':''}>${esc(t)}</option>`).join('')}</select></div>`;
   const th=(key,label,cls='')=>`<th${cls}><button type="button" class="th-btn${fcSort.key===key?' on':''}" data-fcsort="${key}" aria-label="依${label}排序">${label}<span>${fcSort.key===key?(fcSort.dir>0?'▲':'▼'):'↕'}</span></button>${opts[key]?fsel(key):''}</th>`;
-  $('fcTable').innerHTML=`<thead><tr>${th('date','日期')}${th('staff','助理')}${th('shift','班別')}${th('time','時間段')}${th('hours','時數',' class="num"')}<th>事由</th><th>${filtered?`<button class="small" data-fcfclear>清除篩選</button><div class="att-mute" style="font-size:.72rem">${rows.length}／${total} 筆</div>`:''}</th></tr></thead><tbody>`+
+  $('fcTable').innerHTML=`<thead><tr>${th('date','日期')}${canWrite?th('staff','助理'):''}${th('shift','班別')}${th('time','時間段')}${th('hours','時數',' class="num"')}<th>事由</th><th>${filtered?`<button class="small" data-fcfclear>清除篩選</button><div class="att-mute" style="font-size:.72rem">${rows.length}／${total} 筆</div>`:''}</th></tr></thead><tbody>`+
     (rows.length?rows.map(l=>{const d=parseYmd(l.date);const sh=SHIFTS.find(x=>x.id===l.shift);
-      if(editingFc===l.id)return `<tr data-fcrow="${l.id}"><td><input type="date" data-e="date" value="${l.date}" aria-label="日期"></td><td>${esc(fullName(byId(l.staffId)))}</td>
+      if(editingFc===l.id)return `<tr data-fcrow="${l.id}"><td><input type="date" data-e="date" value="${l.date}" aria-label="日期"></td>${canWrite?`<td>${esc(fullName(byId(l.staffId)))}</td>`:''}
         <td><select data-e="shift" aria-label="班別"><option value="">不指定</option>${SHIFTS.map(x=>`<option value="${x.id}"${x.id===l.shift?' selected':''}>${x.name}</option>`).join('')}</select></td>
         <td style="white-space:nowrap"><input type="time" data-e="start" value="${l.start||''}" aria-label="開始時間" style="width:auto"> – <input type="time" data-e="end" value="${l.end||''}" aria-label="結束時間" style="width:auto"></td>
         <td class="num" data-e="calc">${l.hours} 小時</td><td><input data-e="note" value="${esc(l.note||'')}" aria-label="備註"></td>
         <td class="num" style="white-space:nowrap"><button class="small primary" data-fcsave="${l.id}">儲存</button> <button class="small" data-fccancel>取消</button></td></tr>`;
-      return `<tr data-date="${l.date}" data-fcid="${l.id}"${l._req?' class="fc-req"':''}><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${sh?sh.name:'—'}</td><td>${l.start&&l.end?`${l.start}–${l.end}`:'—'}</td><td class="num">${l.hours} 小時${l.mid?'<br><small class="att-mute">中途至當診結束</small>':''}${proofBadge(l.staffId,l.date,'家庭照顧假')}</td><td>${esc(l.note||'')}</td><td class="num" style="white-space:nowrap">${(()=>{const pr=l._req?l:fcPendOf(l),own=canLeaveFor(l.staffId);
+      return `<tr data-date="${l.date}" data-fcid="${l.id}"${l._req?' class="fc-req"':''}><td>${md(d)}（${DAYS[(d.getDay()+6)%7]}）</td>${canWrite?`<td>${esc(fullName(byId(l.staffId)))}</td>`:''}<td>${sh?sh.name:'—'}</td><td>${l.start&&l.end?`${l.start}–${l.end}`:'—'}</td><td class="num">${l.hours} 小時${l.mid?'<br><small class="att-mute">中途至當診結束</small>':''}${proofBadge(l.staffId,l.date,'家庭照顧假')}</td><td>${esc(l.note||'')}</td><td class="num" style="white-space:nowrap">${(()=>{const pr=l._req?l:fcPendOf(l),own=canLeaveFor(l.staffId);
         if(l._req)return `<span class="pill warn">待審核</span>${own?` <button class="small" data-fcwd="${l.id}">撤回</button>`:''}`;
         const tag=pr?`<span class="pill warn">${pr.kind==='cancel'?'等待核准刪除':'等待核准變更'}</span> `:'';
         if(pr&&!canWrite)return tag+(own?`<button class="small" data-fcwd="${pr.id}">撤回申請</button>`:'');
         return tag+(own?`<button class="small" data-editfc="${l.id}">變更</button> <button class="small danger" data-delfc="${l.id}">刪除</button>`:'');})()}</td></tr>`;}).join('')
-    :`<tr><td colspan="7" class="empty">${filtered?'沒有符合篩選的紀錄。':`${lr.label}還沒有家庭照顧假紀錄。`}</td></tr>`)+'</tbody>';
+    :`<tr><td colspan="${canWrite?7:6}" class="empty">${filtered?'沒有符合篩選的紀錄。':`${lr.label}還沒有家庭照顧假紀錄。`}</td></tr>`)+'</tbody>';
   const tot={};familyCare.forEach(l=>{if(!l.date.startsWith(yr))return;const t=(tot[l.staffId]=tot[l.staffId]||{m:0,y:0});t.y+=l.hours;if(l.date>=a&&l.date<=z)t.m+=l.hours;});
   {const n=limitRows($('fcScroll'),3);$('fcHint').hidden=n<=3;if(!leaveScrolled.fc)leaveScrolled.fc=scrollToUpcoming($('fcScroll'));}
   const ids=Object.keys(tot).sort((x,y)=>codeOf(x).localeCompare(codeOf(y),'en',{numeric:true}));
@@ -2439,9 +2442,9 @@ function renderYearLeave(mi){
   const yk=YK[ylSort.key]||byCode;
   rowsY.sort((a,b)=>(yk(a,b)*ylSort.dir)||byCode(a,b));
   const th=(key,label)=>`<th><button type="button" class="th-btn${ylSort.key===key?' on':''}" data-ylsort="${key}" aria-label="依${label}排序">${label}<span>${ylSort.key===key?(ylSort.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
-  $('yearLeaveTable').innerHTML=`<thead><tr>${th('staff','助理')}${th('per','事假（含家庭照顧假）')}${th('sick','病假（含生理假視同病假）')}${th('men','生理假')}</tr></thead><tbody>`+
+  $('yearLeaveTable').innerHTML=`<thead><tr>${canWrite?th('staff','助理'):''}${th('per','事假（含家庭照顧假）')}${th('sick','病假（含生理假視同病假）')}${th('men','生理假')}</tr></thead><tbody>`+
     (rowsY.length?rowsY.map(({s,t})=>{
-      return `<tr><td>${esc(fullName(s))}</td>${cell(t.per,LEAVE_LIMITS.事假,t.fc?`<br><small style="color:var(--sub)">事假 ${t.perOnly}＋家庭照顧假 ${t.fc}（${t.fcHours} 小時）</small>`:'')}${cell(t.sickTotal,LEAVE_LIMITS.病假,t.menAsSick?`<br><small style="color:var(--sub)">病假 ${t.sick}＋生理假視同 ${t.menAsSick}</small>`:'')}${cell(t.men,LEAVE_LIMITS.生理假)}</tr>`;}).join('')
+      return `<tr>${canWrite?`<td>${esc(fullName(s))}</td>`:''}${cell(t.per,LEAVE_LIMITS.事假,t.fc?`<br><small style="color:var(--sub)">事假 ${t.perOnly}＋家庭照顧假 ${t.fc}（${t.fcHours} 小時）</small>`:'')}${cell(t.sickTotal,LEAVE_LIMITS.病假,t.menAsSick?`<br><small style="color:var(--sub)">病假 ${t.sick}＋生理假視同 ${t.menAsSick}</small>`:'')}${cell(t.men,LEAVE_LIMITS.生理假)}</tr>`;}).join('')
     :'<tr><td colspan="4" class="empty">尚未建立助理。</td></tr>')+'</tbody>';
 }
 // ---------- 個人假統計 ----------
@@ -2574,8 +2577,8 @@ function renderMakeup(mi){
   const k=MK[mkSort.key]||MK.month;
   rows.sort((x,y)=>(k(x,y)*mkSort.dir)||MK.month(x,y)||byCode(x,y));
   const th=(key,label,cls='')=>`<th${cls}><button type="button" class="th-btn${mkSort.key===key?' on':''}" data-mksort="${key}" aria-label="依${label}排序">${label}<span>${mkSort.key===key?(mkSort.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
-  $('mkSummary').innerHTML=rows.length?`<thead><tr>${lr.year?th('month','月份'):''}${th('staff','助理')}${th('sn','事假',' class="num"')}${th('mn','加診',' class="num"')}${th('attend','出勤津貼')}</tr></thead><tbody>`+
-    rows.map(({m,id,sn,mn})=>`<tr>${lr.year?`<td>${m.first.getMonth()+1} 月</td>`:''}<td>${esc(fullName(byId(id)))}</td><td class="num">${sn} 診</td><td class="num">${mn} 診</td><td>${sn>0&&mn<sn?`<span class="pill warn">不發（加診還差 ${sn-mn} 診）</span>`:'<span class="pill">照發</span>'}</td></tr>`).join('')+'</tbody>'
+  $('mkSummary').innerHTML=rows.length?`<thead><tr>${lr.year?th('month','月份'):''}${canWrite?th('staff','助理'):''}${th('sn','事假',' class="num"')}${th('mn','加診',' class="num"')}${th('attend','出勤津貼')}</tr></thead><tbody>`+
+    rows.map(({m,id,sn,mn})=>`<tr>${lr.year?`<td>${m.first.getMonth()+1} 月</td>`:''}${canWrite?`<td>${esc(fullName(byId(id)))}</td>`:''}<td class="num">${sn} 診</td><td class="num">${mn} 診</td><td>${sn>0&&mn<sn?`<span class="pill warn">不發（加診還差 ${sn-mn} 診）</span>`:'<span class="pill">照發</span>'}</td></tr>`).join('')+'</tbody>'
     :`<tbody><tr><td class="empty">${lr.label}沒有事假或加診。</td></tr></tbody>`;
 }
 // 助理請假分成兩個面板：assistant＝事前、after＝事後（事後列表也以淺灰色列出事前紀錄，只供對照）
@@ -2623,6 +2626,7 @@ function renderLeave(mi,roles){
       const k=KEYS[lvSort.key]||byDate;
       rows.sort((a,b)=>(k(a,b)*lvSort.dir)||byDate(a,b));
       // 表頭下拉選擇篩選（選項只列出這段期間有的值）
+      if(!canWrite)delete lvFilters[pk].staff;
       const f=lvFilters[pk],uniq=a=>[...new Set(a)];
       const dKey=l=>lr.year?l.date.slice(0,7):l.date,shT=l=>(l.shifts||[]).length===3?'全天':SHIFTS.filter(s=>(l.shifts||[]).includes(s.id)).map(s=>s.short).join('、');
       const stKey=l=>pendOf(l)?(pendOf(l).kind==='cancel'?'pdel':'pedit'):clashOf(l).length?'clash':'ok';
@@ -2638,7 +2642,7 @@ function renderLeave(mi,roles){
       lvFiltered=Object.values(f).some(Boolean)?{n:rows.length,total}:null;
       const fsel=key=>`<select class="rq-filter${f[key]?' on':''}" data-lvf="${key}" data-role="${pk}" aria-label="篩選"><option value="">全部</option>${opts[key].map(([v,t])=>`<option value="${esc(v)}"${f[key]===v?' selected':''}>${esc(t)}</option>`).join('')}</select>`;
       const th=(key,label)=>`<th><button type="button" class="th-btn${lvSort.key===key?' on':''}" data-lvsort="${key}" data-role="${pk}" aria-label="依${label}排序">${label}<span>${lvSort.key===key?(lvSort.dir>0?'▲':'▼'):'↕'}</span></button><div>${fsel(key)}</div></th>`;
-      head=th('date','日期')+th('staff',ROLE[role])+th('shift','班別')+th('type',word+'類別')+'<th>備註</th>'+th('status','狀態')+`<th>${lvFiltered?`<button class="small" data-lvfclear="${pk}">清除篩選</button><div class="att-mute" style="font-size:.72rem">${lvFiltered.n}／${lvFiltered.total} 筆</div>`:''}</th>`;
+      head=th('date','日期')+(canWrite?th('staff',ROLE[role]):'')+th('shift','班別')+th('type',word+'類別')+'<th>備註</th>'+th('status','狀態')+`<th>${lvFiltered?`<button class="small" data-lvfclear="${pk}">清除篩選</button><div class="att-mute" style="font-size:.72rem">${lvFiltered.n}／${lvFiltered.total} 筆</div>`:''}</th>`;
     }
     $('leaveTable-'+pk).innerHTML=`<thead><tr>${head}</tr></thead><tbody>`+
       (rows.length?rows.map(l=>{
@@ -2648,16 +2652,16 @@ function renderLeave(mi,roles){
         if(editingLeave===l.id&&!faded(l)){
           const types=[...document.querySelectorAll(`#lvType-${role} option`)].map(o=>o.value);
           if(l.type&&!types.includes(l.type))types.push(l.type);
-          return `<tr data-lvrow="${l.id}"><td><input type="date" data-e="date" value="${l.date}" aria-label="日期"></td><td>${esc(fullName(byId(l.staffId)))}</td>
+          return `<tr data-lvrow="${l.id}"><td><input type="date" data-e="date" value="${l.date}" aria-label="日期"></td>${canWrite?`<td>${esc(fullName(byId(l.staffId)))}</td>`:''}
             <td><div class="checks" style="padding:0">${SHIFTS.map(s=>`<label><input type="checkbox" data-esh="${s.id}"${(l.shifts||[]).includes(s.id)?' checked':''}${role==='assistant'&&whenOf(l)==='before'?' disabled':''}>${s.short}</label>`).join('')}</div></td>
             <td><select data-e="type" aria-label="類別">${types.map(t=>`<option${t===l.type?' selected':''}>${esc(t)}</option>`).join('')}</select></td>
             <td><input data-e="note" value="${esc(l.note||'')}" aria-label="備註"></td><td></td>
             <td class="num" style="white-space:nowrap"><button class="small primary" data-lvsave="${l.id}">儲存</button> <button class="small" data-lvcancel>取消</button></td></tr>`;
         }
-        return `<tr data-date="${l.date}" data-lvid="${l.id}"${faded(l)?` class="faded" title="${whenOf(l)==='after'?'事後':'事前'}登記的請假，請切換到「${whenOf(l)==='after'?'事後':'事前'}」修改"`:''}><td>${md(d)}（${DAYS[dow]}）</td><td>${esc(fullName(byId(l.staffId)))}</td><td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&l.type==='生理假'?(s=>s?` <span class="pill warn">${s>=(l.shifts||[]).length?'視同病假':`${s} 診視同病假`}</span>`:'')(menSickShifts(l)):''}${role==='assistant'&&!faded(l)?proofBadge(l.staffId,l.date,l.type):''}</td><td>${esc(l.note||'')}</td>
+        return `<tr data-date="${l.date}" data-lvid="${l.id}"${faded(l)?` class="faded" title="${whenOf(l)==='after'?'事後':'事前'}登記的請假，請切換到「${whenOf(l)==='after'?'事後':'事前'}」修改"`:''}><td>${md(d)}（${DAYS[dow]}）</td>${canWrite?`<td>${esc(fullName(byId(l.staffId)))}</td>`:''}<td>${shTxt}</td><td>${l.type?`<span class="pill${role==='doctor'?' doc':''}">${esc(l.type)}</span>`:''}${role==='assistant'&&l.type==='生理假'?(s=>s?` <span class="pill warn">${s>=(l.shifts||[]).length?'視同病假':`${s} 診視同病假`}</span>`:'')(menSickShifts(l)):''}${role==='assistant'&&!faded(l)?proofBadge(l.staffId,l.date,l.type):''}</td><td>${esc(l.note||'')}</td>
           <td>${clash.length?`<span class="pill warn">已排${SHIFTS.filter(s=>clash.includes(s.id)).map(s=>s.short).join('、')}班</span>`:'<span class="pill">無衝突</span>'}${pendOf(l)?`<div><span class="pill warn">${pendOf(l).kind==='cancel'?'等待核准刪除':'等待核准變更'}</span></div>`:''}</td>
           <td class="num" style="white-space:nowrap">${faded(l)?`<span class="pill">${whenOf(l)==='after'?'事後':'事前'}</span>`:!canWrite&&needReview(l.staffId)&&pastLeave(l)?`<span class="att-mute" style="font-size:.75rem">已過去</span>`:pendOf(l)&&!canWrite?`<button class="small" data-lrwithdraw="${pendOf(l).id}">撤回申請</button>`:canLeaveFor(l.staffId)?`<button class="small" data-editleave="${l.id}">變更</button> <button class="small danger" data-delleave="${l.id}">刪除</button>`:''}</td></tr>`;
-      }).join(''):`<tr><td colspan="7" class="empty">${lvFiltered?'沒有符合篩選的紀錄。':`${lr.label}還沒有${ROLE[role]}${word}紀錄。`}</td></tr>`)+'</tbody>';
+      }).join(''):`<tr><td colspan="${canWrite?7:6}" class="empty">${lvFiltered?'沒有符合篩選的紀錄。':`${lr.label}還沒有${ROLE[role]}${word}紀錄。`}</td></tr>`)+'</tbody>';
     {const n=limitRows($('leaveScroll-'+pk),10);$('leaveHint-'+pk).hidden=n<=10;if(pk==='doctor'&&lvDocScrollTop){$('leaveScroll-doctor').scrollTop=0;lvDocScrollTop=false;}if(pk!=='doctor'&&!leaveScrolled[pk])leaveScrolled[pk]=scrollToUpcoming($('leaveScroll-'+pk));}
   });
 }
@@ -2980,14 +2984,15 @@ function renderPay(mi,counts){
   const sums=COLS.map(()=>0);
   const rows=list.map(s=>{
     const p=calcPay(mi,counts,s);COLS.forEach((c,i)=>sums[i]+=Number(c.v(p,s))||0);
-    return `<tr class="${s.active===false?'inactive':''}"><td class="pay-who">${esc(fullName(s))}${p.r.saved?'':' <span class="pill">試算</span>'}</td>`+
+    return `<tr class="${s.active===false?'inactive':''}">${payAdmin()?`<td class="pay-who">${esc(fullName(s))}${p.r.saved?'':' <span class="pill">試算</span>'}</td>`:''}`+
       COLS.map(c=>{const t=c.tip?c.tip(p,s):'';return `<td class="${cls(c)}"${t?` title="${esc(t)}"`:''}>${c.cell?c.cell(p,s):z(c.v(p,s))}</td>`;}).join('')+
       `<td class="pay-note">${payNoteHtml(p)}</td>${payAdmin()?`<td class="num"><button class="small" data-payedit="${s.id}">編輯</button></td>`:''}</tr>`;
   }).join('');
   // 兩層表頭：應發、扣除各自一組
   const nAdd=COLS.filter(c=>c.g==='add').length,nSub=COLS.filter(c=>c.g==='sub').length,th2=g=>COLS.filter(c=>c.g===g).map(c=>`<th class="num pg-${g}"${c.h?` title="${esc(c.h)}"`:''}>${c.l}</th>`).join('');
   const one=g=>{const c=COLS.find(x=>x.g===g);return `<th rowspan="2" class="num pg-${g}">${c.l}</th>`;};
-  $('payTable').innerHTML=`<thead><tr><th rowspan="2" class="pay-who">人員</th><th colspan="${nAdd}" class="pg-add pg-head">應發</th>${one('gross')}<th colspan="${nSub}" class="pg-sub pg-head">扣除</th>${one('adj')}${one('netraw')}${one('net')}<th rowspan="2">備註</th>${payAdmin()?'<th rowspan="2" class="num"><button class="small primary" data-paybulk>集體編輯</button></th>':''}</tr>
+  if(!payAdmin()&&list[0])$('payTitle').innerHTML=`${esc(mi.label)} 薪資${payRec(list[0].id,mi.ym).saved?'':' <span class="pill" style="font-size:.72rem;vertical-align:middle">試算</span>'}`;
+  $('payTable').innerHTML=`<thead><tr>${payAdmin()?'<th rowspan="2" class="pay-who">人員</th>':''}<th colspan="${nAdd}" class="pg-add pg-head">應發</th>${one('gross')}<th colspan="${nSub}" class="pg-sub pg-head">扣除</th>${one('adj')}${one('netraw')}${one('net')}<th rowspan="2">備註</th>${payAdmin()?'<th rowspan="2" class="num"><button class="small primary" data-paybulk>集體編輯</button></th>':''}</tr>
     <tr>${th2('add')}${th2('sub')}</tr></thead><tbody>`+
     (rows||`<tr><td colspan="${COLS.length+3}" class="empty">${payAdmin()?'尚未建立助理。':'你的帳號還沒綁定到助理，請洽診所管理者。'}</td></tr>`)+'</tbody>'+
     (payAdmin()&&list.length>1?`<tfoot><tr><td class="pay-who"><b>合計</b></td>${COLS.map((c,i)=>`<td class="${cls(c)}">${c.g==='gross'||c.g==='net'?`<b>${money(sums[i])}</b>`:z(sums[i])}</td>`).join('')}<td></td>${payAdmin()?'<td></td>':''}</tr></tfoot>`:'');
@@ -4384,7 +4389,7 @@ function otRowHtml(p){
   const st=`<span class="${o.status==='pending'?'att-bad':o.status==='approved'?'att-ok':'att-mute'}">${esc(otStatusText(o))}</span>${o.revoked?`<br><small class="att-mute">曾由 ${esc(o.revoked.prevByName||'')} 核准 ${o.revoked.prevMin} 分，${esc(o.revoked.byName||'')} 撤銷${o.revoked.note?`：${esc(o.revoked.note)}`:''}</small>`:''}${o.status==='replaced'?`<br><small class="att-mute">${o.replacedByName?`由 ${esc(o.replacedByName)} 改用同一班的另一筆申請`:'改用同一班的另一筆申請'}</small>`:''}${o.note?`<br><small class="att-mute">${esc(o.note)}</small>`:''}`;
   const can=canReviewOt(p),dis=can?'':' disabled title="只有審核醫師或超級管理員可以審核"';
   const acts=o.status==='replaced'?'':o.status==='pending'?`<button class="small${can?' primary':''}" data-otok="${esc(p.id)}"${dis}>核准</button> <button class="small danger" data-otno="${esc(p.id)}"${dis}>退回</button>`:(can?`<button class="small" data-otok="${esc(p.id)}">修改</button>${o.status==='approved'?(revokeLeft(o)>=0?` <button class="small danger" data-otrevoke="${esc(p.id)}" title="${revokeLeft(o)===Infinity?'':'撤銷期限到 '+fmtAt(Number(o.at)+(Number(attCfg().revokeDays)||0)*864e5)}">撤銷核准</button>`:' <small class="att-mute">已超過撤銷期限</small>'):''}`:'');
-  return `<tr${o.status==='replaced'?' class="att-mute"':''}><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td style="white-space:nowrap">${esc(fullName(byId(p.staffId)))}</td>
+  return `<tr${o.status==='replaced'?' class="att-mute"':''}><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td>${lowPerm()?'':`<td style="white-space:nowrap">${esc(fullName(byId(p.staffId)))}</td>`}
     <td style="white-space:nowrap">${o.extra?'<span class="att-bad">臨時加班</span> ':sh?esc(sh.name)+' ':''}${o.from?hhmm(o.from)+'–':''}${hhmm(p.ts)}</td><td class="num">${p.next?'<span title="同時打了下一診上班卡；核准後下一診不算遲到">↪ </span>':''}${o.extra&&!o.from?'<span class="att-bad" title="找不到臨時加班上班卡">？</span>':o.min}</td><td>${esc(o.reason||'')}${o.manual?`<br><small class="att-mute">（${esc(o.addedBy||'管理者')}新增）</small>`:''}${o.replaces?'<br><small class="att-mute">（取代前一筆申請）</small>':''}${o.prev?`<br><small class="att-bad">（同一班已有核准的 ${o.prev.min} 分鐘）</small>`:''}</td>
     <td style="white-space:nowrap">${otRevName(p)}</td><td>${st}</td>
     <td class="num">${o.status==='approved'?o.approvedMin:'—'}</td><td style="white-space:nowrap">${acts}</td></tr>`;
@@ -4431,6 +4436,7 @@ function renderOt(mi){
   if(V.sid&&!ids.includes(V.sid))V.sid='';
   const fill=(el,opts,v)=>{const h=opts.map(([k,l])=>`<option value="${esc(k)}">${esc(l)}</option>`).join('');if(el.innerHTML!==h)el.innerHTML=h;el.value=v;};
   fill($('otSid'),[['','全部人員'],...staff.filter(x=>ids.includes(x.id)).sort(sortStaff).map(x=>[x.id,fullName(x)])],V.sid);
+  $('otSid').closest('.field').style.display=lowPerm()?'none':''; // 只看得到自己：不顯示人員篩選
   fill($('otSh'),[['','全部'],...SHIFTS.map(x=>[x.id,x.name]),['extra','臨時加班']],V.sh);
   fill($('otSt'),[['','全部'],...Object.entries(OT_ST)],V.st);
   $('otDate').value=V.date;$('otDate').min=ymd(mi.first);$('otDate').max=ymd(mi.last);
@@ -4441,12 +4447,13 @@ function renderOt(mi){
   const pend=all.filter(p=>p.ot.status==='pending').length;
   $('otCount').innerHTML=all.length?`${list.length!==all.length?`顯示 ${list.length}／`:'共 '}${all.length} 筆${pend?`，<span class="att-bad">待審 ${pend} 筆</span>`:''}`:'';
   const th=(key,label,cls='')=>`<th${cls}><button type="button" class="th-btn${S.key===key?' on':''}" data-otsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
-  $('otTable').innerHTML=`<thead><tr>${th('date','日期')}${th('staff','人員')}${th('sh','下班卡')}${th('min','申請（分）',' class="num"')}<th>原因</th>${th('rev','審核醫師')}${th('status','狀態')}<th class="num">核准（分）</th><th></th></tr></thead><tbody>`+
-    (list.length?list.map(otRowHtml).join(''):`<tr><td colspan="9" class="att-mute">${all.length?'沒有符合篩選的加班申請':'這個月沒有加班申請'}</td></tr>`)+'</tbody>';
+  $('otTable').innerHTML=`<thead><tr>${th('date','日期')}${lowPerm()?'':th('staff','人員')}${th('sh','下班卡')}${th('min','申請（分）',' class="num"')}<th>原因</th>${th('rev','審核醫師')}${th('status','狀態')}<th class="num">核准（分）</th><th></th></tr></thead><tbody>`+
+    (list.length?list.map(otRowHtml).join(''):`<tr><td colspan="${lowPerm()?8:9}" class="att-mute">${all.length?'沒有符合篩選的加班申請':'這個月沒有加班申請'}</td></tr>`)+'</tbody>';
 }
 function renderAttLog(mi){
   const mp=monthPunches(mi);
   const sel=$('attLogSid'),ids=[...new Set(mp.map(p=>p.staffId))];
+  sel.closest('.field').style.display=lowPerm()?'none':''; // 只看得到自己：不顯示人員篩選
   const opts='<option value="">全部人員</option>'+staff.filter(s=>ids.includes(s.id)).sort(sortStaff).map(s=>`<option value="${esc(s.id)}">${esc(fullName(s))}</option>`).join('');
   if(sel.innerHTML!==opts)sel.innerHTML=opts;
   if(attLog.sid&&!ids.includes(attLog.sid))attLog.sid='';
@@ -4469,7 +4476,7 @@ function renderAttLog(mi){
     .sort((a,b)=>{const x=kf(a),y=kf(b);const c=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');return (c*S.dir)||(b.ts-a.ts);});
   const th=(key,label)=>`<th><button type="button" class="th-btn${S.key===key?' on':''}" data-logsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
   $('attLogCount').textContent=`共 ${list.length} 筆`;
-  $('attLog').innerHTML=`<thead><tr>${th('date','日期')}<th>時間</th>${th('staff','人員')}${th('map','對應')}${th('src','來源')}<th>照片</th><th></th></tr></thead><tbody>`+
+  $('attLog').innerHTML=`<thead><tr>${th('date','日期')}<th>時間</th>${lowPerm()?'':th('staff','人員')}${th('map','對應')}${th('src','來源')}<th>照片</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(p=>{
       const d=parseYmd(p.date),L=lab[p.id];
       const src=p.src==='manual'?`補登（${esc(p.by||'')}）${p.note?`<br><small class="att-mute">${esc(p.note)}</small>`:''}`:`${esc(p.devName||'打卡裝置')}${p.sim?` <small class="att-mute">相似度 ${p.sim}</small>`:''}`;
@@ -4477,7 +4484,7 @@ function renderAttLog(mi){
       const map0=p.void?`<span class="att-mute">已作廢${p.voidNote?`：${esc(p.voidNote)}`:''}</span>`:L?`${L.other?`<span class="att-mute">${L.t}</span>`:L.t}${L.bad?` <span class="att-bad">${L.bad}</span>`:''}`:'';
       const map=map0+otTxt;
       return `<tr${p.void?' class="att-mute"':''}><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td class="${p.void?'':''}" style="font-variant-numeric:tabular-nums">${p.void?`<s>${hhmm(p.ts)}</s>`:hhmm(p.ts)}</td>
-        <td>${esc(fullName(byId(p.staffId)))}</td><td>${map}</td><td>${src}</td>
+        ${lowPerm()?'':`<td>${esc(fullName(byId(p.staffId)))}</td>`}<td>${map}</td><td>${src}</td>
         <td>${p.photo?`<span class="punch"><img src="${esc(p.photo)}" alt="" data-photo="${esc(p.id)}"></span>`:''}</td>
         <td>${canWrite&&!p.void?`<button class="small" data-pvoid="${esc(p.id)}">作廢</button>`:''}</td></tr>`;
     }).join(''):'<tr><td colspan="7" class="att-mute">沒有打卡紀錄</td></tr>')+'</tbody>';
@@ -4493,14 +4500,15 @@ function renderAtt(mi){
   const C=attCfg(),pct=(a,b)=>b?Math.round(a/b*1000)/10+'%':'—';
   const ppl=attPeople(mi),res={};ppl.forEach(s=>res[s.id]=attMonth(mi,s.id));
   const bad=(n,t)=>n?`<span class="att-bad">${t}</span>`:`<span class="att-mute">0</span>`;
-  $('attTable').innerHTML=`<thead><tr><th>人員</th><th class="num">應出勤（診）</th><th class="num">完整</th><th class="num">出勤率</th><th class="num">遲到</th><th class="num">早退</th><th class="num" title="只缺上班卡或只缺下班卡，請確認是否忘記打卡">未打卡（待確認）</th><th class="num" title="上下班卡都沒打、也沒請假">曠職（診）</th><th class="num" title="帶入薪資的遲到分鐘／早退分鐘">帶入薪資（遲到／早退分）</th><th class="att-face">臉部</th></tr></thead><tbody>`+
+  const solo=lowPerm(); // 只看得到自己：不顯示人員欄與帶入薪資欄
+  $('attTable').innerHTML=`<thead><tr>${solo?'':'<th>人員</th>'}<th class="num">應出勤（診）</th><th class="num">完整</th><th class="num">出勤率</th><th class="num">遲到</th><th class="num">早退</th><th class="num" title="只缺上班卡或只缺下班卡，請確認是否忘記打卡">未打卡（待確認）</th><th class="num" title="上下班卡都沒打、也沒請假">曠職（診）</th>${solo?'':'<th class="num" title="帶入薪資的遲到分鐘／早退分鐘">帶入薪資（遲到／早退分）</th>'}<th class="att-face">臉部</th></tr></thead><tbody>`+
     (ppl.length?ppl.map(s=>{const x=res[s.id].s;return `<tr class="att-row${attSel===s.id?' sel':''}" data-attsid="${esc(s.id)}">
-      <td><b>${esc(codeOf(s.id))}</b> ${esc(s.name||'')}</td><td class="num">${x.due}</td><td class="num">${x.full}</td>
+      ${solo?'':`<td><b>${esc(codeOf(s.id))}</b> ${esc(s.name||'')}</td>`}<td class="num">${x.due}</td><td class="num">${x.full}</td>
       <td class="num">${x.due?(x.full===x.due?`<span class="att-ok">${pct(x.full,x.due)}</span>`:`<span class="att-bad">${pct(x.full,x.due)}</span>`):'—'}</td>
       <td class="num">${bad(x.lateN,`${x.lateN} 次／${x.lateMin} 分`)}</td><td class="num">${bad(x.earlyN,`${x.earlyN} 次／${x.earlyMin} 分`)}</td>
       <td class="num" title="缺上班卡 ${x.missIn}、缺下班卡 ${x.missOut}">${bad(x.missIn+x.missOut,x.missIn+x.missOut)}</td><td class="num">${bad(x.absent,`<b>${x.absent}</b>`)}</td>
-      <td class="num">${s.role==='assistant'?`${x.lateMin}／${x.earlyMin}`:'—'}</td>
-      <td class="att-face">${faceMeta[s.id]?'<span class="att-ok">已登錄</span>':'<span class="att-mute">未登錄</span>'}</td></tr>`;}).join(''):'<tr><td colspan="10" class="att-mute">沒有人員</td></tr>')+'</tbody>';
+      ${solo?'':`<td class="num">${s.role==='assistant'?`${x.lateMin}／${x.earlyMin}`:'—'}</td>`}
+      <td class="att-face">${faceMeta[s.id]?'<span class="att-ok">已登錄</span>':'<span class="att-mute">未登錄</span>'}</td></tr>`;}).join(''):`<tr><td colspan="${solo?8:10}" class="att-mute">沒有人員</td></tr>`)+'</tbody>';
   // 明細
   const det=$('attDetail'),s=attSel&&byId(attSel);
   if(!s){det.hidden=true;det.innerHTML='';}
