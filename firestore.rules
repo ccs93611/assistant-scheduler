@@ -217,6 +217,12 @@ service cloud.firestore {
     }
     // 開放加診：extraOpen/{YYYY-MM} 給畫面判斷，extraOpenWk/{週一} 給上面的週班表規則判斷
     // 開放換班與換班申請：申請人（from）提出，對象（to）同意或拒絕；兩人與排班管理以上看得到
+    // 加診換班日誌：本人加診或同意換班時寫入；排班管理以上看全部，本人看和自己有關的（who 包含自己）
+    match /shiftLog/{id} {
+      allow read: if canManage() || (signedIn() && mySid() in resource.data.who);
+      allow create: if canManage() || (signedIn() && mySid() in request.resource.data.who);
+      allow update, delete: if canManage();
+    }
     match /swapOpen/{ym}    { allow read: if canView(); allow write: if canManage(); }
     match /swapOpenWk/{wk}  { allow read: if canView(); allow write: if canManage(); }
     match /swapReqs/{id} {

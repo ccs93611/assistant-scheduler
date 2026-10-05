@@ -117,6 +117,7 @@ main{padding-block:18px 48px;}
 .sched.sched-ref .pool .chip{cursor:default; pointer-events:none;}
 /* 我要加診（登記本人請假的助理）：加診模式時，異動班表上的缺人、缺口可以點 */
 #swapOpenBtn.sopen-on{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+.self-log-btn{margin-top:8px; width:100%;}
 .self-swap-btn{margin-top:8px; width:100%; background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600;}
 .self-swap-btn[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent-soft);}
 body.self-swap-on #weeks .item.sw-ok{cursor:pointer; outline:2px dashed var(--accent); outline-offset:1px;}
@@ -690,6 +691,7 @@ body.gated .shell{display:none;}
           <div class="chips" id="chipsAssistant"></div>
           <button type="button" class="self-extra-btn" id="selfExtraBtn" aria-pressed="false" hidden>我要加診</button>
           <button type="button" class="self-swap-btn" id="selfSwapBtn" aria-pressed="false" hidden>我要換班</button>
+          <button type="button" class="self-log-btn" id="selfLogBtn" data-slog hidden>加診換班日誌</button>
           <div class="legend">
             <span><b style="background:var(--doc-soft);border:1px solid var(--doc)"></b>跟診（先排醫師，助理排在醫師下方）</span>
             <span><span class="chip gapchip" draggable="true" tabindex="0" data-chip="_gap" title="拖到班表可以多開一個待補的缺口"><b></b>缺口</span>尚未排滿（可拖曳到班表）</span>
@@ -705,6 +707,7 @@ body.gated .shell{display:none;}
             <button type="button" class="small" id="baselineBtn" data-w>定案</button>
             <button type="button" class="small" id="extraOpenBtn">開放加診</button>
             <button type="button" class="small" id="swapOpenBtn">開放換班</button>
+            <button type="button" class="small" id="shiftLogBtn" data-slog>加診換班日誌</button>
             <span class="hint" id="baselineHint" style="margin:0">定案後可開放助理加診、換班</span>
           </div>
           <div class="banner" id="origNote" hidden></div>
@@ -1083,6 +1086,7 @@ const PREF_KEY='clinic_roster_prefs_v1';
 let db=null, mode='connecting', canWrite=true, platformWrite=true, myId=null, userNs=null, accessLinks={};
 let staff=[], cfg=clone(DEFAULT_CFG), weeks={}, weeksExist=new Set(), leaves=[], familyCare=[], fcReqs=[], privateInfo={}, isAdmin=true;
 let pay={}; // pay[staffId_YYYY-MM]={staffId,ym,base,attend,...}
+let shiftLog=[]; // 加診換班日誌
 let swapOpen={}; // 開放助理換班的月份：swapOpen[YYYY-MM]={at,by,byName}
 let swapReqs=[]; // 換班申請：{id,from,to,a:{id,wk,ck,pi,date,sh},b:{…},status:'pending'|'accepted'|'rejected'|'void',at,doneAt}
 let extraOpen={}; // 開放助理自行加診的月份：extraOpen[YYYY-MM]={at,by,byName}
@@ -1669,8 +1673,8 @@ function lvDraftLater(l){
   if(l.pevents)pevents=l.pevents;if(l.proofs)proofs=l.proofs;
   if(l.leaves||l.pevents||l.proofs){buildLeaveIdx();renderAll();}
 }
-function saveLocal(){if(lvDraft){lvDraft.dirty=true;return;}try{localStorage.setItem(LOCAL_KEY,JSON.stringify({swapOpen,swapReqs,extraOpen,payPub,staff,cfg,weeks,leaves,familyCare:familyCare.concat(fcReqs),privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=(d.familyCare||[]).filter(x=>!x.status);fcReqs=(d.familyCare||[]).filter(x=>x.status);privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};payPub=d.payPub||{};extraOpen=d.extraOpen||{};swapOpen=d.swapOpen||{};swapReqs=d.swapReqs||[];makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
+function saveLocal(){if(lvDraft){lvDraft.dirty=true;return;}try{localStorage.setItem(LOCAL_KEY,JSON.stringify({shiftLog,swapOpen,swapReqs,extraOpen,payPub,staff,cfg,weeks,leaves,familyCare:familyCare.concat(fcReqs),privateInfo,accessLinks,pay,makeups,pevents,baselines,lotteries,lotBets,leaveReqs,proofs}));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||'null');if(d){staff=d.staff||[];cfg=Object.assign(clone(DEFAULT_CFG),d.cfg||{});weeks=d.weeks||{};leaves=d.leaves||[];familyCare=(d.familyCare||[]).filter(x=>!x.status);fcReqs=(d.familyCare||[]).filter(x=>x.status);privateInfo=d.privateInfo||{};accessLinks=d.accessLinks||{};pay=d.pay||{};payPub=d.payPub||{};extraOpen=d.extraOpen||{};swapOpen=d.swapOpen||{};shiftLog=d.shiftLog||[];swapReqs=d.swapReqs||[];makeups=d.makeups||[];pevents=d.pevents||[];baselines=d.baselines||{};lotteries=d.lotteries||{};lotBets=d.lotBets||{};leaveReqs=d.leaveReqs||[];proofs=d.proofs||[];[leaves,leaveReqs,pevents,proofs].forEach(a=>a.forEach(normType));}}catch(e){}}
 // Firestore 不接受巢狀陣列：週班表每一格（崗位陣列、跟診配對）以 JSON 字串存在 c.{格子} 欄位
 function encCells(cells){const o={};Object.entries(cells||{}).forEach(([k,v])=>o[k]=JSON.stringify(v));return o;}
 function decCells(data){if(data.cells)return clone(data.cells);const o={};Object.entries(data.c||{}).forEach(([k,v])=>{try{o[k]=JSON.parse(v);}catch(e){}});return o;}
@@ -1746,6 +1750,11 @@ const store={
       await queue('swapOpenWk/'+wk,()=>db.runTransaction(async t=>{const sn=await t.get(ref),m=Object.assign({},sn.exists?sn.data().months||{}:{});
         if(obj)m[ym]=true;else delete m[ym];
         if(Object.keys(m).length)t.set(ref,{months:m});else if(sn.exists)t.delete(ref);}));}
+  },
+  async logShift(e){
+    shiftLog=shiftLog.concat([e]);renderAll();
+    if(!db){saveLocal();return;}
+    const {id,...body}=e;return queue('shiftLog/'+id,()=>db.doc('shiftLog/'+id).set(body));
   },
   async swapReq(r){
     swapReqs=swapReqs.filter(x=>x.id!==r.id).concat([r]);renderAll();
@@ -2119,6 +2128,9 @@ function start(acc){
     Object.keys(payPub).forEach(ym=>{if(paySubs[ym])return;const key=sid+'_'+ym;
       paySubs[ym]=db.doc('pay/'+key).onSnapshot(d=>{if(d.exists)pay[key]=clone(d.data());else delete pay[key];renderAll();},()=>{delete pay[key];renderAll();});});
     Object.keys(paySubs).forEach(ym=>{if(payPub[ym])return;paySubs[ym]();delete paySubs[ym];delete pay[sid+'_'+ym];});};
+  {const toArr=snap=>snap.docs.map(d=>Object.assign({id:d.id},d.data()));
+   if(mng)db.collection('shiftLog').onSnapshot(snap=>{shiftLog=toArr(snap);renderAll();},e=>console.warn(e));
+   else if(sid)db.collection('shiftLog').where('who','array-contains',sid).onSnapshot(snap=>{shiftLog=toArr(snap);renderAll();},e=>console.warn(e));}
   db.collection('swapOpen').onSnapshot(snap=>{swapOpen=docsTo(snap);renderAll();},e=>console.warn(e));
   {const toArr=snap=>snap.docs.map(d=>Object.assign({id:d.id},d.data()));
    if(mng)db.collection('swapReqs').onSnapshot(snap=>{swapReqs=toArr(snap);renderAll();},e=>console.warn(e));
@@ -2368,6 +2380,8 @@ function renderSchedule(mi){
    xb.textContent=on?'停止開放加診':'開放加診';xb.classList.toggle('xopen-on',on);}
   {const sb=$('swapOpenBtn'),on=!!swapOpen[mi.ym];sb.style.display=canWrite?'':'none';sb.disabled=!b&&!on;sb.title=b||on?'':'請先定案，才能開放助理換班';
    sb.textContent=on?'停止開放換班':'開放換班';sb.classList.toggle('sopen-on',on);}
+  $('shiftLogBtn').style.display=canWrite?'':'none';
+  $('selfLogBtn').hidden=!(effPerm()==='self'&&byId(myStaffId())?.role==='assistant');
   renderSwapCard();
   const note=view==='orig'
     ?(b?'已定案：原始班表鎖定，只能查看；要修改請切換到「異動班表」。':'')
@@ -4316,6 +4330,7 @@ function selfExtraAdd(t){
   }else{const gi=tgt[t.pi].indexOf(GAP);if(gi>=0)tgt[t.pi].splice(gi,1);tgt[t.pi].push(me);}
   const x=getExtra(t.wk,t.ck).filter(v=>v!==me).concat([me]);
   store.cells(t.wk,{[t.ck]:tgt,['L'+t.ck]:lk,['X'+t.ck]:x});
+  store.logShift({id:uid('lg'),kind:'extra',at:Date.now(),sid:me,who:[me],slot:{date:t.date,sh:t.sh,pi:t.pi,doc:t.pi===FOLLOW?(lk.find(z=>z[0]===me)||[])[1]||null:null}});
   const d=parseYmd(t.date),sh=SHIFTS.find(z=>z.id===t.sh);
   toast(`已幫你加診：${md(d)} ${sh?.name||''} ${POS[t.pi].label}。`);
 }
@@ -4370,6 +4385,24 @@ document.getElementById('weeks').addEventListener('click',e=>{
     toast(`已向 ${codeOf(t.id)} 提出換班，等對方同意。`);
   },'送出換班申請');
 },true);
+// 加診換班日誌：排班管理以上看全部；助理看和自己有關的。可依月份（依加診／換班的診次日期）篩選
+document.addEventListener('click',e=>{if(!e.target.closest('[data-slog]'))return;openShiftLog();});
+function openShiftLog(){
+  const me=myStaffId(),all=shiftLog.filter(x=>canWrite||(x.who||[]).includes(me));
+  const ymOf=x=>(x.kind==='swap'?x.a.date:x.slot.date).slice(0,7);
+  const months=[...new Set(all.map(ymOf))].sort().reverse();
+  let ym=months.includes(monthInfo().ym)?monthInfo().ym:'';
+  const KIND={extra:['加診','background:var(--extra);color:var(--ink)'],swap:['換班','background:var(--accent-soft);color:var(--accent)']};
+  const body=()=>{const list=all.filter(x=>!ym||ymOf(x)===ym).sort((a,b)=>b.at-a.at);
+    return list.length?`<div class="hol-scroll" style="max-height:60vh;overflow:auto"><table class="list"><thead><tr><th>時間</th><th>類型</th><th>內容</th></tr></thead><tbody>${list.map(x=>{const [k,st]=KIND[x.kind]||[x.kind,''];
+      const txt=x.kind==='extra'?`<b>${esc(codeOf(x.sid))}</b> 自己加診：${swSlotTxt(Object.assign({pi:x.slot.pi},x.slot))}${x.slot.doc?`（跟 ${esc(codeOf(x.slot.doc))}）`:''}`
+        :`<b>${esc(codeOf(x.from))}</b> ${swSlotTxt(x.a)} ⇄ <b>${esc(codeOf(x.to))}</b> ${swSlotTxt(x.b)}<div class="att-mute" style="font-size:.72rem">${esc(codeOf(x.from))} 於 ${fmtAt(x.reqAt||x.at)} 提出，${esc(codeOf(x.to))} 同意</div>`;
+      return `<tr><td style="white-space:nowrap">${fmtAt(x.at)}</td><td><span class="pill" style="${st}">${k}</span></td><td>${txt}</td></tr>`;}).join('')}</tbody></table></div>`:'<p class="att-mute">沒有紀錄。</p>';};
+  const sel=()=>`<label style="font-size:.8rem;color:var(--sub)">月份 <select id="slogYm" style="width:auto"><option value="">全部</option>${months.map(m=>`<option value="${m}"${m===ym?' selected':''}>${+m.slice(0,4)}年 ${+m.slice(5)}月</option>`).join('')}</select></label>`;
+  dialog(`<h3>加診換班日誌</h3><p class="desc" style="margin:0 0 8px">${canWrite?'助理自己加診與換班的紀錄（月份依加診／換班的診次日期）。':'和你有關的加診與換班紀錄。'}</p>${sel()}<div id="slogBody" style="margin-top:8px">${body()}</div>`,()=>{},'關閉',false,'返回');
+  const ov=[...document.querySelectorAll('.overlay')].pop();ov.querySelector('.dialog').style.maxWidth='720px';ov.querySelector('[data-x]').remove();
+  ov.querySelector('#slogYm').addEventListener('change',e=>{ym=e.target.value;ov.querySelector('#slogBody').innerHTML=body();});
+}
 // 換班申請卡片：本人看到自己提出的、別人找自己的；排班管理以上看到全部
 function renderSwapCard(){
   const box=$('swapCard'),me=myStaffId(),mine=r=>canWrite||r.from===me||r.to===me;
@@ -4389,7 +4422,8 @@ $('swapCard').addEventListener('click',e=>{
     const bad=!still?'班表已經變動，這個換班申請失效了。':!swapOpen[r.a.date.slice(0,7)]||!swapOpen[r.b.date.slice(0,7)]?'這個月已經停止開放換班。':swapProblem(r.a,r.b);
     if(bad){store.swapReq(Object.assign({},r,{status:'void',doneAt:Date.now()}));toast(bad,'warn');return;}
     dialog(`<h3>同意換班？</h3><p>${esc(codeOf(r.from))} 的 <b>${swSlotTxt(r.a)}</b><br>⇄ 你的 <b>${swSlotTxt(r.b)}</b></p><p>同意後馬上換班，你會接手對方的崗位。</p>`,()=>{
-      swapItems(r.a,r.b,true);store.swapReq(Object.assign({},r,{status:'accepted',doneAt:Date.now()}));
+      swapItems(r.a,r.b,true);const now=Date.now();store.swapReq(Object.assign({},r,{status:'accepted',doneAt:now}));
+      store.logShift({id:uid('lg'),kind:'swap',at:now,from:r.from,to:r.to,who:[r.from,r.to],a:r.a,b:r.b,reqAt:r.at});
     },'同意換班');return;}
   const no=e.target.closest('[data-swno]');if(no){const r=swapReqs.find(x=>x.id===no.dataset.swno);if(!r||r.to!==me)return;store.swapReq(Object.assign({},r,{status:'rejected',doneAt:Date.now()}));toast('已拒絕換班。');return;}
   const del=e.target.closest('[data-swdel]');if(del){const r=swapReqs.find(x=>x.id===del.dataset.swdel);if(!r||!(canWrite||r.from===me||r.to===me))return;store.delSwapReq(r.id);toast(r.status==='pending'?'已撤回換班申請。':'已刪除。');}
