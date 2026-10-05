@@ -4385,23 +4385,20 @@ document.getElementById('weeks').addEventListener('click',e=>{
     toast(`已向 ${codeOf(t.id)} 提出換班，等對方同意。`);
   },'送出換班申請');
 },true);
-// 加診換班日誌：排班管理以上看全部；助理看和自己有關的。可依月份（依加診／換班的診次日期）篩選
+// 加診換班日誌：排班管理以上看全部；助理看和自己有關的。只列目前班表月份（依加診／換班的診次日期）
 document.addEventListener('click',e=>{if(!e.target.closest('[data-slog]'))return;openShiftLog();});
 function openShiftLog(){
   const me=myStaffId(),all=shiftLog.filter(x=>canWrite||(x.who||[]).includes(me));
   const ymOf=x=>(x.kind==='swap'?x.a.date:x.slot.date).slice(0,7);
-  const months=[...new Set(all.map(ymOf))].sort().reverse();
-  let ym=months.includes(monthInfo().ym)?monthInfo().ym:'';
+  const mi=monthInfo(),ym=mi.ym; // 只看目前班表所在月份的日誌（依加診／換班的診次日期）
   const KIND={extra:['加診','background:var(--extra);color:var(--ink)'],swap:['換班','background:var(--accent-soft);color:var(--accent)']};
-  const body=()=>{const list=all.filter(x=>!ym||ymOf(x)===ym).sort((a,b)=>b.at-a.at);
+  const body=()=>{const list=all.filter(x=>ymOf(x)===ym).sort((a,b)=>b.at-a.at);
     return list.length?`<div class="hol-scroll" style="max-height:60vh;overflow:auto"><table class="list"><thead><tr><th>時間</th><th>類型</th><th>內容</th></tr></thead><tbody>${list.map(x=>{const [k,st]=KIND[x.kind]||[x.kind,''];
       const txt=x.kind==='extra'?`<b>${esc(codeOf(x.sid))}</b> 自己加診：${swSlotTxt(Object.assign({pi:x.slot.pi},x.slot))}${x.slot.doc?`（跟 ${esc(codeOf(x.slot.doc))}）`:''}`
         :`<b>${esc(codeOf(x.from))}</b> ${swSlotTxt(x.a)} ⇄ <b>${esc(codeOf(x.to))}</b> ${swSlotTxt(x.b)}<div class="att-mute" style="font-size:.72rem">${esc(codeOf(x.from))} 於 ${fmtAt(x.reqAt||x.at)} 提出，${esc(codeOf(x.to))} 同意</div>`;
       return `<tr><td style="white-space:nowrap">${fmtAt(x.at)}</td><td><span class="pill" style="${st}">${k}</span></td><td>${txt}</td></tr>`;}).join('')}</tbody></table></div>`:'<p class="att-mute">沒有紀錄。</p>';};
-  const sel=()=>`<label style="font-size:.8rem;color:var(--sub)">月份 <select id="slogYm" style="width:auto"><option value="">全部</option>${months.map(m=>`<option value="${m}"${m===ym?' selected':''}>${+m.slice(0,4)}年 ${+m.slice(5)}月</option>`).join('')}</select></label>`;
-  dialog(`<h3>加診換班日誌</h3><p class="desc" style="margin:0 0 8px">${canWrite?'助理自己加診與換班的紀錄（月份依加診／換班的診次日期）。':'和你有關的加診與換班紀錄。'}</p>${sel()}<div id="slogBody" style="margin-top:8px">${body()}</div>`,()=>{},'關閉',false,'返回');
+  dialog(`<h3>${esc(mi.label)} 加診換班日誌</h3><p class="desc" style="margin:0 0 8px">${canWrite?`${esc(mi.label)}助理自己加診與換班的紀錄（依加診／換班的診次日期）；要看其他月份，請先切換班表月份。`:`${esc(mi.label)}和你有關的加診與換班紀錄。`}</p><div id="slogBody">${body()}</div>`,()=>{},'關閉',false,'返回');
   const ov=[...document.querySelectorAll('.overlay')].pop();ov.querySelector('.dialog').style.maxWidth='720px';ov.querySelector('[data-x]').remove();
-  ov.querySelector('#slogYm').addEventListener('change',e=>{ym=e.target.value;ov.querySelector('#slogBody').innerHTML=body();});
 }
 // 換班申請卡片：本人看到自己提出的、別人找自己的；排班管理以上看到全部
 function renderSwapCard(){
