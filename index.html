@@ -2154,6 +2154,8 @@ function renderAll(){
   document.body.classList.toggle('view-only',viewOnly());document.body.classList.toggle('low-perm',lowPerm());
   if(lowPerm()){const ok=viewTabs();document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!ok.includes(b.dataset.tab))b.hidden=true;});if(!ok.includes(prefs.tab))prefs.tab='schedule';}
   else document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!['pay','att','otrev'].includes(b.dataset.tab))b.hidden=false;});
+  // 排休抽籤：暫時只開放給超級管理員（之後要開放時拿掉這段即可）
+  {const lb=document.querySelector('nav.tabs button[data-tab="lottery"]');if(!superOK()){lb.hidden=true;if(prefs.tab==='lottery')prefs.tab='schedule';}}
   ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
