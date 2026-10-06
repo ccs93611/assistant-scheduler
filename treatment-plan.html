@@ -374,7 +374,7 @@ function renderEditor(){
     <div class="grid-f" style="align-items:end">
       <div><div class="hint">患者（或法定代理人）簽名</div>
         <div class="sigbox" data-act="consentSig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:(L?'未簽名':'點此簽名')}</div></div>
-      <label style="max-width:240px">簽名時間<input type="datetime-local" data-f="consentAt" value="${esc(p.consent.at)}" ${dis}></label>
+      <label style="max-width:240px">簽名時間<input type="datetime-local" data-f="consentAt" value="${esc(p.consent.at)}" ${idis}></label>
     </div>
   </section>
 
@@ -485,7 +485,7 @@ $('#main').addEventListener('click',async e=>{
     else if(act==='addItem'){p.items.push(newItem());touch();renderEditor()}
     else if(act==='addPay'){p.payments.push({id:uid(),date:today(),amount:Math.max(0,calc(p).due),note:'',sig:null});touch();renderEditor()}
     else if(act==='addRcpt'){const c=calc(p);p.receipts.push({id:uid(),date:today(),amount:Math.max(0,c.paid-c.rcpt),taken:false,note:'',photos:[]});touch();renderEditor()}
-    else if(act==='consentSig'){if(L)return;const s=await openSig('患者同意治療計畫簽名',p.consent.sig);if(s!==undefined){p.consent.sig=s;if(s&&!p.consent.at)p.consent.at=nowLocal();touch();renderEditor()}}
+    else if(act==='consentSig'){if(L||p.finalized){if(p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}const s=await openSig('患者同意治療計畫簽名',p.consent.sig);if(s!==undefined){p.consent.sig=s;if(s&&!p.consent.at)p.consent.at=nowLocal();touch();renderEditor()}}
     else if(act==='delete'){if(!confirm(`確定刪除治療計劃單 ${p.no}（${p.name||'未填姓名'}）？此動作無法復原。`))return;
       if(p.prevId&&plans.get(p.prevId)){const pv=plans.get(p.prevId);pv.nextId=null;await saveNow(pv)}
       plans.delete(p.id);flushPending();await DB.del(p.id);curId=null;renderList();renderEditor()}
@@ -512,9 +512,9 @@ $('#main').addEventListener('click',async e=>{
 async function finalize(p){
   const c=calc(p),items=p.items.filter(i=>i.name);
   if(!items.length){alert('請先填寫治療項目再定案');return}
+  if(!p.consent.sig){alert('患者簽名同意治療計畫後才能定案');return}
   const warn=[];if(p.items.length>items.length)warn.push(`・有 ${p.items.length-items.length} 列未選治療項目，定案時會移除`);
   if(p.items.some(i=>i.teethBad&&i.teethBad.length))warn.push('・有牙位無法辨識（紅色）');
-  if(!p.consent.sig)warn.push('・患者尚未簽名同意');
   if(!confirm(`定案治療計畫\n\n共 ${items.length} 項，總金額 $${money(c.orig)}，變更後總金額 $${money(c.chg)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n定案後治療項目與金額將無法再更動（如需變更請用「結單－計畫變更」）。確定定案？`))return;
   p.items=items;p.finalized=true;p.finalizedAt=nowLocal();await saveNow(p);renderList();renderEditor();
 }
