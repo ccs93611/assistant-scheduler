@@ -381,14 +381,16 @@ function renderEditor(){
   <section class="card">
     <h2>繳費紀錄<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addPay">＋ 新增繳費</button>'}</h2>
     <div class="tbl-wrap"><table>
-      <thead><tr><th style="width:150px">日期</th><th class="num" style="width:120px">金額</th><th>備註</th><th style="width:130px">患者簽名</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
+      <thead><tr><th style="width:150px">日期</th><th style="min-width:180px">項目</th><th style="min-width:130px">牙位</th><th class="num" style="width:120px">金額</th><th>備註</th><th style="width:130px">患者簽名</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
       <tbody>${p.payments.map(x=>`<tr data-list="payments" data-id="${x.id}">
         <td><input type="date" data-k="date" value="${esc(x.date)}" ${dis||x.transfer?'disabled':''}></td>
+        <td>${x.transfer?'<span class="hint">前單轉入</span>':`<select data-k="itemId" ${dis}>${payItemOptions(p,x)}</select>`}</td>
+        <td>${x.transfer?'':`<input data-k="teeth" value="${esc(x.teeth||'')}" placeholder="牙位" ${dis}>`}</td>
         <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" ${dis||x.transfer?'disabled':''}></td>
         <td><input data-k="note" value="${esc(x.note)}" ${dis}></td>
         <td>${x.transfer?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`)}</td>
         ${L?'':`<td class="no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
-      </tr>`).join('')||`<tr><td colspan="5" class="hint">尚無繳費紀錄</td></tr>`}</tbody>
+      </tr>`).join('')||`<tr><td colspan="7" class="hint">尚無繳費紀錄</td></tr>`}</tbody>
     </table></div>
     <div class="totals">
       <div><small>變更後總金額</small><b id="tChg2">$${money(c.chg)}</b></div>
@@ -425,6 +427,15 @@ function renderEditor(){
   </div>`;
   alignTeeth();
 }
+// 繳費紀錄的「項目」：從這張單的治療項目選；牙位預設帶入該項目的牙位，可修改
+const itemAmt=it=>it.chg??(it.orig||0);
+const itemPaid=(p,id,exceptPay)=>p.payments.filter(x=>x.itemId===id&&x!==exceptPay).reduce((a,x)=>a+(x.amount||0),0);
+function payItemOptions(p,x){
+  let h=`<option value="">— 選擇項目 —</option>`;
+  p.items.filter(i=>i.name).forEach((it,n)=>{h+=`<option value="${it.id}" ${x.itemId===it.id?'selected':''}>${n+1}. ${esc(it.name)}${it.teeth.length?'（'+esc(teethLabel(it))+'）':''}</option>`});
+  if(x.itemId&&!p.items.some(i=>i.id===x.itemId))h+=`<option value="${esc(x.itemId)}" selected>（已刪除的項目）</option>`;
+  return h;
+}
 function refreshTotals(){
   const p=cur(),c=calc(p),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent='$'+money(v)};
   set('tOrig',c.orig);set('tChg',c.chg);set('tChg2',c.chg);set('tPaid',c.paid);set('tDue',c.due);set('tPaid2',c.paid);set('tRcpt',c.rcpt);set('tRcptDue',c.paid-c.rcpt);
@@ -448,9 +459,12 @@ $('#main').addEventListener('input',e=>{
     else if(k==='unit'){it.unit=numOrNull(t.value)||0;it.orig=it.unit*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||''}
     else if(k==='orig')it.orig=numOrNull(t.value)||0;
     else if(k==='chg'){it.chg=numOrNull(t.value);t.classList.toggle('changed-amt',it.chg!=null&&it.chg!==it.orig)}
-  }else if(k==='amount')it.amount=numOrNull(t.value)||0;
+  }else if(k==='amount'){it.amount=numOrNull(t.value)||0;it.amtAuto=false}
+  else if(k==='itemId'){it.itemId=t.value||null;const item=p.items.find(i=>i.id===it.itemId);
+    if(item){it.teeth=teethLabel(item);r.tr.querySelector('[data-k="teeth"]').value=it.teeth;
+      if(!it.amount||it.amtAuto){it.amount=Math.max(0,itemAmt(item)-itemPaid(p,item.id,it));it.amtAuto=true;r.tr.querySelector('[data-k="amount"]').value=it.amount||''}}}
   else if(k==='taken')it.taken=t.checked;
-  else if(k in it||['date','note'].includes(k))it[k]=t.value;
+  else if(k in it||['date','note','teeth'].includes(k))it[k]=t.value;
   refreshTotals();touch();
 });
 $('#main').addEventListener('change',e=>{
@@ -483,7 +497,7 @@ $('#main').addEventListener('click',async e=>{
   if(a){const act=a.dataset.act,L=p.status!=='open';
     if(act==='print')window.print();
     else if(act==='addItem'){p.items.push(newItem());touch();renderEditor()}
-    else if(act==='addPay'){p.payments.push({id:uid(),date:today(),amount:Math.max(0,calc(p).due),note:'',sig:null});touch();renderEditor()}
+    else if(act==='addPay'){p.payments.push({id:uid(),date:today(),itemId:null,teeth:'',amount:Math.max(0,calc(p).due),amtAuto:true,note:'',sig:null});touch();renderEditor()}
     else if(act==='addRcpt'){const c=calc(p);p.receipts.push({id:uid(),date:today(),amount:Math.max(0,c.paid-c.rcpt),taken:false,note:'',photos:[]});touch();renderEditor()}
     else if(act==='consentSig'){if(L||p.finalized){if(p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}const s=await openSig('患者同意治療計畫簽名',p.consent.sig);if(s!==undefined){p.consent.sig=s;if(s&&!p.consent.at)p.consent.at=nowLocal();touch();renderEditor()}}
     else if(act==='delete'){if(!confirm(`確定刪除治療計劃單 ${p.no}（${p.name||'未填姓名'}）？此動作無法復原。`))return;
