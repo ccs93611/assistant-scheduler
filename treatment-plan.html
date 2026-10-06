@@ -743,16 +743,28 @@ function midSplit(text){ // 右側文字結束的位置、左側文字開始的�
 let measureCtx=null;
 function textW(inp,s){measureCtx=measureCtx||document.createElement('canvas').getContext('2d');measureCtx.font=getComputedStyle(inp).font;return measureCtx.measureText(s).width}
 function alignTeeth(cell){
+  const PAD=6,MAX_FS=13,MIN_FS=7;
   for(const c of cell?[cell]:document.querySelectorAll('.teeth-cell')){
     const jaws=c.querySelector('.jaws'),line=c.querySelector('.midl'),ins=[...c.querySelectorAll('[data-k="teethIn"]')];if(!jaws||!line||!ins.length)continue;
     const W=ins[0].clientWidth;if(!W)continue;
-    const mids=ins.map(i=>{const v=i.value,{endR,startL}=midSplit(v);
-      if(endR==null&&startL==null)return null;
-      if(endR!=null&&startL!=null&&endR>startL)return null; // 還沒整理好的順序，先不對齊
-      const a=endR!=null?textW(i,v.slice(0,endR)):null,b=startL!=null?textW(i,v.slice(0,startL)):null;
-      return a!=null&&b!=null?(a+b)/2:a!=null?a+5:b-5;});
-    let X=W/2;mids.forEach(m=>{if(m!=null)X=Math.max(X,6+m)});
-    ins.forEach((i,k)=>{i.style.paddingLeft=mids[k]!=null?Math.max(0,X-mids[k])+'px':''});
+    // 量出每排在中線左右各要多寬；放不下就縮小字體，直到兩排都能完整呈現
+    let fs=MAX_FS,rows;
+    for(;;){
+      ins.forEach(i=>i.style.fontSize=fs+'px');
+      rows=ins.map(i=>{const v=i.value,total=textW(i,v),{endR,startL}=midSplit(v);
+        let mid=null;
+        if((endR!=null||startL!=null)&&!(endR!=null&&startL!=null&&endR>startL)){ // 順序還沒整理好時先不對齊
+          const a=endR!=null?textW(i,v.slice(0,endR)):null,b=startL!=null?textW(i,v.slice(0,startL)):null;
+          mid=a!=null&&b!=null?(a+b)/2:a!=null?a+5:b-5;}
+        return {total,mid}});
+      const al=rows.filter(r=>r.mid!=null),L=Math.max(0,...al.map(r=>r.mid)),R=Math.max(0,...al.map(r=>r.total-r.mid));
+      const need=Math.max(al.length?L+R:0,...rows.filter(r=>r.mid==null).map(r=>r.total))+2*PAD;
+      if(need<=W||fs<=MIN_FS)break;
+      fs-=0.5;
+    }
+    const al=rows.filter(r=>r.mid!=null),L=Math.max(0,...al.map(r=>r.mid)),R=Math.max(0,...al.map(r=>r.total-r.mid));
+    let X=Math.max(W/2,PAD+L);if(X+R>W-PAD)X=Math.max(PAD+L,W-PAD-R);
+    ins.forEach((i,k)=>{i.style.paddingLeft=rows[k].mid!=null?Math.max(0,X-rows[k].mid)+'px':''});
     const r0=ins[0].getBoundingClientRect(),rj=jaws.getBoundingClientRect();
     line.style.left=(r0.left-rj.left+ins[0].clientLeft+X-1)+'px';
   }
