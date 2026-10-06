@@ -74,11 +74,8 @@ td input[data-k="qty"]{min-width:52px}
 .teeth-cell .jaw{display:flex;align-items:center;gap:4px}
 .teeth-cell .jaw+.jaw{border-top:2px solid var(--line);padding-top:3px;margin-top:3px}
 .teeth-cell .jaw span{font-size:11px;color:var(--muted);width:14px;flex:none}
-.teeth-cell .jaw input:nth-of-type(1){border-top-right-radius:0;border-bottom-right-radius:0;border-right:0;text-align:right}
-.teeth-cell .jaw input:nth-of-type(2){border-top-left-radius:0;border-bottom-left-radius:0;border-left:0}
-.teeth-cell .midl{align-self:stretch;border-left:2px dashed var(--muted);margin:-3px 0;flex:none}
-.teeth-cell .jaw:first-child .midl{margin-bottom:-6px}
-.teeth-cell .jaw+.jaw .midl{margin-top:-6px}
+.teeth-cell .jaws{position:relative}
+.teeth-cell .jaws::after{content:"";position:absolute;top:2px;bottom:2px;left:calc(18px + (100% - 18px)/2);border-left:2px dashed var(--muted);opacity:.55;pointer-events:none}
 .teeth-cell input{flex:1;font-size:13px;padding:3px 6px}
 .teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
 .teeth-cell button{padding:3px 6px}
@@ -341,8 +338,8 @@ function renderEditor(){
           <select data-k="pick" ${dis}>${itemOptions(it)}</select>
           ${it.custom?`<input data-k="name" placeholder="自訂項目名稱" value="${esc(it.name)}" style="margin-top:4px" ${dis}>`:''}</td>
         <td><div class="teeth-cell"><div class="jaws">${(()=>{const v=teethInputs(it),bad=it.teethBad&&it.teethBad.length,ti=bad?esc('無法辨識：'+it.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
-          const inp=(q,ph)=>`<input data-k="teethIn" data-jaw="${q}" class="${bad?'bad':''}" value="${esc(v[q])}" placeholder="${ph}" title="${ti}" ${dis}>`;
-          return `<div class="jaw"><span>上</span>${inp('q1','右上')}<i class="midl"></i>${inp('q2','左上')}</div><div class="jaw"><span>下</span>${inp('q4','右下')}<i class="midl"></i>${inp('q3','左下')}</div>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
+          const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${dis}>`;
+          return `<div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
         <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="unit" value="${unitOf(it)||''}" placeholder="0" ${dis}></td>
         <td><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${dis}></td>
         <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${dis}></td>
@@ -453,7 +450,7 @@ $('#main').addEventListener('change',e=>{
     if(it.custom){const i=document.querySelector(`[data-id="${it.id}"] [data-k="name"]`);i&&i.focus()}
   }
   if(t.dataset.k==='teethIn'){const r=rowOf(p,t),it=r.row,ins=[...r.tr.querySelectorAll('[data-k="teethIn"]')],raw={};ins.forEach(i=>raw[i.dataset.jaw]=i.value);
-    const out=parseTeeth(joinQuads(raw));applyTeeth(it,out);
+    const out=parseTeeth(raw.up+','+raw.lo);applyTeeth(it,out);
     it.teethBad=out.bad.length?out.bad:null;it.teethText=out.bad.length?raw:null;
     if(!out.bad.length){const v=teethParts(it);ins.forEach(i=>i.value=v[i.dataset.jaw])}
     ins.forEach(i=>{i.classList.toggle('bad',!!out.bad.length);i.title=out.bad.length?'無法辨識：'+out.bad.join('、'):'可直接輸入，例如 14X12X21X23, 46, 17(X)'});
@@ -646,37 +643,24 @@ function applyTeeth(it,out){
   it.teeth=out.teeth;it.pontics=out.pontics;it.bridgeTeeth=out.bridgeTeeth;it.bridgeGroups=out.bridgeGroups;delete it.bridges;
   if(PER_TOOTH.has(it.name)&&!it.qtyManual){it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;const u=unitOf(it);if(u)it.orig=u*it.qty}
 }
-// 牙位欄分四格（病患右側在左）：右上 q1 ┊ 左上 q2 ／ 右下 q4 ┊ 左下 q3
-// 跨中線的牙橋放在它起點（病患右側）那一格
-const QUADS=['q1','q2','q4','q3'];
+// 象限：右上 q1、左上 q2、左下 q3、右下 q4
 const REGION_Q={'全口':'q1','上顎':'q1','右上':'q1','左上':'q2','下顎':'q4','右下':'q4','左下':'q3'};
 const quadOf=t=>REGION_Q[t]||{1:'q1',5:'q1',2:'q2',6:'q2',3:'q3',7:'q3',4:'q4',8:'q4'}[t[0]];
 const CHART_ORDER=[...REGIONS,...UP,...UPP,...LO,...LOP];
-// 跨中線的牙橋在中線切成左右兩段，分別放在兩格；兩格在中線相連，輸入時會再接回同一座
+// 每排（上顎／下顎）是一個輸入欄，依牙位圖由左到右排列（病患右側在左）；中間虛線只是輔助閱讀
+const isUpperQ=t=>['q1','q2'].includes(quadOf(t));
 function teethParts(it){
   const px=it.pontics||[],brs=calcBridges(bridgeTeethOf(it),px,it.bridgeGroups),inB=new Set(brs.flatMap(b=>b.teeth));
-  const pieces=b=>{const a=b.teeth.filter(t=>quadOf(t)===quadOf(b.teeth[0])),c=b.teeth.filter(t=>quadOf(t)!==quadOf(b.teeth[0]));
-    return [a,c].filter(x=>x.length).map(x=>[x[0],bridgeStr({teeth:x,pontics:b.pontics})])};
-  const all=[...brs.flatMap(pieces),...it.teeth.filter(t=>!inB.has(t)).map(t=>[t,px.includes(t)?`${t}(X)`:t])]
+  const all=[...brs.map(b=>[b.teeth[0],bridgeStr(b)]),...it.teeth.filter(t=>!inB.has(t)).map(t=>[t,px.includes(t)?`${t}(X)`:t])]
     .sort((a,b)=>CHART_ORDER.indexOf(a[0])-CHART_ORDER.indexOf(b[0]));
-  const out={};QUADS.forEach(q=>out[q]=all.filter(([t])=>quadOf(t)===q).map(x=>x[1]).join(', '));return out;
+  return {up:all.filter(([t])=>isUpperQ(t)).map(x=>x[1]).join(', '),lo:all.filter(([t])=>!isUpperQ(t)).map(x=>x[1]).join(', ')};
 }
-function teethLabel(it){const p=teethParts(it);return joinQuads(p)}
-// 把四格合成一串：右格最後一段與左格第一段若在中線接得起來（例如「14X12X」+「21X23」），就接成同一座牙橋
-function joinQuads(raw){
-  const toks=s=>String(s||'').split(/[,，、;；\s]+/).filter(Boolean);
-  const hasX=s=>/[XxｘＸ×✕]/.test(s);
-  const join=(a,b)=>{const ta=toks(a),tb=toks(b);
-    if(ta.length&&tb.length){const l=ta[ta.length-1],f=tb[0],c=l+f;
-      if((hasX(l)||hasX(f))&&!/[(（]/.test(l+f)){const o=parseTeeth(c);if(!o.bad.length&&o.teeth.some(x=>quadOf(x)===quadOf(o.teeth[0]))&&new Set(o.teeth.map(quadOf)).size===2)return [...ta.slice(0,-1),c,...tb.slice(1)]}}
-    return [...ta,...tb]};
-  return [...join(raw.q1,raw.q2),...join(raw.q4,raw.q3)].join(', ');
-}
-// 輸入欄顯示的文字：無法辨識時保留原本打的字
+function teethLabel(it){const p=teethParts(it);return [p.up,p.lo].filter(Boolean).join(', ')}
+// 輸入欄顯示的文字：無法辨識時保留原本打的字（相容舊格式）
 function teethInputs(it){
   const v=it.teethText;if(v==null)return teethParts(it);
-  if(typeof v==='string')return {q1:v,q2:'',q4:'',q3:''};
-  if('up' in v||'lo' in v)return {q1:v.up||'',q2:'',q4:v.lo||'',q3:''};
+  if(typeof v==='string')return {up:v,lo:''};
+  if('q1' in v)return {up:[v.q1,v.q2].filter(Boolean).join(', '),lo:[v.q4,v.q3].filter(Boolean).join(', ')};
   return v;
 }
 
