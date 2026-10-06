@@ -203,7 +203,6 @@ const PER_TOOTH=new Set(['MTA活髓保存','BPR齒雕','Veneer美學貼片','Pos
  'APR齒槽骨保存術','美國Hiossen植體','植牙全鋯冠-前牙','植牙全鋯冠-後牙',
  '顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補',
  'SSC金屬乳牙套','Strip crown樹酯乳牙套']);
-const CUSTOM='__custom__';
 const pk=(cat,name)=>cat+'|'+name;
 
 /* ====== 牙位 ====== */
@@ -288,15 +287,13 @@ function openPlan(id){curId=id;renderList();renderEditor();if(innerWidth<=820)$(
 window.addEventListener('pagehide',flushPending);
 
 /* ====== 編輯畫面 ====== */
-function itemOptions(it){
-  let h=`<option value="">— 選擇治療項目 —</option>`;
-  for(const [cat,list] of CATS){h+=`<optgroup label="${cat}">`+list.map(n=>`<option value="${esc(pk(cat,n))}" ${!it.custom&&it.cat===cat&&it.name===n?'selected':''}>${esc(n)}</option>`).join('')+`</optgroup>`}
-  h+=`<optgroup label="其他"><option value="${CUSTOM}" ${it.custom?'selected':''}>自訂項目…</option></optgroup>`;
-  return h;
-}
+// 治療項目：輸入文字即可搜尋（項目名稱或治療種類），不在清單裡的名稱當作自訂項目
+const ITEM_INDEX=CATS.flatMap(([cat,list])=>list.map(name=>({cat,name})));
+const findItem=s=>{const q=String(s||'').trim().toLowerCase().replace(/s+/g,'');return ITEM_INDEX.find(x=>x.name.toLowerCase().replace(/s+/g,'')===q)};
 function datalists(){
   const dl=(id,arr)=>`<datalist id="${id}">${arr.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
-  return dl('dlDoc',settings.doctors)+dl('dlAsst',settings.assistants);
+  return dl('dlDoc',settings.doctors)+dl('dlAsst',settings.assistants)+
+    `<datalist id="dlItems">${ITEM_INDEX.map(x=>`<option value="${esc(x.name)}" label="${esc(x.cat)}">`).join('')}</datalist>`;
 }
 function renderEditor(){
   const p=cur();const m=$('#main');
@@ -334,9 +331,8 @@ function renderEditor(){
       <thead><tr><th style="width:34px">#</th><th style="min-width:230px">治療種類／項目</th><th style="min-width:340px">牙位</th><th class="num" style="width:110px">單一金額</th><th class="num" style="width:76px">數量</th><th class="num" style="width:120px">原始金額</th><th class="num" style="width:120px">變更金額</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         <td>${i+1}</td>
-        <td>${it.cat&&!it.custom?`<span class="cat-tag">${esc(it.cat)}</span>`:''}
-          <select data-k="pick" ${dis}>${itemOptions(it)}</select>
-          ${it.custom?`<input data-k="name" placeholder="自訂項目名稱" value="${esc(it.name)}" style="margin-top:4px" ${dis}>`:''}</td>
+        <td><span class="cat-tag">${it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;'}</span>
+          <input data-k="itemIn" list="dlItems" value="${esc(it.name)}" placeholder="輸入搜尋治療項目" autocomplete="off" ${dis}></td>
         <td><div class="teeth-cell"><div class="jaws">${(()=>{const v=teethInputs(it),bad=it.teethBad&&it.teethBad.length,ti=bad?esc('無法辨識：'+it.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
           const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${dis}>`;
           return `<div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div><i class="midl"></i>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
@@ -430,8 +426,7 @@ $('#main').addEventListener('input',e=>{
   }
   const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,it=r.row;
   if(r.name==='items'){
-    if(k==='name')it.name=t.value;
-    else if(k==='qty'){it.qty=Math.max(1,Math.round(Number(t.value)||1));it.qtyManual=true;const u=unitOf(it);if(u){it.orig=u*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig}}
+    if(k==='qty'){it.qty=Math.max(1,Math.round(Number(t.value)||1));it.qtyManual=true;const u=unitOf(it);if(u){it.orig=u*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig}}
     else if(k==='unit'){it.unit=numOrNull(t.value)||0;it.orig=it.unit*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||''}
     else if(k==='orig')it.orig=numOrNull(t.value)||0;
     else if(k==='chg'){it.chg=numOrNull(t.value);t.classList.toggle('changed-amt',it.chg!=null&&it.chg!==it.orig)}
@@ -442,14 +437,16 @@ $('#main').addEventListener('input',e=>{
 });
 $('#main').addEventListener('change',e=>{
   const p=cur();if(!p)return;const t=e.target;
-  if(t.dataset.k==='pick'){const r=rowOf(p,t);const it=r.row;
-    if(t.value===CUSTOM){it.custom=true;it.cat='其他';it.name='';}
-    else if(t.value){const [cat,name]=t.value.split('|');it.custom=false;it.cat=cat;it.name=name;
-      if(PER_TOOTH.has(name)&&!it.qtyManual&&it.teeth.length)it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;}
-    else{it.custom=false;it.cat='';it.name=''}
-    const pr=priceOf(it);it.unit=pr||null;if(pr)it.orig=pr*it.qty;
-    touch();renderEditor();
-    if(it.custom){const i=document.querySelector(`[data-id="${it.id}"] [data-k="name"]`);i&&i.focus()}
+  if(t.dataset.k==='itemIn'){const r=rowOf(p,t);const it=r.row,v=t.value.trim(),hit=findItem(v);
+    if(hit){if(it.custom||it.cat!==hit.cat||it.name!==hit.name){it.custom=false;it.cat=hit.cat;it.name=hit.name;
+        if(PER_TOOTH.has(hit.name)&&!it.qtyManual&&it.teeth.length)it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;
+        const pr=priceOf(it);it.unit=pr||null;if(pr)it.orig=pr*it.qty}}
+    else if(v){if(!it.custom&&it.name){it.unit=null;it.orig=0}it.custom=true;it.cat='其他';it.name=v}
+    else{if(!it.custom&&it.name){it.unit=null;it.orig=0}it.custom=false;it.cat='';it.name=''}
+    // 只更新這一列，避免重畫整張表讓游標跳走
+    t.value=it.name;r.tr.querySelector('.cat-tag').innerHTML=it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;';
+    r.tr.querySelector('[data-k="unit"]').value=unitOf(it)||'';r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||'';
+    refreshTotals();touch();
   }
   if(t.dataset.k==='teethIn'){const r=rowOf(p,t),it=r.row,ins=[...r.tr.querySelectorAll('[data-k="teethIn"]')],raw={};ins.forEach(i=>raw[i.dataset.jaw]=i.value);
     const out=parseTeeth(raw.up+','+raw.lo);applyTeeth(it,out);
