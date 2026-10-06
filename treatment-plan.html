@@ -69,6 +69,16 @@ td.num,th.num{text-align:right}
 td input.num{text-align:right;min-width:72px}
 td input[data-k="qty"]{min-width:52px}
 .cat-tag{font-size:11px;color:var(--accent);display:block}
+.combo-wrap{position:relative}
+.combo-wrap::after{content:"▾";position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:12px}
+.combo-wrap input{padding-right:24px}
+.combo-pop{position:fixed;z-index:40;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);overflow:auto;padding:4px 0;max-width:min(420px,calc(100vw - 16px))}
+.combo-grp{font-size:12px;font-weight:700;color:var(--muted);padding:6px 12px 2px;position:sticky;top:-4px;background:var(--panel)}
+.combo-opt{padding:5px 12px 5px 22px;cursor:pointer;font-size:14px}
+.combo-opt.on{background:var(--accent-soft)}
+.combo-opt.sel{font-weight:700;color:var(--accent)}
+.combo-empty{padding:8px 12px;color:var(--muted);font-size:13px}
+@media print{.combo-wrap::after{display:none}}
 .teeth-cell{display:flex;gap:4px;align-items:center}
 .teeth-cell .jaws{flex:1;display:grid;min-width:0}
 .teeth-cell .jaw{display:flex;align-items:center;gap:4px}
@@ -292,8 +302,7 @@ const ITEM_INDEX=CATS.flatMap(([cat,list])=>list.map(name=>({cat,name})));
 const findItem=s=>{const q=String(s||'').trim().toLowerCase().replace(/s+/g,'');return ITEM_INDEX.find(x=>x.name.toLowerCase().replace(/s+/g,'')===q)};
 function datalists(){
   const dl=(id,arr)=>`<datalist id="${id}">${arr.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
-  return dl('dlDoc',settings.doctors)+dl('dlAsst',settings.assistants)+
-    `<datalist id="dlItems">${ITEM_INDEX.map(x=>`<option value="${esc(x.name)}" label="${esc(x.cat)}">`).join('')}</datalist>`;
+  return dl('dlDoc',settings.doctors)+dl('dlAsst',settings.assistants);
 }
 function renderEditor(){
   const p=cur();const m=$('#main');
@@ -332,7 +341,7 @@ function renderEditor(){
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         <td>${i+1}</td>
         <td><span class="cat-tag">${it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;'}</span>
-          <input data-k="itemIn" list="dlItems" value="${esc(it.name)}" placeholder="輸入搜尋治療項目" autocomplete="off" ${dis}></td>
+          <div class="combo-wrap"><input data-k="itemIn" value="${esc(it.name)}" placeholder="選擇或輸入搜尋" autocomplete="off" ${dis}></div></td>
         <td><div class="teeth-cell"><div class="jaws">${(()=>{const v=teethInputs(it),bad=it.teethBad&&it.teethBad.length,ti=bad?esc('無法辨識：'+it.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
           const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${dis}>`;
           return `<div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div><i class="midl"></i>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
@@ -698,6 +707,50 @@ function alignTeeth(cell){
 }
 window.addEventListener('resize',()=>alignTeeth());
 if(document.fonts)document.fonts.ready.then(()=>alignTeeth());
+
+/* 治療項目下拉目錄（依治療種類分組），輸入文字可篩選；清單外的文字可當自訂項目 */
+const combo={el:null,inp:null,opts:[],hi:-1};
+function comboOpen(inp){
+  if(!combo.el){combo.el=document.createElement('div');combo.el.className='combo-pop';document.body.appendChild(combo.el);
+    combo.el.addEventListener('mousedown',e=>{e.preventDefault();const o=e.target.closest('[data-i]');if(o)comboPick(+o.dataset.i)});}
+  combo.inp=inp;comboFilter();
+}
+function comboClose(){if(combo.el)combo.el.hidden=true;combo.inp=null;combo.hi=-1}
+function comboFilter(showAll){
+  const inp=combo.inp;if(!inp)return;
+  const q=showAll?'':inp.value.trim().toLowerCase().replace(/\s+/g,'');
+  const m=s=>s.toLowerCase().replace(/\s+/g,'').includes(q);
+  let h='';combo.opts=[];
+  for(const [cat,list] of CATS){const hit=m(cat)?list:list.filter(m);if(!hit.length)continue;
+    h+=`<div class="combo-grp">${esc(cat)}</div>`;
+    for(const n of hit){combo.opts.push({cat,name:n});h+=`<div class="combo-opt${n===inp.value.trim()?' sel':''}" data-i="${combo.opts.length-1}">${esc(n)}</div>`}}
+  const raw=inp.value.trim();
+  if(raw&&!findItem(raw)){combo.opts.push({custom:raw});h+=`<div class="combo-grp">其他</div><div class="combo-opt" data-i="${combo.opts.length-1}">自訂項目：「${esc(raw)}」</div>`}
+  if(!combo.opts.length)h='<div class="combo-empty">沒有符合的項目</div>';
+  combo.el.innerHTML=h;combo.el.hidden=false;combo.hi=q?0:combo.opts.findIndex(o=>o.name===raw);comboHi();
+  const r=inp.getBoundingClientRect(),below=innerHeight-r.bottom;
+  Object.assign(combo.el.style,{left:r.left+'px',minWidth:r.width+'px',maxHeight:Math.max(160,Math.min(340,below>220?below-12:r.top-12))+'px'});
+  if(below>220||below>=r.top){combo.el.style.top=r.bottom+2+'px';combo.el.style.bottom=''}else{combo.el.style.top='';combo.el.style.bottom=(innerHeight-r.top+2)+'px'}
+}
+function comboHi(){combo.el.querySelectorAll('.combo-opt').forEach(o=>o.classList.toggle('on',+o.dataset.i===combo.hi));
+  const o=combo.el.querySelector('.combo-opt.on');if(o)o.scrollIntoView({block:'nearest'})}
+function comboPick(i){const o=combo.opts[i],inp=combo.inp;if(!o||!inp)return;
+  inp.value=o.custom??o.name;comboClose();inp.dispatchEvent(new Event('change',{bubbles:true}))}
+$('#main').addEventListener('focusin',e=>{if(e.target.dataset.k==='itemIn'){comboOpen(e.target);comboFilter(true)}});
+$('#main').addEventListener('click',e=>{if(e.target.dataset.k==='itemIn'&&combo.inp!==e.target){comboOpen(e.target);comboFilter(true)}});
+$('#main').addEventListener('input',e=>{if(e.target.dataset.k==='itemIn'){if(combo.inp!==e.target)comboOpen(e.target);else comboFilter()}});
+$('#main').addEventListener('focusout',e=>{if(e.target.dataset.k==='itemIn')comboClose()});
+$('#main').addEventListener('keydown',e=>{
+  if(e.target.dataset.k!=='itemIn')return;
+  if(!combo.inp&&(e.key==='ArrowDown'||e.key==='Enter')){comboOpen(e.target);comboFilter(true);e.preventDefault();return}
+  if(!combo.inp)return;const n=combo.opts.length;
+  if(e.key==='ArrowDown'){combo.hi=(combo.hi+1)%n;comboHi();e.preventDefault()}
+  else if(e.key==='ArrowUp'){combo.hi=(combo.hi-1+n)%n;comboHi();e.preventDefault()}
+  else if(e.key==='Enter'){if(combo.hi>=0)comboPick(combo.hi);else comboClose();e.preventDefault()}
+  else if(e.key==='Escape'){comboClose();e.preventDefault()}
+});
+window.addEventListener('scroll',e=>{if(combo.inp&&!(combo.el&&combo.el.contains(e.target)))comboClose()},true);
+window.addEventListener('resize',()=>comboClose());
 
 /* 照片 */
 let photoTarget=null;
