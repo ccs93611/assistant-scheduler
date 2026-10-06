@@ -610,6 +610,7 @@ body.gated .shell{display:none;}
 .lv-range .seg button{padding:3px 10px;}
 .lv-head{display:flex; align-items:center; justify-content:flex-start; gap:10px; margin-bottom:4px;}
 .lv-head h2{margin:0;}
+.lv-head #lvTypePermBtn{margin-left:auto; margin-right:8px;}
 .lv-head .seg button{padding:5px 14px; font-size:.82rem;}
 #lvWhenSeg [data-when="after"][aria-pressed="true"],.seg button[data-rqwhen="after"][aria-pressed="true"],.seg button[data-mrwhen="after"][aria-pressed="true"]{background:var(--warn); color:#fff;}
 .seg button[data-rqwhen="fc"][aria-pressed="true"]{background:#2F6FB0; color:#fff;} /* 家庭照顧假：藍色 */ /* 事後：紅色；事前維持綠色 */
@@ -753,7 +754,7 @@ body.gated .shell{display:none;}
         <div class="card pf-missing" id="pfMissingCard" hidden></div>
         <div class="card" id="lvReqCard" hidden></div>
         <div class="card" id="lvCard">
-          <div class="lv-head"><h2 id="lvRegTitle">請假登記</h2><span class="seg" id="lvWhenSeg" role="group" aria-label="事前或事後"><button type="button" data-when="before" aria-pressed="true">事前</button><button type="button" data-when="after" aria-pressed="false">事後</button></span></div>
+          <div class="lv-head"><h2 id="lvRegTitle">請假登記</h2><button type="button" class="small" id="lvTypePermBtn" hidden>請假種類權限設定</button><span class="seg" id="lvWhenSeg" role="group" aria-label="事前或事後"><button type="button" data-when="before" aria-pressed="true">事前</button><button type="button" data-when="after" aria-pressed="false">事後</button></span></div>
           <div id="lvPane-before">
           <p class="desc">事先安排的請假。自動排班會避開這些時段；已經排進去的會在班表上標紅。下方列表同時以淺灰色顯示事後補登的請假，方便對照。</p>
           <form class="form-row leave-form" data-role="assistant" data-when="before" style="margin-bottom:16px">
@@ -2686,6 +2687,23 @@ function renderMakeup(mi){
     rows.map(({m,id,sn,mn})=>`<tr>${lr.year?`<td>${m.first.getMonth()+1} 月</td>`:''}${canWrite?`<td>${esc(fullName(byId(id)))}</td>`:''}<td class="num">${sn} 診</td><td class="num">${mn} 診</td><td>${sn>0&&mn<sn?`<span class="pill warn">不發（加診還差 ${sn-mn} 診）</span>`:'<span class="pill">照發</span>'}</td></tr>`).join('')+'</tbody>'
     :`<tbody><tr><td class="empty">${lr.label}沒有事假或加診。</td></tr></tbody>`;
 }
+// 請假種類權限：「登記本人請假」的助理在事前／事後各能請哪些假（排班管理以上在請假登記設定）
+const ASST_TYPES=[...document.querySelectorAll('#lvType-assistant option')].map(o=>o.value);
+const selfTypeLimit=()=>!canWrite&&effPerm()==='self';
+const allowedTypes=w=>{const c=cfg.selfLeaveTypes?.[w==='after'?'after':'before'];return selfTypeLimit()&&Array.isArray(c)?ASST_TYPES.filter(t=>c.includes(t)):ASST_TYPES;};
+const fillTypes=(sel,list)=>{const h=list.length?list.map(t=>`<option>${esc(t)}</option>`).join(''):'<option value="" disabled selected>（目前沒有開放可請的假別）</option>';if(sel.dataset.h!==h){const v=sel.value;sel.innerHTML=h;sel.dataset.h=h;if(list.includes(v))sel.value=v;}};
+$('lvTypePermBtn').addEventListener('click',()=>{
+  if(!canWrite)return;
+  const cur=w=>{const c=cfg.selfLeaveTypes?.[w];return Array.isArray(c)?c:ASST_TYPES;};
+  const rows=ASST_TYPES.map(t=>`<tr><td>${esc(t)}</td>${['before','after'].map(w=>`<td style="text-align:center"><input type="checkbox" data-lt="${w}" value="${esc(t)}"${cur(w).includes(t)?' checked':''} aria-label="${w==='after'?'事後':'事前'}${esc(t)}"></td>`).join('')}</tr>`).join('');
+  dialog(`<h3>請假種類權限設定</h3><p class="desc" style="margin:0 0 8px">勾選權限為「登記本人請假」的助理，事前、事後各能自己登記哪些假。沒勾的假別要請排班管理者代為登記。</p>
+    <div style="max-height:60vh;overflow:auto"><table class="list"><thead><tr><th>假別</th><th style="text-align:center">事前 <button type="button" class="small" data-ltall="before">全選</button> <button type="button" class="small" data-ltnone="before">全不選</button></th><th style="text-align:center">事後 <button type="button" class="small" data-ltall="after">全選</button> <button type="button" class="small" data-ltnone="after">全不選</button></th></tr></thead><tbody>${rows}</tbody></table></div>`,ov=>{
+    const pick=w=>[...ov.querySelectorAll(`[data-lt="${w}"]:checked`)].map(x=>x.value);
+    store.cfg(Object.assign({},cfg,{selfLeaveTypes:{before:pick('before'),after:pick('after')}}));toast('已更新請假種類權限。');
+  },'儲存');
+  const ov=[...document.querySelectorAll('.overlay')].pop();ov.querySelector('.dialog').style.maxWidth='520px';
+  ov.addEventListener('click',e=>{const a=e.target.closest('[data-ltall],[data-ltnone]');if(!a)return;const w=a.dataset.ltall||a.dataset.ltnone,on=!!a.dataset.ltall;ov.querySelectorAll(`[data-lt="${w}"]`).forEach(x=>x.checked=on);});
+});
 // 助理請假分成兩個面板：assistant＝事前、after＝事後（事後列表也以淺灰色列出事前紀錄，只供對照）
 const whenOf=l=>l.when==='after'?'after':'before';
 function renderLeave(mi,roles){
@@ -2709,7 +2727,8 @@ function renderLeave(mi,roles){
     const selfOnly=!canWrite&&canLeaveFor(myStaffId())&&byId(myStaffId())?.role===role;
     $('leaveTable-'+pk).closest('.card').querySelector('.leave-form button[type=submit]').disabled=!(canWrite||selfOnly);
     $(pk==='doctor'?'monthLeaveBtnDoc':pk==='after'?'monthLeaveBtnAfter':'monthLeaveBtn').disabled=!(canWrite||selfOnly);
-    if(pk==='after'&&!$('lvType-after').options.length)$('lvType-after').innerHTML=$('lvType-assistant').innerHTML;
+    if(pk!=='doctor')fillTypes($(pk==='after'?'lvType-after':'lvType-assistant'),allowedTypes(pk==='after'?'after':'before'));
+    if(pk==='assistant')$('lvTypePermBtn').hidden=!canWrite;
     sel.innerHTML=activeStaff(role).filter(s=>canWrite||s.id===myStaffId()).map(s=>`<option value="${s.id}">${esc(fullName(s))}</option>`).join('');
     if(cur&&byId(cur))sel.value=cur;
     // 請假／休假列表可以另外選擇查看的月份或整年（醫師與助理各自切換）
@@ -2756,7 +2775,7 @@ function renderLeave(mi,roles){
         const clash=clashOf(l);
         const shTxt=(l.shifts||[]).length===3?'全天':SHIFTS.filter(s=>l.shifts.includes(s.id)).map(s=>s.short).join('、');
         if(editingLeave===l.id&&!faded(l)){
-          const types=[...document.querySelectorAll(`#lvType-${role} option`)].map(o=>o.value);
+          const types=role==='assistant'?allowedTypes(whenOf(l)).slice():[...document.querySelectorAll(`#lvType-${role} option`)].map(o=>o.value);
           if(l.type&&!types.includes(l.type))types.push(l.type);
           return `<tr data-lvrow="${l.id}"><td><input type="date" data-e="date" value="${l.date}" aria-label="日期"></td>${canWrite?`<td>${esc(fullName(byId(l.staffId)))}</td>`:''}
             <td><div class="checks" style="padding:0">${SHIFTS.map(s=>`<label><input type="checkbox" data-esh="${s.id}"${(l.shifts||[]).includes(s.id)?' checked':''}${role==='assistant'&&whenOf(l)==='before'?' disabled':''}>${s.short}</label>`).join('')}</div></td>
@@ -5290,6 +5309,7 @@ document.querySelectorAll('.leave-form').forEach(form=>form.addEventListener('su
   if(!sid||!from){toast(`請選擇${ROLE[role]}與日期。`,'warn');return;}
   if(!shifts.length){toast('請至少勾選一個班別。','warn');return;}
   if(to<from){toast('結束日期不能早於開始日期。','warn');return;}
+  if(role==='assistant'&&!allowedTypes(form.dataset.when).includes(f('type').value)){toast(`你目前不能${form.dataset.when==='after'?'事後':'事前'}登記「${f('type').value||'這個假別'}」，請洽排班管理者。`,'warn');return;}
   const note=f('note').value.trim();const type=f('type').value;
   if(role==='assistant'&&REASON_TYPES.includes(type)&&!note){toast(`請在「備註」說明${type}的理由。`,'warn');f('note').focus();return;}
   let sun=0,hol=0;const dates=[];
@@ -5343,7 +5363,8 @@ const leaveTagStyle=t=>{const [bg,fg]=leaveColor(t);return `background:${bg};bor
 // when：'before' 事前／'after' 事後（助理）；role：'assistant' 整月排假／'doctor' 整月排休（醫師沒有事前、事後之分，可以按診休假）
 function openMonthLeave(when,role='assistant'){
   const doc=role==='doctor',who=doc?'醫師':'助理',word=doc?'休假':'請假';
-  const types=[...document.querySelectorAll(doc?'#lvType-doctor option':'#lvType-assistant option')].map(o=>o.value);
+  const types=doc?[...document.querySelectorAll('#lvType-doctor option')].map(o=>o.value):allowedTypes(when);
+  if(!types.length){toast(`目前沒有開放${when==='after'?'事後':'事前'}可請的假別，請洽排班管理者。`,'warn');return;}
   let off=prefs.monthOffset,type=doc?types[0]:types.includes('事假')?'事假':types[0],sel=null,dragSid=null;
   const other=l=>!doc&&whenOf(l)!==when; // 助理：另一邊（事前／事後）登記的假
   const ov=document.createElement('div');ov.className='overlay mr-ov'; // 上緣固定，換月份時按鈕不會移動
