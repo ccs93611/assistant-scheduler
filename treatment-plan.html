@@ -591,13 +591,15 @@ function openTeeth(current,curPontics,curBridgeTeeth,curGroups){
   });
 }
 // 只有用「牙橋」選的牙才會相連：同一排相連的牙橋選取牙分成一段，
-// 但原本屬於不同組（groups，例如輸入「14X12, 11X22」）的牙在交界處斷開，新加入的牙併入相鄰那組
+// 但原本屬於不同組（groups，例如輸入「14X12, 11X22」）的牙在交界處斷開，新加入的牙併入相鄰那組；
+// 中線（11|21、41|31、51|61、81|71）兩側永遠不相連
 function calcSegments(bTeeth,groups){
   const sel=new Set(bTeeth),gid=new Map();(groups||[]).forEach((g,i)=>g.forEach(t=>gid.set(t,i)));
   const out=[];
   for(const r of [UP,LO,UPP,LOP]){let seg=[],sg=null;
     const flush=()=>{if(seg.length)out.push(seg);seg=[];sg=null};
-    for(const t of r){
+    for(const [i,t] of r.entries()){
+      if(i===r.length/2)flush();
       if(!sel.has(t)){flush();continue}
       const g=gid.has(t)?gid.get(t):null;
       if(seg.length&&g!=null&&sg!=null&&g!==sg)flush();
