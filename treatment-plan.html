@@ -68,8 +68,10 @@ td input,td select{width:100%}
 td.num,th.num{text-align:right}
 td input.num{text-align:right}
 .cat-tag{font-size:11px;color:var(--accent);display:block}
-.teeth-btn{width:100%;text-align:left;min-height:34px;font-size:13px;white-space:normal}
-.teeth-btn.emp{color:var(--muted)}
+.teeth-cell{display:flex;gap:4px}
+.teeth-cell input{flex:1;font-size:13px}
+.teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
+.teeth-cell button{padding:3px 6px}
 .changed-amt{color:var(--danger);font-weight:600}
 tfoot td{font-weight:700;background:var(--soft)}
 .totals{display:flex;gap:18px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px}
@@ -318,13 +320,13 @@ function renderEditor(){
   <section class="card">
     <h2>治療項目<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addItem">＋ 新增項目</button>'}</h2>
     <div class="tbl-wrap"><table>
-      <thead><tr><th style="width:34px">#</th><th style="min-width:230px">治療種類／項目</th><th style="min-width:150px">牙位</th><th class="num" style="width:76px">數量</th><th class="num" style="width:120px">原始金額</th><th class="num" style="width:120px">變更金額</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
+      <thead><tr><th style="width:34px">#</th><th style="min-width:230px">治療種類／項目</th><th style="min-width:200px">牙位</th><th class="num" style="width:76px">數量</th><th class="num" style="width:120px">原始金額</th><th class="num" style="width:120px">變更金額</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         <td>${i+1}</td>
         <td>${it.cat&&!it.custom?`<span class="cat-tag">${esc(it.cat)}</span>`:''}
           <select data-k="pick" ${dis}>${itemOptions(it)}</select>
           ${it.custom?`<input data-k="name" placeholder="自訂項目名稱" value="${esc(it.name)}" style="margin-top:4px" ${dis}>`:''}</td>
-        <td><button class="teeth-btn ${it.teeth.length?'':'emp'}" data-k="teeth" ${dis}>${it.teeth.length?esc(teethLabel(it)):'點選牙位'}</button></td>
+        <td><div class="teeth-cell"><input data-k="teethIn" class="${it.teethBad&&it.teethBad.length?'bad':''}" value="${esc(it.teethText??teethLabel(it))}" placeholder="輸入牙位" title="${it.teethBad&&it.teethBad.length?esc('無法辨識：'+it.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)'}" ${dis}><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
         <td><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${dis}></td>
         <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${dis}></td>
         <td><input class="num ${it.chg!=null&&it.chg!==it.orig?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.chg??''}" placeholder="同原始" ${dis}></td>
@@ -430,6 +432,12 @@ $('#main').addEventListener('change',e=>{
     touch();renderEditor();
     if(it.custom){const i=document.querySelector(`[data-id="${it.id}"] [data-k="name"]`);i&&i.focus()}
   }
+  if(t.dataset.k==='teethIn'){const r=rowOf(p,t),it=r.row,out=parseTeeth(t.value);applyTeeth(it,out);
+    it.teethBad=out.bad.length?out.bad:null;it.teethText=out.bad.length?t.value:null;
+    if(!out.bad.length)t.value=teethLabel(it);
+    t.classList.toggle('bad',!!out.bad.length);t.title=out.bad.length?'無法辨識：'+out.bad.join('、'):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
+    r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||'';
+    refreshTotals();touch()}
 });
 
 /* 點擊 */
@@ -456,9 +464,7 @@ $('#main').addEventListener('click',async e=>{
     if(r.name==='payments'&&r.row.sig&&!confirm('這筆繳費已有患者簽名，確定刪除？'))return;
     if(r.name==='receipts'&&(r.row.photos.length||r.row.amount||r.row.sig)&&!confirm('確定刪除這筆收據紀錄（含照片）？'))return;
     r.list.splice(r.list.indexOf(r.row),1);touch();renderEditor();
-  }else if(k==='teeth'){if(L)return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it));if(out){const res=out.teeth;it.teeth=res;it.pontics=out.pontics;it.bridgeTeeth=out.bridgeTeeth;delete it.bridges;
-      if(PER_TOOTH.has(it.name)&&!it.qtyManual){it.qty=res.filter(x=>!REGIONS.includes(x)).length||1;const pr=priceOf(it);if(pr)it.orig=pr*it.qty}
-      touch();renderEditor()}}
+  }else if(k==='teeth'){if(L)return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it));if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
   else if(k==='sig'){const lock=L&&r.name==='payments';if(lock&&!r.row.sig)return;
     if(lock){showImage(r.row.sig,'患者簽名');return}
     const s=await openSig(`${r.name==='receipts'?'領取收據簽名':'繳費簽名'}：${r.row.date}　$${money(r.row.amount)}`,r.row.sig);if(s!==undefined){r.row.sig=s;if(s&&r.name==='receipts')r.row.taken=true;touch();renderEditor()}}
@@ -578,6 +584,34 @@ function calcBridges(bTeeth,pontics){
 const bridgeTeethOf=it=>it.bridgeTeeth||calcBridges(it.teeth,it.pontics||[]).flatMap(b=>b.teeth);
 // 牙橋寫法：依牙位順序，缺牙（X）不寫號碼，例如 14X12X21X23
 const bridgeStr=b=>b.teeth.map(t=>b.pontics.includes(t)?'X':t).join('');
+// 牙位文字輸入：例如「14X12X21X23, 46, 17(X), 上顎」
+function parseTeeth(str){
+  const teeth=new Set(),px=new Set(),bt=new Set(),bad=[];
+  const rowIdx=t=>{for(const r of [UP,LO,UPP,LOP]){const i=r.indexOf(t);if(i>=0)return [r,i]}return null};
+  for(const raw of String(str||'').split(/[,，、;；\s]+/)){
+    const tok=raw.trim().replace(/ｘ|Ｘ|x|×|✕/g,'X').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/（/g,'(').replace(/）/g,')');
+    if(!tok)continue;
+    if(REGIONS.includes(tok)){teeth.add(tok);continue}
+    if(/^\d{2}$/.test(tok)&&rowIdx(tok)){teeth.add(tok);continue}
+    let m=tok.match(/^(\d{2})\(X\)$/);if(m&&rowIdx(m[1])){teeth.add(m[1]);px.add(m[1]);bt.add(m[1]);continue}
+    if(/^(\d{2}|X)+$/.test(tok)&&tok.includes('X')&&/\d/.test(tok)){
+      const parts=tok.match(/\d{2}|X/g),known=parts.map((p,i)=>p==='X'?null:[i,rowIdx(p)]).filter(Boolean);
+      if(known.some(k=>!k[1])||known.some(k=>k[1][0]!==known[0][1][0])){bad.push(raw);continue}
+      const row=known[0][1][0],[i0,[,x0]]=known[0];
+      const dir=known.length>1?Math.sign(known[1][1][1]-x0)||1:1;
+      const idx=parts.map((_,i)=>x0+dir*(i-i0));
+      if(idx.some(i=>i<0||i>=row.length)||known.some(([i,[,x]])=>idx[i]!==x)){bad.push(raw);continue}
+      parts.forEach((p,i)=>{const t=row[idx[i]];teeth.add(t);bt.add(t);if(p==='X')px.add(t)});
+      continue;
+    }
+    bad.push(raw);
+  }
+  return {teeth:sortTeeth([...teeth]),pontics:sortTeeth([...px]),bridgeTeeth:sortTeeth([...bt]),bad};
+}
+function applyTeeth(it,out){
+  it.teeth=out.teeth;it.pontics=out.pontics;it.bridgeTeeth=out.bridgeTeeth;delete it.bridges;
+  if(PER_TOOTH.has(it.name)&&!it.qtyManual){it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;const pr=priceOf(it);if(pr)it.orig=pr*it.qty}
+}
 function teethLabel(it){
   const px=it.pontics||[],brs=calcBridges(bridgeTeethOf(it),px),inB=new Set(brs.flatMap(b=>b.teeth));
   return [...brs.map(bridgeStr),
