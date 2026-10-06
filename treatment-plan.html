@@ -112,7 +112,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .tooth.prim{width:34px;height:32px;font-size:12px}
 .tooth.br{background:var(--warn);border-color:var(--warn);color:#fff}
 .tooth{position:relative}
-.tooth.x::after{content:"";position:absolute;inset:4px;background:linear-gradient(45deg,transparent 45%,currentColor 45%,currentColor 55%,transparent 55%),linear-gradient(-45deg,transparent 45%,currentColor 45%,currentColor 55%,transparent 55%);opacity:.75;pointer-events:none}
+.tooth.x::after{content:"";position:absolute;inset:4px;background:linear-gradient(45deg,transparent 45%,currentColor 45%,currentColor 55%,transparent 55%),linear-gradient(-45deg,transparent 45%,currentColor 45%,currentColor 55%,transparent 55%);opacity:.4;pointer-events:none}
 .bridge-btn.on{background:var(--warn);color:#fff;border-color:var(--warn)}
 .bridge-hint{min-height:20px;text-align:center;font-size:13px;color:var(--warn);font-weight:600;margin-top:6px}
 .tooth-sec{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
@@ -543,7 +543,7 @@ function openTeeth(current,curPontics){
         if(b.classList.contains('tooth-r')){b.classList.toggle('tooth',on);b.style.cssText=on?'width:auto;height:auto;padding:3px 10px':''}});
       box.querySelector('[data-q="bridge"]').classList.toggle('on',bMode);
       box.querySelector('#bridgeHint').textContent=(bMode?'牙橋模式：點一下選取，點兩下變成 X（缺牙），X 會和相連的選取牙自動形成牙橋；再點一下取消。':'')+
-        (brs.length?`　目前牙橋：${brs.map(b=>`${b.from}-${b.to}`).join('、')}`:'');
+        (brs.length?`　目前牙橋：${brs.map(bridgeStr).join('、')}`:'');
     };
     sync();
     box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const t=b.dataset.t;
@@ -566,9 +566,11 @@ function calcBridges(teeth,pontics){
     for(const t of r){if(sel.has(t))run.push(t);else flush()}flush()}
   return out;
 }
+// 牙橋寫法：依牙位順序，缺牙（X）不寫號碼，例如 14X12X21X23
+const bridgeStr=b=>b.teeth.map(t=>b.pontics.includes(t)?'X':t).join('');
 function teethLabel(it){
   const px=it.pontics||[],brs=calcBridges(it.teeth,px),inB=new Set(brs.flatMap(b=>b.teeth));
-  return [...brs.map(b=>`牙橋 ${b.from}-${b.to}（X：${b.pontics.join('、')}）`),
+  return [...brs.map(bridgeStr),
     ...sortTeeth(it.teeth.filter(t=>!inB.has(t))).map(t=>px.includes(t)?`${t}(X)`:t)].join(', ');
 }
 
