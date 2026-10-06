@@ -106,6 +106,9 @@ tfoot td{font-weight:700;background:var(--soft)}
 .sigbox{border:1px dashed var(--line);border-radius:8px;min-height:90px;display:flex;align-items:center;justify-content:center;background:var(--sig-bg);cursor:pointer;color:#888;position:relative}
 .sigbox img{max-height:110px;max-width:100%}
 .sig-mini{height:38px;background:var(--sig-bg);border-radius:4px;border:1px solid var(--line);cursor:pointer;display:block}
+.refund,input.refund{color:var(--danger);font-weight:600}
+.refund-tag{display:block;font-size:11px;color:var(--danger);text-align:right}
+.pay-locked td{background:var(--soft)}
 .need-sig{color:var(--danger);font-size:12px;font-weight:600;white-space:nowrap}
 .consent{font-size:14px;color:var(--muted);margin:0 0 10px}
 .close-bar{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
@@ -350,9 +353,7 @@ function renderEditor(){
         <td>${i+1}</td>
         <td><span class="cat-tag">${it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;'}</span>
           <div class="combo-wrap"><input data-k="itemIn" value="${esc(it.name)}" placeholder="選擇或輸入搜尋" autocomplete="off" ${idis}></div></td>
-        <td><div class="teeth-cell"><div class="jaws">${(()=>{const v=teethInputs(it),bad=it.teethBad&&it.teethBad.length,ti=bad?esc('無法辨識：'+it.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
-          const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${idis}>`;
-          return `<div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div><i class="midl"></i>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${idis}>🦷</button></div></td>
+        <td>${teethCell(it,idis)}</td>
         <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="unit" value="${unitOf(it)||''}" placeholder="0" ${idis}></td>
         <td><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis}></td>
         <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${idis}></td>
@@ -381,16 +382,16 @@ function renderEditor(){
   <section class="card">
     <h2>繳費紀錄<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addPay">＋ 新增繳費</button>'}</h2>
     <div class="tbl-wrap"><table>
-      <thead><tr><th style="width:150px">日期</th><th style="min-width:180px">項目</th><th style="min-width:130px">牙位</th><th class="num" style="width:120px">金額</th><th>備註</th><th style="width:130px">患者簽名</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
-      <tbody>${p.payments.map(x=>`<tr data-list="payments" data-id="${x.id}">
-        <td><input type="date" data-k="date" value="${esc(x.date)}" ${dis||x.transfer?'disabled':''}></td>
-        <td>${x.transfer?'<span class="hint">前單轉入</span>':`<select data-k="itemId" ${dis}>${payItemOptions(p,x)}</select>`}</td>
-        <td>${x.transfer?'':`<input data-k="teeth" value="${esc(x.teeth||'')}" placeholder="牙位" ${dis}>`}</td>
-        <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" ${dis||x.transfer?'disabled':''}></td>
-        <td><input data-k="note" value="${esc(x.note)}" ${dis}></td>
-        <td>${x.transfer?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`)}</td>
-        ${L?'':`<td class="no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
-      </tr>`).join('')||`<tr><td colspan="7" class="hint">尚無繳費紀錄</td></tr>`}</tbody>
+      <thead><tr><th style="width:150px">日期</th><th style="min-width:180px">項目</th><th style="min-width:300px">牙位</th><th class="num" style="width:120px">金額</th><th>備註</th><th style="width:130px">患者簽名</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
+      <tbody>${p.payments.map(x=>{const pd=L||x.sig?'disabled':''; /* 患者簽名確認後這一筆就鎖定 */ return `<tr data-list="payments" data-id="${x.id}" class="${x.sig?'pay-locked':''}">
+        <td><input type="date" data-k="date" value="${esc(x.date)}" ${pd||x.transfer?'disabled':''}></td>
+        <td>${x.transfer?'<span class="hint">前單轉入</span>':`<select data-k="itemId" ${pd}>${payItemOptions(p,x)}</select>`}</td>
+        <td>${x.transfer?'':teethCell(payTeeth(x),pd)}</td>
+        <td><input class="num ${(x.amount||0)<0?'refund':''}" type="number" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" title="負數代表退費" ${pd||x.transfer?'disabled':''}>${(x.amount||0)<0?'<span class="refund-tag">退費</span>':''}</td>
+        <td><input data-k="note" value="${esc(x.note)}" ${pd}></td>
+        <td>${x.transfer?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名" title="已簽名確認，不可更動">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`)}</td>
+        ${L?'':`<td class="no-print">${x.sig?'<span class="hint" title="已簽名確認">🔒</span>':'<button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button>'}</td>`}
+      </tr>`}).join('')||`<tr><td colspan="7" class="hint">尚無繳費紀錄</td></tr>`}</tbody>
     </table></div>
     <div class="totals">
       <div><small>變更後總金額</small><b id="tChg2">$${money(c.chg)}</b></div>
@@ -436,6 +437,17 @@ function payItemOptions(p,x){
   if(x.itemId&&!p.items.some(i=>i.id===x.itemId))h+=`<option value="${esc(x.itemId)}" selected>（已刪除的項目）</option>`;
   return h;
 }
+// 牙位欄（治療項目與繳費紀錄共用）：上顎、下顎各一個輸入欄，中線虛線對齊，🦷 開牙位圖
+function teethCell(o,disAttr){
+  const v=teethInputs(o),bad=o.teethBad&&o.teethBad.length,ti=bad?esc('無法辨識：'+o.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
+  const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${disAttr}>`;
+  return `<div class="teeth-cell"><div class="jaws"><div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div><i class="midl"></i></div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${disAttr}>🦷</button></div>`;
+}
+// 舊的繳費紀錄牙位是文字，轉成和治療項目相同的格式
+function payTeeth(x){
+  if(!Array.isArray(x.teeth)){const raw=x.teeth||'',o=parseTeeth(raw);x.teeth=o.teeth;x.pontics=o.pontics;x.bridgeTeeth=o.bridgeTeeth;x.bridgeGroups=o.bridgeGroups;if(o.bad.length){x.teethBad=o.bad;x.teethText={up:raw,lo:''}}}
+  return x;
+}
 function refreshTotals(){
   const p=cur(),c=calc(p),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent='$'+money(v)};
   set('tOrig',c.orig);set('tChg',c.chg);set('tChg2',c.chg);set('tPaid',c.paid);set('tDue',c.due);set('tPaid2',c.paid);set('tRcpt',c.rcpt);set('tRcptDue',c.paid-c.rcpt);
@@ -459,12 +471,16 @@ $('#main').addEventListener('input',e=>{
     else if(k==='unit'){it.unit=numOrNull(t.value)||0;it.orig=it.unit*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||''}
     else if(k==='orig')it.orig=numOrNull(t.value)||0;
     else if(k==='chg'){it.chg=numOrNull(t.value);t.classList.toggle('changed-amt',it.chg!=null&&it.chg!==it.orig)}
-  }else if(k==='amount'){it.amount=numOrNull(t.value)||0;it.amtAuto=false}
+  }else if(k==='amount'){
+    if(r.name==='payments'){it.amount=Math.round(Number(t.value))||0;t.classList.toggle('refund',it.amount<0)} // 繳費可為負數（退費）
+    else it.amount=numOrNull(t.value)||0;
+    it.amtAuto=false}
   else if(k==='itemId'){it.itemId=t.value||null;const item=p.items.find(i=>i.id===it.itemId);
-    if(item){it.teeth=teethLabel(item);r.tr.querySelector('[data-k="teeth"]').value=it.teeth;
+    if(item){it.teeth=[...item.teeth];it.pontics=[...(item.pontics||[])];it.bridgeTeeth=[...bridgeTeethOf(item)];it.bridgeGroups=(item.bridgeGroups||[]).map(g=>[...g]);it.teethText=null;it.teethBad=null;
+      const v=teethParts(it);r.tr.querySelectorAll('[data-k="teethIn"]').forEach(i=>{i.value=v[i.dataset.jaw];i.classList.remove('bad')});alignTeeth(r.tr.querySelector('.teeth-cell'));
       if(!it.amount||it.amtAuto){it.amount=Math.max(0,itemAmt(item)-itemPaid(p,item.id,it));it.amtAuto=true;r.tr.querySelector('[data-k="amount"]').value=it.amount||''}}}
   else if(k==='taken')it.taken=t.checked;
-  else if(k in it||['date','note','teeth'].includes(k))it[k]=t.value;
+  else if(k in it||['date','note'].includes(k))it[k]=t.value;
   refreshTotals();touch();
 });
 $('#main').addEventListener('change',e=>{
@@ -485,7 +501,7 @@ $('#main').addEventListener('change',e=>{
     it.teethBad=out.bad.length?out.bad:null;it.teethText=out.bad.length?raw:null;
     if(!out.bad.length){const v=teethParts(it);ins.forEach(i=>i.value=v[i.dataset.jaw])}
     ins.forEach(i=>{i.classList.toggle('bad',!!out.bad.length);i.title=out.bad.length?'無法辨識：'+out.bad.join('、'):'可直接輸入，例如 14X12X21X23, 46, 17(X)'});
-    r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||'';
+    if(r.name==='items'){r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||''}
     alignTeeth(t.closest('.teeth-cell'));refreshTotals();touch()}
 });
 
@@ -497,7 +513,7 @@ $('#main').addEventListener('click',async e=>{
   if(a){const act=a.dataset.act,L=p.status!=='open';
     if(act==='print')window.print();
     else if(act==='addItem'){p.items.push(newItem());touch();renderEditor()}
-    else if(act==='addPay'){p.payments.push({id:uid(),date:today(),itemId:null,teeth:'',amount:Math.max(0,calc(p).due),amtAuto:true,note:'',sig:null});touch();renderEditor()}
+    else if(act==='addPay'){p.payments.push({id:uid(),date:today(),itemId:null,teeth:[],pontics:[],bridgeTeeth:[],bridgeGroups:[],amount:Math.max(0,calc(p).due),amtAuto:true,note:'',sig:null});touch();renderEditor()}
     else if(act==='addRcpt'){const c=calc(p);p.receipts.push({id:uid(),date:today(),amount:Math.max(0,c.paid-c.rcpt),taken:false,note:'',photos:[]});touch();renderEditor()}
     else if(act==='consentSig'){if(L||p.finalized){if(p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}const s=await openSig('患者同意治療計畫簽名',p.consent.sig);if(s!==undefined){p.consent.sig=s;if(s&&!p.consent.at)p.consent.at=nowLocal();touch();renderEditor()}}
     else if(act==='delete'){if(!confirm(`確定刪除治療計劃單 ${p.no}（${p.name||'未填姓名'}）？此動作無法復原。`))return;
@@ -514,10 +530,11 @@ $('#main').addEventListener('click',async e=>{
     if(r.name==='payments'&&r.row.sig&&!confirm('這筆繳費已有患者簽名，確定刪除？'))return;
     if(r.name==='receipts'&&(r.row.photos.length||r.row.amount||r.row.sig)&&!confirm('確定刪除這筆收據紀錄（含照片）？'))return;
     r.list.splice(r.list.indexOf(r.row),1);touch();renderEditor();
-  }else if(k==='teeth'){if(IL)return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it),it.bridgeGroups);if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
-  else if(k==='sig'){const lock=L&&r.name==='payments';if(lock&&!r.row.sig)return;
+  }else if(k==='teeth'){if(r.name==='items'?IL:(L||r.row.sig))return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it),it.bridgeGroups);if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
+  else if(k==='sig'){const lock=r.name==='payments'&&(L||r.row.sig);
+    if(r.name==='payments'&&!lock&&!r.row.amount){alert('請先填寫繳費金額再簽名');return}if(lock&&!r.row.sig)return;
     if(lock){showImage(r.row.sig,'患者簽名');return}
-    const s=await openSig(`${r.name==='receipts'?'領取收據簽名':'繳費簽名'}：${r.row.date}　$${money(r.row.amount)}`,r.row.sig);if(s!==undefined){r.row.sig=s;if(s&&r.name==='receipts')r.row.taken=true;touch();renderEditor()}}
+    const s=await openSig(`${r.name==='receipts'?'領取收據簽名':(r.row.amount<0?'退費簽名':'繳費簽名')}：${r.row.date}　$${money(r.row.amount)}`,r.row.sig,r.name==='payments'?'確認簽名後，這一筆繳費紀錄就不能再更動或刪除。':'');if(s!==undefined){r.row.sig=s;if(s&&r.name==='receipts')r.row.taken=true;touch();renderEditor()}}
   else if(k==='addPhoto'){pickPhotos(r.row)}
   else if(k==='photo'){const i=+t.dataset.i;const del=await showImage(r.row.photos[i],`收據照片（${r.row.date}）`,true);if(del){r.row.photos.splice(i,1);touch();renderEditor()}}
 });
@@ -565,9 +582,9 @@ function modal(html,onMount){
 }
 
 /* 簽名板：回傳 dataURL、null（清除）或 undefined（取消） */
-function openSig(title,existing){
+function openSig(title,existing,note){
   return modal(`<h3>${esc(title)}</h3><canvas class="sigpad"></canvas>
-    <div class="hint" style="margin-top:6px">請以手指、觸控筆或滑鼠在框內簽名。</div>
+    <div class="hint" style="margin-top:6px">請以手指、觸控筆或滑鼠在框內簽名。</div>${note?`<div class="hint" style="color:var(--danger);font-weight:600">${esc(note)}</div>`:''}
     <div class="acts">${existing?'<button class="btn-danger" data-x="remove">刪除簽名</button>':''}<span class="sp"></span><button data-x="clear">清除重簽</button><button data-x="cancel">取消</button><button class="btn-primary" data-x="ok">確認簽名</button></div>`,
   (box,close)=>{
     const cv=box.querySelector('canvas');const ctx=cv.getContext('2d');let drawn=false,down=false,last=null;
