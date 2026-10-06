@@ -117,6 +117,14 @@ main{padding-block:18px 48px;}
 .sched.sched-ref .pool .chip{cursor:default; pointer-events:none;}
 /* 我要加診（登記本人請假的助理）：加診模式時，異動班表上的缺人、缺口可以點 */
 #swapOpenBtn.sopen-on{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+.pay-pub-foot{display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:10px;}
+.pay-pub-foot:empty{display:none;}
+.pim-cols{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.pim-col{display:flex; flex-direction:column; gap:5px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-size:.88rem;}
+.pim-col.off{opacity:.55;}
+.pim-head{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; margin-bottom:4px;}
+.pim-head span{display:flex; gap:4px;}
+@media (max-width:480px){.pim-cols{grid-template-columns:1fr;}}
 .self-log-btn{margin-top:8px; width:100%;}
 .self-swap-btn{margin-top:8px; width:100%; background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600;}
 .self-swap-btn[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent-soft);}
@@ -971,6 +979,7 @@ body.gated .shell{display:none;}
           <div class="lv-title-row"><h2 id="payTitle" style="margin:0">薪資</h2><span style="flex:1"></span><span id="payPubBox"></span></div>
           <p class="desc" id="payDesc"></p>
           <div class="scroll-x"><table class="list pay-table" id="payTable"></table></div>
+          <div class="pay-pub-foot" id="payPubFoot"></div>
         </div>
         <div class="card" id="payRulesCard">
           <h2 id="payRulesTitle">薪資計算規則</h2>
@@ -3076,14 +3085,33 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-paypub]');
   const trial=staff.filter(s=>s.role==='assistant'&&s.active!==false&&!payRec(s.id,ym).saved);
   dialog(`<h3>發布 ${esc(mi.label)} 薪資？</h3><p>發布後，每位助理都能在「薪資」看到自己這個月的薪資。發布後仍可修改，修改的內容助理會直接看到。</p>${trial.length?`<p class="att-bad">還有 ${trial.length} 人的薪資是「試算」（尚未儲存）：${trial.map(s=>esc(codeOf(s.id))).join('、')}。發布後他們看到的是試算金額。</p>`:''}`,()=>{const me=byId(myStaffId());store.payPub(ym,{at:Date.now(),by:myId||'本機',byName:me?fullName(me):(myId||'管理者')});toast(`已發布 ${mi.label} 薪資。`);},'發布薪資');
 });
+// 帶入數據：兩欄，左欄「出勤（遲到、早退、加班）」、右欄「自費獎金（個人、團體）」，每一欄各列出所有助理，分別勾選每個人要帶入哪些數據
+document.addEventListener('click',e=>{if(!e.target.closest('[data-payimp]')||!payAdmin())return;
+  const mi=monthInfo(),ppl=staff.slice().sort(sortStaff).filter(s=>s.role==='assistant'&&s.active!==false);
+  const col=(k,title,on,note)=>`<div class="pim-col${on?'':' off'}"><div class="pim-head"><b>${title}</b>${on?`<span><button type="button" class="small" data-pimall="${k}">全選</button><button type="button" class="small" data-pimnone="${k}">全不選</button></span>`:''}</div>${note?`<p class="hint" style="margin:0 0 6px">${note}</p>`:''}
+    ${ppl.map(s=>`<label><input type="checkbox" data-pim="${k}" value="${s.id}"${on?' checked':' disabled'}> ${esc(fullName(s))}</label>`).join('')}</div>`;
+  dialog(`<h3>帶入數據・${esc(mi.label)}</h3><p class="desc" style="margin:0 0 8px">每位助理要帶入的數據不同：在各欄勾選要帶入的人。</p>
+    <div class="pim-cols">${col('att','出勤（遲到、早退、加班）',true)}${col('self','自費獎金（個人、團體）',false,'尚未開放，暫時不能帶入')}</div>`,ov=>{
+    const v=[...ov.querySelectorAll('[data-pim="att"]:checked')].map(x=>x.value);
+    if(!v.length){toast('請至少勾選一位要帶入的助理。','warn');return false;}
+    setTimeout(()=>importAttToPay(v),0);
+  },'帶入',false,'返回');
+  const ov=[...document.querySelectorAll('.overlay')].pop();ov.querySelector('.dialog').style.maxWidth='560px';
+  ov.addEventListener('click',ev=>{
+    const all=ev.target.closest('[data-pimall]'),none=ev.target.closest('[data-pimnone]');
+    if(all||none){const k=(all||none).dataset.pimall||(none&&none.dataset.pimnone);ov.querySelectorAll(`[data-pim="${k}"]:not(:disabled)`).forEach(x=>x.checked=!!all);}
+  });
+});
 function renderPay(mi,counts){
   if(payAdmin())attSubscribe(mi); // 曠職扣款要看這個月的打卡
   $('payTitle').textContent=`${mi.label} 薪資`;
   if(document.activeElement!==$('payMonth'))$('payMonth').value=mi.ym;
   const pub=payPub[mi.ym];
-  $('payPubBox').innerHTML=!payAdmin()?'':pub
+  $('payPubBox').innerHTML=!payAdmin()?'':'<button class="small" data-payimp>帶入數據</button>';
+  // 發布狀態與按鈕放在薪資表右下角
+  $('payPubFoot').innerHTML=!payAdmin()?'':(pub
     ?`<span class="pill">已發布 ${fmtAt(pub.at)}</span> <button class="small" data-paypub="off">取消發布</button>`
-    :`<span class="pill warn">尚未發布</span> <button class="small primary" data-paypub="on">發布薪資</button>`;
+    :`<span class="pill warn">尚未發布</span> <button class="small primary" data-paypub="on">發布薪資</button>`);
   // 員工：這個月還沒發布就不顯示薪資
   if(!payAdmin()&&!pub){
     $('payDesc').textContent='這個月的薪資還沒發布，管理者發布後就能在這裡看到。';
@@ -3102,8 +3130,8 @@ function renderPay(mi,counts){
     {g:'add',l:'績效獎金',v:p=>p.r.perf},
     {g:'add',l:'技能津貼',v:p=>p.r.skill},
     {g:'add',l:'職務津貼',v:p=>p.r.duty||0},
-    {g:'add',l:'加診薪資',h:'加診數 × 3.5 小時 × 加班每分鐘金額',v:p=>p.extraPay,tip:(p,s)=>`加診 ${counts[s.id]?.extra||0} 診 × 3.5 小時＝${p.extraMin} 分`},
     {g:'add',l:'All班加給',h:'同一天上滿三班（含加診）每天 30 分鐘 × 加班每分鐘金額',v:p=>p.allPay,tip:p=>`上滿三班 ${p.allDays} 天 × 30 分＝${p.allMin} 分`},
+    {g:'add',l:'加診薪資',h:'加診數 × 3.5 小時 × 加班每分鐘金額',v:p=>p.extraPay,tip:(p,s)=>`加診 ${counts[s.id]?.extra||0} 診 × 3.5 小時＝${p.extraMin} 分`},
     {g:'add',l:'加班薪資',h:'加班/拖診分鐘數 × 加班每分鐘金額',v:p=>p.otPay,tip:p=>`加班/拖診 ${p.otMin} 分`},
     {g:'add',l:'國定假日加給',h:'國定假日上班診數 × 每診設定薪資 × 倍數',v:p=>p.holPay,tip:p=>p.holDays.map(x=>`${md(parseYmd(x.key))} ${x.name} ${x.n} 診`).join(String.fromCharCode(10))},
     {g:'add',l:'自費獎金',v:p=>p.bonus,tip:p=>`個人 ${money(p.r.selfInd)}＋團體 ${money(p.r.selfTeam)}`},
@@ -5050,21 +5078,23 @@ function otClick(e){
     store.otDecide(p,o);toast('已退回加班申請。');
   },'退回',true);
 }
-$('attToPay').addEventListener('click',()=>{
+$('attToPay').addEventListener('click',()=>importAttToPay(null));
+// 帶入出勤（遲到、早退、已核准加班）到薪資；ids＝要帶入的助理（null＝全部）
+function importAttToPay(ids){
   if(!payAdmin())return;
   const mi=monthInfo(),C=attCfg();
   const pend=punches.filter(p=>p.ot&&!p.void&&p.ot.status==='pending').length;
-  const list=attPeople(mi).filter(s=>s.role==='assistant').map(s=>{const r=payRec(s.id,mi.ym),x=attMonth(mi,s.id).s,ot=otApproved(mi,s.id);
+  const list=attPeople(mi).filter(s=>s.role==='assistant'&&(!ids||ids.includes(s.id))).map(s=>{const r=payRec(s.id,mi.ym),x=attMonth(mi,s.id).s,ot=otApproved(mi,s.id);
     return {s,r,late:[r.lateMin||0,x.due?x.lateMin:(r.lateMin||0)],early:[r.earlyMin||0,x.due?x.earlyMin:(r.earlyMin||0)],ot:[r.otMin||0,ot]};})
     .filter(x=>x.late[0]!==x.late[1]||x.early[0]!==x.early[1]||x.ot[0]!==x.ot[1]);
-  if(!list.length){toast(`${mi.label}薪資的遲到、早退、加班分鐘已經和出勤紀錄一致。`);return;}
+  if(!list.length){toast(`${ids?'選定助理':''}${mi.label}薪資的遲到、早退、加班分鐘已經和出勤紀錄一致。`);return;}
   const cell=([a,b])=>a===b?`<td class="num att-mute">${a}</td>`:`<td class="num">${a} → <b>${b}</b></td>`;
   dialog(`<h3>帶入 ${mi.label} 薪資</h3><p class="hint" style="margin:0 0 8px">遲到、早退依出勤紀錄分別計算；加班為「已核准」的加班分鐘合計，會<b>取代</b>薪資的加班/拖診分鐘數（原本手動填的會被覆蓋）。還沒儲存（試算中）的薪資會連同目前的試算值一起儲存。請先處理缺卡、補登與加班審核後再帶入。${pend?`<br><span class="att-bad">還有 ${pend} 筆加班申請待審，不會計入。</span>`:''}</p>
     <table class="list"><thead><tr><th>人員</th><th class="num">遲到（分）</th><th class="num">早退（分）</th><th class="num">加班（分）</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(fullName(x.s))}${x.r.saved?'':' <small class="att-mute">（試算）</small>'}</td>${cell(x.late)}${cell(x.early)}${cell(x.ot)}</tr>`).join('')}</tbody></table>`,()=>{
     list.forEach(({s,r,late,early,ot})=>{const o={staffId:s.id,ym:mi.ym};PAY_FIELDS.forEach(f=>o[f.k]=r[f.k]);o.items=r.items;o.note=r.note;o.lateMin=late[1];o.earlyMin=early[1];o.otMin=ot[1];store.pay(s.id+'_'+mi.ym,o);});
     toast(`已更新 ${list.length} 人的薪資。`);
   },'帶入');
-});
+}
 
 // ---------- events ----------
 document.querySelector('nav.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(b.dataset.tab==='holidays'&&prefs.tab!=='holidays')holScrolled=false;if(b.dataset.tab==='leave'&&prefs.tab!=='leave')leaveScrolled={assistant:false,after:false,fc:false};prefs.tab=b.dataset.tab;savePrefs();renderAll();});
