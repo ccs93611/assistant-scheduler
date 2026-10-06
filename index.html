@@ -610,7 +610,7 @@ body.gated .shell{display:none;}
 .lv-range .seg button{padding:3px 10px;}
 .lv-head{display:flex; align-items:center; justify-content:flex-start; gap:10px; margin-bottom:4px;}
 .lv-head h2{margin:0;}
-.lv-head #lvTypePermBtn{margin-left:auto; margin-right:8px;}
+.lv-head #lvTypePermBtn{margin-left:auto;}
 .lv-head .seg button{padding:5px 14px; font-size:.82rem;}
 #lvWhenSeg [data-when="after"][aria-pressed="true"],.seg button[data-rqwhen="after"][aria-pressed="true"],.seg button[data-mrwhen="after"][aria-pressed="true"]{background:var(--warn); color:#fff;}
 .seg button[data-rqwhen="fc"][aria-pressed="true"]{background:#2F6FB0; color:#fff;} /* 家庭照顧假：藍色 */ /* 事後：紅色；事前維持綠色 */
@@ -754,7 +754,7 @@ body.gated .shell{display:none;}
         <div class="card pf-missing" id="pfMissingCard" hidden></div>
         <div class="card" id="lvReqCard" hidden></div>
         <div class="card" id="lvCard">
-          <div class="lv-head"><h2 id="lvRegTitle">請假登記</h2><button type="button" class="small" id="lvTypePermBtn" hidden>請假種類權限設定</button><span class="seg" id="lvWhenSeg" role="group" aria-label="事前或事後"><button type="button" data-when="before" aria-pressed="true">事前</button><button type="button" data-when="after" aria-pressed="false">事後</button></span></div>
+          <div class="lv-head"><h2 id="lvRegTitle">請假登記</h2><span class="seg" id="lvWhenSeg" role="group" aria-label="事前或事後"><button type="button" data-when="before" aria-pressed="true">事前</button><button type="button" data-when="after" aria-pressed="false">事後</button></span><button type="button" class="small" id="lvTypePermBtn" hidden>請假種類權限設定</button></div>
           <div id="lvPane-before">
           <p class="desc">事先安排的請假。自動排班會避開這些時段；已經排進去的會在班表上標紅。下方列表同時以淺灰色顯示事後補登的請假，方便對照。</p>
           <form class="form-row leave-form" data-role="assistant" data-when="before" style="margin-bottom:16px">
