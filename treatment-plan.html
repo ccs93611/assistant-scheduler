@@ -75,7 +75,7 @@ td input[data-k="qty"]{min-width:52px}
 .teeth-cell .jaw+.jaw{border-top:2px solid var(--line);padding-top:3px;margin-top:3px}
 .teeth-cell .jaw span{font-size:11px;color:var(--muted);width:14px;flex:none}
 .teeth-cell .jaws{position:relative}
-.teeth-cell .jaws::after{content:"";position:absolute;top:2px;bottom:2px;left:calc(18px + (100% - 18px)/2);border-left:2px dashed var(--muted);opacity:.55;pointer-events:none}
+.teeth-cell .midl{position:absolute;top:2px;bottom:2px;left:50%;border-left:2px dashed var(--muted);opacity:.55;pointer-events:none}
 .teeth-cell input{flex:1;font-size:13px;padding:3px 6px}
 .teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
 .teeth-cell button{padding:3px 6px}
@@ -339,7 +339,7 @@ function renderEditor(){
           ${it.custom?`<input data-k="name" placeholder="自訂項目名稱" value="${esc(it.name)}" style="margin-top:4px" ${dis}>`:''}</td>
         <td><div class="teeth-cell"><div class="jaws">${(()=>{const v=teethInputs(it),bad=it.teethBad&&it.teethBad.length,ti=bad?esc('無法辨識：'+it.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
           const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${dis}>`;
-          return `<div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
+          return `<div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div><i class="midl"></i>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
         <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="unit" value="${unitOf(it)||''}" placeholder="0" ${dis}></td>
         <td><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${dis}></td>
         <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${dis}></td>
@@ -409,6 +409,7 @@ function renderEditor(){
     </div>
   </section>
   </div>`;
+  alignTeeth();
 }
 function refreshTotals(){
   const p=cur(),c=calc(p),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent='$'+money(v)};
@@ -422,6 +423,7 @@ const unitOf=it=>it.unit!=null?it.unit:priceOf(it);
 /* 輸入 */
 $('#main').addEventListener('input',e=>{
   const p=cur();if(!p)return;const t=e.target;
+  if(t.dataset.k==='teethIn'){alignTeeth(t.closest('.teeth-cell'));return}
   if(t.dataset.f){
     if(t.dataset.f==='consentAt')p.consent.at=t.value;else p[t.dataset.f]=t.value;
     touch();if(['name','chartNo','createdAt'].includes(t.dataset.f))renderList();return;
@@ -455,7 +457,7 @@ $('#main').addEventListener('change',e=>{
     if(!out.bad.length){const v=teethParts(it);ins.forEach(i=>i.value=v[i.dataset.jaw])}
     ins.forEach(i=>{i.classList.toggle('bad',!!out.bad.length);i.title=out.bad.length?'無法辨識：'+out.bad.join('、'):'可直接輸入，例如 14X12X21X23, 46, 17(X)'});
     r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||'';
-    refreshTotals();touch()}
+    alignTeeth(t.closest('.teeth-cell'));refreshTotals();touch()}
 });
 
 /* 點擊 */
@@ -663,6 +665,42 @@ function teethInputs(it){
   if('q1' in v)return {up:[v.q1,v.q2].filter(Boolean).join(', '),lo:[v.q4,v.q3].filter(Boolean).join(', ')};
   return v;
 }
+
+/* 牙位欄中線對齊：找出文字中病患右側（1、4、5、8 象限）與左側（2、3、6、7 象限）的交界，
+   調整上下兩排的左內距，讓交界都落在同一條虛線上（虛線只是輔助閱讀，不分格） */
+const SIDE_REGION={'右上':'R','右下':'R','左上':'L','左下':'L'};
+const sideOf=t=>REGIONS.includes(t)?(SIDE_REGION[t]||null):('1458'.includes(t[0])?'R':'L');
+function midSplit(text){ // 右側文字結束的位置、左側文字開始的位置（字元索引）
+  let endR=null,startL=null;
+  const addR=e=>{endR=Math.max(endR??0,e)},addL=s=>{startL=Math.min(startL??Infinity,s)};
+  for(const m of String(text).matchAll(/[^,，、;；\s]+/g)){
+    const tok=m[0],o=parseTeeth(tok);if(o.bad.length||!o.teeth.length)continue;
+    const g=o.bridgeGroups[0];
+    if(g){const els=[...tok.matchAll(/[0-9０-９]{2}|[XxｘＸ×✕]/g)];if(els.length!==g.length)continue;
+      g.forEach((t,i)=>{const s=m.index+els[i].index;sideOf(t)==='R'?addR(s+els[i][0].length):addL(s)});}
+    else{const sd=sideOf(o.teeth[0]);if(sd==='R')addR(m.index+tok.length);else if(sd==='L')addL(m.index)}
+  }
+  return {endR,startL};
+}
+let measureCtx=null;
+function textW(inp,s){measureCtx=measureCtx||document.createElement('canvas').getContext('2d');measureCtx.font=getComputedStyle(inp).font;return measureCtx.measureText(s).width}
+function alignTeeth(cell){
+  for(const c of cell?[cell]:document.querySelectorAll('.teeth-cell')){
+    const jaws=c.querySelector('.jaws'),line=c.querySelector('.midl'),ins=[...c.querySelectorAll('[data-k="teethIn"]')];if(!jaws||!line||!ins.length)continue;
+    const W=ins[0].clientWidth;if(!W)continue;
+    const mids=ins.map(i=>{const v=i.value,{endR,startL}=midSplit(v);
+      if(endR==null&&startL==null)return null;
+      if(endR!=null&&startL!=null&&endR>startL)return null; // 還沒整理好的順序，先不對齊
+      const a=endR!=null?textW(i,v.slice(0,endR)):null,b=startL!=null?textW(i,v.slice(0,startL)):null;
+      return a!=null&&b!=null?(a+b)/2:a!=null?a+5:b-5;});
+    let X=W/2;mids.forEach(m=>{if(m!=null)X=Math.max(X,6+m)});
+    ins.forEach((i,k)=>{i.style.paddingLeft=mids[k]!=null?Math.max(0,X-mids[k])+'px':''});
+    const r0=ins[0].getBoundingClientRect(),rj=jaws.getBoundingClientRect();
+    line.style.left=(r0.left-rj.left+ins[0].clientLeft+X-1)+'px';
+  }
+}
+window.addEventListener('resize',()=>alignTeeth());
+if(document.fonts)document.fonts.ready.then(()=>alignTeeth());
 
 /* 照片 */
 let photoTarget=null;
