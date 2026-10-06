@@ -74,7 +74,13 @@ td input[data-k="qty"]{min-width:52px}
 .combo-wrap input{padding-right:24px}
 .combo-pop{position:fixed;z-index:40;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);overflow:auto;padding:4px 0;max-width:min(420px,calc(100vw - 16px))}
 .combo-grp{font-size:12px;font-weight:700;color:var(--muted);padding:6px 12px 2px;position:sticky;top:-4px;background:var(--panel)}
-.combo-opt{padding:5px 12px 5px 22px;cursor:pointer;font-size:14px}
+.combo-opt{padding:5px 12px;cursor:pointer;font-size:14px}
+.combo-cat{font-weight:600;display:flex;align-items:center;gap:6px;border-top:1px solid var(--line)}
+.combo-cat:first-child{border-top:0}
+.combo-cat .arr{width:12px;color:var(--muted);font-size:11px}
+.combo-cat .cnt{margin-left:auto;font-size:11px;color:var(--muted);font-weight:400}
+.combo-cat.open{color:var(--accent)}
+.combo-sub{padding-left:30px}
 .combo-opt.on{background:var(--accent-soft)}
 .combo-opt.sel{font-weight:700;color:var(--accent)}
 .combo-empty{padding:8px 12px;color:var(--muted);font-size:13px}
@@ -708,45 +714,68 @@ function alignTeeth(cell){
 window.addEventListener('resize',()=>alignTeeth());
 if(document.fonts)document.fonts.ready.then(()=>alignTeeth());
 
-/* 治療項目下拉目錄（依治療種類分組），輸入文字可篩選；清單外的文字可當自訂項目 */
-const combo={el:null,inp:null,opts:[],hi:-1};
+/* 治療項目下拉目錄：分層顯示（先選治療種類，展開後選項目）；輸入文字時改為搜尋結果；清單外的文字可當自訂項目 */
+const combo={el:null,inp:null,opts:[],hi:-1,openCats:new Set(),q:''};
 function comboOpen(inp){
   if(!combo.el){combo.el=document.createElement('div');combo.el.className='combo-pop';document.body.appendChild(combo.el);
     combo.el.addEventListener('mousedown',e=>{e.preventDefault();const o=e.target.closest('[data-i]');if(o)comboPick(+o.dataset.i)});}
-  combo.inp=inp;comboFilter();
+  combo.inp=inp;
+  // 打開時展開目前項目所屬的治療種類
+  const cur=findItem(inp.value);combo.openCats=new Set(cur?[cur.cat]:[]);
 }
 function comboClose(){if(combo.el)combo.el.hidden=true;combo.inp=null;combo.hi=-1}
 function comboFilter(showAll){
   const inp=combo.inp;if(!inp)return;
-  const q=showAll?'':inp.value.trim().toLowerCase().replace(/\s+/g,'');
+  const raw=inp.value.trim(),q=showAll?'':raw.toLowerCase().replace(/\s+/g,'');combo.q=q;
   const m=s=>s.toLowerCase().replace(/\s+/g,'').includes(q);
   let h='';combo.opts=[];
-  for(const [cat,list] of CATS){const hit=m(cat)?list:list.filter(m);if(!hit.length)continue;
-    h+=`<div class="combo-grp">${esc(cat)}</div>`;
-    for(const n of hit){combo.opts.push({cat,name:n});h+=`<div class="combo-opt${n===inp.value.trim()?' sel':''}" data-i="${combo.opts.length-1}">${esc(n)}</div>`}}
-  const raw=inp.value.trim();
-  if(raw&&!findItem(raw)){combo.opts.push({custom:raw});h+=`<div class="combo-grp">其他</div><div class="combo-opt" data-i="${combo.opts.length-1}">自訂項目：「${esc(raw)}」</div>`}
-  if(!combo.opts.length)h='<div class="combo-empty">沒有符合的項目</div>';
-  combo.el.innerHTML=h;combo.el.hidden=false;combo.hi=q?0:combo.opts.findIndex(o=>o.name===raw);comboHi();
-  const r=inp.getBoundingClientRect(),below=innerHeight-r.bottom;
-  Object.assign(combo.el.style,{left:r.left+'px',minWidth:r.width+'px',maxHeight:Math.max(160,Math.min(340,below>220?below-12:r.top-12))+'px'});
-  if(below>220||below>=r.top){combo.el.style.top=r.bottom+2+'px';combo.el.style.bottom=''}else{combo.el.style.top='';combo.el.style.bottom=(innerHeight-r.top+2)+'px'}
+  const opt=(o,html,cls)=>{combo.opts.push(o);h+=`<div class="${cls}" data-i="${combo.opts.length-1}">${html}</div>`};
+  if(!q){ // 分層：治療種類 → 項目
+    for(const [cat,list] of CATS){const open=combo.openCats.has(cat);
+      opt({cat,toggle:true},`<span class="arr">${open?'▾':'▸'}</span>${esc(cat)}<span class="cnt">${list.length}</span>`,'combo-opt combo-cat'+(open?' open':''));
+      if(open)for(const n of list)opt({cat,name:n},esc(n),'combo-opt combo-sub'+(n===raw?' sel':''));
+    }
+  }else{ // 搜尋：符合的項目，依治療種類分組
+    for(const [cat,list] of CATS){const hit=m(cat)?list:list.filter(m);if(!hit.length)continue;
+      h+=`<div class="combo-grp">${esc(cat)}</div>`;
+      for(const n of hit)opt({cat,name:n},esc(n),'combo-opt combo-sub'+(n===raw?' sel':''));}
+    if(raw&&!findItem(raw)){h+=`<div class="combo-grp">其他</div>`;opt({custom:raw},`自訂項目：「${esc(raw)}」`,'combo-opt combo-sub')}
+    if(!combo.opts.length)h='<div class="combo-empty">沒有符合的項目</div>';
+  }
+  combo.el.innerHTML=h;combo.el.hidden=false;
+  if(combo.hi<0||combo.hi>=combo.opts.length)combo.hi=q?0:Math.max(0,combo.opts.findIndex(o=>o.name&&o.name===raw));
+  comboHi();comboPlace();
 }
-function comboHi(){combo.el.querySelectorAll('.combo-opt').forEach(o=>o.classList.toggle('on',+o.dataset.i===combo.hi));
-  const o=combo.el.querySelector('.combo-opt.on');if(o)o.scrollIntoView({block:'nearest'})}
+function comboPlace(){
+  const inp=combo.inp,r=inp.getBoundingClientRect(),below=innerHeight-r.bottom;
+  Object.assign(combo.el.style,{left:r.left+'px',minWidth:Math.max(r.width,240)+'px',maxHeight:Math.max(160,Math.min(380,below>240?below-12:r.top-12))+'px'});
+  if(below>240||below>=r.top){combo.el.style.top=r.bottom+2+'px';combo.el.style.bottom=''}else{combo.el.style.top='';combo.el.style.bottom=(innerHeight-r.top+2)+'px'}
+}
+function comboHi(){combo.el.querySelectorAll('[data-i]').forEach(o=>o.classList.toggle('on',+o.dataset.i===combo.hi));
+  const o=combo.el.querySelector('[data-i].on');if(o)o.scrollIntoView({block:'nearest'})}
+function comboToggle(cat,open){
+  const was=combo.openCats.has(cat);if(open===undefined)open=!was;if(open===was)return;
+  open?combo.openCats.add(cat):combo.openCats.delete(cat);
+  const keep=combo.el.scrollTop;comboFilter(true);combo.hi=combo.opts.findIndex(o=>o.toggle&&o.cat===cat);comboHi();combo.el.scrollTop=keep;
+  const o=combo.el.querySelector('[data-i].on');if(o)o.scrollIntoView({block:'nearest'});
+}
 function comboPick(i){const o=combo.opts[i],inp=combo.inp;if(!o||!inp)return;
+  if(o.toggle){comboToggle(o.cat);return}
   inp.value=o.custom??o.name;comboClose();inp.dispatchEvent(new Event('change',{bubbles:true}))}
-$('#main').addEventListener('focusin',e=>{if(e.target.dataset.k==='itemIn'){comboOpen(e.target);comboFilter(true)}});
-$('#main').addEventListener('click',e=>{if(e.target.dataset.k==='itemIn'&&combo.inp!==e.target){comboOpen(e.target);comboFilter(true)}});
-$('#main').addEventListener('input',e=>{if(e.target.dataset.k==='itemIn'){if(combo.inp!==e.target)comboOpen(e.target);else comboFilter()}});
+const comboStart=t=>{comboOpen(t);combo.hi=-1;comboFilter(true)};
+$('#main').addEventListener('focusin',e=>{if(e.target.dataset.k==='itemIn')comboStart(e.target)});
+$('#main').addEventListener('click',e=>{if(e.target.dataset.k==='itemIn'&&combo.inp!==e.target)comboStart(e.target)});
+$('#main').addEventListener('input',e=>{if(e.target.dataset.k==='itemIn'){if(combo.inp!==e.target)comboOpen(e.target);combo.hi=-1;comboFilter()}});
 $('#main').addEventListener('focusout',e=>{if(e.target.dataset.k==='itemIn')comboClose()});
 $('#main').addEventListener('keydown',e=>{
   if(e.target.dataset.k!=='itemIn')return;
-  if(!combo.inp&&(e.key==='ArrowDown'||e.key==='Enter')){comboOpen(e.target);comboFilter(true);e.preventDefault();return}
-  if(!combo.inp)return;const n=combo.opts.length;
-  if(e.key==='ArrowDown'){combo.hi=(combo.hi+1)%n;comboHi();e.preventDefault()}
-  else if(e.key==='ArrowUp'){combo.hi=(combo.hi-1+n)%n;comboHi();e.preventDefault()}
-  else if(e.key==='Enter'){if(combo.hi>=0)comboPick(combo.hi);else comboClose();e.preventDefault()}
+  if(!combo.inp&&(e.key==='ArrowDown'||e.key==='Enter')){comboStart(e.target);e.preventDefault();return}
+  if(!combo.inp)return;const n=combo.opts.length,o=combo.opts[combo.hi];
+  if(e.key==='ArrowDown'&&n){combo.hi=(combo.hi+1)%n;comboHi();e.preventDefault()}
+  else if(e.key==='ArrowUp'&&n){combo.hi=(combo.hi-1+n)%n;comboHi();e.preventDefault()}
+  else if(e.key==='ArrowRight'&&!combo.q&&o){comboToggle(o.cat,true);e.preventDefault()}
+  else if(e.key==='ArrowLeft'&&!combo.q&&o){comboToggle(o.cat,false);e.preventDefault()}
+  else if(e.key==='Enter'){if(o)comboPick(combo.hi);else comboClose();e.preventDefault()}
   else if(e.key==='Escape'){comboClose();e.preventDefault()}
 });
 window.addEventListener('scroll',e=>{if(combo.inp&&!(combo.el&&combo.el.contains(e.target)))comboClose()},true);
