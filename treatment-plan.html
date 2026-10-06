@@ -45,7 +45,7 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 .side-foot{padding:10px 14px;border-top:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap}
 main{padding:20px;min-width:0}
 .empty{color:var(--muted);text-align:center;padding:80px 20px}
-.sheet{max-width:1100px;margin:0 auto;display:grid;gap:16px}
+.sheet{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
 .card h2{font-size:16px;margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .card h2 .sp{flex:1}
@@ -66,13 +66,16 @@ th,td{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-a
 th{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--soft)}
 td input,td select{width:100%}
 td.num,th.num{text-align:right}
-td input.num{text-align:right}
+td input.num{text-align:right;min-width:72px}
+td input[data-k="qty"]{min-width:52px}
 .cat-tag{font-size:11px;color:var(--accent);display:block}
 .teeth-cell{display:flex;gap:4px;align-items:center}
 .teeth-cell .jaws{flex:1;display:grid;min-width:0}
 .teeth-cell .jaw{display:flex;align-items:center;gap:4px}
 .teeth-cell .jaw+.jaw{border-top:2px solid var(--line);padding-top:3px;margin-top:3px}
 .teeth-cell .jaw span{font-size:11px;color:var(--muted);width:14px;flex:none}
+.teeth-cell .jaw input:nth-of-type(1){border-top-right-radius:0;border-bottom-right-radius:0;border-right:0;text-align:right}
+.teeth-cell .jaw input:nth-of-type(2){border-top-left-radius:0;border-bottom-left-radius:0;border-left:0}
 .teeth-cell .midl{align-self:stretch;border-left:2px dashed var(--muted);margin:-3px 0;flex:none}
 .teeth-cell .jaw:first-child .midl{margin-bottom:-6px}
 .teeth-cell .jaw+.jaw .midl{margin-top:-6px}
@@ -450,7 +453,7 @@ $('#main').addEventListener('change',e=>{
     if(it.custom){const i=document.querySelector(`[data-id="${it.id}"] [data-k="name"]`);i&&i.focus()}
   }
   if(t.dataset.k==='teethIn'){const r=rowOf(p,t),it=r.row,ins=[...r.tr.querySelectorAll('[data-k="teethIn"]')],raw={};ins.forEach(i=>raw[i.dataset.jaw]=i.value);
-    const out=parseTeeth(QUADS.map(q=>raw[q]).join(','));applyTeeth(it,out);
+    const out=parseTeeth(joinQuads(raw));applyTeeth(it,out);
     it.teethBad=out.bad.length?out.bad:null;it.teethText=out.bad.length?raw:null;
     if(!out.bad.length){const v=teethParts(it);ins.forEach(i=>i.value=v[i.dataset.jaw])}
     ins.forEach(i=>{i.classList.toggle('bad',!!out.bad.length);i.title=out.bad.length?'無法辨識：'+out.bad.join('、'):'可直接輸入，例如 14X12X21X23, 46, 17(X)'});
@@ -591,15 +594,13 @@ function openTeeth(current,curPontics,curBridgeTeeth,curGroups){
   });
 }
 // 只有用「牙橋」選的牙才會相連：同一排相連的牙橋選取牙分成一段，
-// 但原本屬於不同組（groups，例如輸入「14X12, 11X22」）的牙在交界處斷開，新加入的牙併入相鄰那組；
-// 中線（11|21、41|31、51|61、81|71）兩側永遠不相連
+// 但原本屬於不同組（groups，例如輸入「14X12, 11X22」）的牙在交界處斷開，新加入的牙併入相鄰那組
 function calcSegments(bTeeth,groups){
   const sel=new Set(bTeeth),gid=new Map();(groups||[]).forEach((g,i)=>g.forEach(t=>gid.set(t,i)));
   const out=[];
   for(const r of [UP,LO,UPP,LOP]){let seg=[],sg=null;
     const flush=()=>{if(seg.length)out.push(seg);seg=[];sg=null};
-    for(const [i,t] of r.entries()){
-      if(i===r.length/2)flush();
+    for(const t of r){
       if(!sel.has(t)){flush();continue}
       const g=gid.has(t)?gid.get(t):null;
       if(seg.length&&g!=null&&sg!=null&&g!==sg)flush();
@@ -651,13 +652,26 @@ const QUADS=['q1','q2','q4','q3'];
 const REGION_Q={'全口':'q1','上顎':'q1','右上':'q1','左上':'q2','下顎':'q4','右下':'q4','左下':'q3'};
 const quadOf=t=>REGION_Q[t]||{1:'q1',5:'q1',2:'q2',6:'q2',3:'q3',7:'q3',4:'q4',8:'q4'}[t[0]];
 const CHART_ORDER=[...REGIONS,...UP,...UPP,...LO,...LOP];
+// 跨中線的牙橋在中線切成左右兩段，分別放在兩格；兩格在中線相連，輸入時會再接回同一座
 function teethParts(it){
   const px=it.pontics||[],brs=calcBridges(bridgeTeethOf(it),px,it.bridgeGroups),inB=new Set(brs.flatMap(b=>b.teeth));
-  const all=[...brs.map(b=>[b.teeth[0],bridgeStr(b)]),...it.teeth.filter(t=>!inB.has(t)).map(t=>[t,px.includes(t)?`${t}(X)`:t])]
+  const pieces=b=>{const a=b.teeth.filter(t=>quadOf(t)===quadOf(b.teeth[0])),c=b.teeth.filter(t=>quadOf(t)!==quadOf(b.teeth[0]));
+    return [a,c].filter(x=>x.length).map(x=>[x[0],bridgeStr({teeth:x,pontics:b.pontics})])};
+  const all=[...brs.flatMap(pieces),...it.teeth.filter(t=>!inB.has(t)).map(t=>[t,px.includes(t)?`${t}(X)`:t])]
     .sort((a,b)=>CHART_ORDER.indexOf(a[0])-CHART_ORDER.indexOf(b[0]));
   const out={};QUADS.forEach(q=>out[q]=all.filter(([t])=>quadOf(t)===q).map(x=>x[1]).join(', '));return out;
 }
-function teethLabel(it){const p=teethParts(it);return QUADS.map(q=>p[q]).filter(Boolean).join(', ')}
+function teethLabel(it){const p=teethParts(it);return joinQuads(p)}
+// 把四格合成一串：右格最後一段與左格第一段若在中線接得起來（例如「14X12X」+「21X23」），就接成同一座牙橋
+function joinQuads(raw){
+  const toks=s=>String(s||'').split(/[,，、;；\s]+/).filter(Boolean);
+  const hasX=s=>/[XxｘＸ×✕]/.test(s);
+  const join=(a,b)=>{const ta=toks(a),tb=toks(b);
+    if(ta.length&&tb.length){const l=ta[ta.length-1],f=tb[0],c=l+f;
+      if((hasX(l)||hasX(f))&&!/[(（]/.test(l+f)){const o=parseTeeth(c);if(!o.bad.length&&o.teeth.some(x=>quadOf(x)===quadOf(o.teeth[0]))&&new Set(o.teeth.map(quadOf)).size===2)return [...ta.slice(0,-1),c,...tb.slice(1)]}}
+    return [...ta,...tb]};
+  return [...join(raw.q1,raw.q2),...join(raw.q4,raw.q3)].join(', ');
+}
 // 輸入欄顯示的文字：無法辨識時保留原本打的字
 function teethInputs(it){
   const v=it.teethText;if(v==null)return teethParts(it);
