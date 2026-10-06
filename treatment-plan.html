@@ -68,8 +68,15 @@ td input,td select{width:100%}
 td.num,th.num{text-align:right}
 td input.num{text-align:right}
 .cat-tag{font-size:11px;color:var(--accent);display:block}
-.teeth-cell{display:flex;gap:4px}
-.teeth-cell input{flex:1;font-size:13px}
+.teeth-cell{display:flex;gap:4px;align-items:center}
+.teeth-cell .jaws{flex:1;display:grid;min-width:0}
+.teeth-cell .jaw{display:flex;align-items:center;gap:4px}
+.teeth-cell .jaw+.jaw{border-top:2px solid var(--line);padding-top:3px;margin-top:3px}
+.teeth-cell .jaw span{font-size:11px;color:var(--muted);width:14px;flex:none}
+.teeth-cell .midl{align-self:stretch;border-left:2px dashed var(--muted);margin:-3px 0;flex:none}
+.teeth-cell .jaw:first-child .midl{margin-bottom:-6px}
+.teeth-cell .jaw+.jaw .midl{margin-top:-6px}
+.teeth-cell input{flex:1;font-size:13px;padding:3px 6px}
 .teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
 .teeth-cell button{padding:3px 6px}
 .changed-amt{color:var(--danger);font-weight:600}
@@ -247,10 +254,13 @@ function calc(p){
 const STATUS={open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
 
 /* ====== 儲存 ====== */
-let saveT=null;
+let saveT=null,pendingP=null;
+// 換到別張單時，上一張還沒寫入的變更立刻寫入；已刪除的單不再寫回
+function flushPending(){clearTimeout(saveT);const q=pendingP;pendingP=null;if(q&&plans.has(q.id))DB.put(q)}
 function touch(){const p=cur();if(!p)return;p.updatedAt=Date.now();const ind=$('#saveInd');if(ind)ind.textContent='儲存中…';
-  clearTimeout(saveT);saveT=setTimeout(async()=>{await DB.put(p);const i=$('#saveInd');if(i)i.textContent='已自動儲存 '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});renderList()},350)}
-async function saveNow(p){clearTimeout(saveT);p.updatedAt=Date.now();await DB.put(p)}
+  if(pendingP&&pendingP!==p)flushPending();
+  pendingP=p;clearTimeout(saveT);saveT=setTimeout(async()=>{pendingP=null;if(!plans.has(p.id))return;await DB.put(p);const i=$('#saveInd');if(i)i.textContent='已自動儲存 '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});renderList()},350)}
+async function saveNow(p){flushPending();p.updatedAt=Date.now();await DB.put(p)}
 async function saveSettings(){await DB.set('settings',settings)}
 
 /* ====== 列表 ====== */
@@ -267,7 +277,7 @@ $('#planList').addEventListener('click',e=>{const b=e.target.closest('[data-open
 $('#search').addEventListener('input',renderList);
 $('#statusFilter').addEventListener('change',renderList);
 
-function nextNo(){const d=today().replace(/-/g,'');const n=[...plans.values()].filter(p=>(p.no||'').startsWith('TP'+d)).length+1;return `TP${d}-${pad(n)}`}
+function nextNo(){const d='TP'+today().replace(/-/g,'');const n=Math.max(0,...[...plans.values()].filter(p=>(p.no||'').startsWith(d+'-')).map(p=>parseInt(p.no.slice(d.length+1))||0))+1;return `${d}-${pad(n)}`}
 function blankPlan(){return {id:uid(),no:nextNo(),name:'',birthday:'',chartNo:'',doctor:'',assistant:'',createdAt:nowLocal(),
   items:[newItem()],consent:{sig:null,at:''},payments:[],receipts:[],status:'open',closedAt:null,prevId:null,nextId:null,updatedAt:Date.now()}}
 function newItem(){return {id:uid(),cat:'',name:'',custom:false,teeth:[],pontics:[],bridgeTeeth:[],qty:1,qtyManual:false,orig:0,chg:null}}
@@ -275,6 +285,7 @@ function newItem(){return {id:uid(),cat:'',name:'',custom:false,teeth:[],pontics
 $('#newBtn').addEventListener('click',async()=>{const p=blankPlan();plans.set(p.id,p);await saveNow(p);openPlan(p.id);setTimeout(()=>{const n=document.querySelector('[data-f="name"]');n&&n.focus()},50)});
 
 function openPlan(id){curId=id;renderList();renderEditor();if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
+window.addEventListener('pagehide',flushPending);
 
 /* ====== 編輯畫面 ====== */
 function itemOptions(it){
@@ -320,24 +331,27 @@ function renderEditor(){
   <section class="card">
     <h2>治療項目<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addItem">＋ 新增項目</button>'}</h2>
     <div class="tbl-wrap"><table>
-      <thead><tr><th style="width:34px">#</th><th style="min-width:230px">治療種類／項目</th><th style="min-width:200px">牙位</th><th class="num" style="width:76px">數量</th><th class="num" style="width:120px">原始金額</th><th class="num" style="width:120px">變更金額</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
+      <thead><tr><th style="width:34px">#</th><th style="min-width:230px">治療種類／項目</th><th style="min-width:340px">牙位</th><th class="num" style="width:110px">單一金額</th><th class="num" style="width:76px">數量</th><th class="num" style="width:120px">原始金額</th><th class="num" style="width:120px">變更金額</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         <td>${i+1}</td>
         <td>${it.cat&&!it.custom?`<span class="cat-tag">${esc(it.cat)}</span>`:''}
           <select data-k="pick" ${dis}>${itemOptions(it)}</select>
           ${it.custom?`<input data-k="name" placeholder="自訂項目名稱" value="${esc(it.name)}" style="margin-top:4px" ${dis}>`:''}</td>
-        <td><div class="teeth-cell"><input data-k="teethIn" class="${it.teethBad&&it.teethBad.length?'bad':''}" value="${esc(it.teethText??teethLabel(it))}" placeholder="輸入牙位" title="${it.teethBad&&it.teethBad.length?esc('無法辨識：'+it.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)'}" ${dis}><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
+        <td><div class="teeth-cell"><div class="jaws">${(()=>{const v=teethInputs(it),bad=it.teethBad&&it.teethBad.length,ti=bad?esc('無法辨識：'+it.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
+          const inp=(q,ph)=>`<input data-k="teethIn" data-jaw="${q}" class="${bad?'bad':''}" value="${esc(v[q])}" placeholder="${ph}" title="${ti}" ${dis}>`;
+          return `<div class="jaw"><span>上</span>${inp('q1','右上')}<i class="midl"></i>${inp('q2','左上')}</div><div class="jaw"><span>下</span>${inp('q4','右下')}<i class="midl"></i>${inp('q3','左下')}</div>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
+        <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="unit" value="${unitOf(it)||''}" placeholder="0" ${dis}></td>
         <td><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${dis}></td>
         <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${dis}></td>
         <td><input class="num ${it.chg!=null&&it.chg!==it.orig?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.chg??''}" placeholder="同原始" ${dis}></td>
         ${L?'':`<td class="no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
-      </tr>`).join('')||`<tr><td colspan="7" class="hint">尚無項目</td></tr>`}</tbody>
+      </tr>`).join('')||`<tr><td colspan="8" class="hint">尚無項目</td></tr>`}</tbody>
     </table></div>
     <div class="totals">
       <div><small>總金額</small><b id="tOrig">$${money(c.orig)}</b></div>
       <div class="hl"><small>變更後總金額</small><b id="tChg">$${money(c.chg)}</b></div>
     </div>
-    <div class="hint no-print">選項目會依價目表帶入原始金額（單價 × 數量），可直接修改；「變更金額」留空表示與原始金額相同。</div>
+    <div class="hint no-print">選項目會依價目表帶入單一金額，原始金額 = 單一金額 × 數量，都可直接修改；「變更金額」留空表示與原始金額相同。</div>
   </section>
 
   <section class="card">
@@ -402,6 +416,8 @@ function refreshTotals(){
 }
 const rowOf=(p,el)=>{const tr=el.closest('[data-list]');if(!tr)return null;const list=p[tr.dataset.list];return {tr,list,row:list.find(r=>r.id===tr.dataset.id),name:tr.dataset.list}};
 const priceOf=it=>it.custom?0:(settings.prices[pk(it.cat,it.name)]||0);
+// 單一金額：開單時由價目表帶入，可在單上修改；原始金額 = 單一金額 × 數量
+const unitOf=it=>it.unit!=null?it.unit:priceOf(it);
 
 /* 輸入 */
 $('#main').addEventListener('input',e=>{
@@ -413,7 +429,8 @@ $('#main').addEventListener('input',e=>{
   const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,it=r.row;
   if(r.name==='items'){
     if(k==='name')it.name=t.value;
-    else if(k==='qty'){it.qty=Math.max(1,Math.round(Number(t.value)||1));it.qtyManual=true;const pr=priceOf(it);if(pr){it.orig=pr*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig}}
+    else if(k==='qty'){it.qty=Math.max(1,Math.round(Number(t.value)||1));it.qtyManual=true;const u=unitOf(it);if(u){it.orig=u*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig}}
+    else if(k==='unit'){it.unit=numOrNull(t.value)||0;it.orig=it.unit*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||''}
     else if(k==='orig')it.orig=numOrNull(t.value)||0;
     else if(k==='chg'){it.chg=numOrNull(t.value);t.classList.toggle('changed-amt',it.chg!=null&&it.chg!==it.orig)}
   }else if(k==='amount')it.amount=numOrNull(t.value)||0;
@@ -428,14 +445,15 @@ $('#main').addEventListener('change',e=>{
     else if(t.value){const [cat,name]=t.value.split('|');it.custom=false;it.cat=cat;it.name=name;
       if(PER_TOOTH.has(name)&&!it.qtyManual&&it.teeth.length)it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;}
     else{it.custom=false;it.cat='';it.name=''}
-    const pr=priceOf(it);if(pr)it.orig=pr*it.qty;
+    const pr=priceOf(it);it.unit=pr||null;if(pr)it.orig=pr*it.qty;
     touch();renderEditor();
     if(it.custom){const i=document.querySelector(`[data-id="${it.id}"] [data-k="name"]`);i&&i.focus()}
   }
-  if(t.dataset.k==='teethIn'){const r=rowOf(p,t),it=r.row,out=parseTeeth(t.value);applyTeeth(it,out);
-    it.teethBad=out.bad.length?out.bad:null;it.teethText=out.bad.length?t.value:null;
-    if(!out.bad.length)t.value=teethLabel(it);
-    t.classList.toggle('bad',!!out.bad.length);t.title=out.bad.length?'無法辨識：'+out.bad.join('、'):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
+  if(t.dataset.k==='teethIn'){const r=rowOf(p,t),it=r.row,ins=[...r.tr.querySelectorAll('[data-k="teethIn"]')],raw={};ins.forEach(i=>raw[i.dataset.jaw]=i.value);
+    const out=parseTeeth(QUADS.map(q=>raw[q]).join(','));applyTeeth(it,out);
+    it.teethBad=out.bad.length?out.bad:null;it.teethText=out.bad.length?raw:null;
+    if(!out.bad.length){const v=teethParts(it);ins.forEach(i=>i.value=v[i.dataset.jaw])}
+    ins.forEach(i=>{i.classList.toggle('bad',!!out.bad.length);i.title=out.bad.length?'無法辨識：'+out.bad.join('、'):'可直接輸入，例如 14X12X21X23, 46, 17(X)'});
     r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||'';
     refreshTotals();touch()}
 });
@@ -453,7 +471,7 @@ $('#main').addEventListener('click',async e=>{
     else if(act==='consentSig'){if(L)return;const s=await openSig('患者同意治療計畫簽名',p.consent.sig);if(s!==undefined){p.consent.sig=s;if(s&&!p.consent.at)p.consent.at=nowLocal();touch();renderEditor()}}
     else if(act==='delete'){if(!confirm(`確定刪除治療計劃單 ${p.no}（${p.name||'未填姓名'}）？此動作無法復原。`))return;
       if(p.prevId&&plans.get(p.prevId)){const pv=plans.get(p.prevId);pv.nextId=null;await saveNow(pv)}
-      plans.delete(p.id);await DB.del(p.id);curId=null;renderList();renderEditor()}
+      plans.delete(p.id);flushPending();await DB.del(p.id);curId=null;renderList();renderEditor()}
     else if(act==='closePaid')closePaid(p);
     else if(act==='closeChanged')closeChanged(p);
     else if(act==='reopen'){if(!confirm('確定取消結單？此單會回到「進行中」並可再編輯。'))return;p.status='open';p.closedAt=null;await saveNow(p);renderList();renderEditor()}
@@ -623,12 +641,27 @@ function parseTeeth(str){
 }
 function applyTeeth(it,out){
   it.teeth=out.teeth;it.pontics=out.pontics;it.bridgeTeeth=out.bridgeTeeth;it.bridgeGroups=out.bridgeGroups;delete it.bridges;
-  if(PER_TOOTH.has(it.name)&&!it.qtyManual){it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;const pr=priceOf(it);if(pr)it.orig=pr*it.qty}
+  if(PER_TOOTH.has(it.name)&&!it.qtyManual){it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;const u=unitOf(it);if(u)it.orig=u*it.qty}
 }
-function teethLabel(it){
+// 牙位欄分四格（病患右側在左）：右上 q1 ┊ 左上 q2 ／ 右下 q4 ┊ 左下 q3
+// 跨中線的牙橋放在它起點（病患右側）那一格
+const QUADS=['q1','q2','q4','q3'];
+const REGION_Q={'全口':'q1','上顎':'q1','右上':'q1','左上':'q2','下顎':'q4','右下':'q4','左下':'q3'};
+const quadOf=t=>REGION_Q[t]||{1:'q1',5:'q1',2:'q2',6:'q2',3:'q3',7:'q3',4:'q4',8:'q4'}[t[0]];
+const CHART_ORDER=[...REGIONS,...UP,...UPP,...LO,...LOP];
+function teethParts(it){
   const px=it.pontics||[],brs=calcBridges(bridgeTeethOf(it),px,it.bridgeGroups),inB=new Set(brs.flatMap(b=>b.teeth));
-  return [...brs.map(bridgeStr),
-    ...sortTeeth(it.teeth.filter(t=>!inB.has(t))).map(t=>px.includes(t)?`${t}(X)`:t)].join(', ');
+  const all=[...brs.map(b=>[b.teeth[0],bridgeStr(b)]),...it.teeth.filter(t=>!inB.has(t)).map(t=>[t,px.includes(t)?`${t}(X)`:t])]
+    .sort((a,b)=>CHART_ORDER.indexOf(a[0])-CHART_ORDER.indexOf(b[0]));
+  const out={};QUADS.forEach(q=>out[q]=all.filter(([t])=>quadOf(t)===q).map(x=>x[1]).join(', '));return out;
+}
+function teethLabel(it){const p=teethParts(it);return QUADS.map(q=>p[q]).filter(Boolean).join(', ')}
+// 輸入欄顯示的文字：無法辨識時保留原本打的字
+function teethInputs(it){
+  const v=it.teethText;if(v==null)return teethParts(it);
+  if(typeof v==='string')return {q1:v,q2:'',q4:'',q3:''};
+  if('up' in v||'lo' in v)return {q1:v.up||'',q2:'',q4:v.lo||'',q3:''};
+  return v;
 }
 
 /* 照片 */
