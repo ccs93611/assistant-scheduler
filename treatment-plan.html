@@ -315,6 +315,7 @@ function renderEditor(){
   const p=cur();const m=$('#main');
   if(!p){m.innerHTML='<div class="empty">從左側選一張治療計劃單，或按「新增治療計劃單」。</div>';return}
   const L=p.status!=='open';const dis=L?'disabled':'';const c=calc(p);
+  const IL=L||!!p.finalized,idis=IL?'disabled':''; // 定案後治療項目與金額鎖定
   const prev=p.prevId&&plans.get(p.prevId),next=p.nextId&&plans.get(p.nextId);
   m.innerHTML=`<div class="sheet">
   ${datalists()}
@@ -342,32 +343,33 @@ function renderEditor(){
   </section>
 
   <section class="card">
-    <h2>治療項目<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addItem">＋ 新增項目</button>'}</h2>
+    <h2>治療項目<span class="sp"></span>${IL?'':'<button class="btn-sm no-print" data-act="addItem">＋ 新增項目</button>'}</h2>
     <div class="tbl-wrap"><table>
-      <thead><tr><th style="width:34px">#</th><th style="min-width:230px">治療種類／項目</th><th style="min-width:340px">牙位</th><th class="num" style="width:110px">單一金額</th><th class="num" style="width:76px">數量</th><th class="num" style="width:120px">原始金額</th><th class="num" style="width:120px">變更金額</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
+      <thead><tr><th style="width:34px">#</th><th style="min-width:230px">治療種類／項目</th><th style="min-width:340px">牙位</th><th class="num" style="width:110px">單一金額</th><th class="num" style="width:76px">數量</th><th class="num" style="width:120px">原始金額</th><th class="num" style="width:120px">變更金額</th>${IL?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         <td>${i+1}</td>
         <td><span class="cat-tag">${it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;'}</span>
-          <div class="combo-wrap"><input data-k="itemIn" value="${esc(it.name)}" placeholder="選擇或輸入搜尋" autocomplete="off" ${dis}></div></td>
+          <div class="combo-wrap"><input data-k="itemIn" value="${esc(it.name)}" placeholder="選擇或輸入搜尋" autocomplete="off" ${idis}></div></td>
         <td><div class="teeth-cell"><div class="jaws">${(()=>{const v=teethInputs(it),bad=it.teethBad&&it.teethBad.length,ti=bad?esc('無法辨識：'+it.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
-          const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${dis}>`;
-          return `<div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div><i class="midl"></i>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${dis}>🦷</button></div></td>
-        <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="unit" value="${unitOf(it)||''}" placeholder="0" ${dis}></td>
-        <td><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${dis}></td>
-        <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${dis}></td>
-        <td><input class="num ${it.chg!=null&&it.chg!==it.orig?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.chg??''}" placeholder="同原始" ${dis}></td>
-        ${L?'':`<td class="no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
+          const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${idis}>`;
+          return `<div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div><i class="midl"></i>`})()}</div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${idis}>🦷</button></div></td>
+        <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="unit" value="${unitOf(it)||''}" placeholder="0" ${idis}></td>
+        <td><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis}></td>
+        <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${idis}></td>
+        <td><input class="num ${it.chg!=null&&it.chg!==it.orig?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.chg??''}" placeholder="同原始" ${idis}></td>
+        ${IL?'':`<td class="no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
       </tr>`).join('')||`<tr><td colspan="8" class="hint">尚無項目</td></tr>`}</tbody>
     </table></div>
     <div class="totals">
       <div><small>總金額</small><b id="tOrig">$${money(c.orig)}</b></div>
       <div class="hl"><small>變更後總金額</small><b id="tChg">$${money(c.chg)}</b></div>
     </div>
-    <div class="hint no-print">選項目會依價目表帶入單一金額，原始金額 = 單一金額 × 數量，都可直接修改；「變更金額」留空表示與原始金額相同。</div>
+    ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已定案（${esc(fmtDT(p.finalizedAt))}），治療項目與金額不可再更動；如需變更請用「結單－計畫變更」。</div>`:''}
+    <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單一金額，原始金額 = 單一金額 × 數量，都可直接修改；「變更金額」留空表示與原始金額相同。</div>
   </section>
 
   <section class="card">
-    <h2>患者同意治療計畫</h2>
+    <h2>患者同意治療計畫<span class="sp"></span>${p.finalized?`<span class="chip paid">已定案 ${esc(fmtDT(p.finalizedAt))}</span>`:(L?'':'<button class="btn-sm btn-primary no-print" data-act="finalize">定案</button>')}</h2>
     <p class="consent">本人已詳閱並了解上述治療計畫之內容、牙位與費用，經醫師說明後同意接受治療。</p>
     <div class="grid-f" style="align-items:end">
       <div><div class="hint">患者（或法定代理人）簽名</div>
@@ -487,17 +489,18 @@ $('#main').addEventListener('click',async e=>{
     else if(act==='delete'){if(!confirm(`確定刪除治療計劃單 ${p.no}（${p.name||'未填姓名'}）？此動作無法復原。`))return;
       if(p.prevId&&plans.get(p.prevId)){const pv=plans.get(p.prevId);pv.nextId=null;await saveNow(pv)}
       plans.delete(p.id);flushPending();await DB.del(p.id);curId=null;renderList();renderEditor()}
+    else if(act==='finalize')finalize(p);
     else if(act==='closePaid')closePaid(p);
     else if(act==='closeChanged')closeChanged(p);
     else if(act==='reopen'){if(!confirm('確定取消結單？此單會回到「進行中」並可再編輯。'))return;p.status='open';p.closedAt=null;await saveNow(p);renderList();renderEditor()}
     return;
   }
-  const t=e.target.closest('[data-k]');if(!t)return;const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,L=p.status!=='open';
+  const t=e.target.closest('[data-k]');if(!t)return;const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,L=p.status!=='open',IL=L||!!p.finalized;
   if(k==='del'){
     if(r.name==='payments'&&r.row.sig&&!confirm('這筆繳費已有患者簽名，確定刪除？'))return;
     if(r.name==='receipts'&&(r.row.photos.length||r.row.amount||r.row.sig)&&!confirm('確定刪除這筆收據紀錄（含照片）？'))return;
     r.list.splice(r.list.indexOf(r.row),1);touch();renderEditor();
-  }else if(k==='teeth'){if(L)return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it),it.bridgeGroups);if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
+  }else if(k==='teeth'){if(IL)return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it),it.bridgeGroups);if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
   else if(k==='sig'){const lock=L&&r.name==='payments';if(lock&&!r.row.sig)return;
     if(lock){showImage(r.row.sig,'患者簽名');return}
     const s=await openSig(`${r.name==='receipts'?'領取收據簽名':'繳費簽名'}：${r.row.date}　$${money(r.row.amount)}`,r.row.sig);if(s!==undefined){r.row.sig=s;if(s&&r.name==='receipts')r.row.taken=true;touch();renderEditor()}}
@@ -505,10 +508,21 @@ $('#main').addEventListener('click',async e=>{
   else if(k==='photo'){const i=+t.dataset.i;const del=await showImage(r.row.photos[i],`收據照片（${r.row.date}）`,true);if(del){r.row.photos.splice(i,1);touch();renderEditor()}}
 });
 
+/* 定案：治療項目與金額鎖定，之後只能用「結單－計畫變更」另開新單 */
+async function finalize(p){
+  const c=calc(p),items=p.items.filter(i=>i.name);
+  if(!items.length){alert('請先填寫治療項目再定案');return}
+  const warn=[];if(p.items.length>items.length)warn.push(`・有 ${p.items.length-items.length} 列未選治療項目，定案時會移除`);
+  if(p.items.some(i=>i.teethBad&&i.teethBad.length))warn.push('・有牙位無法辨識（紅色）');
+  if(!p.consent.sig)warn.push('・患者尚未簽名同意');
+  if(!confirm(`定案治療計畫\n\n共 ${items.length} 項，總金額 $${money(c.orig)}，變更後總金額 $${money(c.chg)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n定案後治療項目與金額將無法再更動（如需變更請用「結單－計畫變更」）。確定定案？`))return;
+  p.items=items;p.finalized=true;p.finalizedAt=nowLocal();await saveNow(p);renderList();renderEditor();
+}
 /* 結單 */
 async function closePaid(p){
   const c=calc(p);const warn=[];
   if(!p.items.some(i=>i.name))warn.push('・尚未填任何治療項目');
+  if(!p.finalized)warn.push('・治療計畫尚未定案');
   if(!p.consent.sig)warn.push('・患者尚未簽署同意治療計畫');
   const uns=p.payments.filter(x=>!x.transfer&&!x.sig).length;if(uns)warn.push(`・有 ${uns} 筆繳費尚未簽名`);
   if(c.due>0)warn.push(`・尚有未繳餘額 $${money(c.due)}`);
