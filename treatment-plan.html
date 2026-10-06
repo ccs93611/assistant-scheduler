@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新海治療計劃單</title>
+<style>
+:root{
+  --bg:#f4f6f7;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#dde3e6;--soft:#eef3f4;
+  --accent:#0f7c80;--accent-ink:#fff;--accent-soft:#e1f1f1;
+  --danger:#c0392b;--danger-soft:#fbe9e7;--ok:#1e8449;--ok-soft:#e5f4ea;--warn:#b9770e;--warn-soft:#fdf2e0;
+  --sig-bg:#fff;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12181b;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--soft:#212b30;
+  --accent:#3fb6b9;--accent-ink:#0b1416;--accent-soft:#16383a;
+  --danger:#ef7a6c;--danger-soft:#3a1f1c;--ok:#5cc98a;--ok-soft:#173023;--warn:#e7b25a;--warn-soft:#352a16;
+  --sig-bg:#f7f7f7;
+}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+input:disabled,select:disabled{background:var(--soft);color:var(--ink);opacity:1}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 12px}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn-danger{color:var(--danger)}
+.btn-ghost{border-color:transparent;background:transparent}
+.btn-sm{padding:3px 8px;font-size:13px}
+.app{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
+aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;max-height:100vh;position:sticky;top:0}
+.side-head{padding:14px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.side-head h1{font-size:17px;margin:0}
+.side-head .row{display:flex;gap:6px}
+.side-head .row>*{flex:1}
+.plan-list{overflow:auto;flex:1}
+.plan-item{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:10px 14px;background:transparent}
+.plan-item.on{background:var(--accent-soft)}
+.plan-item .t{display:flex;justify-content:space-between;gap:6px;font-weight:600}
+.plan-item .s{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
+.side-foot{padding:10px 14px;border-top:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap}
+main{padding:20px;min-width:0}
+.empty{color:var(--muted);text-align:center;padding:80px 20px}
+.sheet{max-width:1100px;margin:0 auto;display:grid;gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h2{font-size:16px;margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card h2 .sp{flex:1}
+.topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.topbar .title{font-size:20px;font-weight:700}
+.topbar .no{color:var(--muted);font-size:13px}
+.topbar .sp{flex:1}
+.chip{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;font-weight:600;white-space:nowrap}
+.chip.open{background:var(--warn-soft);color:var(--warn)}
+.chip.paid{background:var(--ok-soft);color:var(--ok)}
+.chip.changed{background:var(--soft);color:var(--muted)}
+.grid-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.grid-f label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.grid-f label input{font-size:15px;color:var(--ink)}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:middle}
+th{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--soft)}
+td input,td select{width:100%}
+td.num,th.num{text-align:right}
+td input.num{text-align:right}
+.cat-tag{font-size:11px;color:var(--accent);display:block}
+.teeth-btn{width:100%;text-align:left;min-height:34px;font-size:13px;white-space:normal}
+.teeth-btn.emp{color:var(--muted)}
+.changed-amt{color:var(--danger);font-weight:600}
+tfoot td{font-weight:700;background:var(--soft)}
+.totals{display:flex;gap:18px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px}
+.totals div{text-align:right}
+.totals small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.totals b{font-size:20px}
+.totals .hl b{color:var(--accent)}
+.totals .due b{color:var(--danger)}
+.sigbox{border:1px dashed var(--line);border-radius:8px;min-height:90px;display:flex;align-items:center;justify-content:center;background:var(--sig-bg);cursor:pointer;color:#888;position:relative}
+.sigbox img{max-height:110px;max-width:100%}
+.sig-mini{height:38px;background:var(--sig-bg);border-radius:4px;border:1px solid var(--line);cursor:pointer;display:block}
+.need-sig{color:var(--danger);font-size:12px;font-weight:600;white-space:nowrap}
+.consent{font-size:14px;color:var(--muted);margin:0 0 10px}
+.close-bar{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.close-bar button{padding:12px 22px;font-size:16px;font-weight:700}
+.btn-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn-chg{background:var(--warn);color:#fff;border-color:var(--warn)}
+.banner{border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner.paid{background:var(--ok-soft);color:var(--ok)}
+.banner.changed{background:var(--warn-soft);color:var(--warn)}
+.banner .sp{flex:1}
+.link{color:var(--accent);text-decoration:underline;cursor:pointer;background:none;border:0;padding:0}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.thumbs img{width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid var(--line);cursor:pointer}
+.add-photo{width:48px;height:48px;border:1px dashed var(--line);border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:22px}
+.save-ind{font-size:12px;color:var(--muted)}
+.hint{font-size:12px;color:var(--muted)}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal{background:var(--panel);border-radius:12px;max-width:min(860px,100%);width:100%;max-height:92vh;overflow:auto;padding:18px}
+.modal h3{margin:0 0 12px;font-size:17px}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.modal .acts .sp{flex:1}
+.sigpad{width:100%;height:240px;background:var(--sig-bg);border:1px solid var(--line);border-radius:8px;touch-action:none;display:block}
+.tooth-grid{display:grid;gap:4px;margin:6px 0}
+.tooth-row{display:flex;justify-content:center;gap:3px;flex-wrap:nowrap}
+.tooth-row .gap{width:14px}
+.tooth{width:38px;height:38px;padding:0;font-size:13px;border-radius:6px}
+.tooth.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tooth.prim{width:34px;height:32px;font-size:12px}
+.tooth.br{background:var(--warn);border-color:var(--warn);color:#fff}
+.tooth.anchor{outline:3px solid var(--warn);outline-offset:1px}
+.bridge-btn.on{background:var(--warn);color:#fff;border-color:var(--warn)}
+.bridge-hint{min-height:20px;text-align:center;font-size:13px;color:var(--warn);font-weight:600;margin-top:6px}
+.tooth-sec{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+.midline{border-top:2px solid var(--line);margin:4px 30px}
+.regions{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:8px}
+.price-cat{margin:14px 0 6px;font-weight:700;color:var(--accent)}
+.price-row{display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line);font-size:14px}
+.tabs-m{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.tabs-m button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.photo-view img{max-width:100%;max-height:70vh;display:block;margin:0 auto}
+.print-only{display:none}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  .plan-list{max-height:220px}
+  main{padding:12px}
+  .tooth{width:30px;height:32px;font-size:11px}
+  .tooth.prim{width:30px;height:28px}
+  .tooth-row .gap{width:6px}
+}
+@media print{
+  @page{size:A4;margin:12mm}
+  body{background:#fff;color:#000;font-size:12px}
+  aside,.no-print,.close-bar,.add-photo,.btn-x{display:none!important}
+  .app{display:block}
+  main{padding:0}
+  .card{border:1px solid #999;break-inside:avoid;padding:10px}
+  input,select{border:0;padding:0;background:none!important;appearance:none;-webkit-appearance:none}
+  .print-only{display:block}
+  .sigbox{border:1px solid #999}
+  th{background:#eee!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="side-head">
+      <h1>新海美學牙醫・治療計劃單</h1>
+      <button class="btn-primary" id="newBtn">＋ 新增治療計劃單</button>
+      <input id="search" type="search" placeholder="搜尋姓名、病歷號、單號">
+      <div class="row">
+        <select id="statusFilter">
+          <option value="">全部狀態</option>
+          <option value="open">進行中</option>
+          <option value="paid">已結單－費用收訖</option>
+          <option value="changed">已結單－計畫變更</option>
+        </select>
+      </div>
+    </div>
+    <div class="plan-list" id="planList"></div>
+    <div class="side-foot">
+      <button class="btn-sm" id="settingsBtn">⚙ 價目表／人員／備份</button>
+    </div>
+  </aside>
+  <main id="main"><div class="empty">從左側選一張治療計劃單，或按「新增治療計劃單」。</div></main>
+</div>
+<input type="file" id="photoInput" accept="image/*" multiple hidden>
+<input type="file" id="importInput" accept="application/json,.json" hidden>
+
+<script>
+'use strict';
+/* ====== 治療項目 ====== */
+const CATS=[
+ ['固定式贗復',['DSD數位微笑設計','MTA活髓保存','BPR齒雕','Veneer美學貼片','Post玻璃纖維釘','Temp臨時假牙','Crown全瓷-前牙','Crown全瓷-後牙','Crown氧化鋯-前牙','Crown氧化鋯-後牙','馬里蘭牙橋']],
+ ['活動式贗復',['CD全口活動假牙-上顎','CD全口活動假牙-下顎','RPD部分活動假牙-上顎','RPD部分活動假牙-下顎','彈性床活動假牙','活動假牙維修','活動假牙加牙']],
+ ['植牙式贗復',['APR齒槽骨保存術','GBR少量補骨','GBR水平骨增量','GBR垂直骨增高','Sinus Lift頂竇','Sinus Lift開窗','植牙手術導版','美國Hiossen植體','植牙全鋯冠-前牙','植牙全鋯冠-後牙']],
+ ['全口重建',['Over Denture植牙固位式活動假牙','Locator 連接頭','Locator 扣環','All-on-x植牙導版','All-on-8','All-on-7','All-on-6','All-on-5','All-on-4','All-on-x臨時牙','All-on-x正式氧化鋯牙','All-on-x輕量化合金牙架']],
+ ['顯微治療',['顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補']],
+ ['牙周手術',['CLP牙冠增長術','FGG角化牙齦移植','CTG結締組織移植','GTR引導組織再生術']],
+ ['矯正',['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','矯正器升級','Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正','活動維持器','透明維持器','固定式維持器']],
+ ['兒童牙科',['SSC金屬乳牙套','Strip crown樹酯乳牙套','空間維持器']],
+ ['舒眠麻醉',['舒眠麻醉-基本2hr','舒眠麻醉-追加1hr']],
+];
+// 以「顆」計價的項目：選牙位時數量自動等於顆數
+const PER_TOOTH=new Set(['MTA活髓保存','BPR齒雕','Veneer美學貼片','Post玻璃纖維釘','Temp臨時假牙','Crown全瓷-前牙','Crown全瓷-後牙','Crown氧化鋯-前牙','Crown氧化鋯-後牙','馬里蘭牙橋',
+ 'APR齒槽骨保存術','美國Hiossen植體','植牙全鋯冠-前牙','植牙全鋯冠-後牙',
+ '顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補',
+ 'SSC金屬乳牙套','Strip crown樹酯乳牙套']);
+const CUSTOM='__custom__';
+const pk=(cat,name)=>cat+'|'+name;
+
+/* ====== 牙位 ====== */
+const UP=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28].map(String);
+const LO=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38].map(String);
+const UPP=[55,54,53,52,51,61,62,63,64,65].map(String);
+const LOP=[85,84,83,82,81,71,72,73,74,75].map(String);
+const REGIONS=['全口','上顎','下顎','右上','左上','左下','右下'];
+const T_ORDER=[...REGIONS,...[1,2,3,4].flatMap(q=>[1,2,3,4,5,6,7,8].map(n=>`${q}${n}`)),...[5,6,7,8].flatMap(q=>[1,2,3,4,5].map(n=>`${q}${n}`))];
+const sortTeeth=a=>[...a].sort((x,y)=>T_ORDER.indexOf(x)-T_ORDER.indexOf(y));
+
+/* ====== IndexedDB ====== */
+const DB={
+  db:null,
+  open(){return new Promise((res,rej)=>{const r=indexedDB.open('xinhai-treatment-plan',1);
+    r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('plans',{keyPath:'id'});d.createObjectStore('kv')};
+    r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>rej(r.error)})},
+  tx(store,mode,fn){return new Promise((res,rej)=>{const t=this.db.transaction(store,mode);const s=t.objectStore(store);const out=fn(s);t.oncomplete=()=>res(out&&out.result);t.onerror=()=>rej(t.error)})},
+  all(){return this.tx('plans','readonly',s=>s.getAll())},
+  put(p){return this.tx('plans','readwrite',s=>s.put(p))},
+  del(id){return this.tx('plans','readwrite',s=>s.delete(id))},
+  get(k){return this.tx('kv','readonly',s=>s.get(k))},
+  set(k,v){return this.tx('kv','readwrite',s=>s.put(v,k))},
+};
+
+/* ====== 狀態 ====== */
+let plans=new Map();
+let settings={prices:{},doctors:[],assistants:[]};
+let curId=null;
+const uid=()=>(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>(Number(n)||0).toLocaleString('zh-TW');
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+const nowLocal=()=>{const d=new Date();return `${today()}T${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const fmtDT=s=>s?s.replace('T',' '):'';
+const numOrNull=v=>v===''||v==null?null:Math.max(0,Math.round(Number(v)||0));
+const cur=()=>plans.get(curId);
+
+function calc(p){
+  const orig=p.items.reduce((a,i)=>a+(i.orig||0),0);
+  const chg=p.items.reduce((a,i)=>a+(i.chg==null?(i.orig||0):i.chg),0);
+  const paid=p.payments.reduce((a,x)=>a+(x.amount||0),0);
+  const rcpt=p.receipts.reduce((a,x)=>a+(x.amount||0),0);
+  return {orig,chg,paid,due:chg-paid,rcpt};
+}
+const STATUS={open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
+
+/* ====== 儲存 ====== */
+let saveT=null;
+function touch(){const p=cur();if(!p)return;p.updatedAt=Date.now();const ind=$('#saveInd');if(ind)ind.textContent='儲存中…';
+  clearTimeout(saveT);saveT=setTimeout(async()=>{await DB.put(p);const i=$('#saveInd');if(i)i.textContent='已自動儲存 '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});renderList()},350)}
+async function saveNow(p){clearTimeout(saveT);p.updatedAt=Date.now();await DB.put(p)}
+async function saveSettings(){await DB.set('settings',settings)}
+
+/* ====== 列表 ====== */
+function renderList(){
+  const q=$('#search').value.trim().toLowerCase(),sf=$('#statusFilter').value;
+  const arr=[...plans.values()].filter(p=>(!sf||p.status===sf)&&(!q||[p.name,p.chartNo,p.no].some(v=>String(v||'').toLowerCase().includes(q))))
+    .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')||b.updatedAt-a.updatedAt);
+  $('#planList').innerHTML=arr.length?arr.map(p=>{const c=calc(p);return `<button class="plan-item ${p.id===curId?'on':''}" data-open="${p.id}">
+    <div class="t"><span>${esc(p.name||'（未填姓名）')}</span><span class="chip ${p.status}">${p.status==='open'?'進行中':p.status==='paid'?'已收訖':'計畫變更'}</span></div>
+    <div class="s"><span>${esc(p.chartNo||'—')}・${esc((p.createdAt||'').slice(0,10))}</span><span>$${money(c.chg)}${c.due>0&&p.status==='open'?` ・未繳 ${money(c.due)}`:''}</span></div>
+  </button>`}).join(''):'<div class="empty" style="padding:30px 10px">沒有符合的計劃單</div>';
+}
+$('#planList').addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b)openPlan(b.dataset.open)});
+$('#search').addEventListener('input',renderList);
+$('#statusFilter').addEventListener('change',renderList);
+
+function nextNo(){const d=today().replace(/-/g,'');const n=[...plans.values()].filter(p=>(p.no||'').startsWith('TP'+d)).length+1;return `TP${d}-${pad(n)}`}
+function blankPlan(){return {id:uid(),no:nextNo(),name:'',birthday:'',chartNo:'',doctor:'',assistant:'',createdAt:nowLocal(),
+  items:[newItem()],consent:{sig:null,at:''},payments:[],receipts:[],status:'open',closedAt:null,prevId:null,nextId:null,updatedAt:Date.now()}}
+function newItem(){return {id:uid(),cat:'',name:'',custom:false,teeth:[],bridges:[],qty:1,qtyManual:false,orig:0,chg:null}}
+
+$('#newBtn').addEventListener('click',async()=>{const p=blankPlan();plans.set(p.id,p);await saveNow(p);openPlan(p.id);setTimeout(()=>{const n=document.querySelector('[data-f="name"]');n&&n.focus()},50)});
+
+function openPlan(id){curId=id;renderList();renderEditor();if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
+
+/* ====== 編輯畫面 ====== */
+function itemOptions(it){
+  let h=`<option value="">— 選擇治療項目 —</option>`;
+  for(const [cat,list] of CATS){h+=`<optgroup label="${cat}">`+list.map(n=>`<option value="${esc(pk(cat,n))}" ${!it.custom&&it.cat===cat&&it.name===n?'selected':''}>${esc(n)}</option>`).join('')+`</optgroup>`}
+  h+=`<optgroup label="其他"><option value="${CUSTOM}" ${it.custom?'selected':''}>自訂項目…</option></optgroup>`;
+  return h;
+}
+function datalists(){
+  const dl=(id,arr)=>`<datalist id="${id}">${arr.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
+  return dl('dlDoc',settings.doctors)+dl('dlAsst',settings.assistants);
+}
+function renderEditor(){
+  const p=cur();const m=$('#main');
+  if(!p){m.innerHTML='<div class="empty">從左側選一張治療計劃單，或按「新增治療計劃單」。</div>';return}
+  const L=p.status!=='open';const dis=L?'disabled':'';const c=calc(p);
+  const prev=p.prevId&&plans.get(p.prevId),next=p.nextId&&plans.get(p.nextId);
+  m.innerHTML=`<div class="sheet">
+  ${datalists()}
+  <div class="print-only" style="text-align:center"><h2 style="margin:0">新海美學牙醫診所　治療計劃單</h2></div>
+  <div class="topbar">
+    <span class="title no-print">治療計劃單</span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${p.status}">${STATUS[p.status]}</span>
+    <span class="sp"></span><span class="save-ind no-print" id="saveInd"></span>
+    <button class="no-print" data-act="print">🖨 列印</button>
+    ${L?'':'<button class="no-print btn-danger" data-act="delete">刪除此單</button>'}
+  </div>
+  ${prev?`<div class="banner changed no-print">此單由 <button class="link" data-open-plan="${prev.id}">${esc(prev.no)}</button>（計畫變更）延續而來。</div>`:''}
+  ${p.status==='paid'?`<div class="banner paid">✔ 已結單－費用收訖（${esc(fmtDT(p.closedAt))}）<span class="sp"></span><button class="btn-sm no-print" data-act="reopen">取消結單</button></div>`:''}
+  ${p.status==='changed'?`<div class="banner changed">已結單－計畫變更（${esc(fmtDT(p.closedAt))}）${next?`，新計劃單：<button class="link" data-open-plan="${next.id}">${esc(next.no)}</button>`:''}<span class="sp"></span>${next?'':'<button class="btn-sm no-print" data-act="reopen">取消結單</button>'}</div>`:''}
+
+  <section class="card">
+    <h2>病患資料</h2>
+    <div class="grid-f">
+      <label>姓名<input data-f="name" value="${esc(p.name)}" ${dis}></label>
+      <label>生日<input type="date" data-f="birthday" value="${esc(p.birthday)}" ${dis}></label>
+      <label>病歷號<input data-f="chartNo" value="${esc(p.chartNo)}" ${dis}></label>
+      <label>主治醫師<input data-f="doctor" list="dlDoc" value="${esc(p.doctor)}" ${dis}></label>
+      <label>責任助理<input data-f="assistant" list="dlAsst" value="${esc(p.assistant)}" ${dis}></label>
+      <label>單據開立時間<input type="datetime-local" data-f="createdAt" value="${esc(p.createdAt)}" ${dis}></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>治療項目<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addItem">＋ 新增項目</button>'}</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:34px">#</th><th style="min-width:230px">治療種類／項目</th><th style="min-width:150px">牙位</th><th class="num" style="width:76px">數量</th><th class="num" style="width:120px">原始金額</th><th class="num" style="width:120px">變更金額</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
+      <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
+        <td>${i+1}</td>
+        <td>${it.cat&&!it.custom?`<span class="cat-tag">${esc(it.cat)}</span>`:''}
+          <select data-k="pick" ${dis}>${itemOptions(it)}</select>
+          ${it.custom?`<input data-k="name" placeholder="自訂項目名稱" value="${esc(it.name)}" style="margin-top:4px" ${dis}>`:''}</td>
+        <td><button class="teeth-btn ${it.teeth.length?'':'emp'}" data-k="teeth" ${dis}>${it.teeth.length?esc(teethLabel(it)):'點選牙位'}</button></td>
+        <td><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${dis}></td>
+        <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${dis}></td>
+        <td><input class="num ${it.chg!=null&&it.chg!==it.orig?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.chg??''}" placeholder="同原始" ${dis}></td>
+        ${L?'':`<td class="no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
+      </tr>`).join('')||`<tr><td colspan="7" class="hint">尚無項目</td></tr>`}</tbody>
+    </table></div>
+    <div class="totals">
+      <div><small>總金額</small><b id="tOrig">$${money(c.orig)}</b></div>
+      <div class="hl"><small>變更後總金額</small><b id="tChg">$${money(c.chg)}</b></div>
+    </div>
+    <div class="hint no-print">選項目會依價目表帶入原始金額（單價 × 數量），可直接修改；「變更金額」留空表示與原始金額相同。</div>
+  </section>
+
+  <section class="card">
+    <h2>患者同意治療計畫</h2>
+    <p class="consent">本人已詳閱並了解上述治療計畫之內容、牙位與費用，經醫師說明後同意接受治療。</p>
+    <div class="grid-f" style="align-items:end">
+      <div><div class="hint">患者（或法定代理人）簽名</div>
+        <div class="sigbox" data-act="consentSig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:(L?'未簽名':'點此簽名')}</div></div>
+      <label style="max-width:240px">簽名時間<input type="datetime-local" data-f="consentAt" value="${esc(p.consent.at)}" ${dis}></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>繳費紀錄<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addPay">＋ 新增繳費</button>'}</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:150px">日期</th><th class="num" style="width:120px">金額</th><th>備註</th><th style="width:130px">患者簽名</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
+      <tbody>${p.payments.map(x=>`<tr data-list="payments" data-id="${x.id}">
+        <td><input type="date" data-k="date" value="${esc(x.date)}" ${dis||x.transfer?'disabled':''}></td>
+        <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" ${dis||x.transfer?'disabled':''}></td>
+        <td><input data-k="note" value="${esc(x.note)}" ${dis}></td>
+        <td>${x.transfer?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`)}</td>
+        ${L?'':`<td class="no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
+      </tr>`).join('')||`<tr><td colspan="5" class="hint">尚無繳費紀錄</td></tr>`}</tbody>
+    </table></div>
+    <div class="totals">
+      <div><small>變更後總金額</small><b id="tChg2">$${money(c.chg)}</b></div>
+      <div><small>已繳合計</small><b id="tPaid">$${money(c.paid)}</b></div>
+      <div class="due"><small>未繳餘額</small><b id="tDue">$${money(c.due)}</b></div>
+    </div>
+  </section>
+
+  ${L?'':`<div class="close-bar no-print">
+    <button class="btn-ok" data-act="closePaid">結單－費用收訖</button>
+    <button class="btn-chg" data-act="closeChanged">結單－計畫變更</button>
+  </div>`}
+
+  <section class="card">
+    <h2>收據開立紀錄<span class="sp"></span><button class="btn-sm no-print" data-act="addRcpt">＋ 新增收據紀錄</button></h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th style="width:150px">開立日期</th><th class="num" style="width:130px">本次開立收據金額</th><th style="width:100px">患者已領收據</th><th>備註</th><th style="min-width:170px">照相紀錄</th><th style="width:130px">患者簽名</th><th class="no-print" style="width:36px"></th></tr></thead>
+      <tbody>${p.receipts.map(r=>`<tr data-list="receipts" data-id="${r.id}">
+        <td><input type="date" data-k="date" value="${esc(r.date)}"></td>
+        <td><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="amount" value="${r.amount||''}"></td>
+        <td style="text-align:center"><input type="checkbox" data-k="taken" ${r.taken?'checked':''} style="width:20px;height:20px"></td>
+        <td><input data-k="note" value="${esc(r.note)}"></td>
+        <td><div class="thumbs">${r.photos.map((ph,i)=>`<img src="${ph}" data-k="photo" data-i="${i}" alt="收據照片">`).join('')}<span class="add-photo" data-k="addPhoto" title="拍照／上傳">＋</span></div></td>
+        <td>${r.sig?`<img class="sig-mini" src="${r.sig}" data-k="sig" alt="簽名">`:`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`}</td>
+        <td class="no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>
+      </tr>`).join('')||`<tr><td colspan="7" class="hint">尚無收據紀錄</td></tr>`}</tbody>
+    </table></div>
+    <div class="totals">
+      <div><small>已繳合計</small><b id="tPaid2">$${money(c.paid)}</b></div>
+      <div><small>收據累計開立</small><b id="tRcpt">$${money(c.rcpt)}</b></div>
+      <div class="due"><small>尚未開立收據</small><b id="tRcptDue">$${money(c.paid-c.rcpt)}</b></div>
+    </div>
+  </section>
+  </div>`;
+}
+function refreshTotals(){
+  const p=cur(),c=calc(p),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent='$'+money(v)};
+  set('tOrig',c.orig);set('tChg',c.chg);set('tChg2',c.chg);set('tPaid',c.paid);set('tDue',c.due);set('tPaid2',c.paid);set('tRcpt',c.rcpt);set('tRcptDue',c.paid-c.rcpt);
+}
+const rowOf=(p,el)=>{const tr=el.closest('[data-list]');if(!tr)return null;const list=p[tr.dataset.list];return {tr,list,row:list.find(r=>r.id===tr.dataset.id),name:tr.dataset.list}};
+const priceOf=it=>it.custom?0:(settings.prices[pk(it.cat,it.name)]||0);
+
+/* 輸入 */
+$('#main').addEventListener('input',e=>{
+  const p=cur();if(!p)return;const t=e.target;
+  if(t.dataset.f){
+    if(t.dataset.f==='consentAt')p.consent.at=t.value;else p[t.dataset.f]=t.value;
+    touch();if(['name','chartNo','createdAt'].includes(t.dataset.f))renderList();return;
+  }
+  const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,it=r.row;
+  if(r.name==='items'){
+    if(k==='name')it.name=t.value;
+    else if(k==='qty'){it.qty=Math.max(1,Math.round(Number(t.value)||1));it.qtyManual=true;const pr=priceOf(it);if(pr){it.orig=pr*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig}}
+    else if(k==='orig')it.orig=numOrNull(t.value)||0;
+    else if(k==='chg'){it.chg=numOrNull(t.value);t.classList.toggle('changed-amt',it.chg!=null&&it.chg!==it.orig)}
+  }else if(k==='amount')it.amount=numOrNull(t.value)||0;
+  else if(k==='taken')it.taken=t.checked;
+  else if(k in it||['date','note'].includes(k))it[k]=t.value;
+  refreshTotals();touch();
+});
+$('#main').addEventListener('change',e=>{
+  const p=cur();if(!p)return;const t=e.target;
+  if(t.dataset.k==='pick'){const r=rowOf(p,t);const it=r.row;
+    if(t.value===CUSTOM){it.custom=true;it.cat='其他';it.name='';}
+    else if(t.value){const [cat,name]=t.value.split('|');it.custom=false;it.cat=cat;it.name=name;
+      if(PER_TOOTH.has(name)&&!it.qtyManual&&it.teeth.length)it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;}
+    else{it.custom=false;it.cat='';it.name=''}
+    const pr=priceOf(it);if(pr)it.orig=pr*it.qty;
+    touch();renderEditor();
+    if(it.custom){const i=document.querySelector(`[data-id="${it.id}"] [data-k="name"]`);i&&i.focus()}
+  }
+});
+
+/* 點擊 */
+$('#main').addEventListener('click',async e=>{
+  const p=cur();if(!p)return;
+  const op=e.target.closest('[data-open-plan]');if(op){openPlan(op.dataset.openPlan);return}
+  const a=e.target.closest('[data-act]');
+  if(a){const act=a.dataset.act,L=p.status!=='open';
+    if(act==='print')window.print();
+    else if(act==='addItem'){p.items.push(newItem());touch();renderEditor()}
+    else if(act==='addPay'){p.payments.push({id:uid(),date:today(),amount:Math.max(0,calc(p).due),note:'',sig:null});touch();renderEditor()}
+    else if(act==='addRcpt'){const c=calc(p);p.receipts.push({id:uid(),date:today(),amount:Math.max(0,c.paid-c.rcpt),taken:false,note:'',photos:[]});touch();renderEditor()}
+    else if(act==='consentSig'){if(L)return;const s=await openSig('患者同意治療計畫簽名',p.consent.sig);if(s!==undefined){p.consent.sig=s;if(s&&!p.consent.at)p.consent.at=nowLocal();touch();renderEditor()}}
+    else if(act==='delete'){if(!confirm(`確定刪除治療計劃單 ${p.no}（${p.name||'未填姓名'}）？此動作無法復原。`))return;
+      if(p.prevId&&plans.get(p.prevId)){const pv=plans.get(p.prevId);pv.nextId=null;await saveNow(pv)}
+      plans.delete(p.id);await DB.del(p.id);curId=null;renderList();renderEditor()}
+    else if(act==='closePaid')closePaid(p);
+    else if(act==='closeChanged')closeChanged(p);
+    else if(act==='reopen'){if(!confirm('確定取消結單？此單會回到「進行中」並可再編輯。'))return;p.status='open';p.closedAt=null;await saveNow(p);renderList();renderEditor()}
+    return;
+  }
+  const t=e.target.closest('[data-k]');if(!t)return;const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,L=p.status!=='open';
+  if(k==='del'){
+    if(r.name==='payments'&&r.row.sig&&!confirm('這筆繳費已有患者簽名，確定刪除？'))return;
+    if(r.name==='receipts'&&(r.row.photos.length||r.row.amount||r.row.sig)&&!confirm('確定刪除這筆收據紀錄（含照片）？'))return;
+    r.list.splice(r.list.indexOf(r.row),1);touch();renderEditor();
+  }else if(k==='teeth'){if(L)return;const it=r.row;const out=await openTeeth(it.teeth,it.bridges);if(out){const res=out.teeth;it.teeth=res;it.bridges=out.bridges;
+      if(PER_TOOTH.has(it.name)&&!it.qtyManual){it.qty=res.filter(x=>!REGIONS.includes(x)).length||1;const pr=priceOf(it);if(pr)it.orig=pr*it.qty}
+      touch();renderEditor()}}
+  else if(k==='sig'){const lock=L&&r.name==='payments';if(lock&&!r.row.sig)return;
+    if(lock){showImage(r.row.sig,'患者簽名');return}
+    const s=await openSig(`${r.name==='receipts'?'領取收據簽名':'繳費簽名'}：${r.row.date}　$${money(r.row.amount)}`,r.row.sig);if(s!==undefined){r.row.sig=s;if(s&&r.name==='receipts')r.row.taken=true;touch();renderEditor()}}
+  else if(k==='addPhoto'){pickPhotos(r.row)}
+  else if(k==='photo'){const i=+t.dataset.i;const del=await showImage(r.row.photos[i],`收據照片（${r.row.date}）`,true);if(del){r.row.photos.splice(i,1);touch();renderEditor()}}
+});
+
+/* 結單 */
+async function closePaid(p){
+  const c=calc(p);const warn=[];
+  if(!p.items.some(i=>i.name))warn.push('・尚未填任何治療項目');
+  if(!p.consent.sig)warn.push('・患者尚未簽署同意治療計畫');
+  const uns=p.payments.filter(x=>!x.transfer&&!x.sig).length;if(uns)warn.push(`・有 ${uns} 筆繳費尚未簽名`);
+  if(c.due>0)warn.push(`・尚有未繳餘額 $${money(c.due)}`);
+  if(c.due<0)warn.push(`・已繳金額超過變更後總金額 $${money(-c.due)}`);
+  if(!confirm(`結單－費用收訖\n\n變更後總金額 $${money(c.chg)}\n已繳合計 $${money(c.paid)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n結單後治療項目與繳費紀錄將鎖定（收據紀錄仍可新增）。確定結單？`))return;
+  p.status='paid';p.closedAt=nowLocal();await saveNow(p);renderList();renderEditor();
+}
+async function closeChanged(p){
+  const c=calc(p);
+  if(!confirm(`結單－計畫變更\n\n此單將結單並鎖定，同時建立一張新的治療計劃單（帶入病患資料與目前的治療項目）。\n此單已繳 $${money(c.paid)} 會以「前單轉入」列入新單的繳費紀錄。\n\n確定？`))return;
+  const n=blankPlan();
+  Object.assign(n,{name:p.name,birthday:p.birthday,chartNo:p.chartNo,doctor:p.doctor,assistant:p.assistant,prevId:p.id,
+    items:p.items.map(i=>({...i,id:uid(),teeth:[...i.teeth],bridges:(i.bridges||[]).map(b=>[...b])}))});
+  if(c.paid)n.payments.push({id:uid(),date:today(),amount:c.paid,note:`前單轉入（由 ${p.no} 轉入）`,sig:null,transfer:true});
+  p.status='changed';p.closedAt=nowLocal();p.nextId=n.id;
+  plans.set(n.id,n);await saveNow(p);await saveNow(n);openPlan(n.id);
+}
+
+/* ====== Modal ====== */
+function modal(html,onMount){
+  return new Promise(res=>{const bg=document.createElement('div');bg.className='modal-bg';bg.innerHTML=`<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
+    document.body.appendChild(bg);const close=v=>{bg.remove();document.removeEventListener('keydown',kd);res(v)};
+    const kd=e=>{if(e.key==='Escape')close(undefined)};document.addEventListener('keydown',kd);
+    bg.addEventListener('mousedown',e=>{if(e.target===bg)close(undefined)});
+    onMount(bg.firstElementChild,close)});
+}
+
+/* 簽名板：回傳 dataURL、null（清除）或 undefined（取消） */
+function openSig(title,existing){
+  return modal(`<h3>${esc(title)}</h3><canvas class="sigpad"></canvas>
+    <div class="hint" style="margin-top:6px">請以手指、觸控筆或滑鼠在框內簽名。</div>
+    <div class="acts">${existing?'<button class="btn-danger" data-x="remove">刪除簽名</button>':''}<span class="sp"></span><button data-x="clear">清除重簽</button><button data-x="cancel">取消</button><button class="btn-primary" data-x="ok">確認簽名</button></div>`,
+  (box,close)=>{
+    const cv=box.querySelector('canvas');const ctx=cv.getContext('2d');let drawn=false,down=false,last=null;
+    const fit=()=>{const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1;cv.width=r.width*d;cv.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);ctx.lineWidth=2.6;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111'};
+    requestAnimationFrame(fit);
+    const pos=e=>{const r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top]};
+    cv.addEventListener('pointerdown',e=>{down=true;last=pos(e);try{cv.setPointerCapture(e.pointerId)}catch(_){}ctx.beginPath();ctx.arc(last[0],last[1],1.2,0,7);ctx.fillStyle='#111';ctx.fill();drawn=true});
+    cv.addEventListener('pointermove',e=>{if(!down)return;let pts=e.getCoalescedEvents?e.getCoalescedEvents():[];if(!pts.length)pts=[e];for(const ev of pts){const q=pos(ev);ctx.beginPath();ctx.moveTo(last[0],last[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();last=q}drawn=true});
+    const up=()=>{down=false};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+    box.addEventListener('click',e=>{const x=e.target.dataset.x;if(!x)return;
+      if(x==='clear'){ctx.clearRect(0,0,cv.width,cv.height);drawn=false}
+      else if(x==='cancel')close(undefined);
+      else if(x==='remove'){if(confirm('確定刪除此簽名？'))close(null)}
+      else if(x==='ok'){if(!drawn){alert('請先簽名');return}close(trimCanvas(cv))}});
+  });
+}
+function trimCanvas(cv){
+  const ctx=cv.getContext('2d'),{width:w,height:h}=cv,d=ctx.getImageData(0,0,w,h).data;let x0=w,y0=h,x1=0,y1=0;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(d[(y*w+x)*4+3]){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  const m=10;x0=Math.max(0,x0-m);y0=Math.max(0,y0-m);x1=Math.min(w,x1+m);y1=Math.min(h,y1+m);
+  const sc=Math.min(1,500/(x1-x0));const o=document.createElement('canvas');o.width=Math.round((x1-x0)*sc);o.height=Math.round((y1-y0)*sc);
+  o.getContext('2d').drawImage(cv,x0,y0,x1-x0,y1-y0,0,0,o.width,o.height);return o.toDataURL('image/png');
+}
+
+/* 牙位選擇 */
+function openTeeth(current,curBridges){
+  const sel=new Set(current);let bridges=(curBridges||[]).map(b=>[...b]);let bMode=false,anchor=null;
+  const btn=(t,prim)=>`<button class="tooth ${prim?'prim':''}" data-t="${t}">${t}</button>`;
+  const row=(arr,prim)=>`<div class="tooth-row">${arr.map((t,i)=>btn(t,prim)+(i===arr.length/2-1?'<span class="gap"></span>':'')).join('')}</div>`;
+  return modal(`<h3>選擇牙位</h3>
+    <div class="regions">${REGIONS.map(r=>`<button class="btn-sm tooth-r ${sel.has(r)?'on tooth':''}" data-t="${r}" style="${sel.has(r)?'width:auto;height:auto;padding:3px 10px':''}">${r}</button>`).join('')}</div>
+    <div class="tooth-sec">恆牙（病患右側在左）</div>
+    <div class="tooth-grid">${row(UP)}<div class="midline"></div>${row(LO)}</div>
+    <div class="tooth-sec">乳牙</div>
+    <div class="tooth-grid">${row(UPP,1)}<div class="midline"></div>${row(LOP,1)}</div>
+    <div class="bridge-hint" id="bridgeHint"></div>
+    <div class="acts"><button data-q="bridge" class="bridge-btn">牙橋</button><button data-q="up">上排恆牙全選</button><button data-q="lo">下排恆牙全選</button><button data-q="clr">清除</button><span class="sp"></span><button data-x="cancel">取消</button><button class="btn-primary" data-x="ok">確定</button></div>`,
+  (box,close)=>{
+    const inBridge=t=>bridges.find(b=>bridgeTeeth(b).includes(t));
+    const sync=()=>{
+      box.querySelectorAll('[data-t]').forEach(b=>{const t=b.dataset.t,on=sel.has(t);b.classList.toggle('on',on);b.classList.toggle('br',!!inBridge(t));b.classList.toggle('anchor',t===anchor);
+        if(b.classList.contains('tooth-r')){b.classList.toggle('tooth',on);b.style.cssText=on?'width:auto;height:auto;padding:3px 10px':''}});
+      box.querySelector('[data-q="bridge"]').classList.toggle('on',bMode);
+      box.querySelector('#bridgeHint').textContent=bMode?(anchor?`牙橋起點 ${anchor}，請點選終點牙（同一排）`:'牙橋：請點選起點牙'):(bridges.length?'牙橋：'+bridges.map(bridgeLabel).join('、')+'（點牙橋上的牙可取消該牙橋）':'');
+    };
+    sync();
+    box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const t=b.dataset.t;
+      if(t&&bMode&&!REGIONS.includes(t)){
+        if(!anchor)anchor=t;
+        else if(t===anchor)anchor=null;
+        else if(rowOfTooth(t)!==rowOfTooth(anchor)){alert('牙橋的起點和終點要在同一排');return}
+        else{const nb=normBridge([anchor,t]),range=bridgeTeeth(nb);
+          bridges=bridges.filter(x=>!bridgeTeeth(x).some(y=>range.includes(y)));bridges.push(nb);range.forEach(y=>sel.add(y));anchor=null;bMode=false}
+        sync();
+      }
+      else if(t){const br=inBridge(t);
+        if(br){bridges=bridges.filter(x=>x!==br);bridgeTeeth(br).forEach(y=>sel.delete(y))}
+        else sel.has(t)?sel.delete(t):sel.add(t);sync()}
+      else if(b.dataset.q==='bridge'){bMode=!bMode;anchor=null;sync()}
+      else if(b.dataset.q){const q=b.dataset.q;if(q==='clr'){sel.clear();bridges=[]}else{const arr=q==='up'?UP:LO;const all=arr.every(t=>sel.has(t));arr.forEach(t=>all?sel.delete(t):sel.add(t));if(all)bridges=bridges.filter(x=>rowOfTooth(x[0])!==arr)}bMode=false;anchor=null;sync()}
+      else if(b.dataset.x==='cancel')close(null);else if(b.dataset.x==='ok')close({teeth:sortTeeth([...sel]),bridges});});
+  });
+}
+const rowOfTooth=t=>[UP,LO,UPP,LOP].find(r=>r.includes(t));
+const normBridge=([a,b])=>{const r=rowOfTooth(a);return r.indexOf(a)<=r.indexOf(b)?[a,b]:[b,a]};
+const bridgeTeeth=([a,b])=>{const r=rowOfTooth(a);if(!r)return[];return r.slice(r.indexOf(a),r.indexOf(b)+1)};
+const bridgeLabel=b=>`${b[0]}-${b[1]}`;
+function teethLabel(it){
+  const br=it.bridges||[],inB=new Set(br.flatMap(bridgeTeeth));
+  return [...br.map(b=>'牙橋 '+bridgeLabel(b)),...sortTeeth(it.teeth.filter(t=>!inB.has(t)))].join(', ');
+}
+
+/* 照片 */
+let photoTarget=null;
+function pickPhotos(row){photoTarget=row;$('#photoInput').value='';$('#photoInput').click()}
+$('#photoInput').addEventListener('change',async e=>{
+  const row=photoTarget;if(!row)return;
+  for(const f of e.target.files){try{row.photos.push(await shrink(f))}catch(err){alert('無法讀取照片：'+f.name)}}
+  touch();renderEditor();
+});
+function shrink(file,max=1600,q=.78){
+  return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const img=new Image();
+    img.onload=()=>{const s=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+      const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',q))};
+    img.onerror=()=>{URL.revokeObjectURL(url);rej()};img.src=url});
+}
+function showImage(src,title,canDelete){
+  return modal(`<h3>${esc(title)}</h3><div class="photo-view"><img src="${src}" alt=""></div>
+    <div class="acts">${canDelete?'<button class="btn-danger" data-x="del">刪除照片</button>':''}<span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
+  (box,close)=>box.addEventListener('click',e=>{const x=e.target.dataset.x;if(x==='close')close(false);if(x==='del'&&confirm('確定刪除這張照片？'))close(true)}));
+}
+
+/* ====== 設定：價目表／人員／備份 ====== */
+$('#settingsBtn').addEventListener('click',()=>openSettings('price'));
+function openSettings(tab){
+  const P=settings.prices;
+  modal(`<h3>設定</h3>
+    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button><button data-tab="backup">資料備份</button></div>
+    <div data-pane="price">
+      <div class="hint">輸入每個項目的單價（新台幣）。開單選項目時自動帶入「單價 × 數量」為原始金額；已開立的計劃單不受影響。</div>
+      ${CATS.map(([cat,list])=>`<div class="price-cat">${cat}</div>`+list.map(n=>`<div class="price-row"><span>${esc(n)}${PER_TOOTH.has(n)?' <span class="hint">／顆</span>':''}</span><input class="num" type="number" min="0" step="1" inputmode="numeric" data-price="${esc(pk(cat,n))}" value="${P[pk(cat,n)]||''}" placeholder="0" style="text-align:right"></div>`).join('')).join('')}
+    </div>
+    <div data-pane="staff">
+      <div class="grid-f">
+        <label>主治醫師（一行一位）<textarea rows="10" data-list-set="doctors">${esc(settings.doctors.join('\n'))}</textarea></label>
+        <label>責任助理（一行一位）<textarea rows="10" data-list-set="assistants">${esc(settings.assistants.join('\n'))}</textarea></label>
+      </div>
+      <div class="hint" style="margin-top:6px">輸入欄位時會出現這些名字供選擇，也可以直接打字。</div>
+    </div>
+    <div data-pane="backup">
+      <p class="hint">資料存在這台電腦的瀏覽器裡（IndexedDB）。清除瀏覽器資料、換電腦或換瀏覽器都看不到，請定期匯出備份檔並另存（例如隨身碟或雲端硬碟）。</p>
+      <p>目前共 <b>${plans.size}</b> 張治療計劃單。</p>
+      <div class="acts" style="justify-content:flex-start"><button class="btn-primary" data-x="export">匯出備份（.json）</button><button data-x="import">從備份檔匯入</button></div>
+    </div>
+    <div class="acts"><span class="sp"></span><button class="btn-primary" data-x="close">完成</button></div>`,
+  (box,close)=>{
+    const show=t=>{box.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==t);box.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===t))};show(tab);
+    box.addEventListener('input',e=>{const t=e.target;
+      if(t.dataset.price){const v=numOrNull(t.value);if(v)P[t.dataset.price]=v;else delete P[t.dataset.price];saveSettings()}
+      if(t.dataset.listSet){settings[t.dataset.listSet]=t.value.split('\n').map(s=>s.trim()).filter(Boolean);saveSettings()}});
+    box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+      if(b.dataset.tab)show(b.dataset.tab);
+      if(b.dataset.x==='close'){close();renderEditor()}
+      if(b.dataset.x==='export')exportBackup();
+      if(b.dataset.x==='import'){$('#importInput').value='';$('#importInput').click()}});
+  });
+}
+function exportBackup(){
+  const data={app:'xinhai-treatment-plan',version:1,exportedAt:new Date().toISOString(),settings,plans:[...plans.values()]};
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));
+  a.download=`治療計劃單備份_${today()}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+$('#importInput').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{const d=JSON.parse(await f.text());if(d.app!=='xinhai-treatment-plan'||!Array.isArray(d.plans))throw 0;
+    const dup=d.plans.filter(p=>plans.has(p.id)).length;
+    if(!confirm(`備份檔含 ${d.plans.length} 張計劃單（其中 ${dup} 張與現有資料相同編號，將以備份檔覆蓋）。\n價目表與人員名單也會以備份檔取代。\n確定匯入？`))return;
+    for(const p of d.plans){plans.set(p.id,p);await DB.put(p)}
+    if(d.settings){settings={...settings,...d.settings};await saveSettings()}
+    alert('匯入完成');document.querySelector('.modal-bg')?.remove();renderList();renderEditor();
+  }catch(err){alert('這不是有效的治療計劃單備份檔')}
+});
+
+/* ====== 啟動 ====== */
+(async()=>{
+  try{await DB.open()}catch(e){$('#main').innerHTML='<div class="empty">此瀏覽器無法使用本機資料庫（可能是無痕模式），資料將無法保存。</div>';return}
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  const s=await DB.get('settings');if(s)settings={...settings,...s};
+  (await DB.all()).forEach(p=>plans.set(p.id,p));
+  renderList();
+})();
+</script>
+</body>
+</html>
