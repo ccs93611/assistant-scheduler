@@ -464,7 +464,7 @@ $('#main').addEventListener('click',async e=>{
     if(r.name==='payments'&&r.row.sig&&!confirm('這筆繳費已有患者簽名，確定刪除？'))return;
     if(r.name==='receipts'&&(r.row.photos.length||r.row.amount||r.row.sig)&&!confirm('確定刪除這筆收據紀錄（含照片）？'))return;
     r.list.splice(r.list.indexOf(r.row),1);touch();renderEditor();
-  }else if(k==='teeth'){if(L)return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it));if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
+  }else if(k==='teeth'){if(L)return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it),it.bridgeGroups);if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
   else if(k==='sig'){const lock=L&&r.name==='payments';if(lock&&!r.row.sig)return;
     if(lock){showImage(r.row.sig,'患者簽名');return}
     const s=await openSig(`${r.name==='receipts'?'領取收據簽名':'繳費簽名'}：${r.row.date}　$${money(r.row.amount)}`,r.row.sig);if(s!==undefined){r.row.sig=s;if(s&&r.name==='receipts')r.row.taken=true;touch();renderEditor()}}
@@ -488,7 +488,7 @@ async function closeChanged(p){
   if(!confirm(`結單－計畫變更\n\n此單將結單並鎖定，同時建立一張新的治療計劃單（帶入病患資料與目前的治療項目）。\n此單已繳 $${money(c.paid)} 會以「前單轉入」列入新單的繳費紀錄。\n\n確定？`))return;
   const n=blankPlan();
   Object.assign(n,{name:p.name,birthday:p.birthday,chartNo:p.chartNo,doctor:p.doctor,assistant:p.assistant,prevId:p.id,
-    items:p.items.map(i=>({...i,id:uid(),teeth:[...i.teeth],pontics:[...(i.pontics||[])],bridgeTeeth:[...bridgeTeethOf(i)]}))});
+    items:p.items.map(i=>({...i,id:uid(),teeth:[...i.teeth],pontics:[...(i.pontics||[])],bridgeTeeth:[...bridgeTeethOf(i)],bridgeGroups:(i.bridgeGroups||[]).map(g=>[...g])}))});
   if(c.paid)n.payments.push({id:uid(),date:today(),amount:c.paid,note:`前單轉入（由 ${p.no} 轉入）`,sig:null,transfer:true});
   p.status='changed';p.closedAt=nowLocal();p.nextId=n.id;
   plans.set(n.id,n);await saveNow(p);await saveNow(n);openPlan(n.id);
@@ -532,8 +532,8 @@ function trimCanvas(cv){
 }
 
 /* 牙位選擇 */
-function openTeeth(current,curPontics,curBridgeTeeth){
-  const sel=new Set(current),px=new Set((curPontics||[]).filter(t=>sel.has(t))),bt=new Set((curBridgeTeeth||[]).filter(t=>sel.has(t)));let bMode=false;
+function openTeeth(current,curPontics,curBridgeTeeth,curGroups){
+  const sel=new Set(current),px=new Set((curPontics||[]).filter(t=>sel.has(t))),bt=new Set((curBridgeTeeth||[]).filter(t=>sel.has(t)));let bMode=false,groups=(curGroups||[]).map(g=>[...g]);
   px.forEach(t=>bt.add(t));
   const btn=(t,prim)=>`<button class="tooth ${prim?'prim':''}" data-t="${t}">${t}</button>`;
   const row=(arr,prim)=>`<div class="tooth-row">${arr.map((t,i)=>btn(t,prim)+(i===arr.length/2-1?'<span class="gap"></span>':'')).join('')}</div>`;
@@ -547,7 +547,7 @@ function openTeeth(current,curPontics,curBridgeTeeth){
     <div class="acts"><button data-q="single" class="single-btn">單顆</button><button data-q="bridge" class="bridge-btn">牙橋</button><button data-q="clr">清除</button><span class="sp"></span><button data-x="cancel">取消</button><button class="btn-primary" data-x="ok">確定</button></div>`,
   (box,close)=>{
     const sync=()=>{
-      const brs=calcBridges([...bt],[...px]);
+      groups=calcSegments([...bt],groups);const brs=calcBridges([...bt],[...px],groups);
       box.querySelectorAll('[data-t]').forEach(b=>{const t=b.dataset.t,on=sel.has(t);
         if(b.classList.contains('tooth-r')){b.classList.toggle('on',on);b.classList.toggle('tooth',on);b.style.cssText=on?'width:auto;height:auto;padding:3px 10px':'';return}
         b.classList.toggle('sg',on&&!bt.has(t));b.classList.toggle('br',bt.has(t));b.classList.toggle('x',px.has(t))});
@@ -569,16 +569,29 @@ function openTeeth(current,curPontics,curBridgeTeeth){
       else if(b.dataset.q==='bridge'){bMode=true;sync()}
       else if(b.dataset.q==='single'){bMode=false;sync()}
       else if(b.dataset.q==='clr'){sel.clear();px.clear();bt.clear();sync()}
-      else if(b.dataset.x==='cancel')close(null);else if(b.dataset.x==='ok')close({teeth:sortTeeth([...sel]),pontics:sortTeeth([...px]),bridgeTeeth:sortTeeth([...bt])});});
+      else if(b.dataset.x==='cancel')close(null);else if(b.dataset.x==='ok')close({teeth:sortTeeth([...sel]),pontics:sortTeeth([...px]),bridgeTeeth:sortTeeth([...bt]),bridgeGroups:calcSegments([...bt],groups)});});
   });
 }
-// 只有用「牙橋」選的牙才會相連：同一排相連的牙橋選取牙中只要有 X，就形成一座牙橋
-function calcBridges(bTeeth,pontics){
-  const sel=new Set(bTeeth),px=new Set(pontics||[]),out=[];
-  for(const r of [UP,LO,UPP,LOP]){let run=[];
-    const flush=()=>{if(run.length>1&&run.some(t=>px.has(t)))out.push({from:run[0],to:run[run.length-1],teeth:run,pontics:run.filter(t=>px.has(t))});run=[]};
-    for(const t of r){if(sel.has(t))run.push(t);else flush()}flush()}
+// 只有用「牙橋」選的牙才會相連：同一排相連的牙橋選取牙分成一段，
+// 但原本屬於不同組（groups，例如輸入「14X12, 11X22」）的牙在交界處斷開，新加入的牙併入相鄰那組
+function calcSegments(bTeeth,groups){
+  const sel=new Set(bTeeth),gid=new Map();(groups||[]).forEach((g,i)=>g.forEach(t=>gid.set(t,i)));
+  const out=[];
+  for(const r of [UP,LO,UPP,LOP]){let seg=[],sg=null;
+    const flush=()=>{if(seg.length)out.push(seg);seg=[];sg=null};
+    for(const t of r){
+      if(!sel.has(t)){flush();continue}
+      const g=gid.has(t)?gid.get(t):null;
+      if(seg.length&&g!=null&&sg!=null&&g!==sg)flush();
+      seg.push(t);if(sg==null)sg=g;
+    }flush()}
   return out;
+}
+// 一段裡有 X 且不只一顆，就是一座牙橋
+function calcBridges(bTeeth,pontics,groups){
+  const px=new Set(pontics||[]);
+  return calcSegments(bTeeth,groups).filter(s=>s.length>1&&s.some(t=>px.has(t)))
+    .map(s=>({from:s[0],to:s[s.length-1],teeth:s,pontics:s.filter(t=>px.has(t))}));
 }
 // 舊資料沒有 bridgeTeeth：以當時算出的牙橋為準
 const bridgeTeethOf=it=>it.bridgeTeeth||calcBridges(it.teeth,it.pontics||[]).flatMap(b=>b.teeth);
@@ -586,7 +599,7 @@ const bridgeTeethOf=it=>it.bridgeTeeth||calcBridges(it.teeth,it.pontics||[]).fla
 const bridgeStr=b=>b.teeth.map(t=>b.pontics.includes(t)?'X':t).join('');
 // 牙位文字輸入：例如「14X12X21X23, 46, 17(X), 上顎」
 function parseTeeth(str){
-  const teeth=new Set(),px=new Set(),bt=new Set(),bad=[];
+  const teeth=new Set(),px=new Set(),bt=new Set(),groups=[],bad=[];
   const rowIdx=t=>{for(const r of [UP,LO,UPP,LOP]){const i=r.indexOf(t);if(i>=0)return [r,i]}return null};
   for(const raw of String(str||'').split(/[,，、;；\s]+/)){
     const tok=raw.trim().replace(/ｘ|Ｘ|x|×|✕/g,'X').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/（/g,'(').replace(/）/g,')');
@@ -601,19 +614,19 @@ function parseTeeth(str){
       const dir=known.length>1?Math.sign(known[1][1][1]-x0)||1:1;
       const idx=parts.map((_,i)=>x0+dir*(i-i0));
       if(idx.some(i=>i<0||i>=row.length)||known.some(([i,[,x]])=>idx[i]!==x)){bad.push(raw);continue}
-      parts.forEach((p,i)=>{const t=row[idx[i]];teeth.add(t);bt.add(t);if(p==='X')px.add(t)});
+      const g=[];parts.forEach((p,i)=>{const t=row[idx[i]];teeth.add(t);bt.add(t);g.push(t);if(p==='X')px.add(t)});groups.push(g);
       continue;
     }
     bad.push(raw);
   }
-  return {teeth:sortTeeth([...teeth]),pontics:sortTeeth([...px]),bridgeTeeth:sortTeeth([...bt]),bad};
+  return {teeth:sortTeeth([...teeth]),pontics:sortTeeth([...px]),bridgeTeeth:sortTeeth([...bt]),bridgeGroups:groups,bad};
 }
 function applyTeeth(it,out){
-  it.teeth=out.teeth;it.pontics=out.pontics;it.bridgeTeeth=out.bridgeTeeth;delete it.bridges;
+  it.teeth=out.teeth;it.pontics=out.pontics;it.bridgeTeeth=out.bridgeTeeth;it.bridgeGroups=out.bridgeGroups;delete it.bridges;
   if(PER_TOOTH.has(it.name)&&!it.qtyManual){it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;const pr=priceOf(it);if(pr)it.orig=pr*it.qty}
 }
 function teethLabel(it){
-  const px=it.pontics||[],brs=calcBridges(bridgeTeethOf(it),px),inB=new Set(brs.flatMap(b=>b.teeth));
+  const px=it.pontics||[],brs=calcBridges(bridgeTeethOf(it),px,it.bridgeGroups),inB=new Set(brs.flatMap(b=>b.teeth));
   return [...brs.map(bridgeStr),
     ...sortTeeth(it.teeth.filter(t=>!inB.has(t))).map(t=>px.includes(t)?`${t}(X)`:t)].join(', ');
 }
