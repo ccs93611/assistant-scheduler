@@ -111,7 +111,8 @@ tfoot td{font-weight:700;background:var(--soft)}
 .tooth.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .tooth.prim{width:34px;height:32px;font-size:12px}
 .tooth.br{background:var(--warn);border-color:var(--warn);color:#fff}
-.tooth.anchor{outline:3px solid var(--warn);outline-offset:1px}
+.tooth{position:relative}
+.tooth.x::after{content:"";position:absolute;inset:4px;background:linear-gradient(45deg,transparent 45%,currentColor 45%,currentColor 55%,transparent 55%),linear-gradient(-45deg,transparent 45%,currentColor 45%,currentColor 55%,transparent 55%);opacity:.75;pointer-events:none}
 .bridge-btn.on{background:var(--warn);color:#fff;border-color:var(--warn)}
 .bridge-hint{min-height:20px;text-align:center;font-size:13px;color:var(--warn);font-weight:600;margin-top:6px}
 .tooth-sec{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
@@ -265,7 +266,7 @@ $('#statusFilter').addEventListener('change',renderList);
 function nextNo(){const d=today().replace(/-/g,'');const n=[...plans.values()].filter(p=>(p.no||'').startsWith('TP'+d)).length+1;return `TP${d}-${pad(n)}`}
 function blankPlan(){return {id:uid(),no:nextNo(),name:'',birthday:'',chartNo:'',doctor:'',assistant:'',createdAt:nowLocal(),
   items:[newItem()],consent:{sig:null,at:''},payments:[],receipts:[],status:'open',closedAt:null,prevId:null,nextId:null,updatedAt:Date.now()}}
-function newItem(){return {id:uid(),cat:'',name:'',custom:false,teeth:[],bridges:[],qty:1,qtyManual:false,orig:0,chg:null}}
+function newItem(){return {id:uid(),cat:'',name:'',custom:false,teeth:[],pontics:[],qty:1,qtyManual:false,orig:0,chg:null}}
 
 $('#newBtn').addEventListener('click',async()=>{const p=blankPlan();plans.set(p.id,p);await saveNow(p);openPlan(p.id);setTimeout(()=>{const n=document.querySelector('[data-f="name"]');n&&n.focus()},50)});
 
@@ -453,7 +454,7 @@ $('#main').addEventListener('click',async e=>{
     if(r.name==='payments'&&r.row.sig&&!confirm('這筆繳費已有患者簽名，確定刪除？'))return;
     if(r.name==='receipts'&&(r.row.photos.length||r.row.amount||r.row.sig)&&!confirm('確定刪除這筆收據紀錄（含照片）？'))return;
     r.list.splice(r.list.indexOf(r.row),1);touch();renderEditor();
-  }else if(k==='teeth'){if(L)return;const it=r.row;const out=await openTeeth(it.teeth,it.bridges);if(out){const res=out.teeth;it.teeth=res;it.bridges=out.bridges;
+  }else if(k==='teeth'){if(L)return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics);if(out){const res=out.teeth;it.teeth=res;it.pontics=out.pontics;delete it.bridges;
       if(PER_TOOTH.has(it.name)&&!it.qtyManual){it.qty=res.filter(x=>!REGIONS.includes(x)).length||1;const pr=priceOf(it);if(pr)it.orig=pr*it.qty}
       touch();renderEditor()}}
   else if(k==='sig'){const lock=L&&r.name==='payments';if(lock&&!r.row.sig)return;
@@ -479,7 +480,7 @@ async function closeChanged(p){
   if(!confirm(`結單－計畫變更\n\n此單將結單並鎖定，同時建立一張新的治療計劃單（帶入病患資料與目前的治療項目）。\n此單已繳 $${money(c.paid)} 會以「前單轉入」列入新單的繳費紀錄。\n\n確定？`))return;
   const n=blankPlan();
   Object.assign(n,{name:p.name,birthday:p.birthday,chartNo:p.chartNo,doctor:p.doctor,assistant:p.assistant,prevId:p.id,
-    items:p.items.map(i=>({...i,id:uid(),teeth:[...i.teeth],bridges:(i.bridges||[]).map(b=>[...b])}))});
+    items:p.items.map(i=>({...i,id:uid(),teeth:[...i.teeth],pontics:[...(i.pontics||[])]}))});
   if(c.paid)n.payments.push({id:uid(),date:today(),amount:c.paid,note:`前單轉入（由 ${p.no} 轉入）`,sig:null,transfer:true});
   p.status='changed';p.closedAt=nowLocal();p.nextId=n.id;
   plans.set(n.id,n);await saveNow(p);await saveNow(n);openPlan(n.id);
@@ -523,51 +524,52 @@ function trimCanvas(cv){
 }
 
 /* 牙位選擇 */
-function openTeeth(current,curBridges){
-  const sel=new Set(current);let bridges=(curBridges||[]).map(b=>[...b]);let bMode=false,anchor=null;
+function openTeeth(current,curPontics){
+  const sel=new Set(current),px=new Set((curPontics||[]).filter(t=>sel.has(t)));let bMode=false;
   const btn=(t,prim)=>`<button class="tooth ${prim?'prim':''}" data-t="${t}">${t}</button>`;
   const row=(arr,prim)=>`<div class="tooth-row">${arr.map((t,i)=>btn(t,prim)+(i===arr.length/2-1?'<span class="gap"></span>':'')).join('')}</div>`;
   return modal(`<h3>選擇牙位</h3>
-    <div class="regions">${REGIONS.map(r=>`<button class="btn-sm tooth-r ${sel.has(r)?'on tooth':''}" data-t="${r}" style="${sel.has(r)?'width:auto;height:auto;padding:3px 10px':''}">${r}</button>`).join('')}</div>
+    <div class="regions">${REGIONS.map(r=>`<button class="btn-sm tooth-r" data-t="${r}">${r}</button>`).join('')}</div>
     <div class="tooth-sec">恆牙（病患右側在左）</div>
     <div class="tooth-grid">${row(UP)}<div class="midline"></div>${row(LO)}</div>
     <div class="tooth-sec">乳牙</div>
     <div class="tooth-grid">${row(UPP,1)}<div class="midline"></div>${row(LOP,1)}</div>
     <div class="bridge-hint" id="bridgeHint"></div>
-    <div class="acts"><button data-q="bridge" class="bridge-btn">牙橋</button><button data-q="up">上排恆牙全選</button><button data-q="lo">下排恆牙全選</button><button data-q="clr">清除</button><span class="sp"></span><button data-x="cancel">取消</button><button class="btn-primary" data-x="ok">確定</button></div>`,
+    <div class="acts"><button data-q="bridge" class="bridge-btn">牙橋</button><button data-q="clr">清除</button><span class="sp"></span><button data-x="cancel">取消</button><button class="btn-primary" data-x="ok">確定</button></div>`,
   (box,close)=>{
-    const inBridge=t=>bridges.find(b=>bridgeTeeth(b).includes(t));
     const sync=()=>{
-      box.querySelectorAll('[data-t]').forEach(b=>{const t=b.dataset.t,on=sel.has(t);b.classList.toggle('on',on);b.classList.toggle('br',!!inBridge(t));b.classList.toggle('anchor',t===anchor);
+      const brs=calcBridges([...sel],[...px]),inB=new Set(brs.flatMap(b=>b.teeth));
+      box.querySelectorAll('[data-t]').forEach(b=>{const t=b.dataset.t,on=sel.has(t);b.classList.toggle('on',on);b.classList.toggle('br',inB.has(t));b.classList.toggle('x',px.has(t));
         if(b.classList.contains('tooth-r')){b.classList.toggle('tooth',on);b.style.cssText=on?'width:auto;height:auto;padding:3px 10px':''}});
       box.querySelector('[data-q="bridge"]').classList.toggle('on',bMode);
-      box.querySelector('#bridgeHint').textContent=bMode?(anchor?`牙橋起點 ${anchor}，請點選終點牙（同一排）`:'牙橋：請點選起點牙'):(bridges.length?'牙橋：'+bridges.map(bridgeLabel).join('、')+'（點牙橋上的牙可取消該牙橋）':'');
+      box.querySelector('#bridgeHint').textContent=(bMode?'牙橋模式：點一下選取，點兩下變成 X（缺牙），X 會和相連的選取牙自動形成牙橋；再點一下取消。':'')+
+        (brs.length?`　目前牙橋：${brs.map(b=>`${b.from}-${b.to}`).join('、')}`:'');
     };
     sync();
     box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const t=b.dataset.t;
-      if(t&&bMode&&!REGIONS.includes(t)){
-        if(!anchor)anchor=t;
-        else if(t===anchor)anchor=null;
-        else if(rowOfTooth(t)!==rowOfTooth(anchor)){alert('牙橋的起點和終點要在同一排');return}
-        else{const nb=normBridge([anchor,t]),range=bridgeTeeth(nb);
-          bridges=bridges.filter(x=>!bridgeTeeth(x).some(y=>range.includes(y)));bridges.push(nb);range.forEach(y=>sel.add(y));anchor=null;bMode=false}
+      if(t){
+        if(bMode&&!REGIONS.includes(t)){ // 未選 → 選取 → X → 取消
+          if(!sel.has(t))sel.add(t);else if(!px.has(t))px.add(t);else{px.delete(t);sel.delete(t)}
+        }else if(sel.has(t)){sel.delete(t);px.delete(t)}else sel.add(t);
         sync();
       }
-      else if(t){const br=inBridge(t);
-        if(br){bridges=bridges.filter(x=>x!==br);bridgeTeeth(br).forEach(y=>sel.delete(y))}
-        else sel.has(t)?sel.delete(t):sel.add(t);sync()}
-      else if(b.dataset.q==='bridge'){bMode=!bMode;anchor=null;sync()}
-      else if(b.dataset.q){const q=b.dataset.q;if(q==='clr'){sel.clear();bridges=[]}else{const arr=q==='up'?UP:LO;const all=arr.every(t=>sel.has(t));arr.forEach(t=>all?sel.delete(t):sel.add(t));if(all)bridges=bridges.filter(x=>rowOfTooth(x[0])!==arr)}bMode=false;anchor=null;sync()}
-      else if(b.dataset.x==='cancel')close(null);else if(b.dataset.x==='ok')close({teeth:sortTeeth([...sel]),bridges});});
+      else if(b.dataset.q==='bridge'){bMode=!bMode;sync()}
+      else if(b.dataset.q==='clr'){sel.clear();px.clear();sync()}
+      else if(b.dataset.x==='cancel')close(null);else if(b.dataset.x==='ok')close({teeth:sortTeeth([...sel]),pontics:sortTeeth([...px])});});
   });
 }
-const rowOfTooth=t=>[UP,LO,UPP,LOP].find(r=>r.includes(t));
-const normBridge=([a,b])=>{const r=rowOfTooth(a);return r.indexOf(a)<=r.indexOf(b)?[a,b]:[b,a]};
-const bridgeTeeth=([a,b])=>{const r=rowOfTooth(a);if(!r)return[];return r.slice(r.indexOf(a),r.indexOf(b)+1)};
-const bridgeLabel=b=>`${b[0]}-${b[1]}`;
+// 同一排相連的選取牙中只要有 X，就形成一座牙橋
+function calcBridges(teeth,pontics){
+  const sel=new Set(teeth),px=new Set(pontics||[]),out=[];
+  for(const r of [UP,LO,UPP,LOP]){let run=[];
+    const flush=()=>{if(run.length>1&&run.some(t=>px.has(t)))out.push({from:run[0],to:run[run.length-1],teeth:run,pontics:run.filter(t=>px.has(t))});run=[]};
+    for(const t of r){if(sel.has(t))run.push(t);else flush()}flush()}
+  return out;
+}
 function teethLabel(it){
-  const br=it.bridges||[],inB=new Set(br.flatMap(bridgeTeeth));
-  return [...br.map(b=>'牙橋 '+bridgeLabel(b)),...sortTeeth(it.teeth.filter(t=>!inB.has(t)))].join(', ');
+  const px=it.pontics||[],brs=calcBridges(it.teeth,px),inB=new Set(brs.flatMap(b=>b.teeth));
+  return [...brs.map(b=>`牙橋 ${b.from}-${b.to}（X：${b.pontics.join('、')}）`),
+    ...sortTeeth(it.teeth.filter(t=>!inB.has(t))).map(t=>px.includes(t)?`${t}(X)`:t)].join(', ');
 }
 
 /* 照片 */
