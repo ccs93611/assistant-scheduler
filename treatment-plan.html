@@ -432,7 +432,7 @@ const itemAmt=it=>it.chg??(it.orig||0);
 const itemPaid=(p,id,exceptPay)=>p.payments.filter(x=>x.itemId===id&&x!==exceptPay).reduce((a,x)=>a+(x.amount||0),0);
 function payItemOptions(p,x){
   let h=`<option value="">— 選擇項目 —</option>`;
-  p.items.filter(i=>i.name).forEach((it,n)=>{h+=`<option value="${it.id}" ${x.itemId===it.id?'selected':''}>${n+1}. ${esc(it.name)}${it.teeth.length?'（'+esc(teethLabel(it))+'）':''}</option>`});
+  p.items.filter(i=>i.name).forEach(it=>{h+=`<option value="${it.id}" ${x.itemId===it.id?'selected':''}>${esc(it.name)}</option>`});
   if(x.itemId&&!p.items.some(i=>i.id===x.itemId))h+=`<option value="${esc(x.itemId)}" selected>（已刪除的項目）</option>`;
   return h;
 }
