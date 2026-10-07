@@ -189,6 +189,7 @@ tr.drop-after td{box-shadow:inset 0 -3px 0 var(--accent)}
   .items-tbl .c-teeth{grid-column:2/8;grid-row:2}
   .items-tbl .c-unit,.items-tbl .c-qty,.items-tbl .c-orig,.items-tbl .c-chg{grid-row:3}
 }
+textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:block;min-height:34px;white-space:pre-wrap;word-break:break-word}
 .cat-tag{font-size:11px;color:var(--accent);display:block}
 .combo-wrap{position:relative}
 .combo-wrap::after{content:"▾";position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:12px}
@@ -515,7 +516,7 @@ function renderEditor(){
         <td class="p-date" data-label="日期"><input type="date" data-k="date" value="${esc(x.date)}" ${pd||x.transfer?'disabled':''}></td>
         <td class="p-item" data-label="項目">${x.transfer?'<span class="hint">前單轉入</span>':`<select data-k="itemId" ${pd}>${payItemOptions(p,x)}</select>`}</td>
         <td class="p-teeth" data-label="牙位">${x.transfer?'':teethCell(payTeeth(x),pd)}</td>
-        <td class="p-note" data-label="備註"><input data-k="note" value="${esc(x.note)}" ${pd}></td>
+        <td class="p-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1" ${pd}>${esc(x.note)}</textarea></td>
         <td class="p-amt" data-label="金額"><input class="num ${(x.amount||0)<0?'refund':''}" type="number" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" title="負數代表退費" ${pd||x.transfer?'disabled':''}>${(x.amount||0)<0?'<span class="refund-tag">退費</span>':''}</td>
         <td class="p-sig" data-label="患者簽名">${x.transfer?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名" title="已簽名確認，不可更動">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`)}</td>
         ${L?'':`<td class="p-del no-print">${x.sig?'<span class="hint" title="已簽名確認">🔒</span>':'<button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button>'}</td>`}
@@ -541,7 +542,7 @@ function renderEditor(){
         <td class="r-date" data-label="開立日期"><input type="date" data-k="date" value="${esc(r.date)}"></td>
         <td class="r-amt" data-label="本次開立收據金額"><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="amount" value="${r.amount||''}"></td>
         <td class="r-taken" data-label="患者已領收據" style="text-align:center"><input type="checkbox" data-k="taken" ${r.taken?'checked':''} style="width:20px;height:20px"></td>
-        <td class="r-note" data-label="備註"><input data-k="note" value="${esc(r.note)}"></td>
+        <td class="r-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1">${esc(r.note)}</textarea></td>
         <td class="r-photo" data-label="照相紀錄"><div class="thumbs">${r.photos.map((ph,i)=>`<img src="${ph}" data-k="photo" data-i="${i}" alt="收據照片">`).join('')}<span class="add-photo" data-k="addPhoto" title="拍照／上傳">＋</span></div></td>
         <td class="r-sig" data-label="患者簽名">${r.sig?`<img class="sig-mini" src="${r.sig}" data-k="sig" alt="簽名">`:`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`}</td>
         <td class="r-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>
@@ -554,8 +555,11 @@ function renderEditor(){
     </div>
   </section>
   </div>`;
-  alignTeeth();
+  alignTeeth();growNotes();
 }
+// 備註欄依內容自動長高，字多時換行顯示全部內容
+function growNotes(el){for(const ta of el?[el]:document.querySelectorAll('textarea.note-ta')){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px'}}
+window.addEventListener('resize',()=>growNotes());
 // 繳費紀錄的「項目」：從這張單的治療項目選；牙位預設帶入該項目的牙位，可修改
 const itemAmt=it=>chgOf(it);
 const itemPaid=(p,id,exceptPay)=>p.payments.filter(x=>x.itemId===id&&x!==exceptPay).reduce((a,x)=>a+(x.amount||0),0);
@@ -595,6 +599,7 @@ const unitOf=it=>it.unit!=null?it.unit:priceOf(it);
 $('#main').addEventListener('input',e=>{
   const p=cur();if(!p)return;const t=e.target;
   if(t.dataset.k==='teethIn'){alignTeeth(t.closest('.teeth-cell'));return}
+  if(t.classList.contains('note-ta'))growNotes(t);
   if(t.dataset.f){
     if(t.dataset.f==='extraDisc'){p.extraDisc=numOrNull(t.value)||0;refreshTotals();touch();return}
     if(t.dataset.f==='consentAt')p.consent.at=t.value;else p[t.dataset.f]=t.value;
