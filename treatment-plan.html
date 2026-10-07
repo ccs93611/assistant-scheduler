@@ -76,6 +76,8 @@ main{padding:20px;min-width:0}
 .topbar .sp{flex:1}
 .chip{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;font-weight:600;white-space:nowrap}
 .chip.open{background:var(--warn-soft);color:var(--warn)}
+.chip.pending{background:var(--accent-soft);color:var(--accent)}
+.chip.draft{background:var(--soft);color:var(--muted);border:1px dashed var(--muted)}
 .chip.paid{background:var(--ok-soft);color:var(--ok)}
 .chip.changed{background:var(--soft);color:var(--muted)}
 .grid-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
@@ -332,6 +334,8 @@ tfoot td{font-weight:700;background:var(--soft)}
       <div class="row">
         <select id="statusFilter">
           <option value="">全部狀態</option>
+          <option value="draft">未定案</option>
+          <option value="pending">尚未進行（已定案、未繳費）</option>
           <option value="open">進行中</option>
           <option value="paid">已結單－費用收訖</option>
           <option value="changed">已結單－計畫變更</option>
@@ -418,7 +422,10 @@ function calc(p){
   const rcpt=p.receipts.reduce((a,x)=>a+(x.amount||0),0);
   return {orig,chg,paid,due:chg-paid,rcpt};
 }
-const STATUS={open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
+const STATUS={draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
+// 顯示用狀態（未結單時）：還沒定案 → 未定案；已定案但還沒有繳費紀錄 → 尚未進行；有繳費紀錄 → 進行中
+const stOf=p=>p.status!=='open'?p.status:!p.finalized?'draft':p.payments.some(x=>x.amount)?'open':'pending';
+const ST_SHORT={draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已收訖',changed:'計畫變更'};
 
 /* ====== 儲存 ====== */
 let saveT=null,pendingP=null;
@@ -433,13 +440,13 @@ async function saveSettings(){await DB.set('settings',settings)}
 /* ====== 列表 ====== */
 function renderList(){
   const q=$('#search').value.trim().toLowerCase(),sf=$('#statusFilter').value;
-  const arr=[...plans.values()].filter(p=>(!sf||p.status===sf)&&(!q||[p.name,p.chartNo,p.no,p.doctor,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q))))
+  const arr=[...plans.values()].filter(p=>(!sf||stOf(p)===sf)&&(!q||[p.name,p.chartNo,p.no,p.doctor,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q))))
     .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')||b.updatedAt-a.updatedAt);
   $('#planList').innerHTML=arr.length?arr.map(p=>{const c=calc(p);return `<button class="plan-item ${p.id===curId?'on':''}" data-open="${p.id}">
     <div class="l1"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m big">${p.birthday?'生日 '+esc(p.birthday):''}</span><span class="m">${esc(p.chartNo||'')}</span></div>
     <div class="l2"><span class="m big">主治 ${esc(p.doctor||'—')}・助理 ${esc(p.assistant||'—')}</span></div>
     <div class="tg">${planTags(p)}</div>
-    <div class="x1"><span class="m">開立 ${esc(fmtDT(p.createdAt)||'—')}</span><span class="chip ${p.status}">${p.status==='open'?'進行中':p.status==='paid'?'已收訖':'計畫變更'}</span></div>
+    <div class="x1"><span class="m">開立 ${esc(fmtDT(p.createdAt)||'—')}</span><span class="chip ${stOf(p)}">${ST_SHORT[stOf(p)]}</span></div>
     <div class="x2"><span class="m">$${money(c.chg)}${c.due>0&&p.status==='open'?` ・未繳 ${money(c.due)}`:''}</span></div>
   </button>`}).join(''):'<div class="empty" style="padding:30px 10px">沒有符合的計劃單</div>';
 }
@@ -485,7 +492,7 @@ function renderEditor(){
   ${datalists()}
   <div class="print-only" style="text-align:center"><h2 style="margin:0">新海美學牙醫診所　治療計劃單</h2></div>
   <div class="topbar">
-    <span class="title no-print">治療計劃單</span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${p.status}">${STATUS[p.status]}</span>
+    <span class="title no-print">治療計劃單</span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${stOf(p)}">${STATUS[stOf(p)]}</span>
     <span class="sp"></span><span class="save-ind no-print" id="saveInd"></span>
     <button class="no-print" data-act="print">🖨 列印</button>
     ${L?'':'<button class="no-print btn-danger" data-act="delete">刪除此單</button>'}
@@ -497,12 +504,12 @@ function renderEditor(){
   <section class="card">
     <h2>病患資料</h2>
     <div class="grid-f">
-      <label>姓名<input data-f="name" value="${esc(p.name)}" ${dis}></label>
-      <label>生日<input type="date" data-f="birthday" value="${esc(p.birthday)}" ${dis}></label>
-      <label>病歷號<input data-f="chartNo" value="${esc(p.chartNo)}" ${dis}></label>
-      <label>主治醫師<input data-f="doctor" list="dlDoc" value="${esc(p.doctor)}" ${dis}></label>
-      <label>責任助理<input data-f="assistant" list="dlAsst" value="${esc(p.assistant)}" ${dis}></label>
-      <label>單據開立時間<input type="datetime-local" data-f="createdAt" value="${esc(p.createdAt)}" ${dis}></label>
+      <label>姓名<input data-f="name" value="${esc(p.name)}" ${idis}></label>
+      <label>生日<input type="date" data-f="birthday" value="${esc(p.birthday)}" ${idis}></label>
+      <label>病歷號<input data-f="chartNo" value="${esc(p.chartNo)}" ${idis}></label>
+      <label>主治醫師<input data-f="doctor" list="dlDoc" value="${esc(p.doctor)}" ${idis}></label>
+      <label>責任助理<input data-f="assistant" list="dlAsst" value="${esc(p.assistant)}" ${idis}></label>
+      <label>單據開立時間<input type="datetime-local" data-f="createdAt" value="${esc(p.createdAt)}" ${idis}></label>
     </div>
   </section>
 
@@ -528,7 +535,7 @@ function renderEditor(){
       <div><small>減免合計</small><b id="tDisc" class="disc-amt">$${money(c.orig-c.chg)}</b></div>
       <div class="hl"><small>變更後總金額</small><b id="tChg">$${money(c.chg)}</b></div>
     </div>
-    ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已定案（${esc(fmtDT(p.finalizedAt))}），治療項目與金額不可再更動；如需變更請用「結單－計畫變更」。</div>`:''}
+    ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已定案（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「結單－計畫變更」。</div>`:''}
     <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單一金額，原始金額 = 單一金額 × 數量，都可直接修改；「變更金額」留空表示與原始金額相同。</div>
   </section>
 
@@ -622,6 +629,7 @@ function syncAmtRow(tr,it,skip){
   c.classList.toggle('changed-amt',!!discOf(it));
 }
 function refreshTotals(){
+  {const p=cur(),ch=document.querySelector('.topbar .chip');if(p&&ch){const s=stOf(p);ch.className='chip '+s;ch.textContent=STATUS[s]}}
   const p=cur(),c=calc(p),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent='$'+money(v)};
   set('tOrig',c.orig);set('tDisc',c.orig-c.chg);set('tChg',c.chg);set('tChg2',c.chg);set('tPaid',c.paid);set('tDue',c.due);set('tPaid2',c.paid);set('tRcpt',c.rcpt);set('tRcptDue',c.paid-c.rcpt);
 }
@@ -698,7 +706,7 @@ $('#main').addEventListener('click',async e=>{
     else if(act==='finalize')finalize(p);
     else if(act==='closePaid')closePaid(p);
     else if(act==='closeChanged')closeChanged(p);
-    else if(act==='reopen'){if(!confirm('確定取消結單？此單會回到「進行中」並可再編輯。'))return;p.status='open';p.closedAt=null;await saveNow(p);renderList();renderEditor()}
+    else if(act==='reopen'){if(!confirm('確定取消結單？此單會回到結單前的狀態。'))return;p.status='open';p.closedAt=null;await saveNow(p);renderList();renderEditor()}
     return;
   }
   const t=e.target.closest('[data-k]');if(!t)return;const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,L=p.status!=='open',IL=L||!!p.finalized;
@@ -722,7 +730,7 @@ async function finalize(p){
   if(!p.consent.sig){alert('患者簽名同意治療計畫後才能定案');return}
   const warn=[];if(p.items.length>items.length)warn.push(`・有 ${p.items.length-items.length} 列未選治療項目，定案時會移除`);
   if(p.items.some(i=>i.teethBad&&i.teethBad.length))warn.push('・有牙位無法辨識（紅色）');
-  if(!confirm(`定案治療計畫\n\n共 ${items.length} 項，總金額 $${money(c.orig)}，變更後總金額 $${money(c.chg)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n定案後治療項目與金額將無法再更動（如需變更請用「結單－計畫變更」）。確定定案？`))return;
+  if(!confirm(`定案治療計畫\n\n共 ${items.length} 項，總金額 $${money(c.orig)}，變更後總金額 $${money(c.chg)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n定案後病患資料、治療項目與金額將無法再更動（如需變更請用「結單－計畫變更」）。確定定案？`))return;
   p.items=items;p.finalized=true;p.finalizedAt=nowLocal();await saveNow(p);renderList();renderEditor();
 }
 /* 結單 */
