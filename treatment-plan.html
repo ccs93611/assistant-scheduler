@@ -32,25 +32,34 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .btn-ghost{border-color:transparent;background:transparent}
 .btn-sm{padding:3px 8px;font-size:13px}
 .app{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
-@media (min-width:1500px){.app{grid-template-columns:500px 1fr}}
+@media (min-width:1500px){.app{grid-template-columns:550px 1fr}}
 @media (min-width:821px) and (max-width:1180px){.app{grid-template-columns:230px 1fr}}
 aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;max-height:100vh;position:sticky;top:0}
 .side-head{padding:14px;border-bottom:1px solid var(--line);display:grid;gap:8px}
 .side-head h1{font-size:17px;margin:0}
 .side-head .row{display:flex;gap:6px}
 .side-head .row>*{flex:1}
-.plan-list{overflow:auto;flex:1}
-.plan-item{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:10px 14px;background:transparent}
+.plan-list{overflow:auto;flex:1;container-type:inline-size;container-name:plist}
+.plan-item{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;gap:3px 12px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:10px 14px;background:transparent}
 .plan-item.on{background:var(--accent-soft)}
 .plan-item .t{display:flex;justify-content:space-between;gap:6px;font-weight:600}
 .ptags{display:inline-flex;flex-wrap:wrap;gap:4px}
-.plan-item .r1,.plan-item .r2{display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px}
-.plan-item .r2{margin-top:3px}
+.plan-item .l1,.plan-item .l2,.plan-item .x1,.plan-item .x2{display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px;min-width:0}
+.plan-item .l1{grid-column:1;grid-row:1}.plan-item .l2{grid-column:1;grid-row:2}
+.plan-item .tg{grid-column:2;grid-row:1/3;align-self:center;min-width:0}  /* 標籤放在中間空白處，上下置中 */
+.plan-item .x1{grid-column:3;grid-row:1;justify-content:flex-end}.plan-item .x2{grid-column:3;grid-row:2;justify-content:flex-end}
+.plan-item .tg:empty{display:none}
+@container plist (max-width:480px){
+  .plan-item{grid-template-columns:1fr auto}
+  .plan-item .x1{grid-column:2;grid-row:1}.plan-item .x2{grid-column:2;grid-row:2}
+  .plan-item .tg{grid-column:1/3;grid-row:3}
+}
 .plan-item .nm{font-size:15px}
 .plan-item .m{font-size:12px;color:var(--muted);white-space:nowrap}
+.plan-item .m.big{font-size:14px;color:var(--ink)}
 .plan-item .m:empty{display:none}
 .plan-item .sp{flex:1}
-.ptag{font-size:13px;line-height:1.6;padding:1px 9px;border-radius:999px;background:hsl(var(--h) 65% 92%);color:hsl(var(--h) 55% 28%);white-space:nowrap}
+.ptag{font-size:15px;line-height:1.6;padding:2px 11px;border-radius:999px;background:hsl(var(--h) 65% 92%);color:hsl(var(--h) 55% 28%);white-space:nowrap}
 .ptag[data-custom="1"]{background:var(--soft);color:var(--muted)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ptag{background:hsl(var(--h) 30% 22%);color:hsl(var(--h) 60% 78%)}}
 .plan-item .s{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
@@ -427,8 +436,11 @@ function renderList(){
   const arr=[...plans.values()].filter(p=>(!sf||p.status===sf)&&(!q||[p.name,p.chartNo,p.no,p.doctor,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q))))
     .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')||b.updatedAt-a.updatedAt);
   $('#planList').innerHTML=arr.length?arr.map(p=>{const c=calc(p);return `<button class="plan-item ${p.id===curId?'on':''}" data-open="${p.id}">
-    <div class="r1"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m">${p.birthday?'生日 '+esc(p.birthday):''}</span><span class="m">${esc(p.chartNo||'')}</span>${planTags(p)}<span class="sp"></span><span class="m">開立 ${esc(fmtDT(p.createdAt)||'—')}</span><span class="chip ${p.status}">${p.status==='open'?'進行中':p.status==='paid'?'已收訖':'計畫變更'}</span></div>
-    <div class="r2"><span class="m">主治 ${esc(p.doctor||'—')}・助理 ${esc(p.assistant||'—')}</span><span class="sp"></span><span class="m">$${money(c.chg)}${c.due>0&&p.status==='open'?` ・未繳 ${money(c.due)}`:''}</span></div>
+    <div class="l1"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m big">${p.birthday?'生日 '+esc(p.birthday):''}</span><span class="m">${esc(p.chartNo||'')}</span></div>
+    <div class="l2"><span class="m big">主治 ${esc(p.doctor||'—')}・助理 ${esc(p.assistant||'—')}</span></div>
+    <div class="tg">${planTags(p)}</div>
+    <div class="x1"><span class="m">開立 ${esc(fmtDT(p.createdAt)||'—')}</span><span class="chip ${p.status}">${p.status==='open'?'進行中':p.status==='paid'?'已收訖':'計畫變更'}</span></div>
+    <div class="x2"><span class="m">$${money(c.chg)}${c.due>0&&p.status==='open'?` ・未繳 ${money(c.due)}`:''}</span></div>
   </button>`}).join(''):'<div class="empty" style="padding:30px 10px">沒有符合的計劃單</div>';
 }
 $('#planList').addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b)openPlan(b.dataset.open)});
