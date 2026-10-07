@@ -50,7 +50,7 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 .plan-item .m{font-size:12px;color:var(--muted);white-space:nowrap}
 .plan-item .m:empty{display:none}
 .plan-item .sp{flex:1}
-.ptag{font-size:11px;line-height:1.5;padding:0 7px;border-radius:999px;background:hsl(var(--h) 65% 92%);color:hsl(var(--h) 55% 28%);white-space:nowrap}
+.ptag{font-size:13px;line-height:1.6;padding:1px 9px;border-radius:999px;background:hsl(var(--h) 65% 92%);color:hsl(var(--h) 55% 28%);white-space:nowrap}
 .ptag[data-custom="1"]{background:var(--soft);color:var(--muted)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ptag{background:hsl(var(--h) 30% 22%);color:hsl(var(--h) 60% 78%)}}
 .plan-item .s{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
@@ -427,7 +427,7 @@ function renderList(){
   const arr=[...plans.values()].filter(p=>(!sf||p.status===sf)&&(!q||[p.name,p.chartNo,p.no,p.doctor,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q))))
     .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')||b.updatedAt-a.updatedAt);
   $('#planList').innerHTML=arr.length?arr.map(p=>{const c=calc(p);return `<button class="plan-item ${p.id===curId?'on':''}" data-open="${p.id}">
-    <div class="r1"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m">${esc(p.birthday||'')}</span><span class="m">${esc(p.chartNo||'')}</span>${planTags(p)}<span class="sp"></span><span class="m">開立 ${esc(fmtDT(p.createdAt)||'—')}</span><span class="chip ${p.status}">${p.status==='open'?'進行中':p.status==='paid'?'已收訖':'計畫變更'}</span></div>
+    <div class="r1"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m">${p.birthday?'生日 '+esc(p.birthday):''}</span><span class="m">${esc(p.chartNo||'')}</span>${planTags(p)}<span class="sp"></span><span class="m">開立 ${esc(fmtDT(p.createdAt)||'—')}</span><span class="chip ${p.status}">${p.status==='open'?'進行中':p.status==='paid'?'已收訖':'計畫變更'}</span></div>
     <div class="r2"><span class="m">主治 ${esc(p.doctor||'—')}・助理 ${esc(p.assistant||'—')}</span><span class="sp"></span><span class="m">$${money(c.chg)}${c.due>0&&p.status==='open'?` ・未繳 ${money(c.due)}`:''}</span></div>
   </button>`}).join(''):'<div class="empty" style="padding:30px 10px">沒有符合的計劃單</div>';
 }
@@ -626,7 +626,7 @@ $('#main').addEventListener('input',e=>{
   if(t.dataset.f){
     if(t.dataset.f==='extraDisc'){p.extraDisc=numOrNull(t.value)||0;refreshTotals();touch();return}
     if(t.dataset.f==='consentAt')p.consent.at=t.value;else p[t.dataset.f]=t.value;
-    touch();if(['name','chartNo','createdAt'].includes(t.dataset.f))renderList();return;
+    touch();if(['name','chartNo','createdAt','birthday','doctor','assistant'].includes(t.dataset.f))renderList();return;
   }
   const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,it=r.row;
   if(r.name==='items'){
