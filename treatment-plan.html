@@ -78,7 +78,7 @@ tr.drop-after td{box-shadow:inset 0 -3px 0 var(--accent)}
 /* 繳費紀錄、收據開立紀錄：寬度不夠時改成卡片排法，不需要左右捲動 */
 .pay-wrap{container-type:inline-size;container-name:pays}
 .rcpt-wrap{container-type:inline-size;container-name:rcpts}
-@container pays (max-width:1150px){
+@container pays (max-width:640px){
   .pay-tbl thead{display:none}
   .pay-tbl,.pay-tbl tbody{display:block}
   .pay-tbl tbody tr:not([data-list]) td{display:block}
@@ -95,7 +95,7 @@ tr.drop-after td{box-shadow:inset 0 -3px 0 var(--accent)}
   .pay-tbl .p-amt{grid-column:1/4;grid-row:4}.pay-tbl .p-sig{grid-column:4/8;grid-row:4}
   .pay-tbl .p-note{grid-column:1/8;grid-row:5}
 }
-@container rcpts (max-width:950px){
+@container rcpts (max-width:640px){
   .rcpt-tbl thead{display:none}
   .rcpt-tbl,.rcpt-tbl tbody{display:block}
   .rcpt-tbl tbody tr:not([data-list]) td{display:block}
@@ -112,8 +112,36 @@ tr.drop-after td{box-shadow:inset 0 -3px 0 var(--accent)}
   .rcpt-tbl .r-note{grid-column:1/8;grid-row:3}.rcpt-tbl .r-photo{grid-column:1/8;grid-row:4}
 }
 .pay-tbl td[data-label]::before,.rcpt-tbl td[data-label]::before{content:attr(data-label);display:none;font-size:13px;color:var(--muted);margin-bottom:2px;white-space:nowrap}
-@container pays (max-width:1150px){.pay-tbl td[data-label]::before{display:block}.pay-tbl .p-amt::before{text-align:right}}
-@container rcpts (max-width:950px){.rcpt-tbl td[data-label]::before{display:block}.rcpt-tbl .r-amt::before{text-align:right}}
+@container pays (max-width:640px){.pay-tbl td[data-label]::before{display:block}.pay-tbl .p-amt::before{text-align:right}}
+@container rcpts (max-width:640px){.rcpt-tbl td[data-label]::before{display:block}.rcpt-tbl .r-amt::before{text-align:right}}
+/* 平板寬度：繳費紀錄、收據開立紀錄維持一列表格，縮小間距與欄寬 */
+@container pays (min-width:641px) and (max-width:1150px){
+  .pay-tbl th,.pay-tbl td{padding:6px 3px}
+  .pay-tbl th{font-size:13px;width:auto!important;min-width:0!important}
+  .pay-tbl th:nth-child(1){width:112px!important}.pay-tbl th:nth-child(2){min-width:110px!important}.pay-tbl th:nth-child(3){min-width:175px!important}
+  .pay-tbl th:nth-child(4){width:76px!important}.pay-tbl th:nth-child(6){width:74px!important}.pay-tbl th:nth-child(7){width:24px!important}
+  .pay-tbl td input,.pay-tbl td select{padding:5px 3px;font-size:13px}
+  .pay-tbl td input.num{min-width:0}
+  .pay-tbl input[type=number]{-moz-appearance:textfield}
+  .pay-tbl input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .pay-tbl .need-sig{display:none}
+  .pay-tbl .sig-mini{max-width:70px}
+  .pay-tbl .teeth-cell .jaw span{width:12px}
+  .pay-tbl .btn-x{padding:3px 4px}
+}
+@container rcpts (min-width:641px) and (max-width:950px){
+  .rcpt-tbl th,.rcpt-tbl td{padding:6px 3px}
+  .rcpt-tbl th{font-size:13px;width:auto!important;min-width:0!important;white-space:normal}
+  .rcpt-tbl th:nth-child(1){width:112px!important}.rcpt-tbl th:nth-child(2){width:84px!important}.rcpt-tbl th:nth-child(3){width:56px!important}
+  .rcpt-tbl th:nth-child(5){min-width:110px!important}.rcpt-tbl th:nth-child(6){width:74px!important}.rcpt-tbl th:nth-child(7){width:24px!important}
+  .rcpt-tbl td input{padding:5px 3px;font-size:13px}
+  .rcpt-tbl td input.num{min-width:0}
+  .rcpt-tbl input[type=number]{-moz-appearance:textfield}
+  .rcpt-tbl input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .rcpt-tbl .need-sig{display:none}
+  .rcpt-tbl .sig-mini{max-width:70px}
+  .rcpt-tbl .btn-x{padding:3px 4px}
+}
 /* 治療項目表：寬度不夠時改成兩～三行的卡片排法，不需要左右捲動 */
 .items-wrap{container-type:inline-size;container-name:items}
 .items-tbl tr.drop-before{box-shadow:inset 0 3px 0 var(--accent)}
