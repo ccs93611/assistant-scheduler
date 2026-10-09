@@ -288,6 +288,9 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/dist/human.js"></script>
+<!-- 防手機／螢幕冒用：TensorFlow COCO-SSD（lite_mobilenet_v2）偵測畫面中的手機、筆電、螢幕 -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script>
 (function(){
 // ---------- 常數（與 index.html 的 SHIFTS 一致） ----------
@@ -301,7 +304,7 @@ const MODEL_BASE='https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/models/';
 const SAMPLES=5;            // 登錄時擷取的特徵數
 const STABLE_FRAMES=3;      // 連續幾幀辨識成同一人才確認
 const CONFIRM_MS=2500;      // 確認畫面自動打卡倒數
-const DEFAULTS={thr:0.6,margin:0.06,photo:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00',otAsk:3,dupMin:5,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
+const DEFAULTS={thr:0.6,margin:0.06,photo:true,noScreen:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00',otAsk:3,dupMin:5,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
 // 臨時加班：sel.sh='extra'，隨時可打、不看班表，下班卡一律成為加班申請（必填原因）
 const EXTRA={id:'extra',name:'臨時加班'};
 const shOf=id=>id==='extra'?EXTRA:SHIFTS.find(x=>x.id===id);
@@ -600,7 +603,7 @@ function renderRecent(){
 }
 
 // ---------- 相機與辨識模型 ----------
-let stream=null;
+let stream=null,phoneModel=null,phoneObjs=[],phoneAt=0; // phoneObjs：最近一次偵測到的物品 {label,score,box:[x,y,w,h]}
 async function openCamera(){
   if(!navigator.mediaDevices?.getUserMedia)throw new Error('這個瀏覽器不支援相機。');
   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:960},height:{ideal:720}},audio:false});
@@ -622,6 +625,7 @@ async function loadModels(){
     body:{enabled:false},hand:{enabled:false},object:{enabled:false},gesture:{enabled:false},segmentation:{enabled:false},
   });
   await human.load();
+  try{if(window.cocoSsd)phoneModel=await cocoSsd.load({base:'lite_mobilenet_v2'});}catch(e){console.warn('手機偵測模型載入失敗',e);phoneModel=null;}
   // 暖機只是讓第一次辨識快一點；在背景分頁可能不會完成，最多等 8 秒
   await Promise.race([human.warmup().catch(()=>{}),new Promise(r=>setTimeout(r,8000))]);
 }
@@ -631,12 +635,22 @@ function faceQuality(f,video){
   const w=f.box?.[2]||0,vw=video.videoWidth||1;
   if((f.faceScore??f.score??0)<0.75)return 'weak';
   if(w<vw*0.18)return 'far';
+  if(settings.noScreen&&w>vw*0.6)return 'near'; // 太近時看不到手機邊框，請退後一點
   const a=f.rotation?.angle||{};
   if(Math.abs(a.yaw||0)>0.4||Math.abs(a.pitch||0)>0.4)return 'turn';
   if(!f.embedding||!f.embedding.length)return 'weak';
   return 'ok';
 }
 const isLive=f=>(f.real??1)>=settings.real&&(f.live??1)>=settings.live;
+// 臉是不是在手機／螢幕裡：臉框有一半以上落在偵測到的手機、筆電或螢幕框內，或臉的中心點在框內
+const SCREEN_LABELS=['cell phone','laptop','tv'];
+function faceInScreen(f,objs){
+  if(!settings.noScreen||!f?.box||!objs?.length)return null;
+  const [fx,fy,fw,fh]=f.box,cx=fx+fw/2,cy=fy+fh/2;
+  return objs.find(o=>{if(!SCREEN_LABELS.includes(o.label)||!o.box)return false;
+    const [ox,oy,ow,oh]=o.box,ix=Math.max(0,Math.min(fx+fw,ox+ow)-Math.max(fx,ox)),iy=Math.max(0,Math.min(fy+fh,oy+oh)-Math.max(fy,oy));
+    return (cx>=ox&&cx<=ox+ow&&cy>=oy&&cy<=oy+oh)||ix*iy>=0.5*fw*fh;})||null;
+}
 function bestMatch(emb,exclude){
   let best={sid:null,sim:0},second=0;
   Object.entries(faces).forEach(([sid,v])=>{
@@ -699,16 +713,27 @@ async function loop(){
       if(left<=0)endScan();
       else if($('cam').readyState>=2){
         const res=await human.detect($('cam'));
-        if(sel&&!paused&&!anyOverlay())handleFrame(res.face?.[0]);
+        if(!res.face?.length)phoneObjs=[]; // 沒有人時清掉舊的物品結果，避免下一個人被前一次的結果擋住
+        if(settings.noScreen&&phoneModel&&res.face?.length&&Date.now()-phoneAt>400){
+          phoneAt=Date.now();
+          try{phoneObjs=(await phoneModel.detect($('cam'),6,0.3)).map(o=>({label:o.class,score:o.score,box:o.bbox}));}catch(e){phoneObjs=[];}
+        }
+        if(sel&&!paused&&!anyOverlay())handleFrame(res.face?.[0],phoneObjs);
       }
     }
   }catch(e){console.error(e);}
   setTimeout(loop,150);
 }
-function handleFrame(f){
+let screenSince=0;
+function handleFrame(f,objs){
   const q=faceQuality(f,$('cam'));
   if(q==='none'){streak={sid:null,n:0};badSince=0;setMsg(Object.keys(faces).length?'請站到鏡頭前，拿下口罩、正對鏡頭':'尚未登錄任何臉部，請管理者按右上角 ⚙ 登錄');return;}
   if(q==='far'){streak.n=0;setMsg('請再靠近一點','seen');return;}
+  if(q==='near'){streak.n=0;setMsg('請離鏡頭遠一點','seen');return;}
+  // 偵測到臉在手機／螢幕裡：拒絕打卡（持續一段時間沒再偵測到才恢復）
+  const scr=faceInScreen(f,objs);
+  if(scr)screenSince=Date.now();
+  if(scr||Date.now()-screenSince<1500){streak={sid:null,n:0};setMsg('偵測到手機或螢幕，請本人直接面對鏡頭打卡','bad');return;}
   if(q==='turn'){streak.n=0;setMsg('請正對鏡頭','seen');return;}
   if(q==='weak'){streak.n=0;setMsg('辨識中…請拿下口罩','seen');return;}
   if(!isLive(f)){streak.n=0;if(!badSince)badSince=Date.now();setMsg(Date.now()-badSince>2500?'無法確認為真人，請拿下口罩、靠近並正對鏡頭':'辨識中…','bad');return;}

@@ -4575,7 +4575,7 @@ function toast(msg,kind='',action){
 // 打卡裝置（kiosk.html）只記錄「誰、幾點」，這裡依排班表（weeks，定案後即異動班表）推算每一診的上下班卡。
 // 每一診有兩個時間點（上班＝開診、下班＝結束）；同一天的打卡依時間順序對應到這些時間點（動態規劃，
 // 盡量多對上、再取時間差總和最小），差距超過 ATT_WINDOW 分鐘的打卡不對應，列為「其他打卡」。
-const ATT_DEF={graceIn:0,graceOut:0,photo:true,thr:0.6,nightOut:'21:00',otAsk:3,dupMin:5,revokeDays:3,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
+const ATT_DEF={graceIn:0,graceOut:0,photo:true,noScreen:true,thr:0.6,nightOut:'21:00',otAsk:3,dupMin:5,revokeDays:3,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
 // replaced：員工在打卡裝置上用同一班的新申請取代了這一筆（不審核、不計入加班分鐘）
 const OT_ST={pending:'待審',approved:'已核准',rejected:'已退回',replaced:'已被取代'};
 // 當月已核准的加班分鐘（作廢的打卡不算）
@@ -4874,7 +4874,8 @@ function renderAtt(mi){
     grp('打卡裝置',
       num('thr','臉部辨識門檻','0.4–0.9，越高越嚴格；建議 0.55–0.65','step="0.01" min="0.4" max="0.9"')+
       num('dupMin','重複打卡限制（分鐘）','同一班同一種卡在這段時間內不能重複打；0＝不限制')+
-      chk('photo','打卡時保存臉部小照片','打卡時存一張小照片，供核對代打卡'))+
+      chk('photo','打卡時保存臉部小照片','打卡時存一張小照片，供核對代打卡')+
+      chk('noScreen','偵測到手機或螢幕就拒絕打卡','臉出現在手機、平板、筆電或螢幕畫面裡時不能打卡；臉太靠近鏡頭時也會請對方退後，避免看不到手機邊框'))+
     grp('加班',
       num('otAsk','詢問加班（分鐘）','下班晚於結束超過這個分鐘數，詢問是否申請加班；0＝不詢問')+
       num('revokeDays','撤銷核准期限（天）','核准後幾天內可以撤銷核准；0＝不限制'));}
