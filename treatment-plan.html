@@ -558,8 +558,8 @@ const ITEM_INDEX=CATS.flatMap(([cat,list])=>list.map(name=>({cat,name})));
 const findItem=s=>{const q=String(s||'').trim().toLowerCase().replace(/s+/g,'');return ITEM_INDEX.find(x=>x.name.toLowerCase().replace(/s+/g,'')===q)};
 function datalists(){
   const dl=(id,arr)=>`<datalist id="${id}">${arr.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
-  const u=(a,b)=>[...new Set([...(a||[]),...(b||[])])];
-  return dl('dlDoc',u(settings.doctors,staffNames.doctor))+dl('dlAsst',u(settings.assistants,staffNames.assistant));
+  // 雲端模式：名單來自排班系統的人員名單；本機模式：用設定裡手動輸入的名單
+  return fs?dl('dlDoc',staffNames.doctor)+dl('dlAsst',staffNames.assistant):dl('dlDoc',settings.doctors)+dl('dlAsst',settings.assistants);
 }
 function renderEditor(){
   const p=cur();const m=$('#main');
@@ -1195,11 +1195,15 @@ function openSettings(tab){
       ${CATS.map(([cat,list])=>`<div class="price-cat">${cat}</div>`+list.map(n=>`<div class="price-row"><span>${esc(n)}${PER_TOOTH.has(n)?' <span class="hint">／顆</span>':''}</span><input class="num" type="number" min="0" step="1" inputmode="numeric" data-price="${esc(pk(cat,n))}" value="${P[pk(cat,n)]||''}" placeholder="0" style="text-align:right" ${canPrice()?'':'disabled'}></div>`).join('')).join('')}
     </div>
     <div data-pane="staff">
+      ${fs?`<p class="hint">名單自動讀取排班系統（人員名單）裡在職的醫師與助理，要新增或修改請到排班系統的「人員名單」。</p>
       <div class="grid-f">
+        <div><div class="price-cat">主治醫師（${staffNames.doctor.length}）</div><div>${staffNames.doctor.map(esc).join('、')||'—'}</div></div>
+        <div><div class="price-cat">責任助理（${staffNames.assistant.length}）</div><div>${staffNames.assistant.map(esc).join('、')||'—'}</div></div>
+      </div>`:`<div class="grid-f">
         <label>主治醫師（一行一位）<textarea rows="10" data-list-set="doctors" ${canPrice()?'':'disabled'}>${esc(settings.doctors.join('\n'))}</textarea></label>
         <label>責任助理（一行一位）<textarea rows="10" data-list-set="assistants" ${canPrice()?'':'disabled'}>${esc(settings.assistants.join('\n'))}</textarea></label>
       </div>
-      <div class="hint" style="margin-top:6px">輸入欄位時會出現這些名字供選擇，也可以直接打字。${fs?'排班系統人員名單裡在職的醫師與助理也會自動列入。':''}${canPrice()?'':'（只有超級管理員可以修改）'}</div>
+      <div class="hint" style="margin-top:6px">本機模式：輸入欄位時會出現這些名字供選擇，也可以直接打字。</div>`}
     </div>
     <div data-pane="backup">
       <p class="hint">${fs?'資料存在雲端（與排班系統同一個 Firebase 專案），各台電腦登入後即時同步。仍建議定期匯出備份檔另存。':'本機模式：資料存在這台電腦的瀏覽器裡（IndexedDB）。清除瀏覽器資料、換電腦或換瀏覽器都看不到，請定期匯出備份檔並另存。'}</p>
@@ -1325,8 +1329,13 @@ function startCloud(){
   },e=>console.warn(e));
   fs.collection('staff').onSnapshot(snap=>{
     const n={doctor:[],assistant:[]};
-    snap.docs.forEach(d=>{const v=d.data();if(v.active!==false&&n[v.role]&&v.name)n[v.role].push(v.name)});
+    // 排序與排班系統人員名單相同（依代號）
+    snap.docs.map(d=>d.data()).filter(v=>v.active!==false&&n[v.role]&&v.name)
+      .sort((a,b)=>(a.code||a.name||'').localeCompare(b.code||b.name||'','zh-Hant',{numeric:true}))
+      .forEach(v=>n[v.role].push(v.name));
     staffNames=n;
+    // 名單更新時，換掉畫面上的選單內容
+    const sh=$('#main .sheet');if(sh){sh.querySelectorAll('datalist').forEach(x=>x.remove());sh.insertAdjacentHTML('afterbegin',datalists())}
   },e=>console.warn(e));
 }
 // 別人改了正在看的這張單：等目前的輸入欄離開焦點再更新畫面
