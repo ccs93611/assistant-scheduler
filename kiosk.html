@@ -158,6 +158,7 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 .toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);
   padding:10px 18px;border-radius:12px;z-index:30;max-width:90vw;text-align:center}
 .toast.warn{border-color:var(--warn);color:var(--warn)}
+.scr-dbg{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;padding:4px 8px;border-radius:6px;z-index:5;font-variant-numeric:tabular-nums;}
 </style>
 </head>
 <body>
@@ -177,6 +178,7 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
       <video id="cam" playsinline muted autoplay></video>
       <div class="guide" id="guide"><i></i></div>
       <div class="msg" id="msg">準備中…</div>
+      <div class="scr-dbg" id="scrDbg" hidden></div>
       <!-- 先選班別與上班／下班，再開始掃臉 -->
       <div class="scanbar" id="scanBar" hidden><span id="scanSel"></span><span class="cd" id="scanCd"></span><button id="scanCancel">取消</button></div>
       <div class="pick" id="pick">
@@ -304,7 +306,7 @@ const MODEL_BASE='https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/models/';
 const SAMPLES=5;            // 登錄時擷取的特徵數
 const STABLE_FRAMES=3;      // 連續幾幀辨識成同一人才確認
 const CONFIRM_MS=2500;      // 確認畫面自動打卡倒數
-const DEFAULTS={thr:0.6,margin:0.06,photo:true,noScreen:true,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00',otAsk:3,dupMin:5,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
+const DEFAULTS={thr:0.6,margin:0.06,photo:true,noScreen:true,scrBlock:false,scrThr:0.6,scrDebug:false,graceIn:0,graceOut:0,real:0.5,live:0.5,nightOut:'21:00',otAsk:3,dupMin:5,inBefore:60,inAfter:180,outBefore:180,outAfter:180};
 // 臨時加班：sel.sh='extra'，隨時可打、不看班表，下班卡一律成為加班申請（必填原因）
 const EXTRA={id:'extra',name:'臨時加班'};
 const shOf=id=>id==='extra'?EXTRA:SHIFTS.find(x=>x.id===id);
@@ -714,6 +716,7 @@ async function loop(){
       else if($('cam').readyState>=2){
         const res=await human.detect($('cam'));
         if(!res.face?.length)phoneObjs=[]; // 沒有人時清掉舊的物品結果，避免下一個人被前一次的結果擋住
+        updateScreenScore($('cam'),res.face?.[0]);
         if(settings.noScreen&&phoneModel&&res.face?.length&&Date.now()-phoneAt>400){
           phoneAt=Date.now();
           try{phoneObjs=(await phoneModel.detect($('cam'),6,0.3)).map(o=>({label:o.class,score:o.score,box:o.bbox}));}catch(e){phoneObjs=[];}
@@ -724,6 +727,56 @@ async function loop(){
   }catch(e){console.error(e);}
   setTimeout(loop,150);
 }
+// ---------- 螢幕特徵（輔助判斷，經驗公式，需現場校正） ----------
+// 摩爾紋（高頻週期性）、反光（大片過曝）、發光（臉比周圍亮、偏藍）、閃爍（掃描線造成的亮度帶在幾幀間跳動）
+// 每項 0～1，總分＝加權平均，再做平滑；預設只記錄在打卡紀錄，開啟「螢幕特徵太明顯就拒絕打卡」才會擋
+const SCR_N=128,scrCan=document.createElement('canvas'),scrRing=document.createElement('canvas');scrCan.width=scrCan.height=SCR_N;scrRing.width=scrRing.height=96;
+let scrAt=0,scrScore=0,scrLast=null,scrProfiles=[];
+const clamp01=v=>Math.max(0,Math.min(1,v));
+function fft1(re,im){const n=re.length;
+  for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t;}}
+  for(let len=2;len<=n;len<<=1){const a=-2*Math.PI/len,wr=Math.cos(a),wi=Math.sin(a),h=len>>1;
+    for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let q=0;q<h;q++){const x=i+q,y=x+h,tr=re[y]*cr-im[y]*ci,ti=re[y]*ci+im[y]*cr;re[y]=re[x]-tr;im[y]=im[x]-ti;re[x]+=tr;im[x]+=ti;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t;}}}
+}
+function screenFeatures(video,box){
+  const [bx,by,bw,bh]=box;if(!(bw>20&&bh>20))return null;
+  const ctx=scrCan.getContext('2d',{willReadFrequently:true});ctx.drawImage(video,bx,by,bw,bh,0,0,SCR_N,SCR_N);
+  const d=ctx.getImageData(0,0,SCR_N,SCR_N).data,N=SCR_N,gray=new Float64Array(N*N);
+  let sumL=0,sumB=0,sumRGB=0,sat=0;const rows=new Float64Array(32);
+  for(let i=0,p=0;i<N*N;i++,p+=4){const r=d[p],g=d[p+1],b=d[p+2],l=0.299*r+0.587*g+0.114*b;gray[i]=l;sumL+=l;sumB+=b;sumRGB+=r+g+b+1;if(Math.min(r,g,b)>=245)sat++;rows[Math.floor(Math.floor(i/N)/4)]+=l;}
+  const meanL=sumL/(N*N);
+  // 1. 摩爾紋：加窗後做 2D FFT，看高頻區的最大值／平均值（週期條紋會出現尖峰）；略過水平垂直軸（一般邊緣會集中在軸上）
+  const re=new Float64Array(N*N),im=new Float64Array(N*N);
+  for(let y=0;y<N;y++){const wy=0.5-0.5*Math.cos(2*Math.PI*y/(N-1));for(let x=0;x<N;x++){const wx=0.5-0.5*Math.cos(2*Math.PI*x/(N-1));re[y*N+x]=(gray[y*N+x]-meanL)*wx*wy;}}
+  const rr=new Float64Array(N),ri=new Float64Array(N);
+  for(let y=0;y<N;y++){for(let x=0;x<N;x++){rr[x]=re[y*N+x];ri[x]=im[y*N+x];}fft1(rr,ri);for(let x=0;x<N;x++){re[y*N+x]=rr[x];im[y*N+x]=ri[x];}}
+  for(let x=0;x<N;x++){for(let y=0;y<N;y++){rr[y]=re[y*N+x];ri[y]=im[y*N+x];}fft1(rr,ri);for(let y=0;y<N;y++){re[y*N+x]=rr[y];im[y*N+x]=ri[y];}}
+  let mx=0,sm=0,cnt=0;
+  for(let v=0;v<N;v++)for(let u=0;u<N;u++){const fu=u<N/2?u:u-N,fv=v<N/2?v:v-N,rad=Math.hypot(fu,fv);if(rad<N/6||rad>=N/2||Math.abs(fu)<2||Math.abs(fv)<2)continue;const m=Math.hypot(re[v*N+u],im[v*N+u]);sm+=m;cnt++;if(m>mx)mx=m;}
+  const moire=clamp01((mx/(sm/cnt||1)-8)/20);
+  // 2. 反光：臉部範圍裡接近全白的比例
+  const glare=clamp01((sat/(N*N)-0.01)/0.06);
+  // 3. 發光：臉比周圍亮很多，或比周圍偏藍
+  const rc=scrRing.getContext('2d',{willReadFrequently:true}),ex=Math.max(bw,bh)*1.0;
+  rc.drawImage(video,bx-ex/2,by-ex/2,bw+ex,bh+ex,0,0,96,96);const e=rc.getImageData(0,0,96,96).data;
+  let rL=0,rB=0,rRGB=0,rn=0;for(let y=0;y<96;y++)for(let x=0;x<96;x++){if(x>=24&&x<72&&y>=24&&y<72)continue;const p=(y*96+x)*4;rL+=0.299*e[p]+0.587*e[p+1]+0.114*e[p+2];rB+=e[p+2];rRGB+=e[p]+e[p+1]+e[p+2]+1;rn++;}
+  const ratio=meanL/((rL/rn)+1),blueF=sumB/sumRGB,blueR=rB/rRGB;
+  const emit=Math.max(clamp01((ratio-1.35)/0.8),clamp01((blueF-blueR-0.02)/0.06));
+  // 4. 閃爍：臉部由上到下 32 段亮度（除以平均亮度）在最近幾次取樣間的變化
+  const prof=Array.from(rows,v=>v/(N*4)/(meanL||1));scrProfiles.push(prof);if(scrProfiles.length>6)scrProfiles.shift();
+  let flick=0;if(scrProfiles.length>=3){let s=0;for(let i=0;i<32;i++){const vs=scrProfiles.map(p=>p[i]),m=vs.reduce((a,b)=>a+b,0)/vs.length;s+=Math.sqrt(vs.reduce((a,b)=>a+(b-m)*(b-m),0)/vs.length);}flick=clamp01((s/32-0.015)/0.04);}
+  const s=0.35*moire+0.25*glare+0.2*emit+0.2*flick;
+  return {s,m:moire,g:glare,e:emit,f:flick};
+}
+function updateScreenScore(video,f){
+  if(!f?.box){scrScore=0;scrLast=null;scrProfiles=[];$('scrDbg').hidden=true;return;}
+  if(Date.now()-scrAt<300)return;scrAt=Date.now();
+  let r=null;try{r=screenFeatures(video,f.box);}catch(e){console.warn(e);}
+  if(!r)return;scrLast=r;scrScore=scrScore*0.6+r.s*0.4;
+  const dbg=$('scrDbg');dbg.hidden=!settings.scrDebug;
+  if(settings.scrDebug)dbg.textContent=`螢幕特徵 ${scrScore.toFixed(2)}（摩爾紋 ${r.m.toFixed(2)}・反光 ${r.g.toFixed(2)}・發光 ${r.e.toFixed(2)}・閃爍 ${r.f.toFixed(2)}）`;
+}
+const scrRecord=()=>scrLast?{s:Math.round(scrScore*100)/100,m:Math.round(scrLast.m*100)/100,g:Math.round(scrLast.g*100)/100,e:Math.round(scrLast.e*100)/100,f:Math.round(scrLast.f*100)/100}:null;
 let screenSince=0;
 function handleFrame(f,objs){
   const q=faceQuality(f,$('cam'));
@@ -734,6 +787,7 @@ function handleFrame(f,objs){
   const scr=faceInScreen(f,objs);
   if(scr)screenSince=Date.now();
   if(scr||Date.now()-screenSince<1500){streak={sid:null,n:0};setMsg('偵測到手機或螢幕，請本人直接面對鏡頭打卡','bad');return;}
+  if(settings.scrBlock&&scrScore>=(Number(settings.scrThr)||0.6)){streak={sid:null,n:0};setMsg('畫面看起來像手機或螢幕，請本人直接面對鏡頭打卡','bad');return;}
   if(q==='turn'){streak.n=0;setMsg('請正對鏡頭','seen');return;}
   if(q==='weak'){streak.n=0;setMsg('辨識中…請拿下口罩','seen');return;}
   if(!isLive(f)){streak.n=0;if(!badSince)badSince=Date.now();setMsg(Date.now()-badSince>2500?'無法確認為真人，請拿下口罩、靠近並正對鏡頭':'辨識中…','bad');return;}
@@ -787,6 +841,7 @@ function confirmPunch(sid,info){
     done=true;
     const p={id:uid('p'),staffId:sid,ts,date:ymd(new Date(ts)),src:'kiosk',device:src.deviceId(),devName:device.name||'',
       sel:chosen,sim:Math.round(info.sim*1000)/1000,real:info.real!=null?Math.round(info.real*100)/100:null,live:info.live!=null?Math.round(info.live*100)/100:null};
+    {const sr=scrRecord();if(sr)p.scr=sr;} // 螢幕特徵分數（輔助判斷）
     if(photo)p.photo=photo;
     // 超過下班時間：先問要不要申請加班（必填原因），回答後才寫入這筆打卡（裝置只能新增、不能修改打卡）
     let otReason=null;
