@@ -292,6 +292,8 @@ tfoot td{font-weight:700;background:var(--soft)}
 /* modal */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 .modal{background:var(--panel);border-radius:12px;max-width:min(860px,100%);width:100%;max-height:92vh;overflow:auto;padding:18px}
+.modal{position:relative}
+.modal-x{position:absolute;top:10px;right:10px;width:34px;height:34px;padding:0;border-radius:50%;font-size:16px;line-height:1;color:var(--muted)}
 .modal h3{margin:0 0 12px;font-size:17px}
 .modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
 .modal .acts .sp{flex:1}
@@ -869,11 +871,12 @@ async function closeChanged(p){
 }
 
 /* ====== Modal ====== */
-function modal(html,onMount){
+// sticky：點旁邊空白處或按 Esc 不會關閉，只能按視窗上的按鈕關閉（設定視窗用）
+function modal(html,onMount,sticky){
   return new Promise(res=>{const bg=document.createElement('div');bg.className='modal-bg';bg.innerHTML=`<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
     document.body.appendChild(bg);const close=v=>{bg.remove();document.removeEventListener('keydown',kd);res(v)};
-    const kd=e=>{if(e.key==='Escape')close(undefined)};document.addEventListener('keydown',kd);
-    bg.addEventListener('mousedown',e=>{if(e.target===bg)close(undefined)});
+    const kd=e=>{if(e.key==='Escape'&&!sticky)close(undefined)};document.addEventListener('keydown',kd);
+    bg.addEventListener('mousedown',e=>{if(e.target===bg&&!sticky)close(undefined)});
     onMount(bg.firstElementChild,close)});
 }
 
@@ -1193,7 +1196,7 @@ function showImage(src,title,canDelete){
 $('#settingsBtn').addEventListener('click',()=>openSettings('price'));
 function openSettings(tab){
   const P=settings.prices;
-  modal(`<h3>設定</h3>
+  modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>設定</h3>
     <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button><button data-tab="backup">資料備份</button>${fs&&PERM==='super'?'<button data-tab="device">設備認證</button>':''}</div>
     <div data-pane="price">
       <div class="hint">輸入每個項目的單價（新台幣）。開單選項目時自動帶入「單價 × 數量」為原始金額；已開立的計劃單不受影響。</div>
@@ -1229,7 +1232,7 @@ function openSettings(tab){
       if(b.dataset.x==='close'){close();renderEditor()}
       if(b.dataset.x==='export')exportBackup();
       if(b.dataset.x==='import'){$('#importInput').value='';$('#importInput').click()}});
-  });
+  },true);
 }
 async function exportBackup(){
   // 備份檔把雲端照片一併放進去（換電腦或匯入本機模式都看得到）
