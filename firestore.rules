@@ -245,5 +245,14 @@ service cloud.firestore {
       allow read: if isSuper() || (signedIn() && mail == email());
       allow write: if isSuper();
     }
+
+    // 治療計劃單（treatment-plan.html）
+    //   tpPlans  計劃單：開通的人都可以看；本人請假（self）以上可以開單、編輯；排班管理以上可以刪除
+    //   tpFiles  收據照片：同上
+    //   tpConfig 價目表等設定：只有超級管理員可以修改
+    function canEditTp() { return perm() in ['self', 'manage', 'super']; }
+    match /tpPlans/{id}  { allow read: if canView(); allow create, update: if canEditTp(); allow delete: if canManage(); }
+    match /tpFiles/{id}  { allow read: if canView(); allow create, update, delete: if canEditTp(); }
+    match /tpConfig/{id} { allow read: if canView(); allow write: if isSuper(); }
   }
 }
