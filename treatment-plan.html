@@ -18,6 +18,7 @@
   --sig-bg:#f7f7f7;
 }}
 *{box-sizing:border-box}
+[hidden]{display:none!important} /* 讓 hidden 屬性一定生效（.gate、.me 等有自己的 display） */
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
