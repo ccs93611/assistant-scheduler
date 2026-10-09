@@ -96,7 +96,7 @@ main{padding:20px;min-width:0}
 .chip.pending{background:var(--accent-soft);color:var(--accent)}
 .chip.expiredNone{background:var(--soft);color:var(--muted);border:1px dashed var(--muted)}  /* 同「未定案」 */
 .chip.expiredPaid{background:var(--soft);color:var(--muted);border:1.5px solid var(--danger)}   /* 同「未定案」外加紅框 */
-.chip.draft{background:var(--soft);color:var(--muted);border:1px dashed var(--muted)}
+.chip.draftCont,.chip.draft{background:var(--soft);color:var(--muted);border:1px dashed var(--muted)}
 .chip.paid{background:var(--ok-soft);color:var(--ok)}
 .chip.changed{background:var(--info-soft);color:var(--info)}
 .grid-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
@@ -375,6 +375,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
         <select id="statusFilter">
           <option value="">全部狀態</option>
           <option value="draft">未定案</option>
+          <option value="draftCont">未定案-續（由計畫變更延續）</option>
           <option value="pending">尚未進行（已定案、未繳費）</option>
           <option value="open">進行中</option>
           <option value="paid">已結單－費用收訖</option>
@@ -508,17 +509,17 @@ function calc(p){
   const rcpt=p.receipts.reduce((a,x)=>a+(x.amount||0),0);
   return {orig,chg,paid,due:chg-paid,rcpt};
 }
-const STATUS={expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
+const STATUS={draftCont:'未定案-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
 // 顯示用狀態（未結單時）：還沒定案 → 未定案；已定案但還沒有繳費紀錄 → 尚未進行；有繳費紀錄 → 進行中
 // 有繳費：只要有過一筆金額不是 0 的繳費紀錄（含退費、前單轉入）
 const hasPaid=p=>p.payments.some(x=>x.amount);
-const stOf=p=>p.status!=='open'?p.status:isExpired(p)?(hasPaid(p)?'expiredPaid':'expiredNone'):!p.finalized?'draft':hasPaid(p)?'open':'pending';
+const stOf=p=>p.status!=='open'?p.status:isExpired(p)?(hasPaid(p)?'expiredPaid':'expiredNone'):!p.finalized?(p.prevId?'draftCont':'draft'):hasPaid(p)?'open':'pending';
 // 有效期限：預設為單據開立日起 6 個月，可手動調整（手動設定的存在 p.expiry）；還沒結單且超過期限顯示「有繳費且過期」或「無繳費且過期」
 const EXPIRY_MONTHS=6;
 function addMonths(ymd,n){const [y,m,d]=ymd.split('-').map(Number);const last=new Date(y,m-1+n+1,0).getDate();const dt=new Date(y,m-1+n,Math.min(d,last));return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`}
 const expiryOf=p=>p.expiry||((p.createdAt||'').slice(0,10)?addMonths(p.createdAt.slice(0,10),EXPIRY_MONTHS):'');
 const isExpired=p=>{const e=expiryOf(p);return !!e&&today()>e};
-const ST_SHORT={expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已收訖',changed:'計畫變更'};
+const ST_SHORT={draftCont:'未定案-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已收訖',changed:'計畫變更'};
 
 /* ====== 儲存 ====== */
 let saveT=null,pendingP=null;
