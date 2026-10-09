@@ -440,7 +440,7 @@ const LocalDB={
   set(k,v){return this.tx('kv','readwrite',s=>s.put(v,k))},
 };
 let fs=null,me='',PERM='super';            // 目前登入者與權限
-const canEdit=()=>['self','manage','super'].includes(PERM); // 可以開單、編輯、記錄繳費與收據
+const canEdit=()=>['self','manage','super','device'].includes(PERM); // 可以開單、編輯、記錄繳費與收據
 const canPrice=()=>PERM==='super';                          // 可以修改價目表與單上的單一金額
 // 刪除計劃單：超級管理員可刪任何一張（含已定案、已結單）；其他可編輯的人只能刪還沒定案的
 const canDelPlan=p=>PERM==='super'||(canEdit()&&!p.finalized&&p.status==='open');
@@ -1194,7 +1194,7 @@ $('#settingsBtn').addEventListener('click',()=>openSettings('price'));
 function openSettings(tab){
   const P=settings.prices;
   modal(`<h3>設定</h3>
-    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button><button data-tab="backup">資料備份</button></div>
+    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button><button data-tab="backup">資料備份</button>${fs&&PERM==='super'?'<button data-tab="device">設備認證</button>':''}</div>
     <div data-pane="price">
       <div class="hint">輸入每個項目的單價（新台幣）。開單選項目時自動帶入「單價 × 數量」為原始金額；已開立的計劃單不受影響。</div>
       ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改價目表，你目前只能查看。</div>'}
@@ -1211,6 +1211,7 @@ function openSettings(tab){
       </div>
       <div class="hint" style="margin-top:6px">本機模式：輸入欄位時會出現這些名字供選擇，也可以直接打字。</div>`}
     </div>
+    ${fs&&PERM==='super'?`<div data-pane="device">${devicePane()}</div>`:''}
     <div data-pane="backup">
       <p class="hint">${fs?'資料存在雲端（與排班系統同一個 Firebase 專案），各台電腦登入後即時同步。仍建議定期匯出備份檔另存。':'本機模式：資料存在這台電腦的瀏覽器裡（IndexedDB）。清除瀏覽器資料、換電腦或換瀏覽器都看不到，請定期匯出備份檔並另存。'}</p>
       <p>目前共 <b>${plans.size}</b> 張治療計劃單。</p>
@@ -1224,6 +1225,7 @@ function openSettings(tab){
       if(t.dataset.listSet){settings[t.dataset.listSet]=t.value.split('\n').map(s=>s.trim()).filter(Boolean);saveSettings()}});
     box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
       if(b.dataset.tab)show(b.dataset.tab);
+      if(b.dataset.devx)deviceAction(b.closest('[data-dev]').dataset.dev,b.dataset.devx);
       if(b.dataset.x==='close'){close();renderEditor()}
       if(b.dataset.x==='export')exportBackup();
       if(b.dataset.x==='import'){$('#importInput').value='';$('#importInput').click()}});
@@ -1249,15 +1251,78 @@ $('#importInput').addEventListener('change',async e=>{
   }catch(err){alert('這不是有效的治療計劃單備份檔')}
 });
 
+/* ====== 認證設備：不用 Google 登入的平板等（匿名登入 → 申請 → 超級管理員核准）====== */
+let tpDevices=[];
+const devCode=uid=>uid.slice(-6).toUpperCase();
+async function deviceApply(){
+  try{await firebase.auth().signInAnonymously()} // 之後由 onAuthStateChanged 接手（顯示申請表）
+  catch(e){showGate('error',e.code==='auth/operation-not-allowed'?'Firebase 尚未啟用「匿名」登入方式，請管理者到 Firebase 主控台 → Authentication → 登入方式 啟用「匿名」。':'無法連線：'+(e.code||e.message))}
+}
+async function handleDevice(u){
+  const ref=fs.doc('tpDevices/'+u.uid);let d=null;
+  try{const s=await ref.get();d=s.exists?s.data():null}catch(e){console.error(e)}
+  const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
+  if(!d){
+    msg.innerHTML=`申請把這台設備設為「認證設備」。<br>核准後開啟本頁不需要 Google 登入，可以開單、編輯，只能刪除未定案的單。<br>設備代碼：<span class="who">${devCode(u.uid)}</span>`;
+    acts.innerHTML=`<input id="devName" placeholder="設備名稱，例如：櫃台平板" style="width:100%;margin:6px 0"><br><button class="btn-primary" id="devSend">送出申請</button> <button id="devCancel">改用 Google 登入</button>`;
+    $('#devCancel').onclick=signOut;
+    $('#devSend').onclick=async()=>{
+      const name=$('#devName').value.trim();if(!name){alert('請輸入設備名稱');return}
+      $('#devSend').disabled=true;
+      try{await ref.set({name,code:devCode(u.uid),approved:false,reqAt:Date.now(),ua:navigator.userAgent.slice(0,200)});handleDevice(u)}
+      catch(e){alert('申請失敗：'+(e.code||e.message));$('#devSend').disabled=false}
+    };
+    return;
+  }
+  if(!d.approved){
+    msg.innerHTML=`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請超級管理員到「⚙ → 設備認證」核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
+    acts.innerHTML='<button id="devCancel">改用 Google 登入</button>';$('#devCancel').onclick=signOut;
+    ref.onSnapshot(s=>{if(s.exists&&s.data().approved)location.reload()},()=>{});
+    return;
+  }
+  PERM='device';me='設備：'+d.name;
+  // 被撤銷或刪除時立刻停用
+  ref.onSnapshot(s=>{if(!s.exists||!s.data().approved)location.reload()},()=>location.reload());
+  startCloud();
+}
+function watchDevices(){
+  if(PERM!=='super')return;
+  fs.collection('tpDevices').onSnapshot(snap=>{
+    tpDevices=snap.docs.map(d=>({uid:d.id,...d.data()})).sort((a,b)=>(a.approved-b.approved)||(b.reqAt||0)-(a.reqAt||0));
+    const pane=document.querySelector('.modal [data-pane="device"]');if(pane)pane.innerHTML=devicePane();
+    const btn=$('#settingsBtn');const n=tpDevices.filter(x=>!x.approved).length;btn.textContent='⚙ 價目表／人員／備份'+(n?`（設備待核准 ${n}）`:'');
+  },e=>console.warn(e));
+}
+function devicePane(){
+  const fmt=t=>t?new Date(t).toLocaleString('zh-TW',{hour12:false}):'';
+  return `<p class="hint">認證設備開啟本頁不需要 Google 登入，可以看所有計劃單、開單與編輯（含繳費、收據），只能刪除未定案的單，不能修改價目表。設備在登入畫面按「這台設備申請認證」後會出現在這裡。</p>
+  ${tpDevices.length?`<table><thead><tr><th>設備名稱</th><th>代碼</th><th>申請時間</th><th>狀態</th><th></th></tr></thead><tbody>${tpDevices.map(d=>`<tr data-dev="${esc(d.uid)}">
+    <td>${esc(d.name)}</td><td>${esc(d.code||devCode(d.uid))}</td><td>${esc(fmt(d.reqAt))}</td>
+    <td>${d.approved?`<span class="chip paid">已核准</span><div class="hint">${esc(d.approvedBy||'')} ${esc(fmt(d.approvedAt))}</div>`:'<span class="chip open">待核准</span>'}</td>
+    <td style="white-space:nowrap">${d.approved?'<button class="btn-sm" data-devx="revoke">撤銷</button>':'<button class="btn-sm btn-primary" data-devx="ok">核准</button>'} <button class="btn-sm btn-danger" data-devx="del">刪除</button></td>
+  </tr>`).join('')}</tbody></table>`:'<p class="hint">目前沒有設備申請。</p>'}`;
+}
+async function deviceAction(uid,act){
+  const d=tpDevices.find(x=>x.uid===uid);if(!d)return;
+  try{
+    if(act==='ok'){if(!confirm(`核准設備「${d.name}」（代碼 ${d.code||devCode(uid)}）？\n核准後這台設備不需登入即可查看、開立與編輯治療計劃單。`))return;
+      await fs.doc('tpDevices/'+uid).update({approved:true,approvedBy:me,approvedAt:Date.now()})}
+    if(act==='revoke'){if(!confirm(`撤銷設備「${d.name}」的認證？撤銷後該設備會立刻無法使用，需重新核准。`))return;
+      await fs.doc('tpDevices/'+uid).update({approved:false,revokedBy:me,revokedAt:Date.now()})}
+    if(act==='del'){if(!confirm(`刪除設備「${d.name}」？該設備需要重新申請認證。`))return;
+      await fs.doc('tpDevices/'+uid).delete()}
+  }catch(e){alert('操作失敗：'+(e.code==='permission-denied'?'沒有權限（請確認安全規則已更新）':e.message))}
+}
+
 /* ====== 啟動：Google 登入 → 權限（沿用排班系統）→ 雲端即時同步 ====== */
 let staffNames={doctor:[],assistant:[]};
-const PERM_LABEL={view:'僅檢視',self:'一般編輯',manage:'排班管理',super:'超級管理員'};
+const PERM_LABEL={view:'僅檢視',self:'一般編輯',manage:'排班管理',super:'超級管理員',device:'認證設備'};
 function showGate(kind,email){
   const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
   if(kind==='loading'){msg.textContent='連線中…';acts.innerHTML='';return}
   if(kind==='signin'){
     msg.textContent=/FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent)?'App 內建的瀏覽器無法使用 Google 登入，請點右上角「⋯」選擇用 Safari 或 Chrome 開啟。':'請用 Google 帳號登入（與排班系統相同的帳號）。';
-    acts.innerHTML='<button class="btn-primary" id="gSignIn">使用 Google 登入</button>';$('#gSignIn').onclick=signIn;return;
+    acts.innerHTML='<button class="btn-primary" id="gSignIn">使用 Google 登入</button><div style="margin-top:14px"><button class="btn-sm btn-ghost" id="gDevice">這台設備申請認證（免登入）</button></div>';$('#gSignIn').onclick=signIn;$('#gDevice').onclick=deviceApply;return;
   }
   if(kind==='error'){msg.textContent=email;acts.innerHTML='<button id="gReload">重新整理</button>';$('#gReload').onclick=()=>location.reload();return}
   msg.innerHTML=kind==='suspended'?`你的帳號 <span class="who">${esc(email)}</span> 已被停權，無法使用本系統。`
@@ -1272,11 +1337,12 @@ async function signIn(){
     if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')alert('登入失敗：'+e.message);
   }
 }
-async function signOut(){flushPending();if(window.firebase&&firebase.apps.length)await firebase.auth().signOut();location.reload()}
+async function signOut(){if(PERM==='device'&&!confirm('退出設備模式？\n退出後這台設備需要重新申請認證、由超級管理員核准。'))return;flushPending();if(window.firebase&&firebase.apps.length)await firebase.auth().signOut();location.reload()}
 $('#signOutBtn').addEventListener('click',signOut);
 function afterLogin(){
   $('#gate').hidden=true;
   $('#me').hidden=!fs;$('#meEmail').textContent=me;$('#mePerm').textContent=PERM_LABEL[PERM]||PERM;
+  $('#signOutBtn').textContent=PERM==='device'?'退出設備模式':'登出';
   $('#newBtn').hidden=!canEdit();
   renderList();renderEditor();
 }
@@ -1296,6 +1362,7 @@ function bootCloud(){
   showGate('loading');
   firebase.auth().onAuthStateChanged(async u=>{
     if(!u){showGate('signin');return}
+    if(u.isAnonymous){handleDevice(u);return}  // 認證設備
     me=(u.email||'').toLowerCase();
     const owner=(window.OWNER_EMAILS||[]).some(x=>x.toLowerCase()===me);
     let acc=null;try{const s=await fs.doc('access/'+me).get();acc=s.exists?s.data():null}catch(e){console.error(e)}
@@ -1308,7 +1375,7 @@ function bootCloud(){
 let stale=false,firstSnap=true;
 function rerenderKeep(){const y=scrollY;renderEditor();scrollTo(0,y)}
 function startCloud(){
-  afterLogin();$('#planList').innerHTML='<div class="empty" style="padding:30px 10px">載入中…</div>';
+  afterLogin();watchDevices();$('#planList').innerHTML='<div class="empty" style="padding:30px 10px">載入中…</div>';
   const onErr=e=>{console.error(e);if(e.code==='permission-denied')showGate('error','沒有權限讀取治療計劃單。請確認 Firestore 安全規則已更新，或洽診所管理者。')};
   fs.collection('tpPlans').onSnapshot(snap=>{
     let curChanged=false;

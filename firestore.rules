@@ -62,7 +62,7 @@ service cloud.firestore {
     match /presence/{uid}  { allow read: if canView(); allow write: if signedIn() && request.auth.uid == uid && canManage(); allow delete: if signedIn() && request.auth.uid == uid; }
     // 原始班表（定案時的當月班表）：所有已開通的人可看，排班管理以上可定案
     match /baselines/{ym}  { allow read: if canView(); allow write: if canManage(); }
-    match /staff/{id}      { allow read: if canView() || isKiosk(); allow write: if canManage(); }
+    match /staff/{id}      { allow read: if canView() || isKiosk() || isTpDevice(); allow write: if canManage(); }
 
     // ---- 出勤打卡 ----
     // 打卡裝置：裝置自己建立「等待核准」的紀錄；核准、改名、停用、刪除由排班管理以上處理
@@ -251,13 +251,22 @@ service cloud.firestore {
     //            超級管理員可刪除任何計劃單，其他人只能刪除還沒定案、還沒結單的（看文件上的 finalized、status 欄位）
     //   tpFiles  收據照片：同上
     //   tpConfig 價目表等設定：只有超級管理員可以修改
-    function canEditTp() { return perm() in ['self', 'manage', 'super']; }
+    //   tpDevices 認證設備（不用 Google 登入的平板等）：匿名登入後自己申請，超級管理員核准；
+    //            核准後權限同一般編輯人員（可看、可開單編輯、只能刪除未定案的單、不能改價目表）
+    function tpDevPath() { return /databases/$(database)/documents/tpDevices/$(request.auth.uid); }
+    function isTpDevice() { return request.auth != null && exists(tpDevPath()) && get(tpDevPath()).data.approved == true; }
+    function canEditTp() { return perm() in ['self', 'manage', 'super'] || isTpDevice(); }
     match /tpPlans/{id}  {
-      allow read: if canView();
+      allow read: if canView() || isTpDevice();
       allow create, update: if canEditTp();
       allow delete: if isSuper() || (canEditTp() && resource.data.get('finalized', false) != true && resource.data.get('status', 'open') == 'open');
     }
-    match /tpFiles/{id}  { allow read: if canView(); allow create, update, delete: if canEditTp(); }
-    match /tpConfig/{id} { allow read: if canView(); allow write: if isSuper(); }
+    match /tpFiles/{id}  { allow read: if canView() || isTpDevice(); allow create, update, delete: if canEditTp(); }
+    match /tpConfig/{id} { allow read: if canView() || isTpDevice(); allow write: if isSuper(); }
+    match /tpDevices/{uid} {
+      allow read: if isSuper() || (request.auth != null && request.auth.uid == uid);
+      allow create: if request.auth != null && request.auth.uid == uid && request.resource.data.approved == false;
+      allow update, delete: if isSuper();
+    }
   }
 }
