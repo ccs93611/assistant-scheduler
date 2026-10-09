@@ -296,6 +296,25 @@ tfoot td{font-weight:700;background:var(--soft)}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 .modal{background:var(--panel);border-radius:12px;max-width:min(860px,100%);width:100%;max-height:92vh;overflow:auto;padding:18px}
 .modal{position:relative}
+.inc-sum{display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0 10px;font-size:14px}
+.inc-sum .inc-total{font-weight:700;color:var(--accent)}
+.inc-tbl tbody tr{cursor:pointer}
+.inc-tbl td:nth-child(-n+3),.inc-tbl td.num,.inc-tbl th{white-space:nowrap}
+.inc-tbl td,.inc-tbl th{padding:6px 5px;font-size:14px}
+.inc-tbl tbody tr:hover td{background:var(--accent-soft)}
+@media print{
+  body.print-modal .app{display:none}
+  body.print-modal .modal-bg{position:static;background:none;padding:0;display:block}
+  body.print-modal .modal{max-height:none;overflow:visible;border:0;box-shadow:none;padding:0;max-width:none}
+  body.print-modal .modal-x,body.print-modal .tabs-m,body.print-modal .st-filters button,body.print-modal [data-pane][hidden]{display:none!important}
+}
+.st-filters{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:8px 0 12px;font-size:14px}
+.st-filters input[type=date]{padding:4px 6px}
+.st-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.st-grid h4{margin:0 0 6px}
+.st-tbl td,.st-tbl th{padding:6px 8px}
+.st-bar{height:5px;background:var(--soft);border-radius:3px;margin-top:3px;overflow:hidden}
+.st-bar i{display:block;height:100%;background:var(--danger)}
 .modal-x{position:absolute;top:10px;right:10px;width:34px;height:34px;padding:0;border-radius:50%;font-size:16px;line-height:1;color:var(--muted)}
 .modal h3{margin:0 0 12px;font-size:17px}
 .modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
@@ -318,6 +337,9 @@ tfoot td{font-weight:700;background:var(--soft)}
 .midline{border-top:2px solid var(--line);margin:4px 30px}
 .regions{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:8px}
 .price-cat{margin:14px 0 6px;font-weight:700;color:var(--accent)}
+.comm-row{grid-template-columns:1fr 210px!important}
+.comm-in{display:flex;gap:4px}
+.comm-add{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.comm-add select{flex:1;min-width:180px}.comm-add input{width:110px}.comm-in input{flex:1;min-width:0}.comm-in select{width:62px}
 .price-row{display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line);font-size:14px}
 .tabs-m{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .tabs-m button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -388,6 +410,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
     <div id="localBanner"></div>
     <div class="plan-list" id="planList"></div>
     <div class="side-foot">
+      <button class="btn-sm" id="statsBtn">📊 統計</button>
       <button class="btn-sm" id="settingsBtn">⚙ 價目表／人員／備份</button>
       <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip" id="mePerm"></span> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
     </div>
@@ -535,7 +558,7 @@ async function saveSettings(){try{await DB.saveSettings()}catch(e){console.error
 /* ====== 列表 ====== */
 function renderList(){
   const q=$('#search').value.trim().toLowerCase(),sf=$('#statusFilter').value;
-  const arr=[...plans.values()].filter(p=>(!sf||stOf(p)===sf)&&(!q||[p.name,p.chartNo,p.no,p.doctor,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q))))
+  const arr=[...plans.values()].filter(p=>(!sf||stOf(p)===sf)&&(!q||[p.name,p.chartNo,p.no,p.doctor,p.assistant,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q))))
     .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')||b.updatedAt-a.updatedAt);
   $('#planList').innerHTML=arr.length?arr.map(p=>{const c=calc(p);return `<button class="plan-item ${p.id===curId?'on':''}" data-open="${p.id}">
     <div class="l1"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m big">${p.birthday?'生日 '+esc(p.birthday):''}</span><span class="m">${esc(p.chartNo||'')}</span></div>
@@ -620,7 +643,7 @@ function renderEditor(){
           <div class="combo-wrap"><input data-k="itemIn" value="${esc(it.name)}" placeholder="選擇或輸入搜尋" autocomplete="off" ${idis}></div></td>
         <td class="c-teeth">${teethCell(it,idis)}</td>
         <td class="c-unit" data-label="單一金額"><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="unit" value="${unitOf(it)||''}" placeholder="0" ${idis||priceLock(it)}></td>
-        <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis}></td>
+        <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis||(qtyOne(it)?'disabled title="此項目數量固定為 1 單位"':'')}></td>
         <td class="c-orig" data-label="原始金額"><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${idis||priceLock(it)}></td>
         <td class="c-chg" data-label="變更金額"><input class="num ${discOf(it)?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.disc!=null||it.chg!=null?chgOf(it):''}" placeholder="同原始" ${idis}></td>
         ${IL?'':`<td class="c-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
@@ -726,6 +749,7 @@ function syncAmtRow(tr,it,skip){
   c.classList.toggle('changed-amt',!!discOf(it));
 }
 // 單價權限：只有超級管理員可以改價目表項目的單一金額與原始金額；自訂項目（不在價目表）大家都可以填
+const isOrthoItem=i=>!i.custom&&i.cat==='矯正';
 const PRICE_LOCK_MSG='只有超級管理員可以修改單價';
 const priceLock=it=>!canPrice()&&!it.custom?`disabled title="${PRICE_LOCK_MSG}"`:'';
 // 沒有編輯權限（僅檢視）的人：整張單唯讀，只能看、列印、看照片與簽名
@@ -788,6 +812,12 @@ $('#main').addEventListener('input',e=>{
 $('#main').addEventListener('change',e=>{
   const p=cur();if(!p)return;const t=e.target;
   if(t.dataset.k==='itemIn'){const r=rowOf(p,t);const it=r.row,v=t.value.trim(),hit=findItem(v);
+    // 矯正類只能和矯正類開在同一張單
+    if(v){const newOrtho=!!hit&&hit.cat==='矯正',others=p.items.filter(i=>i!==it&&i.name);
+      if(others.some(i=>isOrthoItem(i)!==newOrtho)){alert(newOrtho?'矯正類項目只能和矯正類開在同一張計劃單。\n這張單已有其他種類的項目，請另開一張單。':'這張單是矯正類計劃單，只能加入矯正類項目。\n其他種類請另開一張單。');t.value=it.name||'';return}
+      // 8 項矯正療程（LH日式矯正全口／半口／局部、Invisalign隱適美各方案）一張單只能有一項
+      if(hit&&ORTHO_MAIN.has(hit.name)&&others.some(i=>!i.custom&&ORTHO_MAIN.has(i.name))){alert('一張計劃單只能有一項矯正療程（LH日式矯正全口／半口／局部、Invisalign隱適美各方案）。');t.value=it.name||'';return}
+      if(hit&&QTY_ONE.has(hit.name)){it.qty=1;it.qtyManual=true}}
     if(hit){if(it.custom||it.cat!==hit.cat||it.name!==hit.name){it.custom=false;it.cat=hit.cat;it.name=hit.name;
         if(PER_TOOTH.has(hit.name)&&!it.qtyManual&&it.teeth.length)it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;
         const pr=priceOf(it);it.unit=pr;it.orig=pr*it.qty}}  // 開單當下的單價存進這張單，之後價目表改價不影響
@@ -795,6 +825,7 @@ $('#main').addEventListener('change',e=>{
     else{if(!it.custom&&it.name){it.unit=null;it.orig=0}it.custom=false;it.cat='';it.name=''}
     // 只更新這一列，避免重畫整張表讓游標跳走
     t.value=it.name;r.tr.querySelector('.cat-tag').innerHTML=it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;';
+    {const q=r.tr.querySelector('[data-k="qty"]'),lk=qtyOne(it);q.disabled=lk;q.title=lk?'此項目數量固定為 1 單位':''}
     r.tr.querySelectorAll('[data-k="unit"],[data-k="orig"]').forEach(x=>{const lk=!!priceLock(it);x.disabled=lk;x.title=lk?PRICE_LOCK_MSG:''});
     r.tr.querySelector('[data-k="unit"]').value=unitOf(it)||'';r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||'';syncAmtRow(r.tr,it);
     refreshTotals();touch();
@@ -857,6 +888,9 @@ $('#main').addEventListener('click',async e=>{
 async function finalize(p){
   const c=calc(p),items=p.items.filter(i=>i.name);
   if(!items.length){alert('請先填寫治療項目再定案');return}
+  if(items.some(isOrthoItem)&&!items.every(isOrthoItem)){alert('矯正類項目不能和其他種類開在同一張計劃單，請把其他種類移到另一張單後再定案。');return}
+  if(items.filter(i=>!i.custom&&ORTHO_MAIN.has(i.name)).length>1){alert('一張計劃單只能有一項矯正療程，請另開一張單後再定案。');return}
+  if(items.some(i=>qtyOne(i)&&i.qty>1)){alert('矯正療程與矯正分析的數量固定為 1 單位，請修正後再定案。');return}
   if(!p.consent.sig){alert('患者簽名同意治療計畫後才能定案');return}
   const warn=[];if(p.items.length>items.length)warn.push(`・有 ${p.items.length-items.length} 列未選治療項目，定案時會移除`);
   if(p.items.some(i=>i.teethBad&&i.teethBad.length))warn.push('・有牙位無法辨識（紅色）');
@@ -1208,12 +1242,198 @@ function showImage(src,title,canDelete){
   (box,close)=>box.addEventListener('click',e=>{const x=e.target.dataset.x;if(x==='close')close(false);if(x==='del'&&confirm('確定刪除這張照片？'))close(true)}));
 }
 
+/* ====== 統計：醫師／助理各自「無繳費且過期」佔自己全部計劃單的比例 ====== */
+$('#statsBtn').addEventListener('click',openStats);
+function statsRows(role,from,to,inclChanged){
+  const key=role==='doctor'?'doctor':'assistant',m=new Map();
+  for(const p of plans.values()){
+    const d=(p.createdAt||'').slice(0,10);
+    if(from&&d<from||to&&d>to)continue;
+    if(!inclChanged&&p.status==='changed')continue; // 計畫變更的舊單已由新單延續，預設不重複計算
+    const who=(p[key]||'').trim()||'（未填）';
+    if(!m.has(who))m.set(who,{who,total:0,exp:0});
+    const r=m.get(who);r.total++;if(stOf(p)==='expiredNone')r.exp++;
+  }
+  return [...m.values()].sort((a,b)=>(b.exp/b.total)-(a.exp/a.total)||b.total-a.total);
+}
+function statsTable(role,from,to,inclChanged){
+  const rows=statsRows(role,from,to,inclChanged),T=rows.reduce((a,r)=>({total:a.total+r.total,exp:a.exp+r.exp}),{total:0,exp:0});
+  const pct=(e,t)=>t?(e/t*100).toFixed(1)+'%':'—';
+  const bar=(e,t)=>`<div class="st-bar"><i style="width:${t?e/t*100:0}%"></i></div>`;
+  return `<table class="st-tbl"><thead><tr><th>${role==='doctor'?'主治醫師':'責任助理'}</th><th class="num">計劃單</th><th class="num">無繳費且過期</th><th class="num" style="width:150px">比例</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td>${esc(r.who)}</td><td class="num">${r.total}</td><td class="num">${r.exp?`<button class="link" data-st-who="${esc(r.who==='（未填）'?'':r.who)}">${r.exp}</button>`:0}</td><td class="num">${pct(r.exp,r.total)}${bar(r.exp,r.total)}</td></tr>`).join('')||'<tr><td colspan="4" class="hint">沒有資料</td></tr>'}
+    </tbody><tfoot><tr><td>合計</td><td class="num">${T.total}</td><td class="num">${T.exp}</td><td class="num">${pct(T.exp,T.total)}</td></tr></tfoot></table>`;
+}
+// 月收入：該月各醫師的繳費明細（依繳費日期；前單轉入不算當月收入，退費以負數列入）
+// 月收入表裡「矯正」欄的項目（維持器不算，列在一般收入）
+// 矯正療程單：含以下任一項目的計劃單，第一次繳費的那個月計一次抽成（預設每單 500 元，⚙ 抽成比例可改），不等結單
+const ORTHO_MAIN=new Set(['LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正']);
+// 數量固定為 1 單位的項目：8 項矯正療程與兩項矯正分析
+const QTY_ONE=new Set([...ORTHO_MAIN,'LH日式矯正分析','Invisalign隱適美-數位治療計劃分析']);
+const qtyOne=it=>!it.custom&&QTY_ONE.has(it.name);
+const isOrthoPlan=p=>p.items.some(i=>!i.custom&&ORTHO_MAIN.has(i.name));
+const orthoPlanComm=()=>settings.orthoPlanComm==null?500:Number(settings.orthoPlanComm)||0;
+const firstPay=p=>(p.payments||[]).filter(x=>!x.transfer&&x.amount>0&&x.date).sort((a,b)=>a.date.localeCompare(b.date))[0]||null;
+const ORTHO_ITEMS=new Set(['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','矯正器升級','Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正']);
+const canSeeIncome=()=>['manage','super'].includes(PERM);
+function incomeRows(ym){
+  const rows=[];
+  for(const p of plans.values())for(const x of p.payments||[]){
+    if(x.transfer||!x.amount||(x.date||'').slice(0,7)!==ym)continue;
+    const it=p.items.find(i=>i.id===x.itemId);
+    rows.push({doctor:(p.doctor||'').trim()||'（未填）',date:x.date,chartNo:p.chartNo||'',name:p.name||'',item:it?it.name:(x.itemId?'（已刪除的項目）':''),
+      teeth:teethLabel(payTeeth(JSON.parse(JSON.stringify(x)))),amount:x.amount,ortho:!!(it&&!it.custom&&ORTHO_ITEMS.has(it.name)),planId:p.id,note:x.note||''});
+  }
+  return rows.sort((a,b)=>a.doctor.localeCompare(b.doctor,'zh-Hant')||a.date.localeCompare(b.date)||a.chartNo.localeCompare(b.chartNo));
+}
+function incomeHtml(ym,doc){
+  const all=incomeRows(ym),rows=doc?all.filter(r=>r.doctor===doc):all,by=new Map();
+  rows.forEach(r=>{if(!by.has(r.doctor))by.set(r.doctor,[]);by.get(r.doctor).push(r)});
+  const sum=(a,o)=>a.reduce((s,r)=>s+(o===undefined||r.ortho===o?r.amount:0),0);
+  if(!rows.length)return '<p class="hint">這個月沒有繳費紀錄。</p>';
+  const head='<thead><tr><th>日期</th><th>病歷號</th><th>姓名</th><th>項目</th><th>牙位</th><th class="num">收入（不含矯正）</th><th class="num">矯正</th></tr></thead>';
+  const cell=(r,o)=>r.ortho===o?`<td class="num ${r.amount<0?'refund':''}">$${money(r.amount)}</td>`:'<td class="num"></td>';
+  const tri=a=>`收入 $${money(sum(a,false))}・矯正 $${money(sum(a,true))}・共 $${money(sum(a))}`;
+  return `<div class="inc-sum">${[...by].map(([d,a])=>`<span><b>${esc(d)}</b> ${tri(a)}</span>`).join('')}<span class="inc-total">合計 ${tri(rows)}</span></div>`+
+    [...by].map(([d,a])=>`<h4>${esc(d)}　<span class="hint">${a.length} 筆，${tri(a)}</span></h4>
+      <table class="st-tbl inc-tbl">${head}<tbody>${a.map(r=>`<tr data-st-plan="${esc(r.planId)}" title="點一下打開這張計劃單"><td>${esc(r.date)}</td><td>${esc(r.chartNo)}</td><td>${esc(r.name)}</td><td>${esc(r.item)}</td><td>${esc(r.teeth)}</td>${cell(r,false)}${cell(r,true)}</tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="5">小計</td><td class="num">$${money(sum(a,false))}</td><td class="num">$${money(sum(a,true))}</td></tr></tfoot></table>`).join('');
+}
+function incomeCsv(ym,doc){
+  const rows=incomeRows(ym).filter(r=>!doc||r.doctor===doc);
+  const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csv='﻿'+[['醫師','日期','病歷號','姓名','項目','牙位','收入（不含矯正）','矯正','備註'],...rows.map(r=>[r.doctor,r.date,r.chartNo,r.name,r.item,r.teeth,r.ortho?'':r.amount,r.ortho?r.amount:'',r.note])].map(a=>a.map(q).join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`醫師月收入_${ym}${doc?'_'+doc:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+// 月結單：該月結單（費用收訖／計畫變更）的計劃單，依治療種類拆列；金額＝該種類的實際已繳金額（依繳費紀錄選的項目分類，
+// 沒選項目或自訂項目歸「其他」；前單轉入不重複計算）；抽成依各種類設定（% 或每件固定元，⚙ 抽成比例）
+const COMM_CATS=[...CATS.map(c=>c[0]),'其他'];
+// 抽成設定：每個種類可選「%」（金額 × 比例）或「元」（每張單該種類固定抽成，已繳金額大於 0 才計）
+const commCfg=cat=>{const v=(settings.commission||{})[cat];if(v==null||v==='')return {type:'pct',v:0};return typeof v==='object'?{type:v.type==='amt'?'amt':'pct',v:Number(v.v)||0}:{type:'pct',v:Number(v)||0}};
+const commOf=(cat,amt)=>{const c=commCfg(cat);return c.type==='amt'?(amt>0?c.v:0):Math.round(amt*c.v/100)};
+// 個別項目抽成（每單位固定元，優先於種類設定），例如 膠原蛋白栓 每單位 100 元
+const itemCommOf=name=>{const v=(settings.itemComm||{})[name];return v==null||v===''?null:Number(v)||0};
+const commLabel=cat=>{const c=commCfg(cat);const base=c.type==='amt'?`$${money(c.v)}／件`:`${c.v}%`;
+  const its=Object.keys(settings.itemComm||{}).filter(n=>ITEM_INDEX.some(x=>x.name===n&&x.cat===cat));
+  const extra=[...its.map(n=>`${n} $${money(itemCommOf(n))}／單位`),...(cat==='矯正'?[`矯正療程 $${money(orthoPlanComm())}／單`]:[])];
+  return extra.length?base+'＋'+extra.join('、'):base};
+function closedRows(ym,doc,asst){
+  const rows=[];
+  for(const p of plans.values()){
+    if(doc&&((p.doctor||'').trim()||'（未填）')!==doc)continue;
+    if(asst&&((p.assistant||'').trim()||'（未填）')!==asst)continue;
+    if(isOrthoPlan(p)){ // 矯正療程單：第一次繳費的月份列一筆，每單固定抽成（含分析項目每單位抽成）；由前單轉入的延續單已在前單計過，不再計
+      const fp=firstPay(p);if(!fp||fp.date.slice(0,7)!==ym||(p.payments||[]).some(x=>x.transfer&&x.amount>0))continue;
+      const comm=orthoPlanComm(); // 矯正療程單只計這一次（每單固定），結單時不另計
+      rows.push({date:fp.date,kind:'矯正首次繳費',name:p.name||'',chartNo:p.chartNo||'',cat:'矯正',teeth:p.items.filter(i=>i.teeth.length).map(teethLabel).join('；'),amount:fp.amount,
+        assistant:p.assistant||'',doctor:p.doctor||'',rate:`矯正療程 $${money(orthoPlanComm())}／單`,comm,planId:p.id});
+      continue;
+    }
+    if(!['paid','changed'].includes(p.status)||(p.closedAt||'').slice(0,7)!==ym)continue;
+    // by：各種類已繳總額；rest：沒有個別項目設定的部分（套用種類設定）；itemPaid：有個別項目設定的項目各自已繳
+    const by=new Map(),rest=new Map(),itemPaid=new Map();
+    for(const x of p.payments||[]){
+      if(x.transfer||!x.amount)continue;
+      const it=p.items.find(i=>i.id===x.itemId);
+      const cat=it&&!it.custom&&COMM_CATS.includes(it.cat)?it.cat:'其他';
+      by.set(cat,(by.get(cat)||0)+x.amount);
+      if(it&&!it.custom&&itemCommOf(it.name)!=null)itemPaid.set(it,(itemPaid.get(it)||0)+x.amount);
+      else rest.set(cat,(rest.get(cat)||0)+x.amount);
+    }
+    for(const cat of COMM_CATS){
+      if(!by.has(cat))continue;
+      const amt=by.get(cat);
+      // 抽成＝種類設定（套用在沒有個別設定的金額）＋個別項目（每單位固定元 × 數量，該項目已繳大於 0 才計）
+      let comm=rest.has(cat)?commOf(cat,rest.get(cat)):0;
+      for(const [it,paid] of itemPaid)if(it.cat===cat&&paid>0)comm+=itemCommOf(it.name)*(it.qty||1);
+      const teeth=p.items.filter(i=>(i.custom?'其他':i.cat)===cat&&i.teeth.length).map(teethLabel).join('；');
+      rows.push({date:(p.closedAt||'').slice(0,10),kind:p.status==='paid'?'收訖':'計畫變更',name:p.name||'',chartNo:p.chartNo||'',cat,teeth,amount:amt,
+        assistant:p.assistant||'',doctor:p.doctor||'',rate:commLabel(cat),comm,planId:p.id});
+    }
+  }
+  return rows.sort((a,b)=>a.date.localeCompare(b.date)||a.chartNo.localeCompare(b.chartNo)||COMM_CATS.indexOf(a.cat)-COMM_CATS.indexOf(b.cat));
+}
+function closedHtml(ym,doc,asst){
+  const rows=closedRows(ym,doc,asst);
+  if(!rows.length)return '<p class="hint">這個月沒有結單的計劃單（或結單的單沒有繳費紀錄）。</p>';
+  const sum=(a,k)=>a.reduce((s,r)=>s+r[k],0);
+  const cats=COMM_CATS.filter(c=>rows.some(r=>r.cat===c));
+  return `<table class="st-tbl"><thead><tr><th>種類</th><th class="num">抽成設定</th><th class="num">總金額</th><th class="num">抽成</th></tr></thead><tbody>
+      ${cats.map(c=>{const a=rows.filter(r=>r.cat===c);return `<tr><td>${esc(c)}</td><td class="num">${commLabel(c)}</td><td class="num">$${money(sum(a,'amount'))}</td><td class="num">$${money(sum(a,'comm'))}</td></tr>`}).join('')}
+    </tbody><tfoot><tr><td>合計（${new Set(rows.map(r=>r.planId)).size} 張單）</td><td></td><td class="num">$${money(sum(rows,'amount'))}</td><td class="num">$${money(sum(rows,'comm'))}</td></tr></tfoot></table>
+    <h4 style="margin-top:14px">明細</h4>
+    <table class="st-tbl inc-tbl"><thead><tr><th>結單日期</th><th>姓名</th><th>病歷號</th><th>種類</th><th>牙位</th><th class="num">總金額</th><th>助理</th><th>醫師</th><th class="num">抽成</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr data-st-plan="${esc(r.planId)}" title="點一下打開這張計劃單"><td>${esc(r.date)}<div class="hint">${r.kind}</div></td><td>${esc(r.name)}</td><td>${esc(r.chartNo)}</td><td>${esc(r.cat)}</td><td>${esc(r.teeth)}</td><td class="num ${r.amount<0?'refund':''}">$${money(r.amount)}</td><td>${esc(r.assistant)}</td><td>${esc(r.doctor)}</td><td class="num">$${money(r.comm)}</td></tr>`).join('')}
+    </tbody><tfoot><tr><td colspan="5">合計</td><td class="num">$${money(sum(rows,'amount'))}</td><td colspan="2"></td><td class="num">$${money(sum(rows,'comm'))}</td></tr></tfoot></table>`;
+}
+function closedCsv(ym,doc,asst){
+  const rows=closedRows(ym,doc,asst);
+  const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csv='﻿'+[['結單日期','結單方式','姓名','病歷號','種類','牙位','總金額','助理','醫師','抽成設定','抽成'],...rows.map(r=>[r.date,r.kind,r.name,r.chartNo,r.cat,r.teeth,r.amount,r.assistant,r.doctor,r.rate,r.comm])].map(a=>a.map(q).join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`月結單_${ym}${doc?'_'+doc:''}${asst?'_'+asst:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+function openStats(){
+  const ym0=today().slice(0,7);
+  const docs=()=>[...new Set([...plans.values()].map(p=>(p.doctor||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+  const assts=()=>[...new Set([...plans.values()].map(p=>(p.assistant||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+  modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>統計</h3>
+    <div class="tabs-m">${canSeeIncome()?'<button data-tab="income">醫師月收入</button><button data-tab="closed">月結單</button>':''}<button data-tab="exp">無繳費且過期比例</button></div>
+    ${canSeeIncome()?`<div data-pane="income">
+      <p class="hint">依繳費紀錄的日期統計，退費以負數列入；繳費紀錄選的項目是矯正類（LH日式矯正、矯正器升級、Invisalign隱適美）時列在「矯正」欄，其餘（含維持器、未選項目）列在「收入（不含矯正）」；「前單轉入」是由計畫變更的舊單轉過來的金額，不算當月收入。點一筆明細可打開該計劃單。</p>
+      <div class="st-filters">
+        <label>月份 <input type="month" id="incYm" value="${ym0}"></label>
+        <label>醫師 <select id="incDoc"><option value="">全部醫師</option>${docs().map(d=>`<option>${esc(d)}</option>`).join('')}</select></label>
+        <button class="btn-sm" data-x="csv">下載 Excel（CSV）</button> <button class="btn-sm" data-x="print">列印</button>
+      </div>
+      <div id="incOut"></div></div>
+    <div data-pane="closed">
+      <p class="hint">統計結單日期在該月的計劃單（結單－費用收訖、結單－計畫變更）。總金額＝實際已繳金額，依繳費紀錄選的項目分到各種類（沒選項目或自訂項目歸「其他」；「前單轉入」不重複計算）；抽成依「⚙ → 抽成比例」的設定：選 % 為總金額 × 比例，選「元」為每張單該種類固定金額。矯正療程單（LH日式矯正、Invisalign隱適美療程）例外：第一次繳費的月份就列入，每單固定抽成，金額欄為第一次繳費金額。</p>
+      <div class="st-filters">
+        <label>月份 <input type="month" id="clYm" value="${ym0}"></label>
+        <label>醫師 <select id="clDoc"><option value="">全部醫師</option>${docs().map(d=>`<option>${esc(d)}</option>`).join('')}</select></label>
+        <label>助理 <select id="clAsst"><option value="">全部助理</option>${assts().map(d=>`<option>${esc(d)}</option>`).join('')}</select></label>
+        <button class="btn-sm" data-x="clcsv">下載 Excel（CSV）</button> <button class="btn-sm" data-x="print">列印</button>
+      </div>
+      <div id="clOut"></div></div>`:''}
+    <div data-pane="exp">
+    <p class="hint">「無繳費且過期」＝還沒結單、超過有效期限，而且沒有任何繳費紀錄的計劃單。比例＝該人員的無繳費且過期單數 ÷ 該人員全部計劃單數。點數字可在列表中查看這些單。</p>
+    <div class="st-filters">
+      <label>開立日期 <input type="date" id="stFrom"> ～ <input type="date" id="stTo"></label>
+      <label><input type="checkbox" id="stChanged"> 包含已「計畫變更」的舊單</label>
+    </div>
+    <div class="st-grid"><div><h4>醫師</h4><div id="stDoc"></div></div><div><h4>助理</h4><div id="stAsst"></div></div></div></div>`,
+  (box,close)=>{
+    const show=t=>{box.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==t);box.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===t))};
+    show(canSeeIncome()?'income':'exp');
+    const draw=()=>{const f=box.querySelector('#stFrom').value,t=box.querySelector('#stTo').value,c=box.querySelector('#stChanged').checked;
+      box.querySelector('#stDoc').innerHTML=statsTable('doctor',f,t,c);box.querySelector('#stAsst').innerHTML=statsTable('assistant',f,t,c);
+      const o=box.querySelector('#incOut');if(o)o.innerHTML=incomeHtml(box.querySelector('#incYm').value,box.querySelector('#incDoc').value);
+      const c2=box.querySelector('#clOut');if(c2)c2.innerHTML=closedHtml(box.querySelector('#clYm').value,box.querySelector('#clDoc').value,box.querySelector('#clAsst').value)};
+    draw();box.addEventListener('input',draw);box.addEventListener('change',draw);
+    box.addEventListener('click',e=>{
+      const b=e.target.closest('button');
+      if(b&&b.dataset.tab){show(b.dataset.tab);return}
+      if(e.target.closest('[data-x="close"]')){close();return}
+      if(b&&b.dataset.x==='clcsv'){closedCsv(box.querySelector('#clYm').value,box.querySelector('#clDoc').value,box.querySelector('#clAsst').value);return}
+      if(b&&b.dataset.x==='csv'){incomeCsv(box.querySelector('#incYm').value,box.querySelector('#incDoc').value);return}
+      if(b&&b.dataset.x==='print'){document.body.classList.add('print-modal');window.print();document.body.classList.remove('print-modal');return}
+      const pl=e.target.closest('[data-st-plan]');if(pl){close();openPlan(pl.dataset.stPlan);return}
+      const w=e.target.closest('[data-st-who]');if(!w)return;
+      $('#search').value=w.dataset.stWho;$('#statusFilter').value='expiredNone';close();renderList();
+    });
+  });
+}
+
 /* ====== 設定：價目表／人員／備份 ====== */
 $('#settingsBtn').addEventListener('click',()=>openSettings('price'));
+function itemCommRows(){
+  const e=Object.entries(settings.itemComm||{});const dis=canPrice()?'':'disabled';
+  return e.length?e.map(([n,v])=>`<div class="price-row comm-row"><span>${esc(n)}</span><span class="comm-in"><input class="num" type="number" min="0" step="1" data-icv="${esc(n)}" value="${v}" style="text-align:right" ${dis}><span class="hint" style="align-self:center;white-space:nowrap">元／單位</span>${canPrice()?`<button class="btn-sm btn-ghost btn-danger" data-icdel="${esc(n)}" title="刪除">✕</button>`:''}</span></div>`).join(''):'<p class="hint">尚未設定個別項目。</p>';
+}
 function openSettings(tab){
   const P=settings.prices;
   modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>設定</h3>
-    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button><button data-tab="backup">資料備份</button>${fs&&PERM==='super'?'<button data-tab="device">設備認證</button>':''}</div>
+    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button>${canSeeIncome()?'<button data-tab="comm">抽成比例</button>':''}<button data-tab="backup">資料備份</button>${fs&&PERM==='super'?'<button data-tab="device">設備認證</button>':''}</div>
     <div data-pane="price">
       <div class="hint">輸入每個項目的單價（新台幣）。開單選項目時自動帶入「單價 × 數量」為原始金額；已開立的計劃單不受影響。</div>
       ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改價目表，你目前只能查看。</div>'}
@@ -1231,6 +1451,18 @@ function openSettings(tab){
       <div class="hint" style="margin-top:6px">本機模式：輸入欄位時會出現這些名字供選擇，也可以直接打字。</div>`}
     </div>
     ${fs&&PERM==='super'?`<div data-pane="device">${devicePane()}</div>`:''}
+    ${canSeeIncome()?`<div data-pane="comm">
+      <div class="hint">各治療種類的抽成，可選「%」或「元」，用於「📊 統計 → 月結單」：選 % 時抽成＝該種類已繳金額 × 比例；選「元」時每張單該種類固定抽這個金額（已繳金額大於 0 才計）。</div>
+      ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改抽成比例。</div>'}
+      ${COMM_CATS.map(c=>{const cc=commCfg(c),dis=canPrice()?'':'disabled';return `<div class="price-row comm-row"><span>${esc(c)}${c==='其他'?' <span class="hint">（自訂項目、繳費未選項目）</span>':''}</span><span class="comm-in"><input class="num" type="number" min="0" step="${cc.type==='amt'?1:0.1}" data-comm="${esc(c)}" value="${cc.v||''}" placeholder="0" style="text-align:right" ${dis}><select data-commtype="${esc(c)}" ${dis}><option value="pct" ${cc.type==='pct'?'selected':''}>%</option><option value="amt" ${cc.type==='amt'?'selected':''}>元</option></select></span></div>`}).join('')}
+      <h4 style="margin:16px 0 4px">矯正療程單</h4>
+      <div class="hint">含 LH日式矯正（全口／半口／局部）或 Invisalign隱適美（全方位／中度／輕度／快速／兒童早期矯正）的計劃單，第一次繳費的那個月就計抽成，每單固定金額，不等結單；由計畫變更延續的新單不重複計算。</div>
+      <div class="price-row comm-row"><span>每單抽成</span><span class="comm-in"><input class="num" type="number" min="0" step="1" data-orthocomm value="${orthoPlanComm()}" style="text-align:right" ${canPrice()?'':'disabled'}><span class="hint" style="align-self:center">元／單</span></span></div>
+      <h4 style="margin:16px 0 4px">個別項目（每單位固定抽成，優先於種類設定）</h4>
+      <div class="hint">例如膠原蛋白栓每單位 100 元：這個項目用了幾個（數量）就抽幾 × 100 元，不再套用所屬種類的設定。</div>
+      <div id="itemCommList">${itemCommRows()}</div>
+      ${canPrice()?`<div class="comm-add"><select id="icItem"><option value="">— 選擇項目 —</option>${CATS.map(([c,l])=>`<optgroup label="${esc(c)}">${l.map(n=>`<option>${esc(n)}</option>`).join('')}</optgroup>`).join('')}</select><input class="num" type="number" min="0" step="1" id="icVal" placeholder="元／單位"><button class="btn-sm" data-x="icadd">新增</button></div>`:''}
+    </div>`:''}
     <div data-pane="backup">
       <p class="hint">${fs?'資料存在雲端（與排班系統同一個 Firebase 專案），各台電腦登入後即時同步。仍建議定期匯出備份檔另存。':'本機模式：資料存在這台電腦的瀏覽器裡（IndexedDB）。清除瀏覽器資料、換電腦或換瀏覽器都看不到，請定期匯出備份檔並另存。'}</p>
       <p>目前共 <b>${plans.size}</b> 張治療計劃單。</p>
@@ -1240,10 +1472,21 @@ function openSettings(tab){
   (box,close)=>{
     const show=t=>{box.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==t);box.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===t))};show(tab);
     box.addEventListener('input',e=>{const t=e.target;
+      if(t.dataset.orthocomm!==undefined){settings.orthoPlanComm=Math.max(0,Math.round(Number(t.value)||0));saveSettings()}
+      if(t.dataset.icv!==undefined){settings.itemComm=settings.itemComm||{};settings.itemComm[t.dataset.icv]=Math.max(0,Math.round(Number(t.value)||0));saveSettings()}
+      if(t.dataset.comm!==undefined||t.dataset.commtype!==undefined){ // 抽成：數值與單位（% / 元）
+        const cat=t.dataset.comm??t.dataset.commtype,row=t.closest('.comm-row'),type=row.querySelector('[data-commtype]').value,raw=row.querySelector('[data-comm]').value;
+        settings.commission=settings.commission||{};
+        if(raw==='')delete settings.commission[cat];
+        else{let v=Math.max(0,Number(raw)||0);if(type==='pct')v=Math.min(100,v);else v=Math.round(v);settings.commission[cat]={type,v}}
+        row.querySelector('[data-comm]').step=type==='amt'?1:0.1;saveSettings()}
       if(t.dataset.price){const v=numOrNull(t.value);if(v)P[t.dataset.price]=v;else delete P[t.dataset.price];saveSettings()}
       if(t.dataset.listSet){settings[t.dataset.listSet]=t.value.split('\n').map(s=>s.trim()).filter(Boolean);saveSettings()}});
     box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
       if(b.dataset.tab)show(b.dataset.tab);
+      if(b.dataset.x==='icadd'){const n=box.querySelector('#icItem').value,v=box.querySelector('#icVal').value;if(!n||v===''){alert('請選擇項目並輸入每單位金額');return}
+        settings.itemComm=settings.itemComm||{};settings.itemComm[n]=Math.max(0,Math.round(Number(v)||0));saveSettings();box.querySelector('#itemCommList').innerHTML=itemCommRows();box.querySelector('#icItem').value='';box.querySelector('#icVal').value=''}
+      if(b.dataset.icdel){if(!confirm(`刪除「${b.dataset.icdel}」的個別抽成設定？`))return;delete settings.itemComm[b.dataset.icdel];saveSettings();box.querySelector('#itemCommList').innerHTML=itemCommRows()}
       if(b.dataset.devx)deviceAction(b.closest('[data-dev]').dataset.dev,b.dataset.devx);
       if(b.dataset.x==='close'){close();renderEditor()}
       if(b.dataset.x==='export')exportBackup();
@@ -1378,6 +1621,10 @@ function bootCloud(){
   if(!window.firebase){showGate('error','無法載入登入元件，請確認網路連線後重新整理。');return}
   firebase.initializeApp(window.FIREBASE_CONFIG);
   fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});
+  // 登入狀態（含認證設備的匿名身分）長期保存在這台電腦，關機、重開瀏覽器或重新整理都不用重新登入／認證
+  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn(e));
+  // 請瀏覽器把本站資料列為「持續保存」，避免空間不足時被自動清掉（清掉的話設備就要重新申請認證）
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
   showGate('loading');
   firebase.auth().onAuthStateChanged(async u=>{
     if(!u){showGate('signin');return}
