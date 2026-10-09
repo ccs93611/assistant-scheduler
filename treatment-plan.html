@@ -8,13 +8,13 @@
 :root{
   --bg:#f4f6f7;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#dde3e6;--soft:#eef3f4;
   --accent:#0f7c80;--accent-ink:#fff;--accent-soft:#e1f1f1;
-  --danger:#c0392b;--danger-soft:#fbe9e7;--ok:#1e8449;--ok-soft:#e5f4ea;--warn:#b9770e;--warn-soft:#fdf2e0;
+  --danger:#c0392b;--danger-soft:#fbe9e7;--ok:#1e8449;--ok-soft:#e5f4ea;--warn:#b9770e;--warn-soft:#fdf2e0;--info:#1f5fae;--info-soft:#e3eefb;
   --sig-bg:#fff;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#12181b;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--soft:#212b30;
   --accent:#3fb6b9;--accent-ink:#0b1416;--accent-soft:#16383a;
-  --danger:#ef7a6c;--danger-soft:#3a1f1c;--ok:#5cc98a;--ok-soft:#173023;--warn:#e7b25a;--warn-soft:#352a16;
+  --danger:#ef7a6c;--danger-soft:#3a1f1c;--ok:#5cc98a;--ok-soft:#173023;--warn:#e7b25a;--warn-soft:#352a16;--info:#7fb3f0;--info-soft:#16283f;
   --sig-bg:#f7f7f7;
 }}
 *{box-sizing:border-box}
@@ -94,9 +94,11 @@ main{padding:20px;min-width:0}
 .chip{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;font-weight:600;white-space:nowrap}
 .chip.open{background:var(--warn-soft);color:var(--warn)}
 .chip.pending{background:var(--accent-soft);color:var(--accent)}
+.chip.expiredNone{background:var(--soft);color:var(--muted);border:1px dashed var(--muted)}  /* 同「未定案」 */
+.chip.expiredPaid{background:var(--soft);color:var(--muted);border:1.5px solid var(--danger)}   /* 同「未定案」外加紅框 */
 .chip.draft{background:var(--soft);color:var(--muted);border:1px dashed var(--muted)}
 .chip.paid{background:var(--ok-soft);color:var(--ok)}
-.chip.changed{background:var(--soft);color:var(--muted)}
+.chip.changed{background:var(--info-soft);color:var(--info)}
 .grid-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .grid-f label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 .grid-f label input{font-size:15px;color:var(--ink)}
@@ -258,6 +260,7 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 .teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
 .teeth-cell button{padding:3px 6px}
 .disc-amt{color:var(--warn)}
+input.expired-in{border-color:var(--danger);color:var(--danger)}
 .changed-amt{color:var(--danger);font-weight:600}
 tfoot tr.extra-disc td{background:var(--panel);font-weight:600;color:var(--muted)}
 tfoot td{font-weight:700;background:var(--soft)}
@@ -376,6 +379,8 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
           <option value="open">進行中</option>
           <option value="paid">已結單－費用收訖</option>
           <option value="changed">已結單－計畫變更</option>
+          <option value="expiredPaid">有繳費且過期</option>
+          <option value="expiredNone">無繳費且過期</option>
         </select>
       </div>
     </div>
@@ -503,10 +508,17 @@ function calc(p){
   const rcpt=p.receipts.reduce((a,x)=>a+(x.amount||0),0);
   return {orig,chg,paid,due:chg-paid,rcpt};
 }
-const STATUS={draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
+const STATUS={expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
 // 顯示用狀態（未結單時）：還沒定案 → 未定案；已定案但還沒有繳費紀錄 → 尚未進行；有繳費紀錄 → 進行中
-const stOf=p=>p.status!=='open'?p.status:!p.finalized?'draft':p.payments.some(x=>x.amount)?'open':'pending';
-const ST_SHORT={draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已收訖',changed:'計畫變更'};
+// 有繳費：只要有過一筆金額不是 0 的繳費紀錄（含退費、前單轉入）
+const hasPaid=p=>p.payments.some(x=>x.amount);
+const stOf=p=>p.status!=='open'?p.status:isExpired(p)?(hasPaid(p)?'expiredPaid':'expiredNone'):!p.finalized?'draft':hasPaid(p)?'open':'pending';
+// 有效期限：預設為單據開立日起 6 個月，可手動調整（手動設定的存在 p.expiry）；還沒結單且超過期限顯示「有繳費且過期」或「無繳費且過期」
+const EXPIRY_MONTHS=6;
+function addMonths(ymd,n){const [y,m,d]=ymd.split('-').map(Number);const last=new Date(y,m-1+n+1,0).getDate();const dt=new Date(y,m-1+n,Math.min(d,last));return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`}
+const expiryOf=p=>p.expiry||((p.createdAt||'').slice(0,10)?addMonths(p.createdAt.slice(0,10),EXPIRY_MONTHS):'');
+const isExpired=p=>{const e=expiryOf(p);return !!e&&today()>e};
+const ST_SHORT={expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已收訖',changed:'計畫變更'};
 
 /* ====== 儲存 ====== */
 let saveT=null,pendingP=null;
@@ -593,6 +605,7 @@ function renderEditor(){
       <label>主治醫師<input data-f="doctor" list="dlDoc" value="${esc(p.doctor)}" ${idis}></label>
       <label>責任助理<input data-f="assistant" list="dlAsst" value="${esc(p.assistant)}" ${idis}></label>
       <label>單據開立時間<input type="datetime-local" data-f="createdAt" value="${esc(p.createdAt)}" ${idis}></label>
+      <label>有效期限${p.expiry?'':'（預設 6 個月）'}<input type="date" data-f="expiry" value="${esc(expiryOf(p))}" ${dis} class="${isExpired(p)&&p.status==='open'?'expired-in':''}" title="清空可恢復為預設（開立日起 6 個月）"></label>
     </div>
   </section>
 
@@ -747,8 +760,10 @@ $('#main').addEventListener('input',e=>{
   if(t.classList.contains('note-ta'))growNotes(t);
   if(t.dataset.f){
     if(t.dataset.f==='extraDisc'){p.extraDisc=numOrNull(t.value)||0;refreshTotals();touch();return}
+    if(t.dataset.f==='expiry'){p.expiry=t.value||null;if(!t.value)t.value=expiryOf(p);t.classList.toggle('expired-in',isExpired(p)&&p.status==='open');touch();renderList();refreshTotals();return}
     if(t.dataset.f==='consentAt')p.consent.at=t.value;else p[t.dataset.f]=t.value;
-    touch();if(['name','chartNo','createdAt','birthday','doctor','assistant'].includes(t.dataset.f))renderList();return;
+    if(t.dataset.f==='createdAt'&&!p.expiry){const ex=document.querySelector('[data-f="expiry"]');if(ex)ex.value=expiryOf(p)} // 預設期限跟著開立時間
+    touch();if(['name','chartNo','createdAt','birthday','doctor','assistant'].includes(t.dataset.f)){renderList();refreshTotals()}return;
   }
   const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,it=r.row;
   if(r.name==='items'){
