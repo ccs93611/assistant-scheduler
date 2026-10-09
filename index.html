@@ -4793,18 +4793,22 @@ function renderAttLog(mi){
     .sort((a,b)=>{const x=kf(a),y=kf(b);const c=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');return (c*S.dir)||(b.ts-a.ts);});
   const th=(key,label)=>`<th><button type="button" class="th-btn${S.key===key?' on':''}" data-logsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
   $('attLogCount').textContent=`共 ${list.length} 筆`;
-  $('attLog').innerHTML=`<thead><tr>${th('date','日期')}<th>時間</th>${lowPerm()?'':th('staff','人員')}${th('map','對應')}${th('src','來源')}<th>照片</th><th></th></tr></thead><tbody>`+
+  const showScore=!lowPerm(); // 臉部辨識、螢幕特徵分數：排班管理以上才顯示
+  const scrThr=Number(attCfg().scrThr)||0.6,thr=Number(attCfg().thr)||0.6;
+  const faceCell=p=>p.src==='manual'||p.sim==null?'<td class="num att-mute">—</td>':`<td class="num" style="white-space:nowrap"><span class="${p.sim<thr?'att-bad':''}">${p.sim}</span><br><small class="att-mute">防偽 ${p.real??'—'}・活體 ${p.live??'—'}</small></td>`;
+  const scrCell=p=>!p.scr?'<td class="num att-mute">—</td>':`<td class="num" style="white-space:nowrap"><span class="${p.scr.s>=scrThr?'att-bad':''}">${p.scr.s}${p.scr.s>=scrThr?'（疑似螢幕）':''}</span><br><small class="att-mute">摩爾紋 ${p.scr.m}・反光 ${p.scr.g}・發光 ${p.scr.e}・閃爍 ${p.scr.f}</small></td>`;
+  $('attLog').innerHTML=`<thead><tr>${th('date','日期')}<th>時間</th>${lowPerm()?'':th('staff','人員')}${th('map','對應')}${th('src','來源')}${showScore?'<th class="num" title="相似度；下方為防偽、活體分數">臉部辨識</th><th class="num" title="總分；下方為摩爾紋、反光、發光、閃爍">螢幕特徵</th>':''}<th>照片</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(p=>{
       const d=parseYmd(p.date),L=lab[p.id];
-      const src=p.src==='manual'?`補登（${esc(p.by||'')}）${p.note?`<br><small class="att-mute">${esc(p.note)}</small>`:''}`:`${esc(p.devName||'打卡裝置')}${p.sim?` <small class="att-mute">相似度 ${p.sim}</small>`:''}${p.scr?` <small class="${p.scr.s>=(Number(attCfg().scrThr)||0.6)?'att-bad':'att-mute'}" title="摩爾紋 ${p.scr.m}・反光 ${p.scr.g}・發光 ${p.scr.e}・閃爍 ${p.scr.f}">螢幕特徵 ${p.scr.s}${p.scr.s>=(Number(attCfg().scrThr)||0.6)?'（疑似螢幕）':''}</small>`:''}`;
+      const src=p.src==='manual'?`補登（${esc(p.by||'')}）${p.note?`<br><small class="att-mute">${esc(p.note)}</small>`:''}`:`${esc(p.devName||'打卡裝置')}${p.sim&&!showScore?` <small class="att-mute">相似度 ${p.sim}</small>`:''}`;
       const otTxt=p.ot&&!p.void?` <span class="${p.ot.status==='pending'?'att-bad':p.ot.status==='replaced'?'att-mute':'att-ok'}">加班 ${p.ot.status==='approved'?p.ot.approvedMin:p.ot.extra&&!p.ot.from?'?':p.ot.min} 分（${esc(otStatusText(p.ot))}）</span>`:'';
       const map0=p.void?`<span class="att-mute">已作廢${p.voidNote?`：${esc(p.voidNote)}`:''}</span>`:L?`${L.other?`<span class="att-mute">${L.t}</span>`:L.t}${L.bad?` <span class="att-bad">${L.bad}</span>`:''}`:'';
       const map=map0+otTxt;
       return `<tr${p.void?' class="att-mute"':''}><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td class="${p.void?'':''}" style="font-variant-numeric:tabular-nums">${p.void?`<s>${hhmm(p.ts)}</s>`:hhmm(p.ts)}</td>
-        ${lowPerm()?'':`<td>${esc(fullName(byId(p.staffId)))}</td>`}<td>${map}</td><td>${src}</td>
+        ${lowPerm()?'':`<td>${esc(fullName(byId(p.staffId)))}</td>`}<td>${map}</td><td>${src}</td>${showScore?faceCell(p)+scrCell(p):''}
         <td>${p.photo?`<span class="punch"><img src="${esc(p.photo)}" alt="" data-photo="${esc(p.id)}"></span>`:''}</td>
         <td>${canWrite&&!p.void?`<button class="small" data-pvoid="${esc(p.id)}">作廢</button>`:''}</td></tr>`;
-    }).join(''):'<tr><td colspan="7" class="att-mute">沒有打卡紀錄</td></tr>')+'</tbody>';
+    }).join(''):`<tr><td colspan="${showScore?9:7}" class="att-mute">沒有打卡紀錄</td></tr>`)+'</tbody>';
 }
 function renderAtt(mi){
   attSubscribe(mi);
