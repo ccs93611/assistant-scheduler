@@ -210,7 +210,8 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .ar-field{display:flex;flex-direction:column;gap:4px;}
 .ar-field>label{font-size:.78rem;color:var(--ink);font-weight:500;}
 .ar-field input[type=number],.ar-field input[type=time],.ar-field input[type=date]{width:66%;min-width:110px;}
-.ar-chk>label{white-space:nowrap;cursor:pointer;}
+.ar-chk>label{cursor:pointer;} /* 長標題換行，不再擠到隔壁欄 */
+.ar-field>label{min-height:2.6em;display:flex;align-items:flex-end;line-height:1.3;overflow-wrap:anywhere;} /* 標題換行時，同一列的輸入框仍對齊 */
 .ar-box{display:flex;align-items:center;height:34px;}
 .ar-box input{width:24px;height:24px;margin:0;cursor:pointer;accent-color:var(--accent);}
 .ar-field small{font-size:.7rem;color:var(--faint);line-height:1.45;}
