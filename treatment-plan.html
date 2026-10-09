@@ -726,6 +726,14 @@ const rowOf=(p,el)=>{const tr=el.closest('[data-list]');if(!tr)return null;const
 const priceOf=it=>it.custom?0:(settings.prices[pk(it.cat,it.name)]||0);
 // 單一金額：開單時由價目表帶入，可在單上修改；原始金額 = 單一金額 × 數量
 const unitOf=it=>it.unit!=null?it.unit:priceOf(it);
+// 每張單的單價固定為開單當時的價格：舊資料沒有存單價的，用當時的原始金額 ÷ 數量 推回當時單價並存起來
+function freezeUnits(p){
+  for(const it of p.items||[]){
+    if(it.unit!=null||!it.name)continue;
+    it.unit=it.orig&&it.qty?Math.round(it.orig/it.qty):(it.custom?null:priceOf(it));
+  }
+  return p;
+}
 
 /* 輸入 */
 $('#main').addEventListener('input',e=>{
@@ -761,7 +769,7 @@ $('#main').addEventListener('change',e=>{
   if(t.dataset.k==='itemIn'){const r=rowOf(p,t);const it=r.row,v=t.value.trim(),hit=findItem(v);
     if(hit){if(it.custom||it.cat!==hit.cat||it.name!==hit.name){it.custom=false;it.cat=hit.cat;it.name=hit.name;
         if(PER_TOOTH.has(hit.name)&&!it.qtyManual&&it.teeth.length)it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;
-        const pr=priceOf(it);it.unit=pr||null;if(pr)it.orig=pr*it.qty}}
+        const pr=priceOf(it);it.unit=pr;it.orig=pr*it.qty}}  // 開單當下的單價存進這張單，之後價目表改價不影響
     else if(v){if(!it.custom&&it.name){it.unit=null;it.orig=0}it.custom=true;it.cat='其他';it.name=v}
     else{if(!it.custom&&it.name){it.unit=null;it.orig=0}it.custom=false;it.cat='';it.name=''}
     // 只更新這一列，避免重畫整張表讓游標跳走
@@ -1224,7 +1232,7 @@ $('#importInput').addEventListener('change',async e=>{
     if(!canEdit()){alert('沒有權限匯入');return}
     const dup=d.plans.filter(p=>plans.has(p.id)).length;
     if(!confirm(`備份檔含 ${d.plans.length} 張計劃單（其中 ${dup} 張與現有資料相同編號，將以備份檔覆蓋）。${canPrice()?'\n價目表與人員名單也會以備份檔取代。':''}\n確定匯入？`))return;
-    for(const p of d.plans){plans.set(p.id,p);await DB.put(p)}
+    for(const p of d.plans){freezeUnits(p);plans.set(p.id,p);await DB.put(p)}
     if(d.settings&&canPrice()){settings={...settings,...d.settings};await saveSettings()}
     alert('匯入完成');document.querySelector('.modal-bg')?.remove();renderList();renderEditor();
   }catch(err){alert('這不是有效的治療計劃單備份檔')}
@@ -1266,7 +1274,7 @@ async function bootLocal(){
   const m=location.search.match(/[?&]perm=(view|self|manage|super)/);PERM=m?m[1]:'super';
   try{await LocalDB.open()}catch(e){$('#main').innerHTML='<div class="empty">此瀏覽器無法使用本機資料庫（可能是無痕模式），資料將無法保存。</div>';return}
   const s=await LocalDB.get('settings');if(s)settings={...settings,...s};
-  (await LocalDB.all()).forEach(p=>plans.set(p.id,p));
+  (await LocalDB.all()).forEach(p=>plans.set(p.id,freezeUnits(p)));
   afterLogin();
 }
 // 雲端模式
@@ -1297,7 +1305,7 @@ function startCloud(){
       const id=ch.doc.id;
       if(ch.type==='removed'){if(plans.delete(id)&&id===curId)curChanged=true;return}
       if(ch.doc.metadata.hasPendingWrites)return;              // 自己剛寫入、還沒送到伺服器
-      let p;try{p=JSON.parse(ch.doc.data().json)}catch(e){return}
+      let p;try{p=freezeUnits(JSON.parse(ch.doc.data().json))}catch(e){return}
       const local=plans.get(id);
       if(local&&pendingP===local)return;                        // 這張正在編輯、還沒存
       if(local&&(local.updatedAt||0)>=(p.updatedAt||0))return; // 本機已是最新
@@ -1336,7 +1344,7 @@ async function checkLocalMigration(){
     if(!confirm(`把這台電腦的 ${loc.length} 張計劃單${needPrices?'與價目表':''}上傳到雲端？上傳後會從這台電腦的本機資料移除。`))return;
     $('#migBtn').disabled=true;$('#migBtn').textContent='上傳中…';
     try{
-      for(const p of loc){await DB.put(p);plans.set(p.id,p);await LocalDB.del(p.id)}
+      for(const p of loc){freezeUnits(p);await DB.put(p);plans.set(p.id,p);await LocalDB.del(p.id)}
       if(needPrices){settings={...settings,...ls};await DB.saveSettings()}
       b.innerHTML='';renderList();alert('上傳完成');
     }catch(e){console.error(e);alert('上傳失敗：'+(e.code==='permission-denied'?'沒有權限':e.message));$('#migBtn').disabled=false;$('#migBtn').textContent='上傳到雲端'}
