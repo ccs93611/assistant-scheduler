@@ -1305,7 +1305,7 @@ function incomeCsv(ym,doc){
   const csv='﻿'+[['醫師','日期','病歷號','姓名','項目','牙位','收入（不含矯正）','矯正','備註'],...rows.map(r=>[r.doctor,r.date,r.chartNo,r.name,r.item,r.teeth,r.ortho?'':r.amount,r.ortho?r.amount:'',r.note])].map(a=>a.map(q).join(',')).join('\r\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`醫師月收入_${ym}${doc?'_'+doc:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
 }
-// 助理抽成統計(月)：該月結單（費用收訖／計畫變更）的計劃單，依治療種類拆列；金額＝該種類的實際已繳金額（依繳費紀錄選的項目分類，
+// 醫師支出助理獎金(月)：該月結單（費用收訖／計畫變更）的計劃單，依治療種類拆列；金額＝該種類的實際已繳金額（依繳費紀錄選的項目分類，
 // 沒選項目或自訂項目歸「其他」；前單轉入不重複計算）；抽成依各種類設定（% 或每件固定元，⚙ 抽成比例）
 const COMM_CATS=[...CATS.map(c=>c[0]),'其他'];
 // 抽成設定：每個種類可選「%」（金額 × 比例）或「元」（每張單該種類固定抽成，已繳金額大於 0 才計）
@@ -1375,14 +1375,14 @@ function closedCsv(ym,doc,asst){
   const rows=closedRows(ym,doc,asst);
   const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
   const csv='﻿'+[['結單日期','結單方式','姓名','病歷號','種類','牙位','總金額','助理','醫師','抽成設定','抽成'],...rows.map(r=>[r.date,r.kind,r.name,r.chartNo,r.cat,r.teeth,r.amount,r.assistant,r.doctor,r.rate,r.comm])].map(a=>a.map(q).join(',')).join('\r\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`助理抽成統計_${ym}${doc?'_'+doc:''}${asst?'_'+asst:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`醫師支出助理獎金_${ym}${doc?'_'+doc:''}${asst?'_'+asst:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
 }
 function openStats(){
   const ym0=today().slice(0,7);
   const docs=()=>[...new Set([...plans.values()].map(p=>(p.doctor||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   const assts=()=>[...new Set([...plans.values()].map(p=>(p.assistant||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>統計</h3>
-    <div class="tabs-m">${canSeeIncome()?'<button data-tab="income">醫師月收入</button><button data-tab="closed">助理抽成統計(月)</button>':''}<button data-tab="exp">無繳費且過期比例</button></div>
+    <div class="tabs-m">${canSeeIncome()?'<button data-tab="income">醫師月收入</button><button data-tab="closed">醫師支出助理獎金(月)</button>':''}<button data-tab="exp">無繳費且過期比例</button></div>
     ${canSeeIncome()?`<div data-pane="income">
       <p class="hint">依繳費紀錄的日期統計，退費以負數列入；繳費紀錄選的項目是矯正類（LH日式矯正、矯正器升級、Invisalign隱適美）時列在「矯正」欄，其餘（含維持器、未選項目）列在「收入（不含矯正）」；「前單轉入」是由計畫變更的舊單轉過來的金額，不算當月收入。點一筆明細可打開該計劃單。</p>
       <div class="st-filters">
@@ -1472,7 +1472,7 @@ function openSettings(tab){
     </div>
     ${fs&&PERM==='super'?`<div data-pane="device">${devicePane()}</div>`:''}
     ${canSeeIncome()?`<div data-pane="comm">
-      <div class="hint">用於「📊 統計 → 助理抽成統計(月)」。</div>
+      <div class="hint">用於「📊 統計 → 醫師支出助理獎金(月)」。</div>
       ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改抽成比例。</div>'}
       <h4 style="margin:16px 0 4px">矯正療程單</h4>
       <div class="hint">含 LH日式矯正（全口／半口／局部）或 Invisalign隱適美（全方位／中度／輕度／快速／兒童早期矯正）的計劃單，第一次繳費的那個月就計抽成，每單固定金額，不等結單；由計畫變更延續的新單不重複計算。</div>
