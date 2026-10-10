@@ -1312,11 +1312,16 @@ const COMM_CATS=[...CATS.map(c=>c[0]),'其他'];
 const commCfg=cat=>{const v=(settings.commission||{})[cat];if(v==null||v==='')return {type:'pct',v:0};return typeof v==='object'?{type:v.type==='amt'?'amt':'pct',v:Number(v.v)||0}:{type:'pct',v:Number(v)||0}};
 const commOf=(cat,amt)=>{const c=commCfg(cat);return c.type==='amt'?(amt>0?c.v:0):Math.round(amt*c.v/100)};
 // 個別項目抽成（每單位固定元，優先於種類設定），例如 膠原蛋白栓 每單位 100 元
-const itemCommOf=name=>{const v=(settings.itemComm||{})[name];return v==null||v===''?null:Number(v)||0};
-const commLabel=cat=>{const c=commCfg(cat);const base=c.type==='amt'?`$${money(c.v)}／件`:`${c.v}%`;
-  const its=Object.keys(settings.itemComm||{}).filter(n=>ITEM_INDEX.some(x=>x.name===n&&x.cat===cat));
-  const extra=[...its.map(n=>`${n} $${money(itemCommOf(n))}／單位`),...(cat==='矯正'?[`矯正療程 $${money(orthoPlanComm())}／單`]:[])];
-  return extra.length?base+'＋'+extra.join('、'):base};
+// 個別項目抽成（優先於種類設定）：{type:'pct',v:%} 或 {type:'unit',v:每單位元}；舊資料存數字時視為每單位元
+const itemCommCfg=name=>{const v=(settings.itemComm||{})[name];if(v==null||v==='')return null;return typeof v==='object'?{type:v.type==='unit'?'unit':'pct',v:Number(v.v)||0}:{type:'unit',v:Number(v)||0}};
+const itemCommLabel=n=>{const c=itemCommCfg(n);return c.type==='unit'?`$${money(c.v)}／單位`:`${c.v}%`};
+// 月結統計摘要的「抽成設定」：列出該種類有設定的項目
+const commLabel=cat=>{
+  const all=ITEM_INDEX.filter(x=>x.cat===cat&&!ORTHO_MAIN.has(x.name)),set=all.filter(x=>itemCommCfg(x.name)),labs=[...new Set(set.map(x=>itemCommLabel(x.name)))];
+  // 全部項目設定一樣就直接顯示，例如「1%」；不一樣就寫「依各項目設定」
+  const its=!set.length?[]:labs.length===1&&set.length===all.length?[labs[0]]:set.length<=3?set.map(x=>`${x.name} ${itemCommLabel(x.name)}`):[`依各項目設定（${set.length} 項）`];
+  const extra=[...its,...(cat==='矯正'?[`矯正療程 $${money(orthoPlanComm())}／單`]:[])];
+  return extra.length?extra.join('、'):'未設定'};
 function closedRows(ym,doc,asst){
   const rows=[];
   for(const p of plans.values()){
@@ -1337,15 +1342,15 @@ function closedRows(ym,doc,asst){
       const it=p.items.find(i=>i.id===x.itemId);
       const cat=it&&!it.custom&&COMM_CATS.includes(it.cat)?it.cat:'其他';
       by.set(cat,(by.get(cat)||0)+x.amount);
-      if(it&&!it.custom&&itemCommOf(it.name)!=null)itemPaid.set(it,(itemPaid.get(it)||0)+x.amount);
+      if(it&&!it.custom&&itemCommCfg(it.name))itemPaid.set(it,(itemPaid.get(it)||0)+x.amount);
       else rest.set(cat,(rest.get(cat)||0)+x.amount);
     }
     for(const cat of COMM_CATS){
       if(!by.has(cat))continue;
       const amt=by.get(cat);
-      // 抽成＝種類設定（套用在沒有個別設定的金額）＋個別項目（每單位固定元 × 數量，該項目已繳大於 0 才計）
-      let comm=rest.has(cat)?commOf(cat,rest.get(cat)):0;
-      for(const [it,paid] of itemPaid)if(it.cat===cat&&paid>0)comm+=itemCommOf(it.name)*(it.qty||1);
+      // 抽成＝各項目設定加總（% ＝該項目已繳 × 比例；元/單位＝數量 × 金額，該項目已繳大於 0 才計）
+      let comm=0; // 只依各項目設定；沒有設定的項目、自訂項目、未選項目不抽成
+      for(const [it,paid] of itemPaid){if(it.cat!==cat)continue;const c=itemCommCfg(it.name);comm+=c.type==='pct'?Math.round(paid*c.v/100):(paid>0?c.v*(it.qty||1):0)}
       const teeth=p.items.filter(i=>(i.custom?'其他':i.cat)===cat&&i.teeth.length).map(teethLabel).join('；');
       rows.push({date:(p.closedAt||'').slice(0,10),kind:p.status==='paid'?'收訖':'計畫變更',name:p.name||'',chartNo:p.chartNo||'',cat,teeth,amount:amt,
         assistant:p.assistant||'',doctor:p.doctor||'',rate:commLabel(cat),comm,planId:p.id});
@@ -1426,9 +1431,24 @@ function openStats(){
 
 /* ====== 設定：價目表／人員／備份 ====== */
 $('#settingsBtn').addEventListener('click',()=>openSettings('price'));
+// 舊版「種類抽成」改為逐項設定：把種類的設定帶到該種類每個還沒設定的項目，然後移除種類設定（只有超級管理員會執行並存檔）
+function migrateCatComm(){
+  const cc=settings.commission||{};if(!canPrice()||!Object.keys(cc).length)return;
+  settings.itemComm=settings.itemComm||{};
+  for(const x of ITEM_INDEX){
+    if(ORTHO_MAIN.has(x.name)||settings.itemComm[x.name]!=null)continue;
+    const c=commCfg(x.cat);if(!c.v)continue;
+    settings.itemComm[x.name]=c.type==='amt'?{type:'unit',v:c.v}:{type:'pct',v:c.v};
+  }
+  delete settings.commission;saveSettings();
+}
 function itemCommRows(){
-  const e=Object.entries(settings.itemComm||{});const dis=canPrice()?'':'disabled';
-  return e.length?e.map(([n,v])=>`<div class="price-row comm-row"><span>${esc(n)}</span><span class="comm-in"><input class="num" type="number" min="0" step="1" data-icv="${esc(n)}" value="${v}" style="text-align:right" ${dis}><span class="hint" style="align-self:center;white-space:nowrap">元／單位</span>${canPrice()?`<button class="btn-sm btn-ghost btn-danger" data-icdel="${esc(n)}" title="刪除">✕</button>`:''}</span></div>`).join(''):'<p class="hint">尚未設定個別項目。</p>';
+  const dis=canPrice()?'':'disabled';
+  return CATS.map(([cat,list])=>`<div class="price-cat">${esc(cat)}</div>`+list.map(n=>{
+    if(ORTHO_MAIN.has(n))return `<div class="price-row comm-row"><span>${esc(n)}</span><span class="hint" style="text-align:right">依「矯正療程單」每單計</span></div>`;
+    const c=itemCommCfg(n);
+    return `<div class="price-row comm-row"><span>${esc(n)}</span><span class="comm-in"><input class="num" type="number" min="0" step="${c&&c.type==='unit'?1:0.1}" data-icv="${esc(n)}" value="${c?c.v:''}" placeholder="不抽成" style="text-align:right" ${dis}><select data-ictype="${esc(n)}" ${dis}><option value="pct" ${!c||c.type==='pct'?'selected':''}>%</option><option value="unit" ${c&&c.type==='unit'?'selected':''}>元/單位</option></select></span></div>`;
+  }).join('')).join('');
 }
 function openSettings(tab){
   const P=settings.prices;
@@ -1452,16 +1472,14 @@ function openSettings(tab){
     </div>
     ${fs&&PERM==='super'?`<div data-pane="device">${devicePane()}</div>`:''}
     ${canSeeIncome()?`<div data-pane="comm">
-      <div class="hint">各治療種類的抽成，可選「%」或「元」，用於「📊 統計 → 助理抽成統計(月)」：選 % 時抽成＝該種類已繳金額 × 比例；選「元」時每張單該種類固定抽這個金額（已繳金額大於 0 才計）。</div>
+      <div class="hint">用於「📊 統計 → 助理抽成統計(月)」。</div>
       ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改抽成比例。</div>'}
-      ${COMM_CATS.map(c=>{const cc=commCfg(c),dis=canPrice()?'':'disabled';return `<div class="price-row comm-row"><span>${esc(c)}${c==='其他'?' <span class="hint">（自訂項目、繳費未選項目）</span>':''}</span><span class="comm-in"><input class="num" type="number" min="0" step="${cc.type==='amt'?1:0.1}" data-comm="${esc(c)}" value="${cc.v||''}" placeholder="0" style="text-align:right" ${dis}><select data-commtype="${esc(c)}" ${dis}><option value="pct" ${cc.type==='pct'?'selected':''}>%</option><option value="amt" ${cc.type==='amt'?'selected':''}>元</option></select></span></div>`}).join('')}
       <h4 style="margin:16px 0 4px">矯正療程單</h4>
       <div class="hint">含 LH日式矯正（全口／半口／局部）或 Invisalign隱適美（全方位／中度／輕度／快速／兒童早期矯正）的計劃單，第一次繳費的那個月就計抽成，每單固定金額，不等結單；由計畫變更延續的新單不重複計算。</div>
       <div class="price-row comm-row"><span>每單抽成</span><span class="comm-in"><input class="num" type="number" min="0" step="1" data-orthocomm value="${orthoPlanComm()}" style="text-align:right" ${canPrice()?'':'disabled'}><span class="hint" style="align-self:center">元／單</span></span></div>
-      <h4 style="margin:16px 0 4px">個別項目（每單位固定抽成，優先於種類設定）</h4>
-      <div class="hint">例如膠原蛋白栓每單位 100 元：這個項目用了幾個（數量）就抽幾 × 100 元，不再套用所屬種類的設定。</div>
+      <h4 style="margin:16px 0 4px">各項目抽成</h4>
+      <div class="hint">選「%」時抽成＝該項目已繳金額 × 比例；選「元/單位」時抽成＝數量 × 金額（該項目有繳費才計）。留空＝不抽成。自訂項目與繳費時未選項目的金額不抽成。</div>
       <div id="itemCommList">${itemCommRows()}</div>
-      ${canPrice()?`<div class="comm-add"><select id="icItem"><option value="">— 選擇項目 —</option>${CATS.map(([c,l])=>`<optgroup label="${esc(c)}">${l.map(n=>`<option>${esc(n)}</option>`).join('')}</optgroup>`).join('')}</select><input class="num" type="number" min="0" step="1" id="icVal" placeholder="元／單位"><button class="btn-sm" data-x="icadd">新增</button></div>`:''}
     </div>`:''}
     <div data-pane="backup">
       <p class="hint">${fs?'資料存在雲端（與排班系統同一個 Firebase 專案），各台電腦登入後即時同步。仍建議定期匯出備份檔另存。':'本機模式：資料存在這台電腦的瀏覽器裡（IndexedDB）。清除瀏覽器資料、換電腦或換瀏覽器都看不到，請定期匯出備份檔並另存。'}</p>
@@ -1473,7 +1491,12 @@ function openSettings(tab){
     const show=t=>{box.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==t);box.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===t))};show(tab);
     box.addEventListener('input',e=>{const t=e.target;
       if(t.dataset.orthocomm!==undefined){settings.orthoPlanComm=Math.max(0,Math.round(Number(t.value)||0));saveSettings()}
-      if(t.dataset.icv!==undefined){settings.itemComm=settings.itemComm||{};settings.itemComm[t.dataset.icv]=Math.max(0,Math.round(Number(t.value)||0));saveSettings()}
+      if(t.dataset.icv!==undefined||t.dataset.ictype!==undefined){ // 各項目抽成
+        const n=t.dataset.icv??t.dataset.ictype,row=t.closest('.comm-row'),type=row.querySelector('[data-ictype]').value,raw=row.querySelector('[data-icv]').value;
+        settings.itemComm=settings.itemComm||{};
+        if(raw==='')delete settings.itemComm[n];
+        else{let v=Math.max(0,Number(raw)||0);v=type==='pct'?Math.min(100,v):Math.round(v);settings.itemComm[n]={type,v}}
+        row.querySelector('[data-icv]').step=type==='unit'?1:0.1;saveSettings()}
       if(t.dataset.comm!==undefined||t.dataset.commtype!==undefined){ // 抽成：數值與單位（% / 元）
         const cat=t.dataset.comm??t.dataset.commtype,row=t.closest('.comm-row'),type=row.querySelector('[data-commtype]').value,raw=row.querySelector('[data-comm]').value;
         settings.commission=settings.commission||{};
@@ -1484,9 +1507,6 @@ function openSettings(tab){
       if(t.dataset.listSet){settings[t.dataset.listSet]=t.value.split('\n').map(s=>s.trim()).filter(Boolean);saveSettings()}});
     box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
       if(b.dataset.tab)show(b.dataset.tab);
-      if(b.dataset.x==='icadd'){const n=box.querySelector('#icItem').value,v=box.querySelector('#icVal').value;if(!n||v===''){alert('請選擇項目並輸入每單位金額');return}
-        settings.itemComm=settings.itemComm||{};settings.itemComm[n]=Math.max(0,Math.round(Number(v)||0));saveSettings();box.querySelector('#itemCommList').innerHTML=itemCommRows();box.querySelector('#icItem').value='';box.querySelector('#icVal').value=''}
-      if(b.dataset.icdel){if(!confirm(`刪除「${b.dataset.icdel}」的個別抽成設定？`))return;delete settings.itemComm[b.dataset.icdel];saveSettings();box.querySelector('#itemCommList').innerHTML=itemCommRows()}
       if(b.dataset.devx)deviceAction(b.closest('[data-dev]').dataset.dev,b.dataset.devx);
       if(b.dataset.x==='close'){close();renderEditor()}
       if(b.dataset.x==='export')exportBackup();
@@ -1613,6 +1633,7 @@ async function bootLocal(){
   const m=location.search.match(/[?&]perm=(view|self|manage|super)/);PERM=m?m[1]:'super';
   try{await LocalDB.open()}catch(e){$('#main').innerHTML='<div class="empty">此瀏覽器無法使用本機資料庫（可能是無痕模式），資料將無法保存。</div>';return}
   const s=await LocalDB.get('settings');if(s)settings={...settings,...s};
+  migrateCatComm();
   (await LocalDB.all()).forEach(p=>plans.set(p.id,freezeUnits(p)));
   afterLogin();
 }
@@ -1665,6 +1686,7 @@ function startCloud(){
   },onErr);
   fs.doc('tpConfig/settings').onSnapshot(s=>{
     if(s.exists){try{settings={prices:{},doctors:[],assistants:[],...JSON.parse(s.data().json)}}catch(e){}}
+    migrateCatComm();
   },e=>console.warn(e));
   fs.collection('staff').onSnapshot(snap=>{
     const n={doctor:[],assistant:[]};
