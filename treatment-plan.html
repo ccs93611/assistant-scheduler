@@ -1276,7 +1276,7 @@ const isOrthoPlan=p=>p.items.some(i=>!i.custom&&ORTHO_MAIN.has(i.name));
 const orthoPlanComm=()=>settings.orthoPlanComm==null?500:Number(settings.orthoPlanComm)||0;
 const firstPay=p=>(p.payments||[]).filter(x=>!x.transfer&&x.amount>0&&x.date).sort((a,b)=>a.date.localeCompare(b.date))[0]||null;
 const ORTHO_ITEMS=new Set(['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','矯正器升級','Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正']);
-const canSeeIncome=()=>['manage','super'].includes(PERM);
+const canSeeIncome=()=>PERM==='super'; // 醫師月收入、醫師支出助理獎金(月)、抽成比例：只有超級管理員看得到
 function incomeRows(ym){
   const rows=[];
   for(const p of plans.values())for(const x of p.payments||[]){
