@@ -1621,8 +1621,8 @@ function bootCloud(){
   if(!window.firebase){showGate('error','無法載入登入元件，請確認網路連線後重新整理。');return}
   firebase.initializeApp(window.FIREBASE_CONFIG);
   fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});
-  // 登入狀態（含認證設備的匿名身分）長期保存在這台電腦，關機、重開瀏覽器或重新整理都不用重新登入／認證
-  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn(e));
+  // 登入狀態（含認證設備的匿名身分）預設就長期保存在這台電腦（Firebase 網頁版預設 LOCAL），關機、重開瀏覽器都不用重新登入／認證。
+  // 注意：不要在這裡呼叫 setPersistence()，會讓「整頁跳轉」方式登入回來時的結果遺失，造成登入失敗。
   // 請瀏覽器把本站資料列為「持續保存」，避免空間不足時被自動清掉（清掉的話設備就要重新申請認證）
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
   showGate('loading');
