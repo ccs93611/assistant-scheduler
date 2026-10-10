@@ -1276,7 +1276,7 @@ const isOrthoPlan=p=>p.items.some(i=>!i.custom&&ORTHO_MAIN.has(i.name));
 const orthoPlanComm=()=>settings.orthoPlanComm==null?500:Number(settings.orthoPlanComm)||0;
 const firstPay=p=>(p.payments||[]).filter(x=>!x.transfer&&x.amount>0&&x.date).sort((a,b)=>a.date.localeCompare(b.date))[0]||null;
 const ORTHO_ITEMS=new Set(['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','矯正器升級','Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正']);
-const canSeeIncome=()=>PERM==='super'; // 醫師月收入、醫師支出助理獎金(月)、抽成比例：只有超級管理員看得到
+const canSeeIncome=()=>PERM==='super'; // 醫師自費收入(月)、醫師支出助理獎金(月)、抽成比例：只有超級管理員看得到
 function incomeRows(ym){
   const rows=[];
   for(const p of plans.values())for(const x of p.payments||[]){
@@ -1292,19 +1292,19 @@ function incomeHtml(ym,doc){
   rows.forEach(r=>{if(!by.has(r.doctor))by.set(r.doctor,[]);by.get(r.doctor).push(r)});
   const sum=(a,o)=>a.reduce((s,r)=>s+(o===undefined||r.ortho===o?r.amount:0),0);
   if(!rows.length)return '<p class="hint">這個月沒有繳費紀錄。</p>';
-  const head='<thead><tr><th>日期</th><th>病歷號</th><th>姓名</th><th>項目</th><th>牙位</th><th class="num">收入（不含矯正）</th><th class="num">矯正</th></tr></thead>';
+  const head='<thead><tr><th>日期</th><th>病歷號</th><th>姓名</th><th>項目</th><th>牙位</th><th class="num">收入</th><th class="num">矯正收入</th><th class="num">其餘自費收入</th></tr></thead>';
   const cell=(r,o)=>r.ortho===o?`<td class="num ${r.amount<0?'refund':''}">$${money(r.amount)}</td>`:'<td class="num"></td>';
-  const tri=a=>`收入 $${money(sum(a,false))}・矯正 $${money(sum(a,true))}・共 $${money(sum(a))}`;
+  const tri=a=>`收入 $${money(sum(a))}（矯正收入 $${money(sum(a,true))}・其餘自費收入 $${money(sum(a,false))}）`;
   return `<div class="inc-sum">${[...by].map(([d,a])=>`<span><b>${esc(d)}</b> ${tri(a)}</span>`).join('')}<span class="inc-total">合計 ${tri(rows)}</span></div>`+
     [...by].map(([d,a])=>`<h4>${esc(d)}　<span class="hint">${a.length} 筆，${tri(a)}</span></h4>
-      <table class="st-tbl inc-tbl">${head}<tbody>${a.map(r=>`<tr data-st-plan="${esc(r.planId)}" title="點一下打開這張計劃單"><td>${esc(r.date)}</td><td>${esc(r.chartNo)}</td><td>${esc(r.name)}</td><td>${esc(r.item)}</td><td>${esc(r.teeth)}</td>${cell(r,false)}${cell(r,true)}</tr>`).join('')}</tbody>
-      <tfoot><tr><td colspan="5">小計</td><td class="num">$${money(sum(a,false))}</td><td class="num">$${money(sum(a,true))}</td></tr></tfoot></table>`).join('');
+      <table class="st-tbl inc-tbl">${head}<tbody>${a.map(r=>`<tr data-st-plan="${esc(r.planId)}" title="點一下打開這張計劃單"><td>${esc(r.date)}</td><td>${esc(r.chartNo)}</td><td>${esc(r.name)}</td><td>${esc(r.item)}</td><td>${esc(r.teeth)}</td><td class="num ${r.amount<0?'refund':''}">$${money(r.amount)}</td>${cell(r,true)}${cell(r,false)}</tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="5">小計</td><td class="num">$${money(sum(a))}</td><td class="num">$${money(sum(a,true))}</td><td class="num">$${money(sum(a,false))}</td></tr></tfoot></table>`).join('');
 }
 function incomeCsv(ym,doc){
   const rows=incomeRows(ym).filter(r=>!doc||r.doctor===doc);
   const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
-  const csv='﻿'+[['醫師','日期','病歷號','姓名','項目','牙位','收入（不含矯正）','矯正','備註'],...rows.map(r=>[r.doctor,r.date,r.chartNo,r.name,r.item,r.teeth,r.ortho?'':r.amount,r.ortho?r.amount:'',r.note])].map(a=>a.map(q).join(',')).join('\r\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`醫師月收入_${ym}${doc?'_'+doc:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  const csv='﻿'+[['醫師','日期','病歷號','姓名','項目','牙位','收入','矯正收入','其餘自費收入','備註'],...rows.map(r=>[r.doctor,r.date,r.chartNo,r.name,r.item,r.teeth,r.amount,r.ortho?r.amount:'',r.ortho?'':r.amount,r.note])].map(a=>a.map(q).join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`醫師自費收入_${ym}${doc?'_'+doc:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
 }
 // 醫師支出助理獎金(月)：該月結單（費用收訖／計畫變更）的計劃單，依治療種類拆列；金額＝該種類的實際已繳金額（依繳費紀錄選的項目分類，
 // 沒選項目或自訂項目歸「其他」；前單轉入不重複計算）；抽成依各種類設定（% 或每件固定元，⚙ 抽成比例）
@@ -1383,9 +1383,9 @@ function openStats(){
   const docs=()=>[...new Set([...plans.values()].map(p=>(p.doctor||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   const assts=()=>[...new Set([...plans.values()].map(p=>(p.assistant||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>統計</h3>
-    <div class="tabs-m">${canSeeIncome()?'<button data-tab="income">醫師月收入</button><button data-tab="closed">醫師支出助理獎金(月)</button>':''}<button data-tab="exp">無繳費且過期比例</button></div>
+    <div class="tabs-m">${canSeeIncome()?'<button data-tab="income">醫師自費收入(月)</button><button data-tab="closed">醫師支出助理獎金(月)</button>':''}<button data-tab="exp">無繳費且過期比例</button></div>
     ${canSeeIncome()?`<div data-pane="income">
-      <p class="hint">依繳費紀錄的日期統計，退費以負數列入；繳費紀錄選的項目是矯正類（LH日式矯正、矯正器升級、Invisalign隱適美）時列在「矯正」欄，其餘（含維持器、未選項目）列在「收入（不含矯正）」；「前單轉入」是由計畫變更的舊單轉過來的金額，不算當月收入。點一筆明細可打開該計劃單。</p>
+      <p class="hint">依繳費紀錄的日期統計，退費以負數列入；繳費紀錄選的項目是矯正類（LH日式矯正、矯正器升級、Invisalign隱適美）時列在「矯正收入」欄，其餘（含維持器、未選項目）列在「其餘自費收入」；「前單轉入」是由計畫變更的舊單轉過來的金額，不算當月收入。點一筆明細可打開該計劃單。</p>
       <div class="st-filters">
         <label>月份 <input type="month" id="incYm" value="${ym0}"></label>
         <label>醫師 <select id="incDoc"><option value="">全部醫師</option>${docs().map(d=>`<option>${esc(d)}</option>`).join('')}</select></label>
