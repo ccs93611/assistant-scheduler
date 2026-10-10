@@ -434,6 +434,7 @@ const CATS=[
  ['矯正',['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','矯正器升級','Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正','活動維持器','透明維持器','固定式維持器']],
  ['兒童牙科',['SSC金屬乳牙套','Strip crown樹酯乳牙套','空間維持器']],
  ['舒眠麻醉',['舒眠麻醉-基本2hr','舒眠麻醉-追加1hr']],
+ ['牙齒美白',['居家美白','噴砂美白-全口','噴砂美白-前牙']],
  ['自費醫材',['膠原蛋白栓','可吸收再生膜','不可吸收再生膜','FDBA骨粉']],
 ];
 // 以「顆」計價的項目：選牙位時數量自動等於顆數
@@ -573,7 +574,7 @@ $('#search').addEventListener('input',renderList);
 $('#statusFilter').addEventListener('change',renderList);
 
 // 列表上的治療種類標籤：滑鼠移上去可看該種類的項目
-const CAT_HUE=Object.fromEntries(CATS.map(([c],i)=>[c,[200,30,140,265,330,95,175,45,290,10][i%10]]));
+const CAT_HUE=Object.fromEntries(CATS.map(([c],i)=>[c,[200,30,140,265,330,95,175,45,290,55,10][i%11]]));
 function planTags(p){
   const by=new Map();
   for(const i of p.items){if(!i.name)continue;const c=i.custom?'自訂項目':i.cat;if(!by.has(c))by.set(c,[]);by.get(c).push(i.name)}
