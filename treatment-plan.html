@@ -54,14 +54,19 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 .plan-item .nmr{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 10px}
 /* 列表窄時（例如側欄 300px）改成直式排列，避免文字重疊 */
 @container plist (max-width:480px){
-  .plan-item{grid-template-columns:minmax(0,1fr) auto;gap:4px 8px}
-  .plan-item .l1{grid-column:1;grid-row:1}
-  .plan-item .x1{display:contents}
-  .plan-item .x1 .dt{grid-column:2;grid-row:1;justify-self:end}
+  /* 窄欄：姓名 → 病歷號｜狀態 → 生日 → 醫師・助理 → 標籤 → 開立日期｜金額，每項各佔一行 */
+  .plan-item{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:none;gap:3px 8px}
+  .plan-item .l1,.plan-item .x1{display:contents}
+  .plan-item .nmr{display:contents}
+  .plan-item .nmr .nm{grid-column:1/-1;grid-row:1}
+  .plan-item .nmr .m{grid-column:1;grid-row:2}
   .plan-item .x1 .chip{grid-column:2;grid-row:2;justify-self:end}
-  .plan-item .l2{grid-column:1;grid-row:2}
-  .plan-item .tg{grid-column:1;grid-row:3;margin-top:2px}
-  .plan-item .x2{grid-column:2;grid-row:3}
+  .plan-item .l1>.m.big{grid-column:1/-1;grid-row:3}
+  .plan-item .l2{grid-column:1/-1;grid-row:4}
+  .plan-item .l2 .m{white-space:normal}
+  .plan-item .tg{grid-column:1/-1;grid-row:5;margin-top:2px}
+  .plan-item .x1 .dt{grid-column:1;grid-row:6;justify-self:start;font-size:11px}
+  .plan-item .x2{grid-column:2;grid-row:6;justify-content:flex-end}
   .plan-item .ptag{font-size:13px;padding:1px 9px}
 }
 .plan-item .nm{font-size:15px}
