@@ -764,7 +764,7 @@ function payItemOptions(p,x){
 function teethCell(o,disAttr){
   const v=teethInputs(o),bad=o.teethBad&&o.teethBad.length,ti=bad?esc('無法辨識：'+o.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
   const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${disAttr}>`;
-  return `<div class="teeth-cell"><div class="jaws"><div class="jaw"><span>上</span>${inp('up','上顎牙位')}</div><div class="jaw"><span>下</span>${inp('lo','下顎牙位')}</div><i class="midl"></i></div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${disAttr}>🦷</button></div>`;
+  return `<div class="teeth-cell"><div class="jaws"><div class="jaw"><span>上</span>${inp('up','')}</div><div class="jaw"><span>下</span>${inp('lo','')}</div><i class="midl"></i></div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${disAttr}>🦷</button></div>`;
 }
 // 舊的繳費紀錄牙位是文字，轉成和治療項目相同的格式
 function payTeeth(x){
