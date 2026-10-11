@@ -268,6 +268,9 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 .teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
 .teeth-cell button{padding:3px 6px}
 .disc-amt{color:var(--warn)}
+.fin-bar{display:flex;justify-content:flex-end;margin-top:14px} /* 定案按鈕在患者同意區右下角 */
+.btn-fin{font-size:18px;font-weight:700;padding:10px 36px;border-radius:10px}
+.ro-amt{display:block;text-align:right;padding:0 4px;font-variant-numeric:tabular-nums;white-space:nowrap}
 input.expired-in{border-color:var(--danger);color:var(--danger)}
 .changed-amt{color:var(--danger);font-weight:600}
 tfoot tr.extra-disc td{background:var(--panel);font-weight:600;color:var(--muted)}
@@ -562,9 +565,11 @@ const cur=()=>plans.get(curId);
 // 確認金額：留空等於金額；舊資料若存的是減免金額（disc），確認金額 = 金額 − 減免金額
 const chgOf=it=>it.disc!=null?(it.orig||0)-it.disc:(it.chg??(it.orig||0));
 const discOf=it=>(it.orig||0)-chgOf(it);
+// 調整：負數為折扣、正數為漲價；舊資料的「追加減免」(extraDisc，正數代表減) 換算成負數
+const adjOf=p=>p.adj!=null?p.adj:-(p.extraDisc||0);
 function calc(p){
   const orig=p.items.reduce((a,i)=>a+(i.orig||0),0);
-  const chg=p.items.reduce((a,i)=>a+chgOf(i),0)-(p.extraDisc||0); // 追加減免：整張單另外再減
+  const chg=p.items.reduce((a,i)=>a+chgOf(i),0)+adjOf(p); // 調整：整張單另外加減（負數＝折扣，正數＝漲價）
   const paid=p.payments.reduce((a,x)=>a+(x.amount||0),0);
   const rcpt=p.receipts.reduce((a,x)=>a+(x.amount||0),0);
   return {orig,chg,paid,due:chg-paid,rcpt};
@@ -679,13 +684,13 @@ function renderEditor(){
         <td class="c-item"><span class="cat-tag">${it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;'}</span>
           <div class="combo-wrap"><input data-k="itemIn" value="${esc(it.name)}" placeholder="選擇或輸入搜尋" autocomplete="off" ${idis}></div></td>
         <td class="c-teeth">${teethCell(it,idis)}</td>
-        <td class="c-unit" data-label="單價"><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="unit" value="${unitOf(it)||''}" placeholder="0" ${idis||priceLock(it)}></td>
+        <td class="c-unit" data-label="單價"><span class="ro-amt" data-k="unit">${roAmt(unitOf(it))}</span></td>
         <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis||(qtyOne(it)?'disabled title="此項目數量固定為 1 單位"':'')}></td>
-        <td class="c-orig" data-label="金額"><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${idis||priceLock(it)}></td>
-        <td class="c-chg" data-label="確認金額"><input class="num ${discOf(it)?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.disc!=null||it.chg!=null?chgOf(it):''}" placeholder="同金額" ${idis}></td>
+        <td class="c-orig" data-label="金額"><span class="ro-amt" data-k="orig">${roAmt(it.orig)}</span></td>
+        <td class="c-chg" data-label="確認金額"><input class="num ${discOf(it)?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.disc!=null||it.chg!=null?chgOf(it):''}" placeholder="" ${idis}></td>
         ${IL?'':`<td class="c-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
       </tr>`).join('')||`<tr><td colspan="8" class="hint">尚無項目</td></tr>`}</tbody>
-      <tfoot><tr class="extra-disc"><td colspan="6" class="num">追加減免</td><td><input class="num disc-amt" type="number" min="0" step="1" inputmode="numeric" data-f="extraDisc" value="${p.extraDisc||''}" placeholder="0" title="整張治療計劃另外追加的減免" ${idis}></td>${IL?'':'<td class="no-print"></td>'}</tr></tfoot>
+      <tfoot><tr class="extra-disc"><td colspan="6" class="num">調整</td><td><input class="num ${adjOf(p)<0?'disc-amt':''}" type="number" step="1" inputmode="numeric" data-f="adj" value="${adjOf(p)||''}" placeholder="0" title="整張治療計劃另外調整的金額：負數為折扣、正數為漲價" ${idis}></td>${IL?'':'<td class="no-print"></td>'}</tr></tfoot>
     </table></div>
     <div class="totals">
       <div><small>總金額</small><b id="tOrig">$${money(c.orig)}</b></div>
@@ -693,17 +698,18 @@ function renderEditor(){
       <div class="hl"><small>變更後總金額</small><b id="tChg">$${money(c.chg)}</b></div>
     </div>
     ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已定案（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
-    <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量，都可直接修改；「確認金額」留空表示與金額相同。</div>
+    <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量；「確認金額」留空表示與金額相同；「調整」輸入負數為折扣、正數為漲價。</div>
   </section>
 
   <section class="card">
-    <h2>患者同意治療計畫<span class="sp"></span>${p.finalized?`<span class="chip paid">已定案 ${esc(fmtDT(p.finalizedAt))}</span>`:(L?'':'<button class="btn-sm btn-primary no-print" data-act="finalize">定案</button>')}</h2>
+    <h2>患者同意治療計畫<span class="sp"></span>${p.finalized?`<span class="chip paid">已定案 ${esc(fmtDT(p.finalizedAt))}</span>`:''}</h2>
     <p class="consent">本人已詳閱並了解上述治療計畫之內容、牙位與費用，經醫師說明後同意接受治療。</p>
     <div class="grid-f" style="align-items:end">
       <div><div class="hint">患者（或法定代理人）簽名</div>
         <div class="sigbox" data-act="consentSig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:(L?'未簽名':'點此簽名')}</div></div>
       <label style="max-width:240px">簽名時間<input type="datetime-local" data-f="consentAt" value="${esc(p.consent.at)}" ${idis}></label>
     </div>
+    ${p.finalized||L?'':'<div class="fin-bar no-print"><button class="btn-primary btn-fin" data-act="finalize">定案</button></div>'}
   </section>
 
   <section class="card">
@@ -772,15 +778,14 @@ function payTeeth(x){
   return x;
 }
 // 更新一列的減免／確認金額顯示（skip：使用者正在輸入的欄位不覆蓋）
+// 單價、金額只顯示不輸入（單價由價目表帶入，金額 = 單價 × 數量）
+const roAmt=v=>v?'$'+money(v):'';
 function syncAmtRow(tr,it,skip){
   const c=tr.querySelector('[data-k="chg"]');if(!c)return;
   if(skip!=='chg')c.value=it.disc!=null||it.chg!=null?chgOf(it):'';
   c.classList.toggle('changed-amt',!!discOf(it));
 }
-// 單價權限：只有超級管理員可以改價目表項目的單價與金額；自訂項目（不在價目表）大家都可以填
 const isOrthoItem=i=>!i.custom&&i.cat==='矯正';
-const PRICE_LOCK_MSG='只有超級管理員可以修改單價';
-const priceLock=it=>!canPrice()&&!it.custom?`disabled title="${PRICE_LOCK_MSG}"`:'';
 // 沒有編輯權限（僅檢視）的人：整張單唯讀，只能看、列印、看照片與簽名
 function applyPerms(){
   const m=$('#main');if(!m||canEdit())return;
@@ -837,7 +842,7 @@ $('#main').addEventListener('input',e=>{
   if(t.dataset.k==='teethIn'){alignTeeth(t.closest('.teeth-cell'));return}
   if(t.classList.contains('note-ta'))growNotes(t);
   if(t.dataset.f){
-    if(t.dataset.f==='extraDisc'){p.extraDisc=numOrNull(t.value)||0;refreshTotals();touch();return}
+    if(t.dataset.f==='adj'){p.adj=Math.round(Number(t.value)||0);delete p.extraDisc;t.classList.toggle('disc-amt',p.adj<0);refreshTotals();touch();return}
     if(t.dataset.f==='expiry'){p.expiry=t.value||null;if(!t.value)t.value=expiryOf(p);t.classList.toggle('expired-in',isExpired(p)&&p.status==='open');touch();renderList();refreshTotals();return}
     if(t.dataset.f==='consentAt')p.consent.at=t.value;else p[t.dataset.f]=t.value;
     if(t.dataset.f==='createdAt'&&!p.expiry){const ex=document.querySelector('[data-f="expiry"]');if(ex)ex.value=expiryOf(p)} // 預設期限跟著開立時間
@@ -845,9 +850,7 @@ $('#main').addEventListener('input',e=>{
   }
   const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,it=r.row;
   if(r.name==='items'){
-    if(k==='qty'){it.qty=Math.max(1,Math.round(Number(t.value)||1));it.qtyManual=true;const u=unitOf(it);if(u){it.orig=u*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig}}
-    else if(k==='unit'){it.unit=numOrNull(t.value)||0;it.orig=it.unit*it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||''}
-    else if(k==='orig')it.orig=numOrNull(t.value)||0;
+    if(k==='qty'){it.qty=Math.max(1,Math.round(Number(t.value)||1));it.qtyManual=true;const u=unitOf(it);if(u){it.orig=u*it.qty;r.tr.querySelector('[data-k="orig"]').textContent=roAmt(it.orig)}}
     else if(k==='chg'){it.chg=numOrNull(t.value);it.disc=null}
     syncAmtRow(r.tr,it,k);
   }else if(k==='amount'){
@@ -880,8 +883,7 @@ $('#main').addEventListener('change',e=>{
     // 只更新這一列，避免重畫整張表讓游標跳走
     t.value=it.name;r.tr.querySelector('.cat-tag').innerHTML=it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;';
     {const q=r.tr.querySelector('[data-k="qty"]'),lk=qtyOne(it);q.disabled=lk;q.title=lk?'此項目數量固定為 1 單位':''}
-    r.tr.querySelectorAll('[data-k="unit"],[data-k="orig"]').forEach(x=>{const lk=!!priceLock(it);x.disabled=lk;x.title=lk?PRICE_LOCK_MSG:''});
-    r.tr.querySelector('[data-k="unit"]').value=unitOf(it)||'';r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||'';syncAmtRow(r.tr,it);
+    r.tr.querySelector('[data-k="unit"]').textContent=roAmt(unitOf(it));r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').textContent=roAmt(it.orig);syncAmtRow(r.tr,it);
     refreshTotals();touch();
   }
   if(t.dataset.k==='teethIn'){const r=rowOf(p,t),it=r.row,ins=[...r.tr.querySelectorAll('[data-k="teethIn"]')],raw={};ins.forEach(i=>raw[i.dataset.jaw]=i.value);
@@ -889,7 +891,7 @@ $('#main').addEventListener('change',e=>{
     it.teethBad=out.bad.length?out.bad:null;it.teethText=out.bad.length?raw:null;
     if(!out.bad.length){const v=teethParts(it);ins.forEach(i=>i.value=v[i.dataset.jaw])}
     ins.forEach(i=>{i.classList.toggle('bad',!!out.bad.length);i.title=out.bad.length?'無法辨識：'+out.bad.join('、'):'可直接輸入，例如 14X12X21X23, 46, 17(X)'});
-    if(r.name==='items'){r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').value=it.orig||'';syncAmtRow(r.tr,it)}
+    if(r.name==='items'){r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').textContent=roAmt(it.orig);syncAmtRow(r.tr,it)}
     alignTeeth(t.closest('.teeth-cell'));refreshTotals();touch()}
 });
 
