@@ -1384,8 +1384,11 @@ function closedCsv(ym,doc,asst){
 //  - 其他：當月有結單（費用收訖／計畫變更）的計劃單，計該單總金額＝實際已繳（不含前單轉入，已算給前單的負責助理），不計抽成
 function perfRows(ym,asst){
   const who=p=>(p.assistant||'').trim()||'（未填）',rows=[];
+  // 這張單的種類與牙位（明細用）
+  const catsOf=(p,ortho)=>[...new Set(p.items.filter(i=>i.name&&(ortho==null||isOrthoItem(i)===ortho)).map(i=>i.custom?'其他':i.cat))].join('、');
+  const teethOf=(p,ortho)=>p.items.filter(i=>i.name&&i.teeth.length&&(ortho==null||isOrthoItem(i)===ortho)).map(teethLabel).join('；');
   // 矯正獎金：沿用醫師支出助理獎金的計算
-  for(const r of closedRows(ym,'',asst))if(r.cat==='矯正'&&r.comm)rows.push({date:r.date,asst:(r.assistant||'').trim()||'（未填）',name:r.name,chartNo:r.chartNo,kind:r.kind==='矯正首次繳費'?'矯正首次繳費':'矯正（'+r.kind+'）',amount:0,bonus:r.comm,planId:r.planId});
+  for(const r of closedRows(ym,'',asst))if(r.cat==='矯正'&&r.comm){const p=plans.get(r.planId);rows.push({date:r.date,asst:(r.assistant||'').trim()||'（未填）',doctor:r.doctor||'',cats:'矯正',teeth:p?teethOf(p,true):r.teeth,name:r.name,chartNo:r.chartNo,kind:r.kind==='矯正首次繳費'?'矯正首次繳費':'矯正（'+r.kind+'）',amount:0,bonus:r.comm,planId:r.planId})}
   for(const p of plans.values()){
     if(!['paid','changed'].includes(p.status)||(p.closedAt||'').slice(0,7)!==ym)continue;
     if(asst&&who(p)!==asst)continue;
@@ -1397,7 +1400,7 @@ function perfRows(ym,asst){
       amt+=x.amount;n++;
     }
     if(!n)continue;
-    rows.push({date:(p.closedAt||'').slice(0,10),asst:who(p),name:p.name||'',chartNo:p.chartNo||'',kind:p.status==='paid'?'結單－費用收訖':'結單－計畫變更',amount:amt,bonus:0,planId:p.id});
+    rows.push({date:(p.closedAt||'').slice(0,10),asst:who(p),doctor:p.doctor||'',cats:catsOf(p,false),teeth:teethOf(p,false),name:p.name||'',chartNo:p.chartNo||'',kind:p.status==='paid'?'結單－費用收訖':'結單－計畫變更',amount:amt,bonus:0,planId:p.id});
   }
   return rows.sort((a,b)=>a.asst.localeCompare(b.asst,'zh-Hant')||a.date.localeCompare(b.date));
 }
@@ -1410,13 +1413,13 @@ function perfHtml(ym,asst){
       ${sum.map(s=>`<tr><td>${esc(s.asst)}</td><td class="num">${s.closed}</td><td class="num">$${money(s.amount)}</td><td class="num">${s.ortho}</td><td class="num">$${money(s.bonus)}</td></tr>`).join('')}
     </tbody><tfoot><tr><td>合計</td><td class="num">${T.closed}</td><td class="num">$${money(T.amount)}</td><td class="num">${T.ortho}</td><td class="num">$${money(T.bonus)}</td></tr></tfoot></table>
     <h4 style="margin-top:14px">明細</h4>
-    <table class="st-tbl inc-tbl"><thead><tr><th>日期</th><th>責任助理</th><th>姓名</th><th>病歷號</th><th>類別</th><th class="num">結單總金額</th><th class="num">矯正獎金</th></tr></thead><tbody>
-      ${rows.map(r=>`<tr data-st-plan="${esc(r.planId)}" title="點一下打開這張計劃單"><td>${esc(r.date)}</td><td>${esc(r.asst)}</td><td>${esc(r.name)}</td><td>${esc(r.chartNo)}</td><td>${esc(r.kind)}</td><td class="num ${r.amount<0?'refund':''}">${r.bonus?'':'$'+money(r.amount)}</td><td class="num">${r.bonus?'$'+money(r.bonus):''}</td></tr>`).join('')}
+    <table class="st-tbl inc-tbl"><thead><tr><th>結單日期</th><th>姓名</th><th>病歷號</th><th>種類</th><th>牙位</th><th>助理</th><th>醫師</th><th class="num">結單總金額</th><th class="num">矯正獎金</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr data-st-plan="${esc(r.planId)}" title="點一下打開這張計劃單"><td>${esc(r.date)}<div class="hint">${esc(r.kind)}</div></td><td>${esc(r.name)}</td><td>${esc(r.chartNo)}</td><td>${esc(r.cats)}</td><td>${esc(r.teeth)}</td><td>${esc(r.asst)}</td><td>${esc(r.doctor)}</td><td class="num ${r.amount<0?'refund':''}">${r.bonus?'':'$'+money(r.amount)}</td><td class="num">${r.bonus?'$'+money(r.bonus):''}</td></tr>`).join('')}
     </tbody></table>`;
 }
 function perfCsv(ym,asst){
   const rows=perfRows(ym,asst),q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
-  const csv='﻿'+[['日期','責任助理','姓名','病歷號','類別','結單總金額','矯正獎金'],...rows.map(r=>[r.date,r.asst,r.name,r.chartNo,r.kind,r.bonus?'':r.amount,r.bonus||''])].map(a=>a.map(q).join(',')).join('\r\n');
+  const csv='﻿'+[['結單日期','類別','姓名','病歷號','種類','牙位','助理','醫師','結單總金額','矯正獎金'],...rows.map(r=>[r.date,r.kind,r.name,r.chartNo,r.cats,r.teeth,r.asst,r.doctor,r.bonus?'':r.amount,r.bonus||''])].map(a=>a.map(q).join(',')).join('\r\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`助理業績統計_${ym}${asst?'_'+asst:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
 }
 function openStats(){
