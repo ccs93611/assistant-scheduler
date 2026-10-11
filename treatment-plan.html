@@ -1379,12 +1379,52 @@ function closedCsv(ym,doc,asst){
   const csv='﻿'+[['結單日期','結單方式','姓名','病歷號','種類','牙位','總金額','助理','醫師','抽成設定','抽成'],...rows.map(r=>[r.date,r.kind,r.name,r.chartNo,r.cat,r.teeth,r.amount,r.assistant,r.doctor,r.rate,r.comm])].map(a=>a.map(q).join(',')).join('\r\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`醫師支出助理獎金_${ym}${doc?'_'+doc:''}${asst?'_'+asst:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
 }
+// 助理業績統計(月)：依計劃單的責任助理
+//  - 矯正類：比照「醫師支出助理獎金(月)」的矯正獎金（療程單第一次繳費當月每單固定、分析等依項目設定）
+//  - 其他：當月有結單（費用收訖／計畫變更）的計劃單，計該單總金額＝實際已繳（不含前單轉入，已算給前單的負責助理），不計抽成
+function perfRows(ym,asst){
+  const who=p=>(p.assistant||'').trim()||'（未填）',rows=[];
+  // 矯正獎金：沿用醫師支出助理獎金的計算
+  for(const r of closedRows(ym,'',asst))if(r.cat==='矯正'&&r.comm)rows.push({date:r.date,asst:(r.assistant||'').trim()||'（未填）',name:r.name,chartNo:r.chartNo,kind:r.kind==='矯正首次繳費'?'矯正首次繳費':'矯正（'+r.kind+'）',amount:0,bonus:r.comm,planId:r.planId});
+  for(const p of plans.values()){
+    if(!['paid','changed'].includes(p.status)||(p.closedAt||'').slice(0,7)!==ym)continue;
+    if(asst&&who(p)!==asst)continue;
+    if(isOrthoPlan(p))continue;
+    let amt=0,n=0;
+    for(const x of p.payments||[]){
+      if(x.transfer||!x.amount)continue;
+      const it=p.items.find(i=>i.id===x.itemId);if(it&&isOrthoItem(it))continue; // 矯正類只算獎金
+      amt+=x.amount;n++;
+    }
+    if(!n)continue;
+    rows.push({date:(p.closedAt||'').slice(0,10),asst:who(p),name:p.name||'',chartNo:p.chartNo||'',kind:p.status==='paid'?'結單－費用收訖':'結單－計畫變更',amount:amt,bonus:0,planId:p.id});
+  }
+  return rows.sort((a,b)=>a.asst.localeCompare(b.asst,'zh-Hant')||a.date.localeCompare(b.date));
+}
+function perfHtml(ym,asst){
+  const rows=perfRows(ym,asst);
+  if(!rows.length)return '<p class="hint">這個月沒有資料。</p>';
+  const by=new Map();rows.forEach(r=>{if(!by.has(r.asst))by.set(r.asst,{asst:r.asst,closed:0,amount:0,ortho:0,bonus:0});const s=by.get(r.asst);if(r.bonus){s.ortho++;s.bonus+=r.bonus}else{s.closed++;s.amount+=r.amount}});
+  const sum=[...by.values()].sort((a,b)=>b.amount-a.amount||b.bonus-a.bonus),T=sum.reduce((a,s)=>({closed:a.closed+s.closed,amount:a.amount+s.amount,ortho:a.ortho+s.ortho,bonus:a.bonus+s.bonus}),{closed:0,amount:0,ortho:0,bonus:0});
+  return `<table class="st-tbl"><thead><tr><th>責任助理</th><th class="num">結單件數</th><th class="num">結單總金額</th><th class="num">矯正件數</th><th class="num">矯正獎金</th></tr></thead><tbody>
+      ${sum.map(s=>`<tr><td>${esc(s.asst)}</td><td class="num">${s.closed}</td><td class="num">$${money(s.amount)}</td><td class="num">${s.ortho}</td><td class="num">$${money(s.bonus)}</td></tr>`).join('')}
+    </tbody><tfoot><tr><td>合計</td><td class="num">${T.closed}</td><td class="num">$${money(T.amount)}</td><td class="num">${T.ortho}</td><td class="num">$${money(T.bonus)}</td></tr></tfoot></table>
+    <h4 style="margin-top:14px">明細</h4>
+    <table class="st-tbl inc-tbl"><thead><tr><th>日期</th><th>責任助理</th><th>姓名</th><th>病歷號</th><th>類別</th><th class="num">結單總金額</th><th class="num">矯正獎金</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr data-st-plan="${esc(r.planId)}" title="點一下打開這張計劃單"><td>${esc(r.date)}</td><td>${esc(r.asst)}</td><td>${esc(r.name)}</td><td>${esc(r.chartNo)}</td><td>${esc(r.kind)}</td><td class="num ${r.amount<0?'refund':''}">${r.bonus?'':'$'+money(r.amount)}</td><td class="num">${r.bonus?'$'+money(r.bonus):''}</td></tr>`).join('')}
+    </tbody></table>`;
+}
+function perfCsv(ym,asst){
+  const rows=perfRows(ym,asst),q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csv='﻿'+[['日期','責任助理','姓名','病歷號','類別','結單總金額','矯正獎金'],...rows.map(r=>[r.date,r.asst,r.name,r.chartNo,r.kind,r.bonus?'':r.amount,r.bonus||''])].map(a=>a.map(q).join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`助理業績統計_${ym}${asst?'_'+asst:''}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
 function openStats(){
   const ym0=today().slice(0,7);
   const docs=()=>[...new Set([...plans.values()].map(p=>(p.doctor||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   const assts=()=>[...new Set([...plans.values()].map(p=>(p.assistant||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>統計</h3>
-    <div class="tabs-m">${canSeeIncome()?'<button data-tab="income">醫師自費收入(月)</button><button data-tab="closed">醫師支出助理獎金(月)</button>':''}<button data-tab="exp">無繳費且過期比例</button></div>
+    <div class="tabs-m">${canSeeIncome()?'<button data-tab="income">醫師自費收入(月)</button><button data-tab="closed">醫師支出助理獎金(月)</button><button data-tab="perf">助理業績統計(月)</button>':''}<button data-tab="exp">無繳費且過期比例</button></div>
     ${canSeeIncome()?`<div data-pane="income">
       <p class="hint">依繳費紀錄的日期統計，退費以負數列入；繳費紀錄選的項目是矯正類（LH日式矯正、矯正器升級、Invisalign隱適美）時列在「矯正收入」欄，其餘（含維持器、未選項目）列在「其餘自費收入」；「前單轉入」是由計畫變更的舊單轉過來的金額，不算當月收入。點一筆明細可打開該計劃單。</p>
       <div class="st-filters">
@@ -1401,7 +1441,15 @@ function openStats(){
         <label>助理 <select id="clAsst"><option value="">全部助理</option>${assts().map(d=>`<option>${esc(d)}</option>`).join('')}</select></label>
         <button class="btn-sm" data-x="clcsv">下載 Excel（CSV）</button> <button class="btn-sm" data-x="print">列印</button>
       </div>
-      <div id="clOut"></div></div>`:''}
+      <div id="clOut"></div></div>
+    <div data-pane="perf">
+      <p class="hint">依計劃單的「責任助理」統計。矯正類比照「醫師支出助理獎金(月)」計矯正獎金（療程單於第一次繳費當月每單固定獎金）；其他以當月有結單（費用收訖、計畫變更）的計劃單為準，計該單總金額（實際已繳，不含前單轉入的部分，那部分已算給前單的負責助理），不計抽成。</p>
+      <div class="st-filters">
+        <label>月份 <input type="month" id="pfYm" value="${ym0}"></label>
+        <label>助理 <select id="pfAsst"><option value="">全部助理</option>${assts().map(d=>`<option>${esc(d)}</option>`).join('')}</select></label>
+        <button class="btn-sm" data-x="pfcsv">下載 Excel（CSV）</button> <button class="btn-sm" data-x="print">列印</button>
+      </div>
+      <div id="pfOut"></div></div>`:''}
     <div data-pane="exp">
     <p class="hint">「無繳費且過期」＝還沒結單、超過有效期限，而且沒有任何繳費紀錄的計劃單。比例＝該人員的無繳費且過期單數 ÷ 該人員全部計劃單數。點數字可在列表中查看這些單。</p>
     <div class="st-filters">
@@ -1416,12 +1464,14 @@ function openStats(){
     const draw=()=>{const f=box.querySelector('#stFrom').value,t=box.querySelector('#stTo').value,c=box.querySelector('#stChanged').checked;
       box.querySelector('#stDoc').innerHTML=statsTable('doctor',f,t,c);box.querySelector('#stAsst').innerHTML=statsTable('assistant',f,t,c);
       const o=box.querySelector('#incOut');if(o)o.innerHTML=incomeHtml(box.querySelector('#incYm').value,box.querySelector('#incDoc').value);
+      const pf=box.querySelector('#pfOut');if(pf)pf.innerHTML=perfHtml(box.querySelector('#pfYm').value,box.querySelector('#pfAsst').value);
       const c2=box.querySelector('#clOut');if(c2)c2.innerHTML=closedHtml(box.querySelector('#clYm').value,box.querySelector('#clDoc').value,box.querySelector('#clAsst').value)};
     draw();box.addEventListener('input',draw);box.addEventListener('change',draw);
     box.addEventListener('click',e=>{
       const b=e.target.closest('button');
       if(b&&b.dataset.tab){show(b.dataset.tab);return}
       if(e.target.closest('[data-x="close"]')){close();return}
+      if(b&&b.dataset.x==='pfcsv'){perfCsv(box.querySelector('#pfYm').value,box.querySelector('#pfAsst').value);return}
       if(b&&b.dataset.x==='clcsv'){closedCsv(box.querySelector('#clYm').value,box.querySelector('#clDoc').value,box.querySelector('#clAsst').value);return}
       if(b&&b.dataset.x==='csv'){incomeCsv(box.querySelector('#incYm').value,box.querySelector('#incDoc').value);return}
       if(b&&b.dataset.x==='print'){document.body.classList.add('print-modal');window.print();document.body.classList.remove('print-modal');return}
