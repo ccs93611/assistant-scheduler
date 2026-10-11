@@ -559,7 +559,7 @@ const fmtDT=s=>s?s.replace('T',' '):'';
 const numOrNull=v=>v===''||v==null?null:Math.max(0,Math.round(Number(v)||0));
 const cur=()=>plans.get(curId);
 
-// 變更金額：留空等於金額；舊資料若存的是減免金額（disc），變更金額 = 金額 − 減免金額
+// 確認金額：留空等於金額；舊資料若存的是減免金額（disc），確認金額 = 金額 − 減免金額
 const chgOf=it=>it.disc!=null?(it.orig||0)-it.disc:(it.chg??(it.orig||0));
 const discOf=it=>(it.orig||0)-chgOf(it);
 function calc(p){
@@ -673,7 +673,7 @@ function renderEditor(){
   <section class="card">
     <h2>治療項目<span class="sp"></span>${IL?'':'<button class="btn-sm no-print" data-act="addItem">＋ 新增項目</button>'}</h2>
     <div class="tbl-wrap items-wrap"><table class="items-tbl">
-      <thead><tr><th class="h-no">#</th><th class="h-item">治療種類／項目</th><th class="h-teeth">牙位</th><th class="num h-unit">單價</th><th class="num h-qty">數量</th><th class="num h-orig">金額</th><th class="num h-chg">變更金額</th>${IL?'':'<th class="no-print h-del"></th>'}</tr></thead>
+      <thead><tr><th class="h-no">#</th><th class="h-item">治療種類／項目</th><th class="h-teeth">牙位</th><th class="num h-unit">單價</th><th class="num h-qty">數量</th><th class="num h-orig">金額</th><th class="num h-chg">確認金額</th>${IL?'':'<th class="no-print h-del"></th>'}</tr></thead>
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         ${IL?`<td class="c-no">${i+1}</td>`:`<td class="c-no drag-handle" title="拖曳調整順序"><i>⋮⋮</i>${i+1}</td>`}
         <td class="c-item"><span class="cat-tag">${it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;'}</span>
@@ -682,7 +682,7 @@ function renderEditor(){
         <td class="c-unit" data-label="單價"><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="unit" value="${unitOf(it)||''}" placeholder="0" ${idis||priceLock(it)}></td>
         <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis||(qtyOne(it)?'disabled title="此項目數量固定為 1 單位"':'')}></td>
         <td class="c-orig" data-label="金額"><input class="num" type="number" min="0" step="1" inputmode="numeric" data-k="orig" value="${it.orig||''}" placeholder="0" ${idis||priceLock(it)}></td>
-        <td class="c-chg" data-label="變更金額"><input class="num ${discOf(it)?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.disc!=null||it.chg!=null?chgOf(it):''}" placeholder="同金額" ${idis}></td>
+        <td class="c-chg" data-label="確認金額"><input class="num ${discOf(it)?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.disc!=null||it.chg!=null?chgOf(it):''}" placeholder="同金額" ${idis}></td>
         ${IL?'':`<td class="c-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
       </tr>`).join('')||`<tr><td colspan="8" class="hint">尚無項目</td></tr>`}</tbody>
       <tfoot><tr class="extra-disc"><td colspan="6" class="num">追加減免</td><td><input class="num disc-amt" type="number" min="0" step="1" inputmode="numeric" data-f="extraDisc" value="${p.extraDisc||''}" placeholder="0" title="整張治療計劃另外追加的減免" ${idis}></td>${IL?'':'<td class="no-print"></td>'}</tr></tfoot>
@@ -693,7 +693,7 @@ function renderEditor(){
       <div class="hl"><small>變更後總金額</small><b id="tChg">$${money(c.chg)}</b></div>
     </div>
     ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已定案（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
-    <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量，都可直接修改；「變更金額」留空表示與金額相同。</div>
+    <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量，都可直接修改；「確認金額」留空表示與金額相同。</div>
   </section>
 
   <section class="card">
@@ -771,7 +771,7 @@ function payTeeth(x){
   if(!Array.isArray(x.teeth)){const raw=x.teeth||'',o=parseTeeth(raw);x.teeth=o.teeth;x.pontics=o.pontics;x.bridgeTeeth=o.bridgeTeeth;x.bridgeGroups=o.bridgeGroups;if(o.bad.length){x.teethBad=o.bad;x.teethText={up:raw,lo:''}}}
   return x;
 }
-// 更新一列的減免／變更金額顯示（skip：使用者正在輸入的欄位不覆蓋）
+// 更新一列的減免／確認金額顯示（skip：使用者正在輸入的欄位不覆蓋）
 function syncAmtRow(tr,it,skip){
   const c=tr.querySelector('[data-k="chg"]');if(!c)return;
   if(skip!=='chg')c.value=it.disc!=null||it.chg!=null?chgOf(it):'';
