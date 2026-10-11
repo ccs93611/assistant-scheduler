@@ -48,18 +48,20 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 .plan-item .l1,.plan-item .l2,.plan-item .x1,.plan-item .x2{display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px;min-width:0}
 .plan-item .l1{grid-column:1;grid-row:1}.plan-item .l2{grid-column:1;grid-row:2}
 .plan-item .tg{grid-column:2;grid-row:1/3;align-self:center;min-width:0}  /* 標籤放在中間空白處，上下置中 */
-.plan-item .x1{grid-column:3;grid-row:1;justify-content:flex-end}.plan-item .x2{grid-column:3;grid-row:2;justify-content:flex-end}
+.plan-item .x1{grid-column:3;grid-row:1;flex-direction:column;align-items:flex-end;gap:2px} /* 開立日期在狀態上方 */.plan-item .x2{grid-column:3;grid-row:2;justify-content:flex-end}
 .plan-item .tg:empty{display:none}
+.plan-item .l1{flex-direction:column;align-items:flex-start;gap:1px} /* 生日在姓名下方 */
+.plan-item .nmr{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 10px}
 /* 列表窄時（例如側欄 300px）改成直式排列，避免文字重疊 */
 @container plist (max-width:480px){
   .plan-item{grid-template-columns:minmax(0,1fr) auto;gap:4px 8px}
   .plan-item .l1{grid-column:1;grid-row:1}
   .plan-item .x1{display:contents}
-  .plan-item .x1 .chip{grid-column:2;grid-row:1;align-self:start}
-  .plan-item .l2{grid-column:1/3;grid-row:2}
-  .plan-item .x1 .dt{grid-column:1;grid-row:3}
+  .plan-item .x1 .dt{grid-column:2;grid-row:1;justify-self:end}
+  .plan-item .x1 .chip{grid-column:2;grid-row:2;justify-self:end}
+  .plan-item .l2{grid-column:1;grid-row:2}
+  .plan-item .tg{grid-column:1;grid-row:3;margin-top:2px}
   .plan-item .x2{grid-column:2;grid-row:3}
-  .plan-item .tg{grid-column:1/3;grid-row:4;margin-top:2px}
   .plan-item .ptag{font-size:13px;padding:1px 9px}
 }
 .plan-item .nm{font-size:15px}
@@ -336,7 +338,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .st-bar i{display:block;height:100%;background:var(--danger)}
 /* 統計視窗縮小成按鈕（打開計劃單時） */
 .modal-bg.minimized{display:none}
-.stats-restore{position:fixed;right:18px;bottom:18px;z-index:60;padding:10px 16px;border-radius:999px;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.22)}
+.stats-restore{width:100%;padding:12px 16px;font-size:17px;font-weight:700;border-radius:10px;box-shadow:0 3px 10px rgba(0,0,0,.15)}
 .inc-tbl tbody tr.cur td{background:var(--accent-soft);font-weight:600}
 .ask-body{font-size:15px;line-height:1.7}
 .ask-sum{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;background:var(--soft);border-radius:8px;padding:10px 14px;margin-bottom:10px}
@@ -591,8 +593,8 @@ function renderList(){
   const arr=[...plans.values()].filter(p=>(!sf||stOf(p)===sf)&&(!q||[p.name,p.chartNo,p.no,p.doctor,p.assistant,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q))))
     .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')||b.updatedAt-a.updatedAt);
   $('#planList').innerHTML=arr.length?arr.map(p=>{const c=calc(p);return `<button class="plan-item ${p.id===curId?'on':''}" data-open="${p.id}">
-    <div class="l1"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m big">${p.birthday?'生日 '+esc(p.birthday):''}</span><span class="m">${esc(p.chartNo||'')}</span></div>
-    <div class="l2"><span class="m big">主治 ${esc(p.doctor||'—')}・助理 ${esc(p.assistant||'—')}</span></div>
+    <div class="l1"><div class="nmr"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m">${esc(p.chartNo||'')}</span></div><span class="m big">${p.birthday?'生日 '+esc(p.birthday):''}</span></div>
+    <div class="l2"><span class="m big">醫師 ${esc(p.doctor||'—')}・助理 ${esc(p.assistant||'—')}</span></div>
     <div class="tg">${planTags(p)}</div>
     <div class="x1"><span class="m dt">開立 ${esc(fmtDT(p.createdAt)||'—')}</span><span class="chip ${stOf(p)}">${ST_SHORT[stOf(p)]}</span></div>
     <div class="x2"><span class="m">$${money(c.chg)}${c.due>0&&p.status==='open'?` ・未繳 ${money(c.due)}`:''}</span></div>
@@ -1497,7 +1499,7 @@ function perfCsv(ym,asst){
 }
 function minimizeStats(box){
   const bg=box.parentElement,top=box.scrollTop;bg.classList.add('minimized');
-  let btn=$('#statsRestore');if(!btn){btn=document.createElement('button');btn.id='statsRestore';btn.className='btn-primary stats-restore no-print';btn.textContent='📊 回到統計';document.body.appendChild(btn)}
+  let btn=$('#statsRestore');if(!btn){btn=document.createElement('button');btn.id='statsRestore';btn.className='btn-primary stats-restore no-print';btn.textContent='📊 回到統計';$('.side-foot').prepend(btn)} // 左下角，「統計」按鈕上方
   btn.onclick=()=>{btn.remove();if(!document.body.contains(bg))return;bg.classList.remove('minimized');box.scrollTop=top};
 }
 function openStats(){
