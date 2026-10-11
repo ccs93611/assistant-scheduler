@@ -323,6 +323,19 @@ tfoot td{font-weight:700;background:var(--soft)}
 .st-tbl td,.st-tbl th{padding:6px 8px}
 .st-bar{height:5px;background:var(--soft);border-radius:3px;margin-top:3px;overflow:hidden}
 .st-bar i{display:block;height:100%;background:var(--danger)}
+/* 統計視窗縮小到右側（打開計劃單時），手機改為底部 */
+.dock-only{display:none}
+.modal-bg.docked{background:transparent;pointer-events:none;justify-content:flex-end;align-items:stretch;padding:0}
+.modal-bg.docked .modal{pointer-events:auto;width:420px;max-width:420px;height:100vh;max-height:100vh;min-height:0;border-radius:0;box-shadow:-6px 0 20px rgba(0,0,0,.18);padding:14px 16px}
+.modal-bg.docked .dock-only{display:inline-flex}
+.st-undock{position:absolute;top:12px;right:56px}
+body:has(.modal-bg.docked) .app{margin-right:420px}
+.inc-tbl tbody tr.cur td{background:var(--accent-soft);font-weight:600}
+@media (max-width:900px){
+  .modal-bg.docked{align-items:flex-end}
+  .modal-bg.docked .modal{width:100%;max-width:100%;height:42vh;border-radius:12px 12px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.18)}
+  body:has(.modal-bg.docked) .app{margin-right:0;margin-bottom:42vh}
+}
 .modal-x{position:absolute;top:10px;right:10px;width:34px;height:34px;padding:0;border-radius:50%;font-size:16px;line-height:1;color:var(--muted)}
 .modal h3{margin:0 0 12px;font-size:17px}
 .modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
@@ -1456,7 +1469,7 @@ function openStats(){
   const ym0=today().slice(0,7);
   const docs=()=>[...new Set([...plans.values()].map(p=>(p.doctor||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   const assts=()=>[...new Set([...plans.values()].map(p=>(p.assistant||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
-  modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>統計</h3>
+  modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><button class="btn-sm dock-only st-undock" data-x="undock" title="恢復成大視窗">⤢ 展開</button><h3>統計</h3>
     <div class="tabs-m">${canSeeIncome()?'<button data-tab="income">醫師自費收入(月)</button><button data-tab="closed">醫師支出助理獎金(月)</button><button data-tab="perf">助理業績統計(月)</button>':''}<button data-tab="exp">無繳費且過期比例</button></div>
     ${canSeeIncome()?`<div data-pane="income">
       <p class="hint">依繳費紀錄的日期統計，退費以負數列入；繳費紀錄選的項目是矯正類（LH日式矯正、矯正器升級、Invisalign隱適美）時列在「矯正收入」欄，其餘（含維持器、未選項目）列在「其餘自費收入」；「前單轉入」是由計畫變更的舊單轉過來的金額，不算當月收入。點一筆明細可打開該計劃單。</p>
@@ -1508,7 +1521,10 @@ function openStats(){
       if(b&&b.dataset.x==='clcsv'){closedCsv(box.querySelector('#clYm').value,box.querySelector('#clDoc').value,box.querySelector('#clAsst').value);return}
       if(b&&b.dataset.x==='csv'){incomeCsv(box.querySelector('#incYm').value,box.querySelector('#incDoc').value);return}
       if(b&&b.dataset.x==='print'){document.body.classList.add('print-modal');window.print();document.body.classList.remove('print-modal');return}
-      const pl=e.target.closest('[data-st-plan]');if(pl){close();openPlan(pl.dataset.stPlan);return}
+      const pl=e.target.closest('[data-st-plan]');if(pl){ // 打開計劃單，統計視窗縮小到旁邊（可繼續點其他筆，或按「展開」恢復）
+        box.parentElement.classList.add('docked');box.querySelectorAll('[data-st-plan].cur').forEach(x=>x.classList.remove('cur'));pl.classList.add('cur');
+        openPlan(pl.dataset.stPlan);return}
+      if(b&&b.dataset.x==='undock'){box.parentElement.classList.remove('docked');return}
       const w=e.target.closest('[data-st-who]');if(!w)return;
       $('#search').value=w.dataset.stWho;$('#statusFilter').value='expiredNone';close();renderList();
     });
