@@ -256,6 +256,20 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 .combo-opt.on{background:var(--accent-soft)}
 .combo-opt.sel{font-weight:700;color:var(--accent)}
 .combo-empty{padding:8px 12px;color:var(--muted);font-size:13px}
+.exp-lbl{display:flex;align-items:center;gap:6px}
+.mo-chip{width:auto;font-size:12px;font-weight:600;padding:1px 22px 1px 9px;height:auto;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--soft);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 11px) 55%,calc(100% - 7px) 55%;background-size:4px 4px;background-repeat:no-repeat}
+.mo-chip:disabled{opacity:.6;background-image:none;padding-right:9px;cursor:default} /* 鎖定時不顯示箭頭 */
+/* 醫師／助理選單 */
+.pp-wrap{display:block}.pp-wrap input{width:100%;cursor:pointer}
+.pp-pop{padding:6px;min-width:200px}
+.pp-title{font-size:12px;font-weight:700;color:var(--muted);padding:4px 8px 6px}
+.pp-grid{display:grid;grid-template-columns:1fr;gap:2px} /* 單排 */
+.pp-opt{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-opt .av{flex:0 0 auto;min-width:26px;height:26px;padding:0 6px;border-radius:13px;display:grid;place-items:center;font-size:13px;font-weight:700;background:hsl(var(--h) 60% 90%);color:hsl(var(--h) 50% 30%)}
+.pp-opt.on{background:var(--accent-soft)}
+.pp-opt.sel{font-weight:700;color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.pp-opt.sel::after{content:"✓";margin-left:auto}
+.pp-clear{margin-top:4px;border-top:1px solid var(--line);border-radius:0;color:var(--muted);font-size:13px;justify-content:center}
 @media print{.combo-wrap::after{display:none}}
 .teeth-cell{display:flex;gap:4px;align-items:center}
 .teeth-cell .jaws{flex:1;display:grid;min-width:0}
@@ -268,7 +282,6 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 .teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
 .teeth-cell button{padding:3px 6px}
 .disc-amt{color:var(--warn)}
-.fin-bar{display:flex;justify-content:flex-end;margin-top:14px} /* 定案按鈕在患者同意區右下角 */
 .btn-fin{font-size:18px;font-weight:700;padding:10px 36px;border-radius:10px}
 .ro-amt{display:block;text-align:right;padding:0 4px;font-variant-numeric:tabular-nums;white-space:nowrap}
 input.expired-in{border-color:var(--danger);color:var(--danger)}
@@ -283,6 +296,10 @@ tfoot td{font-weight:700;background:var(--soft)}
 .totals .due b{color:var(--danger)}
 .sigbox{border:1px dashed var(--line);border-radius:8px;min-height:90px;display:flex;align-items:center;justify-content:center;background:var(--sig-bg);cursor:pointer;color:#888;position:relative}
 .sigbox img{max-height:110px;max-width:100%}
+.consent-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px} /* 簽名欄（隨畫面拉長）、簽名時間、定案：下緣切齊 */
+.consent-sig{flex:1 1 240px;min-width:0}.consent-at{flex:0 1 240px}
+.ro-box{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--soft);white-space:nowrap}.consent-row>.btn-fin{flex:0 0 auto;margin-left:auto}
+.sigbox[data-act="consentSig"]{min-height:72px}.sigbox[data-act="consentSig"] img{max-height:88px} /* 患者同意簽名欄縮為 80% */
 .sig-mini{height:38px;background:var(--sig-bg);border-radius:4px;border:1px solid var(--line);cursor:pointer;display:block}
 /* 同一次繳費的多個項目 */
 .pay-tbl td[rowspan]{vertical-align:top;background:var(--panel)}
@@ -582,7 +599,9 @@ const stOf=p=>p.status==='paid'&&p.earlyClose?'early':p.status!=='open'?p.status
 // 有效期限：預設為單據開立日起 6 個月，可手動調整（手動設定的存在 p.expiry）；還沒結單且超過期限顯示「有繳費且過期」或「無繳費且過期」
 const EXPIRY_MONTHS=6;
 function addMonths(ymd,n){const [y,m,d]=ymd.split('-').map(Number);const last=new Date(y,m-1+n+1,0).getDate();const dt=new Date(y,m-1+n,Math.min(d,last));return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`}
-const expiryOf=p=>p.expiry||((p.createdAt||'').slice(0,10)?addMonths(p.createdAt.slice(0,10),EXPIRY_MONTHS):'');
+const expMonthsOf=p=>p.expMonths||EXPIRY_MONTHS; // 有效月數：可在單上用按鈕改（存在 p.expMonths）
+const expiryOf=p=>p.expiry||((p.createdAt||'').slice(0,10)?addMonths(p.createdAt.slice(0,10),expMonthsOf(p)):'');
+const expMonthsSel=(p,dis)=>`<select class="mo-chip" data-f="expMonths" title="有效月數（從單據開立日起算）" ${dis}>${[1,2,3,4,5,6,7,8,9,10,11,12,18,24,36].map(n=>`<option value="${n}" ${!p.expiry&&expMonthsOf(p)===n?'selected':''}>${n} 個月</option>`).join('')}<option value="" ${p.expiry?'selected':''} disabled>自訂日期</option></select>`;
 const isExpired=p=>{const e=expiryOf(p);return !!e&&today()>e};
 const ST_SHORT={early:'提前結單',draftCont:'未定案-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已收訖',changed:'計畫變更'};
 
@@ -668,10 +687,10 @@ function renderEditor(){
       <label>姓名<input data-f="name" value="${esc(p.name)}" ${idis}></label>
       <label>生日<input type="date" data-f="birthday" value="${esc(p.birthday)}" ${idis}></label>
       <label>病歷號<input data-f="chartNo" value="${esc(p.chartNo)}" ${idis}></label>
-      <label>主治醫師<input data-f="doctor" list="dlDoc" value="${esc(p.doctor)}" ${idis}></label>
-      <label>責任助理<input data-f="assistant" list="dlAsst" value="${esc(p.assistant)}" ${idis}></label>
+      <label>主治醫師<span class="combo-wrap pp-wrap"><input data-f="doctor" data-pp="doc" autocomplete="off" placeholder="選擇醫師" value="${esc(p.doctor)}" ${idis}></span></label>
+      <label>責任助理<span class="combo-wrap pp-wrap"><input data-f="assistant" data-pp="asst" autocomplete="off" placeholder="選擇助理" value="${esc(p.assistant)}" ${idis}></span></label>
       <label>單據開立時間<input type="datetime-local" data-f="createdAt" value="${esc(p.createdAt)}" ${idis}></label>
-      <label>有效期限${p.expiry?'':'（預設 6 個月）'}<input type="date" data-f="expiry" value="${esc(expiryOf(p))}" ${dis} class="${isExpired(p)&&p.status==='open'?'expired-in':''}" title="清空可恢復為預設（開立日起 6 個月）"></label>
+      <label><span class="exp-lbl">有效期限${expMonthsSel(p,dis)}</span><input type="date" data-f="expiry" value="${esc(expiryOf(p))}" ${dis} class="${isExpired(p)&&p.status==='open'?'expired-in':''}" title="可直接選日期；清空則依左上的月數計算"></label>
     </div>
   </section>
 
@@ -704,12 +723,12 @@ function renderEditor(){
   <section class="card">
     <h2>患者同意治療計畫<span class="sp"></span>${p.finalized?`<span class="chip paid">已定案 ${esc(fmtDT(p.finalizedAt))}</span>`:''}</h2>
     <p class="consent">本人已詳閱並了解上述治療計畫之內容、牙位與費用，經醫師說明後同意接受治療。</p>
-    <div class="grid-f" style="align-items:end">
-      <div><div class="hint">患者（或法定代理人）簽名</div>
+    <div class="consent-row">
+      <div class="consent-sig"><div class="hint">患者（或法定代理人）簽名</div>
         <div class="sigbox" data-act="consentSig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:(L?'未簽名':'點此簽名')}</div></div>
-      <label style="max-width:240px">簽名時間<input type="datetime-local" data-f="consentAt" value="${esc(p.consent.at)}" ${idis}></label>
+      <div class="consent-at"><div class="hint">簽名時間</div><div class="ro-box">${p.consent.at?esc(fmtDT(p.consent.at)):'—'}</div></div>
+      ${p.finalized||L?'':'<button class="btn-primary btn-fin no-print" data-act="finalize">定案</button>'}
     </div>
-    ${p.finalized||L?'':'<div class="fin-bar no-print"><button class="btn-primary btn-fin" data-act="finalize">定案</button></div>'}
   </section>
 
   <section class="card">
@@ -740,7 +759,7 @@ function renderEditor(){
         <td class="r-taken" data-label="患者已領收據" style="text-align:center"><input type="checkbox" data-k="taken" ${r.taken?'checked':''} style="width:20px;height:20px"></td>
         <td class="r-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1">${esc(r.note)}</textarea></td>
         <td class="r-photo" data-label="照相紀錄"><div class="thumbs">${r.photos.map((ph,i)=>`<img src="${isPhotoData(ph)?ph:(fileCache.get(ph)||BLANK_IMG)}" data-fid="${isPhotoData(ph)?'':esc(ph)}" data-k="photo" data-i="${i}" alt="收據照片">`).join('')}<span class="add-photo" data-k="addPhoto" title="拍照／上傳">＋</span></div></td>
-        <td class="r-hand" data-label="經手助理"><input data-k="handler" list="dlAsst" value="${esc(r.handler||'')}" placeholder="經手助理"></td>
+        <td class="r-hand" data-label="經手助理"><input data-k="handler" data-pp="asst" autocomplete="off" value="${esc(r.handler||'')}" placeholder="經手助理"></td>
         <td class="r-sig" data-label="患者簽名">${r.sig?`<img class="sig-mini" src="${r.sig}" data-k="sig" alt="簽名">`:`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`}</td>
         <td class="r-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>
       </tr>`).join('')||`<tr><td colspan="8" class="hint">尚無收據紀錄</td></tr>`}</tbody>
@@ -812,7 +831,7 @@ function payRowsHtml(p,L){
         <td class="p-teeth" data-label="牙位">${x.transfer?'':teethCell(payTeeth(x),pd)}</td>
         <td class="p-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1" ${pd}>${esc(x.note)}</textarea></td>
         <td class="p-amt" data-label="金額"><input class="num ${(x.amount||0)<0?'refund':''}" type="number" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" title="負數代表退費" ${pd||x.transfer?'disabled':''}>${(x.amount||0)<0?'<span class="refund-tag">退費</span>':''}</td>
-        ${first?`<td class="p-hand" data-label="經手助理"${rs}>${tr?'':`<input data-k="handler" list="dlAsst" value="${esc(x.handler||'')}" placeholder="經手助理" ${pd}>`}</td>
+        ${first?`<td class="p-hand" data-label="經手助理"${rs}>${tr?'':`<input data-k="handler" data-pp="asst" autocomplete="off" value="${esc(x.handler||'')}" placeholder="經手助理" ${pd}>`}</td>
         <td class="p-sig" data-label="患者簽名"${rs}>${tr?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名" title="已簽名確認，不可更動">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`)}</td>`:''}
         ${L?'':`<td class="p-del no-print">${x.sig?'<span class="hint" title="已簽名確認">🔒</span>':'<button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除這個項目">✕</button>'}</td>`}
       </tr>`}).join('');
@@ -843,8 +862,9 @@ $('#main').addEventListener('input',e=>{
   if(t.classList.contains('note-ta'))growNotes(t);
   if(t.dataset.f){
     if(t.dataset.f==='adj'){p.adj=Math.round(Number(t.value)||0);delete p.extraDisc;t.classList.toggle('disc-amt',p.adj<0);refreshTotals();touch();return}
-    if(t.dataset.f==='expiry'){p.expiry=t.value||null;if(!t.value)t.value=expiryOf(p);t.classList.toggle('expired-in',isExpired(p)&&p.status==='open');touch();renderList();refreshTotals();return}
-    if(t.dataset.f==='consentAt')p.consent.at=t.value;else p[t.dataset.f]=t.value;
+    if(t.dataset.f==='expMonths'){p.expMonths=+t.value||EXPIRY_MONTHS;p.expiry=null;const ex=document.querySelector('[data-f="expiry"]');if(ex){ex.value=expiryOf(p);ex.classList.toggle('expired-in',isExpired(p)&&p.status==='open')}touch();renderList();refreshTotals();return}
+    if(t.dataset.f==='expiry'){p.expiry=t.value||null;if(!t.value)t.value=expiryOf(p);{const m=document.querySelector('[data-f="expMonths"]');if(m)m.value=p.expiry?'':String(expMonthsOf(p))}t.classList.toggle('expired-in',isExpired(p)&&p.status==='open');touch();renderList();refreshTotals();return}
+    p[t.dataset.f]=t.value;
     if(t.dataset.f==='createdAt'&&!p.expiry){const ex=document.querySelector('[data-f="expiry"]');if(ex)ex.value=expiryOf(p)} // 預設期限跟著開立時間
     touch();if(['name','chartNo','createdAt','birthday','doctor','assistant'].includes(t.dataset.f)){renderList();refreshTotals()}return;
   }
@@ -915,7 +935,7 @@ $('#main').addEventListener('click',async e=>{
       touch();renderEditor()}
     else if(act==='addPay'){p.payments.push({id:uid(),date:today(),handler:'',itemId:null,teeth:[],pontics:[],bridgeTeeth:[],bridgeGroups:[],amount:Math.max(0,calc(p).due),amtAuto:true,note:'',sig:null});touch();renderEditor()}
     else if(act==='addRcpt'){const c=calc(p);p.receipts.push({id:uid(),date:today(),amount:Math.max(0,c.paid-c.rcpt),taken:false,note:'',handler:'',photos:[]});touch();renderEditor()}
-    else if(act==='consentSig'){if(L||p.finalized){if(p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}const s=await openSig('患者同意治療計畫簽名',p.consent.sig);if(s!==undefined){p.consent.sig=s;if(s&&!p.consent.at)p.consent.at=nowLocal();touch();renderEditor()}}
+    else if(act==='consentSig'){if(L||p.finalized){if(p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}const s=await openSig('患者同意治療計畫簽名',p.consent.sig);if(s!==undefined){p.consent.sig=s;p.consent.at=s?nowLocal():''; /* 簽名時間：簽名當下自動記錄 */touch();renderEditor()}}
     else if(act==='delete'){if(!canDelPlan(p))return;
       const c=calc(p),info=[p.finalized?'已定案':'',p.status!=='open'?STATUS[p.status]:'',p.payments.length?`有 ${p.payments.length} 筆繳費紀錄（已繳 $${money(c.paid)}）`:'',p.receipts.length?`有 ${p.receipts.length} 筆收據紀錄`:''].filter(Boolean);
       if(!confirm(`確定刪除治療計劃單 ${p.no}（${p.name||'未填姓名'}）？${info.length?'\n\n這張單：'+info.join('、'):''}\n\n刪除後簽名、繳費、收據與照片都會一併刪除，無法復原。`))return;
@@ -1271,6 +1291,53 @@ $('#main').addEventListener('keydown',e=>{
 });
 window.addEventListener('scroll',e=>{if(combo.inp&&!(combo.el&&combo.el.contains(e.target)))comboClose()},true);
 window.addEventListener('resize',()=>comboClose());
+
+/* 醫師／助理選單：取代瀏覽器內建的清單，名字以卡片排列，可打字篩選、方向鍵選擇 */
+const pp={el:null,inp:null,opts:[],hi:-1};
+const ppNames=k=>{const key=k==='doc'?'doctor':'assistant';return (fs?staffNames[key]:settings[key+'s'])||[]};
+const ppHue=n=>[...n].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+function ppOpen(inp,showAll){
+  if(inp.disabled||inp.readOnly)return;
+  if(!pp.el){pp.el=document.createElement('div');pp.el.className='combo-pop pp-pop';document.body.appendChild(pp.el);
+    pp.el.addEventListener('mousedown',e=>{e.preventDefault();const o=e.target.closest('[data-i]');if(o)ppPick(+o.dataset.i)});}
+  if(pp.inp!==inp)pp.hi=-1;pp.inp=inp;ppRender(showAll);
+}
+function ppClose(){if(pp.el)pp.el.hidden=true;pp.inp=null;pp.hi=-1}
+function ppRender(showAll){
+  const inp=pp.inp,k=inp.dataset.pp,cur=inp.value.trim(),q=showAll?'':cur.toLowerCase();
+  const all=ppNames(k),list=q?all.filter(n=>n.toLowerCase().includes(q)):all;
+  pp.opts=list.map(n=>({name:n}));if(cur)pp.opts.push({clear:true});
+  let h=`<div class="pp-title">${k==='doc'?'選擇醫師':'選擇助理'}</div>`;
+  h+=list.length?`<div class="pp-grid">${list.map((n,i)=>`<div class="pp-opt${n===cur?' sel':''}" data-i="${i}"><span class="av" style="--h:${ppHue(n)}">${esc(staffCodes[n]||n[0])}</span>${esc(n)}</div>`).join('')}</div>`
+    :`<div class="combo-empty">${all.length?'沒有符合的名字（可直接使用輸入的名字）':'名單是空的'}</div>`;
+  if(cur)h+=`<div class="pp-opt pp-clear" data-i="${pp.opts.length-1}">清除</div>`;
+  pp.el.innerHTML=h;pp.el.hidden=false;
+  if(pp.hi<0||pp.hi>=pp.opts.length)pp.hi=Math.max(0,list.indexOf(cur));
+  ppHi();
+  const r=inp.getBoundingClientRect(),below=innerHeight-r.bottom;
+  Object.assign(pp.el.style,{left:Math.min(r.left,innerWidth-Math.max(r.width,200)-8)+'px',minWidth:Math.max(r.width,200)+'px',maxWidth:Math.max(r.width,200)+'px',maxHeight:Math.max(160,Math.min(380,below>240?below-12:r.top-12))+'px'});
+  if(below>240||below>=r.top){pp.el.style.top=r.bottom+4+'px';pp.el.style.bottom=''}else{pp.el.style.top='';pp.el.style.bottom=(innerHeight-r.top+4)+'px'}
+}
+function ppHi(){pp.el.querySelectorAll('[data-i]').forEach(o=>o.classList.toggle('on',+o.dataset.i===pp.hi));const o=pp.el.querySelector('[data-i].on');if(o)o.scrollIntoView({block:'nearest'})}
+function ppPick(i){const o=pp.opts[i],inp=pp.inp;if(!o||!inp)return;
+  inp.value=o.clear?'':o.name;ppClose();inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}))}
+document.addEventListener('focusin',e=>{if(e.target.dataset&&e.target.dataset.pp)ppOpen(e.target,true)});
+document.addEventListener('click',e=>{if(e.target.dataset&&e.target.dataset.pp&&pp.inp!==e.target)ppOpen(e.target,true)},true);
+document.addEventListener('input',e=>{if(e.target.dataset&&e.target.dataset.pp&&e.isTrusted){pp.hi=-1;ppOpen(e.target)}});
+document.addEventListener('focusout',e=>{if(e.target.dataset&&e.target.dataset.pp)ppClose()});
+document.addEventListener('keydown',e=>{
+  if(!(e.target.dataset&&e.target.dataset.pp))return;
+  if(!pp.inp){if(e.key==='ArrowDown'){ppOpen(e.target,true);e.preventDefault()}return}
+  const n=pp.opts.length,cols=Math.max(1,(getComputedStyle(pp.el.querySelector('.pp-grid')||pp.el).gridTemplateColumns||'').split(' ').length);
+  if(e.key==='ArrowRight'&&n){pp.hi=(pp.hi+1)%n;ppHi();e.preventDefault()}
+  else if(e.key==='ArrowLeft'&&n){pp.hi=(pp.hi-1+n)%n;ppHi();e.preventDefault()}
+  else if(e.key==='ArrowDown'&&n){pp.hi=Math.min(n-1,pp.hi+cols);ppHi();e.preventDefault()}
+  else if(e.key==='ArrowUp'&&n){pp.hi=Math.max(0,pp.hi-cols);ppHi();e.preventDefault()}
+  else if(e.key==='Enter'){if(pp.opts[pp.hi]&&(pp.inp.value.trim()===''||!pp.opts[pp.hi].clear))ppPick(pp.hi);else ppClose();e.preventDefault()}
+  else if(e.key==='Escape'||e.key==='Tab')ppClose();
+});
+window.addEventListener('scroll',e=>{if(pp.inp&&!(pp.el&&pp.el.contains(e.target)))ppClose()},true);
+window.addEventListener('resize',()=>ppClose());
 
 /* 治療項目拖曳編號調整順序（滑鼠與觸控都可以；定案或結單後不能拖） */
 $('#main').addEventListener('pointerdown',e=>{
@@ -1743,6 +1810,7 @@ async function deviceAction(uid,act){
 
 /* ====== 啟動：Google 登入 → 權限（沿用排班系統）→ 雲端即時同步 ====== */
 let staffNames={doctor:[],assistant:[]};
+let staffCodes={}; // 姓名 → 排班系統的人員代號（醫師代號去掉開頭的 Dr.）
 const PERM_LABEL={view:'僅檢視',self:'一般編輯',manage:'排班管理',super:'超級管理員',device:'認證設備'};
 function showGate(kind,email){
   const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
@@ -1839,7 +1907,8 @@ function startCloud(){
     snap.docs.map(d=>d.data()).filter(v=>v.active!==false&&n[v.role]&&v.name)
       .sort((a,b)=>(a.code||a.name||'').localeCompare(b.code||b.name||'','zh-Hant',{numeric:true}))
       .forEach(v=>n[v.role].push(v.name));
-    staffNames=n;
+    const c={};snap.docs.forEach(d=>{const v=d.data();if(v.name&&v.code)c[v.name]=String(v.code).replace(/^Dr\.?\s*/i,'')});
+    staffNames=n;staffCodes=c;
     // 名單更新時，換掉畫面上的選單內容
     const sh=$('#main .sheet');if(sh){sh.querySelectorAll('datalist').forEach(x=>x.remove());sh.insertAdjacentHTML('afterbegin',datalists())}
   },e=>console.warn(e));
