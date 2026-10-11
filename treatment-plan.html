@@ -273,6 +273,13 @@ tfoot td{font-weight:700;background:var(--soft)}
 .sigbox{border:1px dashed var(--line);border-radius:8px;min-height:90px;display:flex;align-items:center;justify-content:center;background:var(--sig-bg);cursor:pointer;color:#888;position:relative}
 .sigbox img{max-height:110px;max-width:100%}
 .sig-mini{height:38px;background:var(--sig-bg);border-radius:4px;border:1px solid var(--line);cursor:pointer;display:block}
+/* 同一次繳費的多個項目 */
+.pay-tbl td[rowspan]{vertical-align:top;background:var(--panel)}
+.pay-tbl tr.pay-locked td[rowspan]{background:var(--soft)}
+.pay-addline{display:block;margin-top:6px;padding:2px 6px;font-size:12px;color:var(--accent)}
+.pay-gsum{margin-top:4px}
+@container pays (max-width:640px){.pay-tbl tr.pay-gn{border-top:1px dashed var(--line);padding-top:6px;margin-left:14px}.pay-tbl tr.pay-gn .p-item{grid-column:1/7;grid-row:1}}
+@container pays (max-width:600px){.pay-tbl tr.pay-gn .p-teeth{grid-row:2}.pay-tbl tr.pay-gn .p-note{grid-row:3}.pay-tbl tr.pay-gn .p-amt{grid-row:4}}
 .refund,input.refund{color:var(--danger);font-weight:600}
 .refund-tag{display:block;font-size:11px;color:var(--danger);text-align:right}
 .pay-locked td{background:var(--soft)}
@@ -675,16 +682,7 @@ function renderEditor(){
     <h2>繳費紀錄<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addPay">＋ 新增繳費</button>'}</h2>
     <div class="tbl-wrap pay-wrap"><table class="pay-tbl">
       <thead><tr><th style="width:150px">日期</th><th style="min-width:180px">項目</th><th style="min-width:300px">牙位</th><th>備註</th><th class="num" style="width:120px">金額</th><th style="width:120px">經手助理</th><th style="width:130px">患者簽名</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
-      <tbody>${p.payments.map(x=>{const pd=L||x.sig?'disabled':''; /* 患者簽名確認後這一筆就鎖定 */ return `<tr data-list="payments" data-id="${x.id}" class="${x.sig?'pay-locked':''}">
-        <td class="p-date" data-label="日期"><input type="date" data-k="date" value="${esc(x.date)}" ${pd||x.transfer?'disabled':''}></td>
-        <td class="p-item" data-label="項目">${x.transfer?'<span class="hint">前單轉入</span>':`<select data-k="itemId" ${pd}>${payItemOptions(p,x)}</select>`}</td>
-        <td class="p-teeth" data-label="牙位">${x.transfer?'':teethCell(payTeeth(x),pd)}</td>
-        <td class="p-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1" ${pd}>${esc(x.note)}</textarea></td>
-        <td class="p-amt" data-label="金額"><input class="num ${(x.amount||0)<0?'refund':''}" type="number" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" title="負數代表退費" ${pd||x.transfer?'disabled':''}>${(x.amount||0)<0?'<span class="refund-tag">退費</span>':''}</td>
-        <td class="p-hand" data-label="經手助理">${x.transfer?'':`<input data-k="handler" list="dlAsst" value="${esc(x.handler||'')}" placeholder="經手助理" ${pd}>`}</td>
-        <td class="p-sig" data-label="患者簽名">${x.transfer?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名" title="已簽名確認，不可更動">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`)}</td>
-        ${L?'':`<td class="p-del no-print">${x.sig?'<span class="hint" title="已簽名確認">🔒</span>':'<button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button>'}</td>`}
-      </tr>`}).join('')||`<tr><td colspan="8" class="hint">尚無繳費紀錄</td></tr>`}</tbody>
+      <tbody>${payRowsHtml(p,L)}</tbody>
     </table></div>
     <div class="totals">
       <div><small>變更後總金額</small><b id="tChg2">$${money(c.chg)}</b></div>
@@ -762,6 +760,30 @@ function applyPerms(){
   m.querySelectorAll('td.drag-handle').forEach(x=>x.classList.remove('drag-handle'));
   const top=m.querySelector('.topbar');if(top&&!m.querySelector('.ro-note'))top.insertAdjacentHTML('afterend','<div class="ro-note">你的權限為「僅檢視」，只能查看與列印。</div>');
 }
+// 繳費紀錄：同一次繳費（同一個 gid）可以有好幾個項目；日期、經手助理、患者簽名只出現一次（同組共用）
+const payGid=x=>x.gid||x.id;
+function payGroups(p){const m=new Map();for(const x of p.payments){const g=payGid(x);if(!m.has(g))m.set(g,[]);m.get(g).push(x)}return [...m.values()]}
+function payRowsHtml(p,L){
+  const groups=payGroups(p);
+  if(!groups.length)return `<tr><td colspan="8" class="hint">尚無繳費紀錄</td></tr>`;
+  return groups.map(arr=>{
+    const g0=arr[0],n=arr.length,signed=!!g0.sig,tr=!!g0.transfer,tot=arr.reduce((s,x)=>s+(x.amount||0),0);
+    return arr.map((x,i)=>{
+      const pd=L||x.sig?'disabled':'',first=i===0,rs=n>1?` rowspan="${n}"`:'';
+      return `<tr data-list="payments" data-id="${x.id}" class="${x.sig?'pay-locked':''} ${first?'pay-g1':'pay-gn'}">
+        ${first?`<td class="p-date" data-label="日期"${rs}><input type="date" data-k="date" value="${esc(x.date)}" ${pd||tr?'disabled':''}>
+          ${n>1?`<div class="hint pay-gsum">本次 ${n} 項，合計 $${money(tot)}</div>`:''}
+          ${!L&&!signed&&!tr?`<button class="btn-sm btn-ghost no-print pay-addline" data-act="addPayLine" data-gid="${esc(payGid(x))}">＋ 同次加項目</button>`:''}</td>`:''}
+        <td class="p-item" data-label="項目">${x.transfer?'<span class="hint">前單轉入</span>':`<select data-k="itemId" ${pd}>${payItemOptions(p,x)}</select>`}</td>
+        <td class="p-teeth" data-label="牙位">${x.transfer?'':teethCell(payTeeth(x),pd)}</td>
+        <td class="p-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1" ${pd}>${esc(x.note)}</textarea></td>
+        <td class="p-amt" data-label="金額"><input class="num ${(x.amount||0)<0?'refund':''}" type="number" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" title="負數代表退費" ${pd||x.transfer?'disabled':''}>${(x.amount||0)<0?'<span class="refund-tag">退費</span>':''}</td>
+        ${first?`<td class="p-hand" data-label="經手助理"${rs}>${tr?'':`<input data-k="handler" list="dlAsst" value="${esc(x.handler||'')}" placeholder="經手助理" ${pd}>`}</td>
+        <td class="p-sig" data-label="患者簽名"${rs}>${tr?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名" title="已簽名確認，不可更動">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`)}</td>`:''}
+        ${L?'':`<td class="p-del no-print">${x.sig?'<span class="hint" title="已簽名確認">🔒</span>':'<button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除這個項目">✕</button>'}</td>`}
+      </tr>`}).join('');
+  }).join('');
+}
 function refreshTotals(){
   {const p=cur(),ch=document.querySelector('.topbar .chip');if(p&&ch){const s=stOf(p);ch.className='chip '+s;ch.textContent=STATUS[s]}}
   const p=cur(),c=calc(p),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent='$'+money(v)};
@@ -808,7 +830,8 @@ $('#main').addEventListener('input',e=>{
       const v=teethParts(it);r.tr.querySelectorAll('[data-k="teethIn"]').forEach(i=>{i.value=v[i.dataset.jaw];i.classList.remove('bad')});alignTeeth(r.tr.querySelector('.teeth-cell'));
       if(!it.amount||it.amtAuto){it.amount=Math.max(0,itemAmt(item)-itemPaid(p,item.id,it));it.amtAuto=true;r.tr.querySelector('[data-k="amount"]').value=it.amount||''}}}
   else if(k==='taken')it.taken=t.checked;
-  else if(k in it||['date','note','handler'].includes(k))it[k]=t.value;
+  else if(k in it||['date','note','handler'].includes(k)){it[k]=t.value;
+    if(r.name==='payments'&&(k==='date'||k==='handler'))p.payments.forEach(x=>{if(payGid(x)===payGid(it))x[k]=t.value})} // 同一次繳費共用日期與經手助理
   refreshTotals();touch();
 });
 $('#main').addEventListener('change',e=>{
@@ -854,6 +877,11 @@ $('#main').addEventListener('click',async e=>{
   if(a){const act=a.dataset.act,L=p.status!=='open';
     if(act==='print')window.print();
     else if(act==='addItem'){p.items.push(newItem());touch();renderEditor()}
+    else if(act==='addPayLine'){ // 同一次繳費再加一個項目（共用日期、經手助理、簽名）
+      const gid=a.dataset.gid,grp=p.payments.filter(x=>payGid(x)===gid);if(!grp.length||grp[0].sig)return;
+      grp.forEach(x=>{if(!x.gid)x.gid=gid});const last=grp[grp.length-1];
+      p.payments.splice(p.payments.indexOf(last)+1,0,{id:uid(),gid,date:grp[0].date,handler:grp[0].handler||'',itemId:null,teeth:[],pontics:[],bridgeTeeth:[],bridgeGroups:[],amount:0,amtAuto:true,note:'',sig:null});
+      touch();renderEditor()}
     else if(act==='addPay'){p.payments.push({id:uid(),date:today(),handler:'',itemId:null,teeth:[],pontics:[],bridgeTeeth:[],bridgeGroups:[],amount:Math.max(0,calc(p).due),amtAuto:true,note:'',sig:null});touch();renderEditor()}
     else if(act==='addRcpt'){const c=calc(p);p.receipts.push({id:uid(),date:today(),amount:Math.max(0,c.paid-c.rcpt),taken:false,note:'',photos:[]});touch();renderEditor()}
     else if(act==='consentSig'){if(L||p.finalized){if(p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}const s=await openSig('患者同意治療計畫簽名',p.consent.sig);if(s!==undefined){p.consent.sig=s;if(s&&!p.consent.at)p.consent.at=nowLocal();touch();renderEditor()}}
@@ -878,9 +906,11 @@ $('#main').addEventListener('click',async e=>{
     r.list.splice(r.list.indexOf(r.row),1);touch();renderEditor();
   }else if(k==='teeth'){if(r.name==='items'?IL:(L||r.row.sig))return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it),it.bridgeGroups);if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
   else if(k==='sig'){const lock=r.name==='payments'&&(L||r.row.sig);
-    if(r.name==='payments'&&!lock&&!r.row.amount){alert('請先填寫繳費金額再簽名');return}if(lock&&!r.row.sig)return;
+    // 繳費：同一次繳費（同組）一起簽一次名
+    const grp=r.name==='payments'?p.payments.filter(x=>payGid(x)===payGid(r.row)):[r.row],tot=grp.reduce((s,x)=>s+(x.amount||0),0);
+    if(r.name==='payments'&&!lock&&!(r.row.handler||'').trim()){alert('請先填寫經手助理再簽名');r.tr.querySelector('[data-k="handler"]')?.focus();return}if(lock&&!r.row.sig)return;
     if(lock){showImage(r.row.sig,'患者簽名');return}
-    const s=await openSig(`${r.name==='receipts'?'領取收據簽名':(r.row.amount<0?'退費簽名':'繳費簽名')}：${r.row.date}　$${money(r.row.amount)}`,r.row.sig,r.name==='payments'?'確認簽名後，這一筆繳費紀錄就不能再更動或刪除。':'');if(s!==undefined){r.row.sig=s;if(s&&r.name==='receipts')r.row.taken=true;touch();renderEditor()}}
+    const s=await openSig(`${r.name==='receipts'?'領取收據簽名':(tot<0?'退費簽名':'繳費簽名')}：${r.row.date}　$${money(r.name==='receipts'?r.row.amount:tot)}${grp.length>1?`（${grp.length} 項）`:''}`,r.row.sig,r.name==='payments'?'確認簽名後，這一次繳費紀錄就不能再更動或刪除。':'');if(s!==undefined){grp.forEach(x=>x.sig=s);if(s&&r.name==='receipts')r.row.taken=true;touch();renderEditor()}}
   else if(k==='addPhoto'){pickPhotos(r.row)}
   else if(k==='photo'){const i=+t.dataset.i,ph=r.row.photos[i];let src='';try{src=await DB.getFile(ph)}catch(e){alert('照片讀取失敗');return}
     const del=await showImage(src,`收據照片（${r.row.date}）`,canEdit());if(del){DB.delFile(ph);r.row.photos.splice(i,1);touch();renderEditor()}}
