@@ -97,6 +97,7 @@ main{padding:20px;min-width:0}
 .chip.expiredNone{background:var(--soft);color:var(--muted);border:1px dashed var(--muted)}  /* 同「未定案」 */
 .chip.expiredPaid{background:var(--soft);color:var(--muted);border:1.5px solid var(--danger)}   /* 同「未定案」外加紅框 */
 .chip.draftCont,.chip.draft{background:var(--soft);color:var(--muted);border:1px dashed var(--muted)}
+.chip.early{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn)}
 .chip.paid{background:var(--ok-soft);color:var(--ok)}
 .chip.changed{background:var(--info-soft);color:var(--info)}
 .grid-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
@@ -288,7 +289,8 @@ tfoot td{font-weight:700;background:var(--soft)}
 .close-bar{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 .close-bar button{padding:12px 22px;font-size:16px;font-weight:700}
 .btn-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
-.btn-chg{background:var(--warn);color:#fff;border-color:var(--warn)}
+.btn-chg{background:var(--info);color:#fff;border-color:var(--info)}
+.btn-warn{background:var(--warn);color:#fff;border-color:var(--warn)}
 .banner{border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .banner.paid{background:var(--ok-soft);color:var(--ok)}
 .banner.changed{background:var(--warn-soft);color:var(--warn)}
@@ -327,6 +329,11 @@ tfoot td{font-weight:700;background:var(--soft)}
 .modal-bg.minimized{display:none}
 .stats-restore{position:fixed;right:18px;bottom:18px;z-index:60;padding:10px 16px;border-radius:999px;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.22)}
 .inc-tbl tbody tr.cur td{background:var(--accent-soft);font-weight:600}
+.ask-body{font-size:15px;line-height:1.7}
+.ask-sum{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;background:var(--soft);border-radius:8px;padding:10px 14px;margin-bottom:10px}
+.ask-sum b{text-align:right}.ask-sum b.due{color:var(--danger)}
+.ask-msg{font-size:16px;margin:8px 0}.ask-msg.danger{color:var(--danger)}.ask-msg.ok{color:var(--ok);font-weight:600}.ask-msg.warn{color:var(--warn)}
+.ask-warn{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;font-size:14px}.ask-warn ul{margin:4px 0 0;padding-left:20px}
 .modal-x{position:absolute;top:10px;right:10px;width:34px;height:34px;padding:0;border-radius:50%;font-size:16px;line-height:1;color:var(--muted)}
 .modal h3{margin:0 0 12px;font-size:17px}
 .modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
@@ -413,6 +420,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
           <option value="pending">尚未進行（已定案、未繳費）</option>
           <option value="open">進行中</option>
           <option value="paid">已結單－費用收訖</option>
+          <option value="early">提前結單</option>
           <option value="changed">已結單－計畫變更</option>
           <option value="expiredPaid">有繳費且過期</option>
           <option value="expiredNone">無繳費且過期</option>
@@ -545,17 +553,17 @@ function calc(p){
   const rcpt=p.receipts.reduce((a,x)=>a+(x.amount||0),0);
   return {orig,chg,paid,due:chg-paid,rcpt};
 }
-const STATUS={draftCont:'未定案-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
+const STATUS={early:'提前結單',draftCont:'未定案-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
 // 顯示用狀態（未結單時）：還沒定案 → 未定案；已定案但還沒有繳費紀錄 → 尚未進行；有繳費紀錄 → 進行中
 // 有繳費：只要有過一筆金額不是 0 的繳費紀錄（含退費、前單轉入）
 const hasPaid=p=>p.payments.some(x=>x.amount);
-const stOf=p=>p.status!=='open'?p.status:isExpired(p)?(hasPaid(p)?'expiredPaid':'expiredNone'):!p.finalized?(p.prevId?'draftCont':'draft'):hasPaid(p)?'open':'pending';
+const stOf=p=>p.status==='paid'&&p.earlyClose?'early':p.status!=='open'?p.status:isExpired(p)?(hasPaid(p)?'expiredPaid':'expiredNone'):!p.finalized?(p.prevId?'draftCont':'draft'):hasPaid(p)?'open':'pending';
 // 有效期限：預設為單據開立日起 6 個月，可手動調整（手動設定的存在 p.expiry）；還沒結單且超過期限顯示「有繳費且過期」或「無繳費且過期」
 const EXPIRY_MONTHS=6;
 function addMonths(ymd,n){const [y,m,d]=ymd.split('-').map(Number);const last=new Date(y,m-1+n+1,0).getDate();const dt=new Date(y,m-1+n,Math.min(d,last));return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`}
 const expiryOf=p=>p.expiry||((p.createdAt||'').slice(0,10)?addMonths(p.createdAt.slice(0,10),EXPIRY_MONTHS):'');
 const isExpired=p=>{const e=expiryOf(p);return !!e&&today()>e};
-const ST_SHORT={draftCont:'未定案-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已收訖',changed:'計畫變更'};
+const ST_SHORT={early:'提前結單',draftCont:'未定案-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已收訖',changed:'計畫變更'};
 
 /* ====== 儲存 ====== */
 let saveT=null,pendingP=null;
@@ -630,7 +638,7 @@ function renderEditor(){
     ${canDelPlan(p)?'<button class="no-print btn-danger" data-act="delete">刪除此單</button>':''}
   </div>
   ${prev?`<div class="banner changed no-print">此單由 <button class="link" data-open-plan="${prev.id}">${esc(prev.no)}</button>（計畫變更）延續而來。</div>`:''}
-  ${p.status==='paid'?`<div class="banner paid">✔ 已結單－費用收訖（${esc(fmtDT(p.closedAt))}）<span class="sp"></span><button class="btn-sm no-print" data-act="reopen">取消結單</button></div>`:''}
+  ${p.status==='paid'?`<div class="banner ${p.earlyClose?'changed':'paid'}">${p.earlyClose?`提前結單（${esc(fmtDT(p.closedAt))}，未繳餘額 $${money(c.due)}）`:`✔ 已結單－費用收訖（${esc(fmtDT(p.closedAt))}）`}<span class="sp"></span><button class="btn-sm no-print" data-act="reopen">取消結單</button></div>`:''}
   ${p.status==='changed'?`<div class="banner changed">已結單－計畫變更（${esc(fmtDT(p.closedAt))}）${next?`，新計劃單：<button class="link" data-open-plan="${next.id}">${esc(next.no)}</button>`:''}<span class="sp"></span>${next?'':'<button class="btn-sm no-print" data-act="reopen">取消結單</button>'}</div>`:''}
 
   <section class="card">
@@ -668,7 +676,7 @@ function renderEditor(){
       <div><small>減免合計</small><b id="tDisc" class="disc-amt">$${money(c.orig-c.chg)}</b></div>
       <div class="hl"><small>變更後總金額</small><b id="tChg">$${money(c.chg)}</b></div>
     </div>
-    ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已定案（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「結單－計畫變更」。</div>`:''}
+    ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已定案（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
     <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單一金額，原始金額 = 單一金額 × 數量，都可直接修改；「變更金額」留空表示與原始金額相同。</div>
   </section>
 
@@ -696,8 +704,8 @@ function renderEditor(){
   </section>
 
   ${L?'':`<div class="close-bar no-print">
-    <button class="btn-ok" data-act="closePaid">結單－費用收訖</button>
-    <button class="btn-chg" data-act="closeChanged">結單－計畫變更</button>
+    <button class="btn-ok" data-act="closePaid">結單</button>
+    <button class="btn-chg" data-act="closeChanged">計畫變更</button>
   </div>`}
 
   <section class="card">
@@ -899,7 +907,7 @@ $('#main').addEventListener('click',async e=>{
     else if(act==='finalize')finalize(p);
     else if(act==='closePaid')closePaid(p);
     else if(act==='closeChanged')closeChanged(p);
-    else if(act==='reopen'){if(!confirm('確定取消結單？此單會回到結單前的狀態。'))return;p.status='open';p.closedAt=null;await saveNow(p);renderList();renderEditor()}
+    else if(act==='reopen'){if(!confirm('確定取消結單？此單會回到結單前的狀態。'))return;p.status='open';p.closedAt=null;delete p.earlyClose;await saveNow(p);renderList();renderEditor()}
     return;
   }
   const t=e.target.closest('[data-k]');if(!t)return;const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,L=p.status!=='open',IL=L||!!p.finalized;
@@ -920,7 +928,7 @@ $('#main').addEventListener('click',async e=>{
     const del=await showImage(src,`收據照片（${r.row.date}）`,canEdit());if(del){DB.delFile(ph);r.row.photos.splice(i,1);touch();renderEditor()}}
 });
 
-/* 定案：治療項目與金額鎖定，之後只能用「結單－計畫變更」另開新單 */
+/* 定案：治療項目與金額鎖定，之後只能用「計畫變更」另開新單 */
 async function finalize(p){
   const c=calc(p),items=p.items.filter(i=>i.name);
   if(!items.length){alert('請先填寫治療項目再定案');return}
@@ -930,24 +938,41 @@ async function finalize(p){
   if(!p.consent.sig){alert('患者簽名同意治療計畫後才能定案');return}
   const warn=[];if(p.items.length>items.length)warn.push(`・有 ${p.items.length-items.length} 列未選治療項目，定案時會移除`);
   if(p.items.some(i=>i.teethBad&&i.teethBad.length))warn.push('・有牙位無法辨識（紅色）');
-  if(!confirm(`定案治療計畫\n\n共 ${items.length} 項，總金額 $${money(c.orig)}，變更後總金額 $${money(c.chg)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n定案後病患資料、治療項目與金額將無法再更動（如需變更請用「結單－計畫變更」）。確定定案？`))return;
+  if(!confirm(`定案治療計畫\n\n共 ${items.length} 項，總金額 $${money(c.orig)}，變更後總金額 $${money(c.chg)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n定案後病患資料、治療項目與金額將無法再更動（如需變更請用「計畫變更」）。確定定案？`))return;
   p.items=items;p.finalized=true;p.finalizedAt=nowLocal();await saveNow(p);renderList();renderEditor();
+}
+// 通知彈窗：buttons=[{label,value,cls}]，回傳按下的 value（按 ✕ 為 undefined）
+function askDialog(title,html,buttons){
+  return modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>${esc(title)}</h3><div class="ask-body">${html}</div>
+    <div class="acts"><span class="sp"></span>${buttons.map((b,i)=>`<button class="${b.cls||''}" data-ask="${i}">${esc(b.label)}</button>`).join('')}</div>`,
+  (box,close)=>box.addEventListener('click',e=>{if(e.target.closest('[data-x="close"]')){close(undefined);return}const b=e.target.closest('[data-ask]');if(b)close(buttons[+b.dataset.ask].value)}));
 }
 /* 結單 */
 async function closePaid(p){
-  const c=calc(p);const warn=[];
-  if(!p.items.some(i=>i.name))warn.push('・尚未填任何治療項目');
-  if(!p.finalized)warn.push('・治療計畫尚未定案');
-  if(!p.consent.sig)warn.push('・患者尚未簽署同意治療計畫');
-  const uns=p.payments.filter(x=>!x.transfer&&!x.sig).length;if(uns)warn.push(`・有 ${uns} 筆繳費尚未簽名`);
-  if(c.due>0)warn.push(`・尚有未繳餘額 $${money(c.due)}`);
-  if(c.due<0)warn.push(`・已繳金額超過變更後總金額 $${money(-c.due)}`);
-  if(!confirm(`結單－費用收訖\n\n變更後總金額 $${money(c.chg)}\n已繳合計 $${money(c.paid)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n結單後治療項目與繳費紀錄將鎖定（收據紀錄仍可新增）。確定結單？`))return;
-  p.status='paid';p.closedAt=nowLocal();await saveNow(p);renderList();renderEditor();
+  const c=calc(p),warn=[];
+  if(!p.items.some(i=>i.name))warn.push('尚未填任何治療項目');
+  if(!p.finalized)warn.push('治療計畫尚未定案');
+  if(!p.consent.sig)warn.push('患者尚未簽署同意治療計畫');
+  const uns=payGroups(p).filter(g=>!g[0].transfer&&!g[0].sig).length;if(uns)warn.push(`有 ${uns} 次繳費尚未簽名`);
+  const sumRow=`<div class="ask-sum"><span>變更後總金額</span><b>$${money(c.chg)}</b><span>已繳合計</span><b>$${money(c.paid)}</b><span>未繳餘額</span><b class="${c.due?'due':''}">$${money(c.due)}</b></div>`;
+  const notes=warn.length?`<div class="ask-warn"><b>注意：</b><ul>${warn.map(w=>`<li>${esc(w)}</li>`).join('')}</ul></div>`:'';
+  const lockNote='<p class="hint">結單後治療項目與繳費紀錄將鎖定（收據紀錄仍可新增）。</p>';
+  if(c.due<0){ // 溢繳：先退款
+    await askDialog('無法結單',sumRow+`<p class="ask-msg danger">已繳金額超過變更後總金額，溢繳 <b>$${money(-c.due)}</b>。<br>請先退還溢繳的金額（在繳費紀錄新增一筆負數金額並請患者簽名），再進行結單。</p>`+notes,[{label:'我知道了',value:'ok',cls:'btn-primary'}]);
+    return;
+  }
+  const ok=c.due===0
+    ? await askDialog('結單',sumRow+`<p class="ask-msg ok">✔ 費用已全部收訖，可以結單。</p>`+notes+lockNote,[{label:'取消',value:null},{label:'結單',value:'go',cls:'btn-ok'}])
+    : await askDialog('提前結單？',sumRow+`<p class="ask-msg warn">尚有未繳餘額 <b>$${money(c.due)}</b>。<br>是否要提前結單？</p>`+notes+lockNote,[{label:'取消',value:null},{label:'提前結單',value:'go',cls:'btn-warn'}]);
+  if(ok!=='go')return;
+  p.status='paid';p.closedAt=nowLocal();if(c.due>0)p.earlyClose=true;else delete p.earlyClose; // 還有未繳餘額就結單＝提前結單
+  await saveNow(p);renderList();renderEditor();
 }
 async function closeChanged(p){
   const c=calc(p);
-  if(!confirm(`結單－計畫變更\n\n此單將結單並鎖定，同時建立一張新的治療計劃單（帶入病患資料與目前的治療項目）。\n此單已繳 $${money(c.paid)} 會以「前單轉入」列入新單的繳費紀錄。\n\n確定？`))return;
+  const ok=await askDialog('計畫變更',`<p>此單將結單並鎖定，同時建立一張新的治療計劃單（帶入病患資料與目前的治療項目）。</p>
+    <p>此單已繳 <b>$${money(c.paid)}</b> 會以「前單轉入」列入新單的繳費紀錄。</p>`,[{label:'取消',value:null},{label:'計畫變更',value:'go',cls:'btn-chg'}]);
+  if(ok!=='go')return;
   const n=blankPlan();
   Object.assign(n,{name:p.name,birthday:p.birthday,chartNo:p.chartNo,doctor:p.doctor,assistant:p.assistant,prevId:p.id,
     items:p.items.map(i=>({...i,id:uid(),teeth:[...i.teeth],pontics:[...(i.pontics||[])],bridgeTeeth:[...bridgeTeethOf(i)],bridgeGroups:(i.bridgeGroups||[]).map(g=>[...g])}))});
@@ -1388,7 +1413,7 @@ function closedRows(ym,doc,asst){
       let comm=0; // 只依各項目設定；沒有設定的項目、自訂項目、未選項目不抽成
       for(const [it,paid] of itemPaid){if(it.cat!==cat)continue;const c=itemCommCfg(it.name);comm+=c.type==='pct'?Math.round(paid*c.v/100):(paid>0?c.v*(it.qty||1):0)}
       const teeth=p.items.filter(i=>(i.custom?'其他':i.cat)===cat&&i.teeth.length).map(teethLabel).join('；');
-      rows.push({date:(p.closedAt||'').slice(0,10),kind:p.status==='paid'?'收訖':'計畫變更',name:p.name||'',chartNo:p.chartNo||'',cat,teeth,amount:amt,
+      rows.push({date:(p.closedAt||'').slice(0,10),kind:p.status==='paid'?(p.earlyClose?'提前結單':'收訖'):'計畫變更',name:p.name||'',chartNo:p.chartNo||'',cat,teeth,amount:amt,
         assistant:p.assistant||'',doctor:p.doctor||'',rate:commLabel(cat),comm,planId:p.id});
     }
   }
@@ -1434,7 +1459,7 @@ function perfRows(ym,asst){
       amt+=x.amount;n++;
     }
     if(!n)continue;
-    rows.push({date:(p.closedAt||'').slice(0,10),asst:who(p),doctor:p.doctor||'',cats:catsOf(p,false),teeth:teethOf(p,false),name:p.name||'',chartNo:p.chartNo||'',kind:p.status==='paid'?'結單－費用收訖':'結單－計畫變更',amount:amt,bonus:0,planId:p.id});
+    rows.push({date:(p.closedAt||'').slice(0,10),asst:who(p),doctor:p.doctor||'',cats:catsOf(p,false),teeth:teethOf(p,false),name:p.name||'',chartNo:p.chartNo||'',kind:p.status==='paid'?(p.earlyClose?'提前結單':'結單'):'計畫變更',amount:amt,bonus:0,planId:p.id});
   }
   return rows.sort((a,b)=>a.asst.localeCompare(b.asst,'zh-Hant')||a.date.localeCompare(b.date));
 }
@@ -1476,7 +1501,7 @@ function openStats(){
       </div>
       <div id="incOut"></div></div>
     <div data-pane="closed">
-      <p class="hint">統計結單日期在該月的計劃單（結單－費用收訖、結單－計畫變更）。總金額＝實際已繳金額，依繳費紀錄選的項目分到各種類（沒選項目或自訂項目歸「其他」；「前單轉入」不重複計算）；抽成依「⚙ → 抽成比例」的設定：選 % 為總金額 × 比例，選「元」為每張單該種類固定金額。矯正療程單（LH日式矯正、Invisalign隱適美療程）例外：第一次繳費的月份就列入，每單固定抽成，金額欄為第一次繳費金額。</p>
+      <p class="hint">統計結單日期在該月的計劃單（結單、計畫變更）。總金額＝實際已繳金額，依繳費紀錄選的項目分到各種類（沒選項目或自訂項目歸「其他」；「前單轉入」不重複計算）；抽成依「⚙ → 抽成比例」的設定：選 % 為總金額 × 比例，選「元」為每張單該種類固定金額。矯正療程單（LH日式矯正、Invisalign隱適美療程）例外：第一次繳費的月份就列入，每單固定抽成，金額欄為第一次繳費金額。</p>
       <div class="st-filters">
         <label>月份 <input type="month" id="clYm" value="${ym0}"></label>
         <label>醫師 <select id="clDoc"><option value="">全部醫師</option>${docs().map(d=>`<option>${esc(d)}</option>`).join('')}</select></label>
