@@ -673,7 +673,8 @@ body.gated .shell{display:none;}
       <button id="undoBtn" data-w title="回復上一動作（Ctrl+Z）">↶ 回復上一動作</button>
       <button id="tplBtn" data-w>帶入醫師班表</button>
       <button id="autoBtn" class="primary" data-w>自動排班</button>
-      <button id="clearMonthBtn" class="danger" data-w>清空本月</button>
+      <button id="clearMonthBtn" class="danger" data-w>清空本月助理</button>
+      <button id="clearDocBtn" class="danger" data-w>清空本月醫師</button>
       <button id="exportBtn">匯出班表</button>
     </div>
   </header>
@@ -2232,7 +2233,7 @@ function renderAll(){
   $('payTabBtn').hidden=!canSeePay();
   // 排班相關按鈕（含上個月／本月／下個月）只在「排班表」分頁顯示；其他分頁各自有月份或年份切換
   $('curMonth').textContent=monthInfo().label; // 上個月／下個月之間顯示目前班表的年月
-  ['prevMonth','curMonth','thisMonth','nextMonth','undoBtn','tplBtn','autoBtn','clearMonthBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'&&(canWrite||!['undoBtn','tplBtn','autoBtn','clearMonthBtn'].includes(id))?'':'none'); // 沒有排班權限時排班用的按鈕直接隱藏
+  ['prevMonth','curMonth','thisMonth','nextMonth','undoBtn','tplBtn','autoBtn','clearMonthBtn','clearDocBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'&&(canWrite||!['undoBtn','tplBtn','autoBtn','clearMonthBtn','clearDocBtn'].includes(id))?'':'none'); // 沒有排班權限時排班用的按鈕直接隱藏
   $('undoBtn').disabled=!canWrite||!schedHist.length||viewingLocked();
   if(prefs.tab==='pay'&&!canSeePay())prefs.tab='schedule';
   $('attTabBtn').hidden=!(canWrite||viewOnlyAssistant());
@@ -4280,7 +4281,22 @@ function autoSchedule(fillOnly){
 
   lastUndo=before;
   Object.entries(work).forEach(([wk,cells])=>store.week(wk,cells));
-  toast(`已排入 ${added} 個崗位${daily||topUp?`（其中 ${[daily?`${daily} 班是為讓每人每天至少一班`:'',topUp?`${topUp} 班是為補滿合理工時`:''].filter(Boolean).join('、')}而加排）`:''}${swaps||mswaps?`，並對調${' '+[swaps?`${swaps} 組流動與跟診`:'',mswaps?`${mswaps} 組流動與主櫃`:''].filter(Boolean).join('、')}，讓跟診與主櫃更連貫`:''}${fullSwaps?`；另有 ${fullSwaps} 位全天班醫師改由流動的全天班助理整天跟診`:''}${fullMain?`；${fullMain} 天的主櫃改由流動的全天班助理整天擔任`:''}${pairMain?`；${pairMain} 天的主櫃和流動互換，讓早午或午晚由同一人擔任`:''}${lastFix?`；最後再調整 ${lastFix} 位醫師的跟診，讓跟診助理更連貫`:''}${subToFlow?`；${subToFlow} 位副櫃助理調到缺人的流動`:''}${shortage?`，還有 ${shortage} 個缺口找不到符合規則的人員`:''}${forcedDays.length?`。為了每天至少一班而超過合理工時：${forcedDays.slice(0,6).join('、')}${forcedDays.length>6?` 等 ${forcedDays.length} 天`:''}`:''}${missDay.length?`。無法排入當天任何一班：${missDay.slice(0,8).join('、')}${missDay.length>8?` 等 ${missDay.length} 天`:''}`:''}${short.length?`。未能排滿合理工時：${short.join('、')}`:''}。`,(shortage||short.length||missDay.length||forcedDays.length)?'warn':'',{label:'復原',fn:undoAuto});
+  // 結果以彈窗呈現：排了什麼、做了哪些調整、需要注意的地方；「復原」可還原
+  const done=[`已排入 ${added} 個崗位${daily||topUp?`（其中 ${[daily?`${daily} 班是為讓每人每天至少一班`:'',topUp?`${topUp} 班是為補滿合理工時`:''].filter(Boolean).join('、')}而加排）`:''}`,
+    swaps||mswaps?`對調 ${[swaps?`${swaps} 組流動與跟診`:'',mswaps?`${mswaps} 組流動與主櫃`:''].filter(Boolean).join('、')}，讓跟診與主櫃更連貫`:'',
+    fullSwaps?`${fullSwaps} 位全天班醫師改由流動的全天班助理整天跟診`:'',
+    fullMain?`${fullMain} 天的主櫃改由流動的全天班助理整天擔任`:'',
+    pairMain?`${pairMain} 天的主櫃和流動互換，讓早午或午晚由同一人擔任`:'',
+    lastFix?`最後再調整 ${lastFix} 位醫師的跟診，讓跟診助理更連貫`:'',
+    subToFlow?`${subToFlow} 位副櫃助理調到缺人的流動`:''].filter(Boolean);
+  const warns=[shortage?`還有 ${shortage} 個缺口找不到符合規則的人員`:'',
+    forcedDays.length?`為了每天至少一班而超過合理工時：${forcedDays.slice(0,6).join('、')}${forcedDays.length>6?` 等 ${forcedDays.length} 天`:''}`:'',
+    missDay.length?`無法排入當天任何一班：${missDay.slice(0,8).join('、')}${missDay.length>8?` 等 ${missDay.length} 天`:''}`:'',
+    short.length?`未能排滿合理工時：${short.join('、')}`:''].filter(Boolean);
+  dialog(`<h3>自動排班完成</h3><ul style="margin:0 0 8px;padding-left:1.2em;line-height:1.7">${done.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
+    ${warns.length?`<h4 style="margin:10px 0 4px;color:var(--warn)">需要注意</h4><ul style="margin:0 0 8px;padding-left:1.2em;line-height:1.7;color:var(--warn)">${warns.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
+    <p class="hint" style="margin:0">不滿意的話可以按「復原」，還原成自動排班之前的班表。</p>`,()=>{},'確定',false,'復原');
+  {const ov=[...document.querySelectorAll('.overlay')].pop();ov.querySelector('.dialog').style.maxWidth='560px';ov.querySelector('[data-x]').addEventListener('click',()=>undoAuto());}
 }
 // 目前登入者的顯示名稱（班表「誰在編輯」與最後修改者）
 const myName=()=>{const s=byId(myStaffId());return s?fullName(s):(myId||'').split('@')[0]||'管理者';};
@@ -5206,16 +5222,30 @@ $('baselineBtn').onclick=()=>{
     toast(exists?`已重新定案 ${mi.label} 班表。`:`已定案 ${mi.label} 班表，接下來請在「異動班表」修改。`);
   },exists?'重新定案':'定案',!!exists);
 };
-$('clearMonthBtn').onclick=()=>{
+// 清空本月助理／醫師：只移除該職務的人，另一種職務保留
+// 助理：移除所有崗位的助理，並清掉跟診配對、加診標記、教育配對（醫師與手動缺口保留）
+// 醫師：移除跟診欄的醫師與跟診配對（跟診助理保留，會變成「未對應醫師」，重新帶入醫師班表後再配對）
+function roleDays(dates,role){return dates.filter(k=>{const d=parseYmd(k),wk=ymd(mondayOf(d)),dow=(d.getDay()+6)%7;return SHIFTS.some(sh=>getCell(wk,dow+'_'+sh.id).some(a=>a.some(id=>byId(id)?.role===role)));});}
+function clearRoleDays(days,role){
+  const byWk={};
+  days.forEach(k=>{const d=parseYmd(k),wk=ymd(mondayOf(d)),dow=(d.getDay()+6)%7;const p=byWk[wk]=byWk[wk]||{};
+    SHIFTS.forEach(sh=>{const ck=dow+'_'+sh.id,cell=getCell(wk,ck);
+      p[ck]=cell.map(a=>a.filter(id=>id===GAP||byId(id)?.role!==role));
+      p['L'+ck]=[];
+      if(role==='assistant'){p['X'+ck]=[];p['T'+ck]=[];}});});
+  Object.entries(byWk).forEach(([wk,patch])=>store.cells(wk,patch));
+}
+[['clearMonthBtn','assistant','助理'],['clearDocBtn','doctor','醫師']].forEach(([id,role,lb])=>{$(id).onclick=()=>{
   if(!canWrite||origBlocked())return;
-  const mi=monthInfo();const days=busyDays(mi.dates.map(x=>x.key));
-  if(!days.length){toast(`${mi.label}還沒有排班。`);return;}
-  confirmOthers(monthWks(mi),'清空本月',()=>dialog(`<h3>清空 ${mi.label}？</h3><p>本月 ${days.length} 天的排班都會移除，包含醫師、助理、跟診配對與加診標記。請假、休診日與規則不受影響。清空後可以按「復原」還原。</p>`,()=>{
+  const mi=monthInfo(),days=roleDays(mi.dates.map(x=>x.key),role);
+  if(!days.length){toast(`${mi.label}還沒有排${lb}。`);return;}
+  const what=role==='assistant'?'所有崗位的助理都會移除，跟診配對、加診標記與教育配對也一起清掉；醫師保留':'跟診欄的醫師都會移除，跟診配對一起清掉；助理保留（跟診助理會顯示為「未對應醫師」，重新帶入醫師班表後再配對）';
+  confirmOthers(monthWks(mi),`清空本月${lb}`,()=>dialog(`<h3>清空 ${mi.label}${lb}？</h3><p>本月 ${days.length} 天${what}。請假、休診日與規則不受影響。清空後可以按「復原」還原。</p>`,()=>{
     const before={};mi.mondays.forEach(m=>{const wk=ymd(m);before[wk]=weeks[wk]?clone(weeks[wk]):null;});
-    lastUndo=before;clearDays(days);
-    toast(`已清空 ${mi.label} 的排班。`,'',{label:'復原',fn:undoAuto});
-  },'清空本月',true));
-};
+    lastUndo=before;clearRoleDays(days,role);
+    toast(`已清空 ${mi.label}的${lb}。`,'',{label:'復原',fn:undoAuto});
+  },`清空本月${lb}`,true));
+};});
 
 const weeksEl=$('weeks');
 let drag=null;
