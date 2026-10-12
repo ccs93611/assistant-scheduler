@@ -6,13 +6,13 @@
 <title>新海治療計劃單</title>
 <style>
 :root{
-  --bg:#f4f6f7;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#dde3e6;--soft:#eef3f4;
+  --bg:#e6ecf6;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#d3e0ec;--soft:#eef3f4;
   --accent:#0f7c80;--accent-ink:#fff;--accent-soft:#e1f1f1;
   --danger:#c0392b;--danger-soft:#fbe9e7;--ok:#1e8449;--ok-soft:#e5f4ea;--warn:#b9770e;--warn-soft:#fdf2e0;--info:#1f5fae;--info-soft:#e3eefb;
   --sig-bg:#fff;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#12181b;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--soft:#212b30;
+  --bg:#0e1823;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--soft:#212b30;
   --accent:#3fb6b9;--accent-ink:#0b1416;--accent-soft:#16383a;
   --danger:#ef7a6c;--danger-soft:#3a1f1c;--ok:#5cc98a;--ok-soft:#173023;--warn:#e7b25a;--warn-soft:#352a16;--info:#7fb3f0;--info-soft:#16283f;
   --sig-bg:#f7f7f7;
@@ -21,6 +21,10 @@
 [hidden]{display:none!important} /* 讓 hidden 屬性一定生效（.gate、.me 等有自己的 display） */
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+/* 背景浮水印：診所 Logo（去背），固定在右側內容區中央、淡淡的不影響閱讀 */
+body::before{content:"";position:fixed;top:0;bottom:0;right:0;left:var(--side-w);z-index:-1;pointer-events:none;background:url(tp-watermark.png?v=3) center/min(85vmin,720px) auto no-repeat;opacity:.14} /* 圖已去背（只留深藍 Logo），不會有底色色差 */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) body::before{opacity:.06}}
+@media print{body::before{display:none}}
 button,input,select,textarea{font:inherit;color:inherit}
 input,select,textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
@@ -32,9 +36,12 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .btn-danger{color:var(--danger)}
 .btn-ghost{border-color:transparent;background:transparent}
 .btn-sm{padding:3px 8px;font-size:13px}
-.app{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
-@media (min-width:1500px){.app{grid-template-columns:550px 1fr}}
-@media (min-width:821px) and (max-width:1180px){.app{grid-template-columns:230px 1fr}}
+/* 左側欄寬度（浮水印也用它來對齊右側內容區） */
+:root{--side-w:300px}
+@media (min-width:1500px){:root{--side-w:550px}}
+@media (min-width:821px) and (max-width:1180px){:root{--side-w:230px}}
+@media (max-width:820px){:root{--side-w:0px}}
+.app{display:grid;grid-template-columns:var(--side-w) 1fr;min-height:100vh}
 aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;max-height:100vh;position:sticky;top:0}
 .side-head{padding:14px;border-bottom:1px solid var(--line);display:grid;gap:8px}
 .side-head h1{font-size:17px;margin:0}
