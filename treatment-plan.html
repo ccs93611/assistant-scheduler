@@ -257,6 +257,7 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 .combo-opt.sel{font-weight:700;color:var(--accent)}
 .combo-empty{padding:8px 12px;color:var(--muted);font-size:13px}
 .exp-lbl{display:flex;align-items:center;gap:6px}
+[data-f="name"],[data-f="birthday"]{font-weight:700} /* 患者姓名、生日粗體 */
 /* 單據開立時間與有效期限固定在同一行（獨立一列，欄寬與上方對齊） */
 .dt-pair{grid-column:1/-1;display:grid;grid-template-columns:subgrid;gap:inherit;align-items:end}
 @supports not (grid-template-columns:subgrid){.dt-pair{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}}
