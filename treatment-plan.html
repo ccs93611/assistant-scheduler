@@ -354,7 +354,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .need-sig{color:var(--danger);font-size:12px;font-weight:600;white-space:nowrap}
 .btn-unsigned{color:var(--danger);border-color:var(--danger);font-weight:700;white-space:nowrap} /* 未簽：按下去簽名 */
 .consent{font-size:14px;color:var(--muted);margin:0 0 10px}
-.close-bar{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.close-bar{display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)} /* 在繳費紀錄區塊最下方 */
 .close-bar button{padding:12px 22px;font-size:16px;font-weight:700}
 .btn-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
 .btn-chg{background:var(--info);color:#fff;border-color:var(--info)}
@@ -797,12 +797,11 @@ function renderEditor(){
       <div><small>已繳合計</small><b id="tPaid">$${money(c.paid)}</b></div>
       <div class="due"><small>未繳餘額</small><b id="tDue">$${money(c.due)}</b></div>
     </div>
+    ${L?'':`<div class="close-bar no-print">
+      <button class="btn-ok" data-act="closePaid">結單</button>
+      <button class="btn-chg" data-act="closeChanged">計畫變更</button>
+    </div>`}
   </section>
-
-  ${L?'':`<div class="close-bar no-print">
-    <button class="btn-ok" data-act="closePaid">結單</button>
-    <button class="btn-chg" data-act="closeChanged">計畫變更</button>
-  </div>`}
 
   <section class="card">
     <h2>收據開立紀錄<span class="sp"></span><button class="btn-sm no-print" data-act="addRcpt">＋ 新增收據紀錄</button></h2>
