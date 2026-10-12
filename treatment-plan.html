@@ -296,7 +296,10 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 /* 主治醫師／責任助理、單據開立時間／有效期限：各自固定在同一行（獨立一列，欄寬與上方對齊） */
 .dt-pair{grid-column:1/-1;display:grid;grid-template-columns:subgrid;gap:inherit;align-items:end}
 @supports not (grid-template-columns:subgrid){.dt-pair{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}}
-@media (max-width:480px){.dt-pair{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}} /* 手機只剩一欄時，兩兩仍排同一行 */
+@media (max-width:480px){.dt-pair{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+/* 頁面夠寬時：姓名、生日、病歷號、主治醫師、責任助理排在同一行 */
+.pt-wrap{container-type:inline-size;container-name:pt}
+@container pt (min-width:850px){.pt-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.pt-grid .dr-pair{grid-column:span 2}} /* 手機只剩一欄時，兩兩仍排同一行 */
 .mo-chip{width:auto;font-size:12px;font-weight:600;padding:1px 22px 1px 9px;height:auto;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--soft);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 11px) 55%,calc(100% - 7px) 55%;background-size:4px 4px;background-repeat:no-repeat}
 .mo-chip:disabled{opacity:.6;background-image:none;padding-right:9px;cursor:default} /* 鎖定時不顯示箭頭 */
 /* 醫師／助理選單 */
@@ -738,15 +741,15 @@ function renderEditor(){
 
   <section class="card">
     <h2>病患資料</h2>
-    <div class="grid-f">
+    <div class="pt-wrap"><div class="grid-f pt-grid">
       <label>姓名<input data-f="name" value="${esc(p.name)}" ${idis}></label>
       <label>生日<input type="date" data-f="birthday" value="${esc(p.birthday)}" ${idis}></label>
       <label>病歷號<input data-f="chartNo" value="${esc(p.chartNo)}" ${idis}></label>
-      <div class="dt-pair"><label>主治醫師<span class="combo-wrap pp-wrap"><input data-f="doctor" data-pp="doc" autocomplete="off" placeholder="選擇醫師" value="${esc(p.doctor)}" ${idis}></span></label>
+      <div class="dt-pair dr-pair"><label>主治醫師<span class="combo-wrap pp-wrap"><input data-f="doctor" data-pp="doc" autocomplete="off" placeholder="選擇醫師" value="${esc(p.doctor)}" ${idis}></span></label>
       <label>責任助理<span class="combo-wrap pp-wrap"><input data-f="assistant" data-pp="asst" autocomplete="off" placeholder="選擇助理" value="${esc(p.assistant)}" ${idis}></span></label></div>
       <div class="dt-pair"><label>單據開立時間<input type="datetime-local" data-f="createdAt" value="${esc(p.createdAt)}" ${idis}></label>
       <label><span class="exp-lbl">有效期限${expMonthsSel(p,dis)}</span><input type="date" data-f="expiry" value="${esc(expiryOf(p))}" ${dis} class="${isExpired(p)&&p.status==='open'?'expired-in':''}" title="可直接選日期；清空則依左上的月數計算"></label></div>
-    </div>
+    </div></div>
   </section>
 
   <section class="card">
