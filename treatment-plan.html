@@ -739,7 +739,6 @@ function renderEditor(){
 
   <section class="card">
     <h2>患者同意治療計畫<span class="sp"></span>${p.finalized?`<span class="chip paid">已定案 ${esc(fmtDT(p.finalizedAt))}</span>`:''}</h2>
-    <p class="consent">本人已詳閱並了解上述治療計畫之內容、牙位與費用，經醫師說明後同意接受治療。</p>
     <div class="consent-row">
       <div class="consent-sig"><div class="hint">患者（或法定代理人）簽名</div>
         <div class="sigbox" data-act="consentSig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:(L?'未簽名':'點此簽名')}</div></div>
