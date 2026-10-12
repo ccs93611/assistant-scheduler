@@ -323,6 +323,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .refund-tag{display:block;font-size:11px;color:var(--danger);text-align:right}
 .pay-locked td{background:var(--soft)}
 .need-sig{color:var(--danger);font-size:12px;font-weight:600;white-space:nowrap}
+.btn-unsigned{color:var(--danger);border-color:var(--danger);font-weight:700;white-space:nowrap} /* 未簽：按下去簽名 */
 .consent{font-size:14px;color:var(--muted);margin:0 0 10px}
 .close-bar{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 .close-bar button{padding:12px 22px;font-size:16px;font-weight:700}
@@ -738,7 +739,7 @@ function renderEditor(){
   </section>
 
   <section class="card">
-    <h2>患者同意治療計畫<span class="sp"></span>${p.finalized?`<span class="chip paid">已定案 ${esc(fmtDT(p.finalizedAt))}</span>`:''}</h2>
+    <h2>患者同意治療計畫</h2>
     <div class="consent-row">
       <div class="consent-sig"><div class="hint">患者（或法定代理人）簽名</div>
         <div class="sigbox" data-act="consentSig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:(L?'未簽名':'點此簽名')}</div></div>
@@ -776,7 +777,7 @@ function renderEditor(){
         <td class="r-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1">${esc(r.note)}</textarea></td>
         <td class="r-photo" data-label="照相紀錄"><div class="thumbs">${r.photos.map((ph,i)=>`<img src="${isPhotoData(ph)?ph:(fileCache.get(ph)||BLANK_IMG)}" data-fid="${isPhotoData(ph)?'':esc(ph)}" data-k="photo" data-i="${i}" alt="收據照片">`).join('')}<span class="add-photo" data-k="addPhoto" title="拍照／上傳">＋</span></div></td>
         <td class="r-hand" data-label="經手助理"><input data-k="handler" data-pp="asst" autocomplete="off" value="${esc(r.handler||'')}" placeholder="經手助理"></td>
-        <td class="r-sig" data-label="患者簽名">${r.sig?`<img class="sig-mini" src="${r.sig}" data-k="sig" alt="簽名">`:`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`}</td>
+        <td class="r-sig" data-label="患者簽名">${r.sig?`<img class="sig-mini" src="${r.sig}" data-k="sig" alt="簽名">`:`<button class="btn-sm btn-unsigned" data-k="sig" title="點此請患者簽名">未簽</button>`}</td>
         <td class="r-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>
       </tr>`).join('')||`<tr><td colspan="8" class="hint">尚無收據紀錄</td></tr>`}</tbody>
     </table></div>
@@ -848,7 +849,7 @@ function payRowsHtml(p,L){
         <td class="p-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1" ${pd}>${esc(x.note)}</textarea></td>
         <td class="p-amt" data-label="金額"><input class="num ${(x.amount||0)<0?'refund':''}" type="number" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" title="負數代表退費" ${pd||x.transfer?'disabled':''}>${(x.amount||0)<0?'<span class="refund-tag">退費</span>':''}</td>
         ${first?`<td class="p-hand" data-label="經手助理"${rs}>${tr?'':`<input data-k="handler" data-pp="asst" autocomplete="off" value="${esc(x.handler||'')}" placeholder="經手助理" ${pd}>`}</td>
-        <td class="p-sig" data-label="患者簽名"${rs}>${tr?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名" title="已簽名確認，不可更動">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm" data-k="sig">簽名</button> <span class="need-sig">未簽</span>`)}</td>`:''}
+        <td class="p-sig" data-label="患者簽名"${rs}>${tr?'<span class="hint">—</span>':x.sig?`<img class="sig-mini" src="${x.sig}" data-k="sig" alt="簽名" title="已簽名確認，不可更動">`:(L?'<span class="need-sig">未簽名</span>':`<button class="btn-sm btn-unsigned" data-k="sig" title="點此請患者簽名">未簽</button>`)}</td>`:''}
         ${L?'':`<td class="p-del no-print">${x.sig?'<span class="hint" title="已簽名確認">🔒</span>':'<button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除這個項目">✕</button>'}</td>`}
       </tr>`}).join('');
   }).join('');
