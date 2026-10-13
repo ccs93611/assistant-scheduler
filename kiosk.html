@@ -590,13 +590,33 @@ function selNote(sid,sel,ts){
   return {label:next?`${label}＋${next.name} 上班`:label,note,ot:ask>0&&over>ask?over:0,next,cap};
 }
 // 臨時加班下班卡：用當天最近一張（還沒配對到下班卡的）臨時加班上班卡算分鐘
+// 接續：臨時加班期間經過當天有排班的診次時——
+// ・那一診在臨時加班中開始：自動補那一診的上班卡（還沒打過才補）；
+// ・那一診也在臨時加班中結束（整段被包住）：再補那一診的下班卡；
+// 臨時加班分鐘＝整段時間扣掉和排班重疊的時間。這段臨時加班核准後，補的上班卡不算遲到。
 function extraNote(sid,sel,ts){
   if(sel.k==='in')return {label:'臨時加班 上班',note:'下班時請打「臨時加班 下班卡」'};
   const mine=todays.filter(p=>p.staffId===sid&&p.sel?.sh==='extra'&&p.ts<ts).sort((a,b)=>b.ts-a.ts);
   const start=mine[0]&&mine[0].sel.k==='in'?mine[0]:null;
-  if(!start)return {label:'臨時加班 下班',note:'找不到今天的臨時加班上班卡，加班時數由主管核准時確認',extra:true,ot:0,noIn:true};
-  const m=Math.max(0,Math.floor((ts-start.ts)/60000));
-  return {label:'臨時加班 下班',note:`臨時加班 ${m} 分鐘（${hhmm(start.ts)} 起）`,extra:true,ot:m,from:start.ts,prev:start.extraReason||''};
+  const toMin=t=>{const x=new Date(t);return x.getHours()*60+x.getMinutes()+x.getSeconds()/60;};
+  const d=new Date(ts),min=toMin(ts),startMin=start?toMin(start.ts):null;
+  const spans=scheduledShifts(sid,d).map(sh=>{const [a,b]=sh.time.split('-').map(hm);return {sh,a,b};});
+  const has=(id,kk)=>todays.some(p=>p.staffId===sid&&!p.void&&p.sel?.sh===id&&p.sel.k===kk);
+  // 沒有臨時加班上班卡時，只處理「現在正在進行」的那一診
+  const covered=startMin!=null?spans.filter(x=>x.a>startMin&&x.a<min):spans.filter(x=>x.a<=min&&min<x.b);
+  const autos=[];
+  covered.forEach(x=>{
+    if(!has(x.sh.id,'in'))autos.push({sh:x.sh.id,k:'in',name:x.sh.name,late:Math.floor(min-x.a)});
+    if(x.b<=min&&!has(x.sh.id,'out'))autos.push({sh:x.sh.id,k:'out',name:x.sh.name});
+  });
+  const byShift=[...new Set(autos.map(x=>x.sh))].map(id=>{const xs=autos.filter(x=>x.sh===id),nm=xs[0].name,i=xs.some(x=>x.k==='in'),o=xs.some(x=>x.k==='out');return `${nm}${i&&o?'上下班':i?'上班':'下班'}`;});
+  const autoText=byShift.length?byShift.join('、')+'卡':'';
+  const next=autos.find(x=>x.k==='in')||null;
+  const label=autoText?`臨時加班 下班＋${byShift.join('、')}`:'臨時加班 下班';
+  if(!start)return {label,note:'找不到今天的臨時加班上班卡，加班時數由主管核准時確認'+(autoText?`；將同時打${autoText}`:''),extra:true,ot:0,noIn:true,autos,autoText,next};
+  const overlap=spans.reduce((s,x)=>s+Math.max(0,Math.min(x.b,min)-Math.max(x.a,startMin)),0);
+  const m=Math.max(0,Math.floor(min-startMin-overlap));
+  return {label,note:`臨時加班 ${m} 分鐘（${hhmm(start.ts)} 起${overlap>0?`，已扣除排班時間 ${Math.round(overlap)} 分鐘`:''}）`+(autoText?`；將同時打${autoText}`:''),extra:true,ot:m,from:start.ts,prev:start.extraReason||'',autos,autoText,next,overlap:Math.round(overlap)};
 }
 const punchLabel=p=>p.sel?selNote(p.staffId,p.sel,p.ts):guessKind(p.staffId,p.ts);
 function renderRecent(){
@@ -845,7 +865,7 @@ function confirmPunch(sid,info){
     if(photo)p.photo=photo;
     // 超過下班時間：先問要不要申請加班（必填原因），回答後才寫入這筆打卡（裝置只能新增、不能修改打卡）
     let otReason=null;
-    if(g.extra){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'out',prev:g.prev,defDoc:'',msg:g.noIn?'找不到今天的臨時加班上班卡，請填寫原因（時數由主管確認）。':`臨時加班 ${g.ot} 分鐘，需要主管核准。`});$('resOv').hidden=false;}
+    if(g.extra){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'out',prev:g.prev,defDoc:'',msg:(g.noIn?'找不到今天的臨時加班上班卡，請填寫原因（時數由主管確認）。':`臨時加班 ${g.ot} 分鐘，需要主管核准。`)+(g.autoText?`已同時幫你打${g.autoText}${g.overlap?`，臨時加班已扣除排班時間 ${g.overlap} 分鐘`:''}；核准後不算遲到。`:'')});$('resOv').hidden=false;}
     else if(chosen.sh==='extra'&&chosen.k==='in'){$('resOv').hidden=true;const r=await askOvertime(sid,0,{mode:'in'});$('resOv').hidden=false;if(r)p.extraReason=r;}
     else if(g.ot){$('resOv').hidden=true;otReason=await askOvertime(sid,g.ot,{mode:'ask',defDoc:pairedDoctor(sid,chosen.sh),msg:g.next?`加班最多算到${g.next.name}開始（${g.cap} 分鐘）。已同時幫你打${g.next.name}上班卡；加班核准後，${g.next.name}不算遲到。`:''});$('resOv').hidden=false;}
     let reviewer='';if(otReason&&typeof otReason==='object'){reviewer=otReason.reviewer||'';otReason=otReason.reason;}
@@ -872,16 +892,18 @@ function confirmPunch(sid,info){
     if(otReason){p.ot={min:g.ot,reason:otReason,status:'pending'};if(reviewer)p.ot.reviewer=reviewer;if(replaces)p.ot.replaces=replaces.id;if(prevApproved)p.ot.prev={id:prevApproved.id,min:prevApproved.ot.approvedMin??prevApproved.ot.min,ts:prevApproved.ts};if(g.extra)p.ot.extra=true;if(g.from)p.ot.from=g.from;}
     // 接續下一診：同一時間自動打下一診的上班卡（auto），link 指回這張下班卡；這張下班卡的加班核准後，下一診不算遲到
     let pNext=null;
-    if(g.next){pNext=Object.assign({},p,{id:uid('p'),sel:{sh:g.next.sh,k:'in'},auto:true,link:p.id});delete pNext.ot;p.next=pNext.id;}
+    const autos=g.autos||(g.next?[{sh:g.next.sh,k:'in'}]:[]);
+    const pAutos=autos.map(x=>{const q=Object.assign({},p,{id:uid('p'),sel:{sh:x.sh,k:x.k},auto:true,link:p.id});delete q.ot;delete q.next;delete q.nexts;return q;});
+    if(pAutos.length){p.next=pAutos[0].id;p.nexts=pAutos.map(q=>q.id);pNext=pAutos[0];}
     src.addPunch(p).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
-    if(pNext)src.addPunch(pNext).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');});
+    pAutos.forEach(q=>src.addPunch(q).catch(e=>{console.error(e);toast('打卡上傳失敗：'+(e.code||e.message),'warn');}));
     if(replaces)src.replaceOt(replaces,Object.assign({},replaces.ot,{status:'replaced',replacedBy:p.id,replacedAt:Date.now()})).catch(e=>{console.error(e);toast('前一筆加班申請沒有標記成已取代，請洽管理者：'+(e.code||e.message),'warn');});
     $('resActs').hidden=true;$('resBox').classList.add('done');$('resKind').textContent='✓ 已打卡・'+g.label;
     if(g.warn)$('resNote').textContent='';
     if(p.extraReason){$('resNote').textContent=`原因：${p.extraReason}`;$('resNote').className='note';}
     if(otReason){$('resNote').textContent=g.noIn?'已送出臨時加班申請，時數由主管確認':`已申請加班 ${g.ot} 分鐘，等待主管核准`;$('resNote').className='note';}
-    if(g.next){$('resNote').textContent=($('resNote').textContent&&otReason?$('resNote').textContent+'；':'')+`已同時打${g.next.name}上班卡`+(otReason?'':`（遲到 ${g.next.late} 分鐘）`);$('resNote').className='note';}
-    resTimer=setTimeout(()=>{$('resOv').hidden=true;endScan();paused=false;},otReason||g.next?3000:1800);
+    if(g.next||g.autoText){$('resNote').textContent=($('resNote').textContent&&otReason?$('resNote').textContent+'；':'')+`已同時打${g.autoText||g.next.name+'上班卡'}`+(otReason||!g.next?'':`（遲到 ${g.next.late} 分鐘）`);$('resNote').className='note';}
+    resTimer=setTimeout(()=>{$('resOv').hidden=true;endScan();paused=false;},otReason||g.next||g.autoText?3000:1800);
   };
   $('resNo').onclick=()=>finish(false);
   $('resOk').onclick=()=>finish(true);

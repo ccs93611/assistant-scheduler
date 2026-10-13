@@ -4645,7 +4645,7 @@ function attDay(sid,dk,wk,dow,ps,now=Date.now()){
     const ended=now>=dayStart+b*60000, started=now>=dayStart+a*60000;
     let late=0,early=0;
     if(pin){const d=Math.floor(punchMin(pin.ts)-a);if(d>C.graceIn)late=d;}
-    // 接續上班卡（前一診加班延後下班時自動打的）：前一診的加班核准後不算遲到；待審時先照算、標示審核中
+    // 接續上班卡（前一診加班或臨時加班延後下班時自動打的）：前一診的加班核准後不算遲到；待審時先照算、標示審核中
     let lateWaived=0,latePending=false;
     if(late&&pin.auto&&pin.link){const lk=punches.find(q=>q.id===pin.link&&!q.void);
       if(lk?.ot?.status==='approved'){lateWaived=late;late=0;}else if(lk?.ot?.status==='pending')latePending=true;}
@@ -4696,7 +4696,7 @@ function attLabels(mi){
   Object.entries(by).forEach(([k,ps])=>{
     const [sid,dk]=k.split('|'),d=parseYmd(dk),r=attDay(sid,dk,ymd(mondayOf(d)),(d.getDay()+6)%7,ps);
     r.rows.forEach(x=>{
-      if(x.pin)m[x.pin.id]={t:`${x.sh.name}上班${x.pin.auto?'（接續）':''}`,bad:x.late?`遲到 ${x.late} 分${x.latePending?'（前一診加班審核中，核准後不算）':''}`:x.lateWaived?'<span class="att-ok">前一診加班已核准，不算遲到</span>':''};
+      if(x.pin)m[x.pin.id]={t:`${x.sh.name}上班${x.pin.auto?'（接續）':''}`,bad:x.late?`遲到 ${x.late} 分${x.latePending?'（前一段加班審核中，核准後不算）':''}`:x.lateWaived?'<span class="att-ok">前一段加班已核准，不算遲到</span>':''};
       if(x.pout)m[x.pout.id]={t:`${x.sh.name}下班`,bad:x.early?`早退 ${x.early} 分`:''};
     });
     r.stray.forEach(p=>{
@@ -4856,7 +4856,7 @@ function renderAtt(mi){
       const date=`${Number(d.key.slice(5,7))}/${Number(d.key.slice(8))}（${DAYS[d.dow]}）`;
       const out=d.rows.map((x,i)=>{
         const both=x.ended&&!x.pin&&!x.pout;
-        const st=both?(isAbsent(s.id,d.key,x.sh)?'<span class="att-bad"><b>曠職</b></span> <small class="att-mute">補登打卡或補請假後自動撤銷</small>':'<span class="att-mute">未打卡（曠職起算日前，不計曠職）</span>'):!x.ended&&!x.pin?'<span class="att-mute">尚未結束</span>':[!x.pin&&x.ended?'缺上班卡（待確認）':'',!x.pout&&x.ended?'缺下班卡（待確認）':'',x.late?`遲到 ${x.late} 分${x.latePending?'（前一診加班審核中）':''}`:'',x.early?`早退 ${x.early} 分`:''].filter(Boolean).map(t=>`<span class="att-bad">${t}</span>`).join('、')||(x.lateWaived?'<span class="att-ok">正常（前一診加班已核准）</span>':x.ended?'<span class="att-ok">正常</span>':'<span class="att-mute">進行中</span>');
+        const st=both?(isAbsent(s.id,d.key,x.sh)?'<span class="att-bad"><b>曠職</b></span> <small class="att-mute">補登打卡或補請假後自動撤銷</small>':'<span class="att-mute">未打卡（曠職起算日前，不計曠職）</span>'):!x.ended&&!x.pin?'<span class="att-mute">尚未結束</span>':[!x.pin&&x.ended?'缺上班卡（待確認）':'',!x.pout&&x.ended?'缺下班卡（待確認）':'',x.late?`遲到 ${x.late} 分${x.latePending?'（前一段加班審核中）':''}`:'',x.early?`早退 ${x.early} 分`:''].filter(Boolean).map(t=>`<span class="att-bad">${t}</span>`).join('、')||(x.lateWaived?'<span class="att-ok">正常（前一段加班已核准）</span>':x.ended?'<span class="att-ok">正常</span>':'<span class="att-mute">進行中</span>');
         const add=k=>ed?` <button class="small" data-padd="${d.key}|${x.sh.id}|${k}">補登</button>`:'';
         return `<tr><td>${i===0?date:''}</td><td>${x.sh.name}<small class="att-mute"> ${x.sh.time}</small></td><td>${x.pin?punchHtml(x.pin,ed):'—'+add('in')}</td><td>${x.pout?punchHtml(x.pout,ed):'—'+add('out')}</td><td>${st}</td></tr>`;
       });
