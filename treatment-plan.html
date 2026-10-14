@@ -1846,7 +1846,8 @@ function openSettings(tab){
         if(raw==='')delete settings.commission[cat];
         else{let v=Math.max(0,Number(raw)||0);if(type==='pct')v=Math.min(100,v);else v=Math.round(v);settings.commission[cat]={type,v}}
         row.querySelector('[data-comm]').step=type==='amt'?1:0.1;saveSettings()}
-      if(t.dataset.price){const v=numOrNull(t.value);if(v)P[t.dataset.price]=v;else delete P[t.dataset.price];saveSettings()}
+      // 用目前的 settings（雲端同步回來時 settings 會被換成新物件，不能用開視窗時記住的舊物件，否則只會存到第一個字）
+      if(t.dataset.price){const v=numOrNull(t.value),P2=settings.prices=settings.prices||{};if(v)P2[t.dataset.price]=v;else delete P2[t.dataset.price];saveSettings()}
       if(t.dataset.listSet){settings[t.dataset.listSet]=t.value.split('\n').map(s=>s.trim()).filter(Boolean);saveSettings()}});
     box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
       if(b.dataset.tab)show(b.dataset.tab);
