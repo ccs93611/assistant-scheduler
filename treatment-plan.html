@@ -47,8 +47,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .side-hidden aside{display:none}.side-hidden .app{display:block}
 /* 收合把手：貼在左側欄右邊框的中段、凸出邊框；收起後貼在畫面左邊中段 */
 .side-tab{position:fixed;top:50%;left:calc(var(--side-w) - 1px);transform:translateY(-50%);z-index:30;width:26px;height:72px;padding:0;border:0;border-radius:0 12px 12px 0;background:var(--accent);color:var(--accent-ink);font-size:20px;font-weight:700;line-height:1;box-shadow:2px 0 10px rgba(0,0,0,.22);cursor:pointer}
-.side-tab:hover{width:32px;filter:brightness(1.1)}
+.side-tab:hover{width:28px;filter:brightness(1.1)}
 @media (max-width:820px){.side-tab{top:auto;bottom:90px;transform:none}} /* 手機：左側欄在上方，把手放在左下 */
+/* 右側內容左邊留出把手的寬度，把手不會壓到計劃單 */
+@media (min-width:821px){.app main{padding-left:30px}}
+.side-hidden .app main{padding-left:30px}
 aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;max-height:100vh;position:sticky;top:0}
 .side-head{padding:14px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr);gap:8px} /* 欄寬固定為左側欄寬，輸入欄不會撐出邊界 */
 .side-head>*,.side-head input,.side-head select{min-width:0;max-width:100%}
