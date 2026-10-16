@@ -311,7 +311,15 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 .combo-opt.sel{font-weight:700;color:var(--accent)}
 .combo-empty{padding:8px 12px;color:var(--muted);font-size:13px}
 .exp-lbl{display:flex;align-items:center;gap:6px}
-[data-f="name"],[data-f="birthday"],[data-k="itemIn"],[data-k="teethIn"],select[data-k="itemId"]{font-weight:700} /* 患者姓名、生日，以及治療項目／治療紀錄／繳費紀錄的項目與牙位粗體 */
+[data-f="name"],[data-f="birthday"],[data-k="itemIn"],[data-k="teethIn"],select[data-k="itemId"],.sel-face{font-weight:700}
+textarea.item-ta{display:block;width:100%;resize:none;overflow:hidden;line-height:1.35;white-space:pre-wrap;word-break:break-all}
+.sel-wrap{position:relative}
+.sel-face{border:1px solid var(--line);border-radius:6px;padding:6px 24px 6px 8px;background:var(--panel);min-height:36px;line-height:1.35;word-break:break-all;white-space:normal}
+.sel-face::after{content:"▾";position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;font-weight:400}
+.sel-ph{color:var(--muted);font-weight:400}
+.sel-wrap select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.sel-wrap:has(select:disabled) .sel-face{background:var(--soft)}.sel-wrap:has(select:disabled) .sel-face::after{display:none}
+.sel-wrap:focus-within .sel-face{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent} /* 患者姓名、生日，以及治療項目／治療紀錄／繳費紀錄的項目與牙位粗體 */
 /* 主治醫師／責任助理、單據開立時間／有效期限：各自固定在同一行（獨立一列，欄寬與上方對齊） */
 .dt-pair{grid-column:1/-1;display:grid;grid-template-columns:subgrid;gap:inherit;align-items:end}
 @supports not (grid-template-columns:subgrid){.dt-pair{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}}
@@ -791,7 +799,7 @@ function renderEditor(){
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         ${IL?`<td class="c-no">${i+1}</td>`:`<td class="c-no drag-handle" title="拖曳調整順序"><i>⋮⋮</i>${i+1}</td>`}
         <td class="c-item"><span class="cat-tag">${it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;'}</span>
-          <div class="combo-wrap"><input data-k="itemIn" value="${esc(it.name)}" placeholder="選擇或輸入搜尋" autocomplete="off" ${idis}></div></td>
+          <div class="combo-wrap"><textarea class="note-ta item-ta" data-k="itemIn" rows="1" placeholder="選擇或輸入搜尋" autocomplete="off" spellcheck="false" ${idis}>${esc(it.name)}</textarea></div></td>
         <td class="c-teeth">${teethCell(it,idis)}</td>
         <td class="c-unit" data-label="單價"><span class="ro-amt" data-k="unit">${roAmt(unitOf(it))}</span></td>
         <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis||(qtyOne(it)?'disabled title="此項目數量固定為 1 單位"':'')}></td>
@@ -868,7 +876,7 @@ function renderEditor(){
     </div>
   </section>
   </div>`;
-  alignTeeth();growNotes();loadPhotos();applyPerms();
+  alignTeeth();growNotes();requestAnimationFrame(()=>growNotes());loadPhotos();applyPerms();
 }
 // 備註欄依內容自動長高，字多時換行顯示全部內容
 function growNotes(el){for(const ta of el?[el]:document.querySelectorAll('textarea.note-ta')){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px'}}
@@ -907,13 +915,16 @@ function trtRowsHtml(p,L){
   if(!list.length)return `<tr><td colspan="6" class="hint">尚無治療紀錄</td></tr>`;
   return list.map(x=>`<tr data-list="treatments" data-id="${x.id}">
       <td class="t-date" data-label="日期"><input type="date" data-k="date" value="${esc(x.date)}" ${d}></td>
-      <td class="t-item" data-label="項目"><select data-k="itemId" ${d}>${payItemOptions(p,x)}</select></td>
+      <td class="t-item" data-label="項目">${itemSel(p,x,d)}</td>
       <td class="t-teeth" data-label="牙位">${teethCell(payTeeth(x),d)}</td>
       <td class="t-note" data-label="治療內容">${trtNoteCell(p,x,d)}</td>
       <td class="t-remark" data-label="備註"><textarea class="note-ta" data-k="remark" rows="1" ${d}>${esc(x.remark||'')}</textarea></td>
       ${L?'':'<td class="t-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>'}
     </tr>`).join('');
 }
+// 項目選單：選單本身不能換行，所以在上面蓋一層文字（一行放不下自動換行），選單透明疊在上面負責點選
+function itemFace(p,x){const it=p.items.find(i=>i.id===x.itemId);return x.itemId?(it?esc(it.name):'（已刪除的項目）'):'<span class="sel-ph">— 選擇項目 —</span>'}
+function itemSel(p,x,dis){return `<div class="sel-wrap"><div class="sel-face">${itemFace(p,x)}</div><select data-k="itemId" ${dis}>${payItemOptions(p,x)}</select></div>`}
 function payItemOptions(p,x){
   let h=`<option value="">— 選擇項目 —</option>`;
   p.items.filter(i=>i.name).forEach(it=>{h+=`<option value="${it.id}" ${x.itemId===it.id?'selected':''}>${esc(it.name)}</option>`});
@@ -962,7 +973,7 @@ function payRowsHtml(p,L){
         ${first?`<td class="p-date" data-label="日期"${rs}><input type="date" data-k="date" value="${esc(x.date)}" ${pd||tr?'disabled':''}>
           ${n>1?`<div class="hint pay-gsum">本次 ${n} 項，合計 $${money(tot)}</div>`:''}
           ${!L&&!signed&&!tr?`<button class="btn-sm btn-ghost no-print pay-addline" data-act="addPayLine" data-gid="${esc(payGid(x))}">＋ 同次加項目</button>`:''}</td>`:''}
-        <td class="p-item" data-label="項目">${x.transfer?'<span class="hint">前單轉入</span>':`<select data-k="itemId" ${pd}>${payItemOptions(p,x)}</select>`}</td>
+        <td class="p-item" data-label="項目">${x.transfer?'<span class="hint">前單轉入</span>':itemSel(p,x,pd)}</td>
         <td class="p-teeth" data-label="牙位">${x.transfer?'':teethCell(payTeeth(x),pd)}</td>
         <td class="p-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1" ${pd}>${esc(x.note)}</textarea></td>
         <td class="p-amt" data-label="金額"><input class="num ${(x.amount||0)<0?'refund':''}" type="number" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" title="負數代表退費" ${pd||x.transfer?'disabled':''}>${(x.amount||0)<0?'<span class="refund-tag">退費</span>':''}</td>
@@ -1015,7 +1026,7 @@ $('#main').addEventListener('input',e=>{
     if(r.name==='payments'){it.amount=Math.round(Number(t.value))||0;t.classList.toggle('refund',it.amount<0)} // 繳費可為負數（退費）
     else it.amount=numOrNull(t.value)||0;
     it.amtAuto=false}
-  else if(k==='itemId'){it.itemId=t.value||null;const item=p.items.find(i=>i.id===it.itemId);
+  else if(k==='itemId'){it.itemId=t.value||null;const item=p.items.find(i=>i.id===it.itemId);{const fc=t.parentElement.querySelector('.sel-face');if(fc)fc.innerHTML=itemFace(p,it)}
     if(item){it.teeth=[...item.teeth];it.pontics=[...(item.pontics||[])];it.bridgeTeeth=[...bridgeTeethOf(item)];it.bridgeGroups=(item.bridgeGroups||[]).map(g=>[...g]);it.teethText=null;it.teethBad=null;
       const v=teethParts(it);r.tr.querySelectorAll('[data-k="teethIn"]').forEach(i=>{i.value=v[i.dataset.jaw];i.classList.remove('bad')});alignTeeth(r.tr.querySelector('.teeth-cell'));
       if(r.name==='payments'&&(!it.amount||it.amtAuto)){it.amount=Math.max(0,itemAmt(item)-itemPaid(p,item.id,it));it.amtAuto=true;r.tr.querySelector('[data-k="amount"]').value=it.amount||''}}
@@ -1420,11 +1431,11 @@ function comboToggle(cat,open){
 }
 function comboPick(i){const o=combo.opts[i],inp=combo.inp;if(!o||!inp)return;
   if(o.toggle){comboToggle(o.cat);return}
-  inp.value=o.custom??o.name;comboClose();inp.dispatchEvent(new Event('change',{bubbles:true}))}
+  inp.value=o.custom??o.name;comboClose();inp.dispatchEvent(new Event('change',{bubbles:true}));growNotes(inp)}
 const comboStart=t=>{comboOpen(t);combo.hi=-1;comboFilter(true)};
 $('#main').addEventListener('focusin',e=>{if(e.target.dataset.k==='itemIn')comboStart(e.target)});
 $('#main').addEventListener('click',e=>{if(e.target.dataset.k==='itemIn'&&combo.inp!==e.target)comboStart(e.target)});
-$('#main').addEventListener('input',e=>{if(e.target.dataset.k==='itemIn'){if(combo.inp!==e.target)comboOpen(e.target);combo.hi=-1;comboFilter()}});
+$('#main').addEventListener('input',e=>{if(e.target.dataset.k==='itemIn'){if(/\n/.test(e.target.value))e.target.value=e.target.value.replace(/\s*\n\s*/g,' ');if(combo.inp!==e.target)comboOpen(e.target);combo.hi=-1;comboFilter()}});
 $('#main').addEventListener('focusout',e=>{if(e.target.dataset.k==='itemIn')comboClose()});
 $('#main').addEventListener('keydown',e=>{
   if(e.target.dataset.k!=='itemIn')return;
