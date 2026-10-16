@@ -48,7 +48,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
 /* 收合把手：貼在左側欄右邊框的中段、凸出邊框；收起後貼在畫面左邊中段 */
 .side-tab{position:fixed;top:50%;left:calc(var(--side-w) - 1px);transform:translateY(-50%);z-index:30;width:26px;height:72px;padding:0;border:0;border-radius:0 12px 12px 0;background:var(--accent);color:var(--accent-ink);font-size:20px;font-weight:700;line-height:1;box-shadow:2px 0 10px rgba(0,0,0,.22);cursor:pointer}
 .side-tab:hover{width:28px;filter:brightness(1.1)}
-@media (max-width:820px){.side-tab{top:auto;bottom:90px;transform:none}} /* 手機：左側欄在上方，把手放在左下 */
+.side-tab .st-m{display:none}
+/* 手機：列表在畫面上方，按鈕改成列表正下方一整條「▲ 收起列表／▼ 展開列表」 */
+@media (max-width:820px){
+  .side-tab{position:static;transform:none;width:100%;height:auto;padding:9px 12px;border-radius:0;font-size:15px;box-shadow:none;border-bottom:1px solid var(--line)}
+  .side-tab:hover{width:100%}
+  .app{align-content:start} /* 不讓列表、按鈕列被拉高 */
+  .side-tab .st-d{display:none}.side-tab .st-m{display:inline}
+}
 /* 右側內容左邊留出把手的寬度，把手不會壓到計劃單 */
 @media (min-width:821px){.app main{padding-left:30px}}
 .side-hidden .app main{padding-left:30px}
@@ -530,7 +537,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
       <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip" id="mePerm"></span> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
     </div>
   </aside>
-  <button class="side-tab no-print" id="sideTab" title="隱藏左側欄" aria-label="隱藏左側欄">«</button>
+  <button class="side-tab no-print" id="sideTab" title="隱藏左側欄" aria-label="隱藏左側欄"><span class="st-d">«</span><span class="st-m">▲ 收起列表</span></button>
   <main id="main"><div class="empty">從左側選一張治療計劃單，或按「新增治療計劃單」。</div></main>
 </div>
 <input type="file" id="photoInput" accept="image/*" multiple hidden>
@@ -729,7 +736,7 @@ function blankPlan(){return {id:uid(),no:nextNo(),name:'',birthday:'',chartNo:''
 function newItem(){return {id:uid(),cat:'',name:'',custom:false,teeth:[],pontics:[],bridgeTeeth:[],qty:1,qtyManual:false,orig:0,chg:null}}
 
 // 左側欄顯示／隱藏（記在這台設備）
-function setSideHidden(h){document.documentElement.classList.toggle('side-hidden',h);const t=$('#sideTab');t.textContent=h?'»':'«';t.title=t.ariaLabel=h?'顯示左側欄':'隱藏左側欄';try{localStorage.setItem('tpSideHidden',h?'1':'')}catch(e){}setTimeout(()=>alignTeeth(),0)}
+function setSideHidden(h){document.documentElement.classList.toggle('side-hidden',h);const t=$('#sideTab');t.querySelector('.st-d').textContent=h?'»':'«';t.querySelector('.st-m').textContent=h?'▼ 展開列表':'▲ 收起列表';t.title=t.ariaLabel=h?'顯示左側欄':'隱藏左側欄';try{localStorage.setItem('tpSideHidden',h?'1':'')}catch(e){}setTimeout(()=>alignTeeth(),0)}
 $('#sideTab').addEventListener('click',()=>setSideHidden(!document.documentElement.classList.contains('side-hidden')));
 try{if(localStorage.getItem('tpSideHidden'))setSideHidden(true)}catch(e){}
 $('#newBtn').addEventListener('click',async()=>{const p=blankPlan();plans.set(p.id,p);await saveNow(p);openPlan(p.id);setTimeout(()=>{const n=document.querySelector('[data-f="name"]');n&&n.focus()},50)});
