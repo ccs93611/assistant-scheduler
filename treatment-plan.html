@@ -1879,7 +1879,7 @@ function addExtra(cat,name){
 function openSettings(tab){
   const P=settings.prices;
   modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>設定</h3>
-    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button>${canSeeIncome()?'<button data-tab="comm">抽成比例</button>':''}${fs?'<button data-tab="sync">雲端讀取</button>':''}<button data-tab="backup">資料備份</button>${fs&&PERM==='super'?'<button data-tab="device">設備認證</button>':''}</div>
+    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button>${canSeeIncome()?'<button data-tab="comm">抽成比例</button>':''}${fs&&PERM==='super'?'<button data-tab="sync">雲端讀取</button>':''}${PERM==='super'?'<button data-tab="backup">資料備份</button>':''}${fs&&PERM==='super'?'<button data-tab="device">設備認證</button>':''}</div>
     <div data-pane="price">
       <div class="hint">輸入每個項目的單價（新台幣）。開單選項目時自動帶入「單價 × 數量」為金額；已開立的計劃單不受影響。</div>
       ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改價目表，你目前只能查看。</div>'}
@@ -1907,7 +1907,7 @@ function openSettings(tab){
       <div class="hint">選「%」時抽成＝該項目已繳金額 × 比例；選「元/單位」時抽成＝數量 × 金額（該項目有繳費才計）。留空＝不抽成。自訂項目與繳費時未選項目的金額不抽成。</div>
       <div id="itemCommList">${itemCommRows()}</div>
     </div>`:''}
-    ${fs?`<div data-pane="sync">
+    ${fs&&PERM==='super'?`<div data-pane="sync">
       <p class="hint">設定每台設備一打開治療計劃單時，先讀進來並即時同步哪些單。讀得越少，每天用掉的雲端讀取次數越少；其他舊單可在左側列表最下方用「在雲端搜尋舊單」或「載入 n 個月內有異動的舊單」讀取，「📊 統計」也會自動讀需要的單。</p>
       ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改，你目前只能查看。</div>'}
       <h4 style="margin:14px 0 6px">一定讀取的單據狀態</h4>
@@ -1919,11 +1919,11 @@ function openSettings(tab){
       <p class="hint">「在雲端搜尋舊單」與「統計只讀需要的單」要用到每張單的搜尋欄位；新存的單會自動有，舊單需要補一次（會讀取全部計劃單一次）。</p>
       ${settings.idxV===IDX_V?'<p>✔ 已補好。</p>':'<button class="btn-sm" data-x="idxfix">補舊單欄位（一次性）</button>'}`:''}
     </div>`:''}
-    <div data-pane="backup">
+    ${PERM==='super'?`<div data-pane="backup">
       <p class="hint">${fs?'資料存在雲端（與排班系統同一個 Firebase 專案），各台電腦登入後即時同步。仍建議定期匯出備份檔另存。':'本機模式：資料存在這台電腦的瀏覽器裡（IndexedDB）。清除瀏覽器資料、換電腦或換瀏覽器都看不到，請定期匯出備份檔並另存。'}</p>
       <p>目前共 <b>${plans.size}</b> 張治療計劃單。</p>
       <div class="acts" style="justify-content:flex-start"><button class="btn-primary" data-x="export">匯出備份（.json）</button>${canEdit()?'<button data-x="import">從備份檔匯入</button>':''}</div>
-    </div>
+    </div>`:''}
     <div class="acts"><span class="sp"></span><button class="btn-primary" data-x="close">完成</button></div>`,
   (box,close)=>{
     const show=t=>{box.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==t);box.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===t))};show(tab);
@@ -2086,6 +2086,8 @@ function afterLogin(){
   $('#me').hidden=!fs;$('#meEmail').textContent=me;$('#mePerm').textContent=PERM_LABEL[PERM]||PERM;
   $('#signOutBtn').textContent=PERM==='device'?'退出設備模式':'登出';
   $('#newBtn').hidden=!canEdit();
+  // 統計、資料備份、雲端讀取只有超級管理員看得到；設定按鈕的字樣只列出看得到的分頁
+  $('#statsBtn').hidden=PERM!=='super';$('#settingsBtn').textContent=PERM==='super'?'⚙ 價目表／人員／備份':'⚙ 價目表／人員';
   renderList();renderEditor();
 }
 // 本機模式（開發測試）
