@@ -155,6 +155,10 @@ tr.drop-after td{box-shadow:inset 0 -3px 0 var(--accent)}
 .pay-wrap{container-type:inline-size;container-name:pays}
 .rcpt-wrap{container-type:inline-size;container-name:rcpts}
 .trt-wrap{container-type:inline-size;container-name:trts}
+.modal h3[data-busy]::after{content:"　讀取中…";font-size:13px;font-weight:400;color:var(--muted)}
+.sync-chk{display:block;margin:4px 0}.sync-days input{width:90px;text-align:right}
+.old-months{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.old-months[hidden]{display:none}.old-months input{width:46px;text-align:right;padding:3px 4px}.old-months button{color:var(--ink)}
+.old-bar{display:grid;gap:6px;padding:12px 14px;border-top:1px solid var(--line);text-align:center}
 .items-note{display:block;margin-top:12px;font-weight:700}.items-note textarea{display:block;width:100%;margin-top:4px;font-weight:400;resize:vertical}
 .imp-row{display:flex;flex-wrap:nowrap;gap:6px 14px}
 @container trts (max-width:640px){.imp-row{flex-wrap:wrap}} /* 只有手機卡片版放不下才換行 */ /* 植體尺寸與癒合帽尺寸同一行，放不下才換行 */
@@ -541,6 +545,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
     <div id="localBanner"></div>
     <div class="plan-list" id="planList"></div>
     <div class="side-foot">
+      <span class="old-months" id="oldWrap" title="載入 n 個月內有異動的舊單" hidden>載入 <input type="number" id="oldMonths" min="1" max="120" step="1" inputmode="numeric" value="3"> 個月內舊單 <button class="btn-sm" data-old="months">載入</button></span>
       <button class="btn-sm" id="statsBtn">📊 統計</button>
       <button class="btn-sm" id="settingsBtn">⚙ 價目表／人員／備份</button>
       <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip" id="mePerm"></span> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
@@ -630,13 +635,25 @@ const canPrice=()=>PERM==='super';                          // 可以修改價�
 const canDelPlan=p=>PERM==='super'||(canEdit()&&!p.finalized&&p.status==='open');
 const isPhotoData=s=>typeof s==='string'&&s.startsWith('data:');
 const fileCache=new Map();
+// 雲端一打開就讀、並即時同步的單：所選狀態的單＋近 N 天內有異動的單（在「⚙ 設定 → 雲端讀取」調整）；allLoaded＝已讀進全部舊單
+const SYNC_ST=[['open','未結單（未定案、尚未進行、進行中、過期）'],['paid','已結單－費用收訖（含提前結單）'],['changed','已結單－計畫變更']];
+const syncDays=()=>settings.syncDays??30;
+const syncSts=()=>settings.syncStatuses||['open'];
+const syncHint=()=>[syncSts().map(k=>(SYNC_ST.find(x=>x[0]===k)||[,k])[1].replace(/（.*）/,'')).join('、'),syncDays()>0?`近 ${syncDays()} 天內有異動`:''].filter(Boolean).join('，以及')||'（沒有設定）';
+let allLoaded=false,allLoading=null;
+// 雲端搜尋舊單用的欄位（姓名、病歷號、單號、結單時間）
+// payMonths：有繳費的月份（統計「醫師自費收入」「矯正首次繳費」用）；closedYm：結單月份（統計「助理獎金」「助理業績」用）
+const idxFields=p=>({name:(p.name||'').trim(),chartNo:(p.chartNo||'').trim(),no:p.no||'',closedAt:p.closedAt||'',closedYm:(p.closedAt||'').slice(0,7),
+  payMonths:[...new Set((p.payments||[]).map(x=>(x.date||'').slice(0,7)).filter(Boolean))].sort(),
+  createdDay:(p.createdAt||'').slice(0,10)}); // createdDay：開立日期（「無繳費且過期比例」依開立日期區間讀取用）
+const IDX_V=3; // 所有舊單都補好上面這些欄位後，settings.idxV 會設成這個版本，統計才能只讀需要的月份
 const DB={
   async put(p){
     if(!fs){await LocalDB.put(p);return}
     // 還沒上傳的照片（dataURL）先存到 tpFiles，計劃單只留檔案編號
     for(const r of p.receipts||[])for(let i=0;i<r.photos.length;i++)if(isPhotoData(r.photos[i]))r.photos[i]=await DB.putFile(r.photos[i],p.id);
     // finalized、status 另外存成欄位，讓安全規則判斷能不能刪除
-    await fs.doc('tpPlans/'+p.id).set({json:JSON.stringify(p),finalized:!!p.finalized,status:p.status||'open',updatedAt:p.updatedAt||Date.now(),by:me});
+    await fs.doc('tpPlans/'+p.id).set({json:JSON.stringify(p),finalized:!!p.finalized,status:p.status||'open',updatedAt:p.updatedAt||Date.now(),by:me,...idxFields(p)});
   },
   async del(p){
     if(!fs){await LocalDB.del(p.id);return}
@@ -726,7 +743,17 @@ function renderList(){
     <div class="x1"><span class="m dt">開立 ${esc(fmtDT(p.createdAt)||'—')}</span><span class="chip ${stOf(p)}">${ST_SHORT[stOf(p)]}</span></div>
     <div class="x2"><span class="m">$${money(c.chg)}${c.due>0&&p.status==='open'?` ・未繳 ${money(c.due)}`:''}</span></div>
   </button>`}).join(''):'<div class="empty" style="padding:30px 10px">沒有符合的計劃單</div>';
+  {const w=$('#oldWrap');w.hidden=!fs||allLoaded;const i=$('#oldMonths');if(!w.hidden&&document.activeElement!==i&&!i.dataset.init){i.value=oldMonths();i.dataset.init='1'}}
+  if(fs&&!allLoaded)$('#planList').insertAdjacentHTML('beforeend',`<div class="old-bar">
+    <div class="hint">只顯示${syncHint()}的計劃單。</div>
+    ${q?`<button class="btn-sm" data-old="search">🔎 在雲端搜尋舊單「${esc($('#search').value.trim())}」</button>`:''}</div>`);
 }
+const onOld=async e=>{const b=e.target.closest('[data-old]');if(!b)return;e.stopPropagation();
+  b.disabled=true;const t=b.textContent;b.textContent='讀取中…';
+  if(b.dataset.old==='months'){const n=Math.max(1,Math.min(120,Math.round(Number($('#oldMonths').value)||0)));try{localStorage.setItem('tpOldMonths',n)}catch(e){}const c=await loadMonthsBack(n);if(c===0)alert(`${n} 個月內沒有其他舊單。`)}
+  else{const n=await searchOld($('#search').value).catch(err=>{alert('搜尋失敗：'+err.message);return -1});if(n===0)alert('雲端找不到符合的舊單（可用姓名開頭、病歷號或單號搜尋）。')}
+  if(b.isConnected){b.disabled=false;b.textContent=t}};
+$('#planList').addEventListener('click',onOld);$('#oldWrap').addEventListener('click',onOld);
 $('#planList').addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b)openPlan(b.dataset.open)});
 $('#search').addEventListener('input',renderList);
 $('#statusFilter').addEventListener('change',renderList);
@@ -751,7 +778,7 @@ $('#sideTab').addEventListener('click',()=>setSideHidden(!document.documentEleme
 try{if(localStorage.getItem('tpSideHidden'))setSideHidden(true)}catch(e){}
 $('#newBtn').addEventListener('click',async()=>{const p=blankPlan();plans.set(p.id,p);await saveNow(p);openPlan(p.id);setTimeout(()=>{const n=document.querySelector('[data-f="name"]');n&&n.focus()},50)});
 
-function openPlan(id){curId=id;renderList();renderEditor();if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
+function openPlan(id){curId=id;renderList();renderEditor();ensureLinked(plans.get(id));if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
 window.addEventListener('pagehide',flushPending);
 
 /* ====== 編輯畫面 ====== */
@@ -1738,8 +1765,8 @@ function minimizeStats(box){
 }
 function openStats(){
   const ym0=today().slice(0,7);
-  const docs=()=>[...new Set([...plans.values()].map(p=>(p.doctor||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
-  const assts=()=>[...new Set([...plans.values()].map(p=>(p.assistant||'').trim()||'（未填）'))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+  const docs=()=>[...new Set([...staffNames.doctor,...[...plans.values()].map(p=>(p.doctor||'').trim()||'（未填）')])].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+  const assts=()=>[...new Set([...staffNames.assistant,...[...plans.values()].map(p=>(p.assistant||'').trim()||'（未填）')])].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
   modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>統計</h3>
     <div class="tabs-m">${canSeeIncome()?'<button data-tab="income">醫師自費收入(月)</button><button data-tab="closed">醫師支出助理獎金(月)</button><button data-tab="perf">助理業績統計(月)</button>':''}<button data-tab="exp">無繳費且過期比例</button></div>
     ${canSeeIncome()?`<div data-pane="income">
@@ -1768,25 +1795,37 @@ function openStats(){
       </div>
       <div id="pfOut"></div></div>`:''}
     <div data-pane="exp">
-    <p class="hint">「無繳費且過期」＝還沒結單、超過有效期限，而且沒有任何繳費紀錄的計劃單。比例＝該人員的無繳費且過期單數 ÷ 該人員全部計劃單數。點數字可在列表中查看這些單。</p>
+    <p class="hint">「無繳費且過期」＝還沒結單、超過有效期限，而且沒有任何繳費紀錄的計劃單。比例＝該人員的無繳費且過期單數 ÷ 該人員全部計劃單數。點數字可在列表中查看這些單。請先選擇開立日期的開始與結束，再按「開始統計」（只讀取該區間的計劃單）。</p>
     <div class="st-filters">
       <label>開立日期 <input type="date" id="stFrom"> ～ <input type="date" id="stTo"></label>
       <label><input type="checkbox" id="stChanged"> 包含已「計畫變更」的舊單</label>
+      <button class="btn-primary btn-sm" data-x="expgo" disabled>開始統計</button>
     </div>
     <div class="st-grid"><div><h4>醫師</h4><div id="stDoc"></div></div><div><h4>助理</h4><div id="stAsst"></div></div></div></div>`,
   (box,close)=>{
     box.classList.add("modal-wide"); // 統計視窗放大
     const show=t=>{box.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==t);box.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===t))};
-    show(canSeeIncome()?'income':'exp');
-    const draw=()=>{const f=box.querySelector('#stFrom').value,t=box.querySelector('#stTo').value,c=box.querySelector('#stChanged').checked;
-      box.querySelector('#stDoc').innerHTML=statsTable('doctor',f,t,c);box.querySelector('#stAsst').innerHTML=statsTable('assistant',f,t,c);
+    let cur0=canSeeIncome()?'income':'exp';show(cur0);
+    let expR=null; // 按「開始統計」時的開立日期區間；改了日期就要重新按
+    const draw=()=>{const fi=box.querySelector('#stFrom').value,ti=box.querySelector('#stTo').value,c=box.querySelector('#stChanged').checked;
+      if(expR&&(expR.f!==fi||expR.t!==ti))expR=null;
+      box.querySelector('[data-x="expgo"]').disabled=!(fi&&ti)||fi>ti||!!expR;
+      const f=expR&&expR.f,t=expR&&expR.t;
+      if(expR){box.querySelector('#stDoc').innerHTML=statsTable('doctor',f,t,c);box.querySelector('#stAsst').innerHTML=statsTable('assistant',f,t,c)}
+      else{const m=`<p class="hint">${fi&&ti&&fi>ti?'開始日期不能晚於結束日期。':'選好開立日期的開始與結束後，按「開始統計」。'}</p>`;box.querySelector('#stDoc').innerHTML=m;box.querySelector('#stAsst').innerHTML=m}
       const o=box.querySelector('#incOut');if(o)o.innerHTML=incomeHtml(box.querySelector('#incYm').value,box.querySelector('#incDoc').value);
       const pf=box.querySelector('#pfOut');if(pf)pf.innerHTML=perfHtml(box.querySelector('#pfYm').value,box.querySelector('#pfAsst').value);
       const c2=box.querySelector('#clOut');if(c2)c2.innerHTML=closedHtml(box.querySelector('#clYm').value,box.querySelector('#clDoc').value,box.querySelector('#clAsst').value)};
-    draw();box.addEventListener('input',draw);box.addEventListener('change',draw);
+    // 需要的資料先讀進來再畫：月份統計只讀該月；「無繳費且過期比例」要用到所有單
+    const loading=box.querySelector('h3');let busy=0;
+    const refresh=()=>{draw();const v=id=>box.querySelector(id)?.value;
+      const need=cur0==='exp'?[expR?loadRange(expR.f,expR.t):null]:[loadMonth(v('#incYm')),loadMonth(v('#clYm')),loadMonth(v('#pfYm'))];
+      busy++;loading.dataset.busy='1';Promise.all(need).then(()=>{if(--busy===0)delete loading.dataset.busy;if(box.isConnected)draw()})};
+    refresh();box.addEventListener('input',refresh);box.addEventListener('change',refresh);
     box.addEventListener('click',e=>{
       const b=e.target.closest('button');
-      if(b&&b.dataset.tab){show(b.dataset.tab);return}
+      if(b&&b.dataset.tab){show(cur0=b.dataset.tab);refresh();return}
+      if(b&&b.dataset.x==='expgo'){expR={f:box.querySelector('#stFrom').value,t:box.querySelector('#stTo').value};refresh();return}
       if(e.target.closest('[data-x="close"]')){close();return}
       if(b&&b.dataset.x==='pfcsv'){perfCsv(box.querySelector('#pfYm').value,box.querySelector('#pfAsst').value);return}
       if(b&&b.dataset.x==='clcsv'){closedCsv(box.querySelector('#clYm').value,box.querySelector('#clDoc').value,box.querySelector('#clAsst').value);return}
@@ -1840,7 +1879,7 @@ function addExtra(cat,name){
 function openSettings(tab){
   const P=settings.prices;
   modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>設定</h3>
-    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button>${canSeeIncome()?'<button data-tab="comm">抽成比例</button>':''}<button data-tab="backup">資料備份</button>${fs&&PERM==='super'?'<button data-tab="device">設備認證</button>':''}</div>
+    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button>${canSeeIncome()?'<button data-tab="comm">抽成比例</button>':''}${fs?'<button data-tab="sync">雲端讀取</button>':''}<button data-tab="backup">資料備份</button>${fs&&PERM==='super'?'<button data-tab="device">設備認證</button>':''}</div>
     <div data-pane="price">
       <div class="hint">輸入每個項目的單價（新台幣）。開單選項目時自動帶入「單價 × 數量」為金額；已開立的計劃單不受影響。</div>
       ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改價目表，你目前只能查看。</div>'}
@@ -1868,6 +1907,18 @@ function openSettings(tab){
       <div class="hint">選「%」時抽成＝該項目已繳金額 × 比例；選「元/單位」時抽成＝數量 × 金額（該項目有繳費才計）。留空＝不抽成。自訂項目與繳費時未選項目的金額不抽成。</div>
       <div id="itemCommList">${itemCommRows()}</div>
     </div>`:''}
+    ${fs?`<div data-pane="sync">
+      <p class="hint">設定每台設備一打開治療計劃單時，先讀進來並即時同步哪些單。讀得越少，每天用掉的雲端讀取次數越少；其他舊單可在左側列表最下方用「在雲端搜尋舊單」或「載入 n 個月內有異動的舊單」讀取，「📊 統計」也會自動讀需要的單。</p>
+      ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改，你目前只能查看。</div>'}
+      <h4 style="margin:14px 0 6px">一定讀取的單據狀態</h4>
+      ${SYNC_ST.map(([k,l])=>`<label class="sync-chk"><input type="checkbox" data-syncst="${k}" ${syncSts().includes(k)?'checked':''} ${canPrice()?'':'disabled'}> ${esc(l)}</label>`).join('')}
+      <h4 style="margin:14px 0 6px">另外讀取近幾天內有異動的單</h4>
+      <label class="sync-days">近 <input type="number" min="0" max="3650" step="1" inputmode="numeric" data-syncdays value="${syncDays()}" ${canPrice()?'':'disabled'}> 天（0＝不另外讀取）</label>
+      <p class="hint" style="margin-top:10px">修改後各台設備會自動重新讀取。</p>
+      ${canPrice()?`<h4 style="margin:16px 0 6px">舊單搜尋與統計欄位</h4>
+      <p class="hint">「在雲端搜尋舊單」與「統計只讀需要的單」要用到每張單的搜尋欄位；新存的單會自動有，舊單需要補一次（會讀取全部計劃單一次）。</p>
+      ${settings.idxV===IDX_V?'<p>✔ 已補好。</p>':'<button class="btn-sm" data-x="idxfix">補舊單欄位（一次性）</button>'}`:''}
+    </div>`:''}
     <div data-pane="backup">
       <p class="hint">${fs?'資料存在雲端（與排班系統同一個 Firebase 專案），各台電腦登入後即時同步。仍建議定期匯出備份檔另存。':'本機模式：資料存在這台電腦的瀏覽器裡（IndexedDB）。清除瀏覽器資料、換電腦或換瀏覽器都看不到，請定期匯出備份檔並另存。'}</p>
       <p>目前共 <b>${plans.size}</b> 張治療計劃單。</p>
@@ -1894,6 +1945,8 @@ function openSettings(tab){
         else{let v=Math.max(0,Number(raw)||0);if(type==='pct')v=Math.min(100,v);else v=Math.round(v);settings.commission[cat]={type,v}}
         row.querySelector('[data-comm]').step=type==='amt'?1:0.1;saveSettings()}
       // 用目前的 settings（雲端同步回來時 settings 會被換成新物件，不能用開視窗時記住的舊物件，否則只會存到第一個字）
+      if(t.dataset.syncst!==undefined){settings.syncStatuses=[...box.querySelectorAll('[data-syncst]:checked')].map(x=>x.dataset.syncst);saveSettings()}
+      if(t.dataset.syncdays!==undefined&&t.value!==''){settings.syncDays=Math.max(0,Math.min(3650,Math.round(Number(t.value)||0)));saveSettings()}
       if(t.dataset.price){const v=numOrNull(t.value),P2=settings.prices=settings.prices||{};if(v)P2[t.dataset.price]=v;else delete P2[t.dataset.price];saveSettings()}
       if(t.dataset.listSet){settings[t.dataset.listSet]=t.value.split('\n').map(s=>s.trim()).filter(Boolean);saveSettings()}});
     box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
@@ -1915,6 +1968,7 @@ function openSettings(tab){
       if(b.dataset.devx)deviceAction(b.closest('[data-dev]').dataset.dev,b.dataset.devx);
       if(b.dataset.x==='close'){close();renderEditor()}
       if(b.dataset.x==='export')exportBackup();
+      if(b.dataset.x==='idxfix'){b.disabled=true;b.textContent='處理中…';ensureAllLoaded().then(()=>{b.textContent='已送出，完成後會顯示「已補好」';setTimeout(()=>{if(settings.idxV===IDX_V&&b.isConnected)b.outerHTML='<p>✔ 已補好。</p>'},3000)})}
       if(b.dataset.x==='import'){$('#importInput').value='';$('#importInput').click()}});
   },true);
 }
@@ -2067,14 +2121,81 @@ function bootCloud(){
 }
 let stale=false,firstSnap=true;
 function rerenderKeep(){const y=scrollY;renderEditor();scrollTo(0,y)}
+const addPlanDoc=d=>{let p;try{p=freezeUnits(JSON.parse(d.data().json))}catch(e){return null}const l=plans.get(d.id);if(!l||(l.updatedAt||0)<(p.updatedAt||0))plans.set(d.id,p);return plans.get(d.id)};
+// 讀進全部計劃單（統計需要時、或在設定按「補舊單欄位」時）；順便替還沒有搜尋欄位的舊單補上
+function ensureAllLoaded(){
+  if(!fs||allLoaded)return Promise.resolve();
+  return allLoading||(allLoading=fs.collection('tpPlans').get().then(snap=>{
+    const ups=[];snap.docs.forEach(d=>{const p=addPlanDoc(d);if(p&&canEdit()&&d.data().createdDay===undefined)ups.push(d.ref.update(idxFields(p)))});
+    allLoaded=true;renderList();
+    if(canPrice()&&settings.idxV!==IDX_V)Promise.all(ups).then(()=>{settings.idxV=IDX_V;saveSettings()}).catch(()=>{});
+  }).catch(e=>{allLoading=null;alert('載入舊單失敗：'+e.message)}));
+}
+// 統計某個月份：只讀「該月有繳費」或「該月結單」的單（舊單還沒補好欄位時，改成讀全部）
+const loadedMonths=new Map();
+function loadMonth(ym){
+  if(!fs||allLoaded||!ym)return Promise.resolve();
+  if(settings.idxV!==IDX_V)return ensureAllLoaded();
+  if(!loadedMonths.has(ym)){const col=fs.collection('tpPlans');
+    loadedMonths.set(ym,Promise.all([col.where('payMonths','array-contains',ym).get(),col.where('closedYm','==',ym).get()])
+      .then(sn=>{sn.forEach(x=>x.docs.forEach(addPlanDoc));renderList()}).catch(e=>{loadedMonths.delete(ym);alert('讀取統計資料失敗：'+e.message)}))}
+  return loadedMonths.get(ym);
+}
+// 「無繳費且過期比例」：開始、結束日期都選好才讀，只讀開立日期在區間內的單（舊單還沒補好欄位時讀全部）
+const loadedRanges=new Map();
+function loadRange(from,to){
+  if(!fs||allLoaded)return Promise.resolve();
+  if(!from||!to)return Promise.resolve();
+  if(settings.idxV!==IDX_V)return ensureAllLoaded();
+  const k=from+'|'+to;
+  if(!loadedRanges.has(k)){const q=fs.collection('tpPlans').where('createdDay','>=',from).where('createdDay','<=',to);
+    loadedRanges.set(k,q.get().then(sn=>{sn.docs.forEach(addPlanDoc);renderList()}).catch(e=>{loadedRanges.delete(k);alert('讀取統計資料失敗：'+e.message)}))}
+  return loadedRanges.get(k);
+}
+// 載入 n 個月內有異動的舊單（n 記在這台設備）；已載入過更長的月數就不重讀
+const oldMonths=()=>{try{return +localStorage.getItem('tpOldMonths')||3}catch(e){return 3}}; // 預設 3 個月
+let loadedBackN=0;
+async function loadMonthsBack(n){
+  if(!fs||allLoaded||n<=loadedBackN)return -1;
+  const sn=await fs.collection('tpPlans').where('updatedAt','>=',Date.now()-n*30.44*864e5).get().catch(e=>{alert('載入舊單失敗：'+e.message);return null});
+  if(!sn)return -1;const before=plans.size;sn.docs.forEach(addPlanDoc);loadedBackN=n;renderList();return plans.size-before;
+}
+// 雲端搜尋舊單：姓名開頭、病歷號開頭、單號開頭
+async function searchOld(q){
+  if(!fs)return 0;q=q.trim();if(!q)return 0;
+  const end=q+'',col=fs.collection('tpPlans');
+  const snaps=await Promise.all(['name','chartNo','no'].map(k=>col.where(k,'>=',q).where(k,'<=',end).limit(50).get()));
+  let n=0;snaps.forEach(sn=>sn.docs.forEach(d=>{if(addPlanDoc(d))n++}));renderList();return n;
+}
+// 打開的單連到還沒讀進來的前單／新單（計畫變更），補讀那一張
+async function ensureLinked(p){
+  if(!fs||!p)return;let got=false;
+  for(const id of [p.prevId,p.nextId])if(id&&!plans.has(id)){try{const d=await fs.doc('tpPlans/'+id).get();if(d.exists&&addPlanDoc(d))got=true}catch(e){}}
+  if(got&&curId===p.id)rerenderKeep();
+}
 function startCloud(){
   afterLogin();watchDevices();$('#planList').innerHTML='<div class="empty" style="padding:30px 10px">載入中…</div>';
   const onErr=e=>{console.error(e);if(e.code==='permission-denied')showGate('error','沒有權限讀取治療計劃單。請確認 Firestore 安全規則已更新，或洽診所管理者。')};
-  fs.collection('tpPlans').onSnapshot(snap=>{
+  // 只即時同步「所選狀態」和「近 N 天內有異動」的單（兩個查詢合併），減少每天的讀取次數；設定改了就重新訂閱
+  let member={A:new Set(),B:new Set()},unsub=[],subKey=null;
+  const subscribe=()=>{
+    const key=JSON.stringify([syncSts(),syncDays()]);if(key===subKey)return;subKey=key;
+    unsub.forEach(u=>u());unsub=[];member={A:new Set(),B:new Set()};
+    const col=fs.collection('tpPlans'),sts=syncSts(),days=syncDays();
+    if(sts.length)unsub.push(col.where('status','in',sts).onSnapshot(onSnap('A'),onErr));
+    if(days>0)unsub.push(col.where('updatedAt','>=',Date.now()-days*864e5).onSnapshot(onSnap('B'),onErr));
+    if(!sts.length&&!(days>0)&&firstSnap){firstSnap=false;renderList();checkLocalMigration()}
+    renderList();
+  };
+  const onSnap=key=>snap=>{
     let curChanged=false;
     snap.docChanges().forEach(ch=>{
       const id=ch.doc.id;
-      if(ch.type==='removed'){if(plans.delete(id)&&id===curId)curChanged=true;return}
+      if(ch.type==='removed'){member[key].delete(id);
+        // 從某個查詢移出不一定是刪除（例如結單後不再是「進行中」）；兩個查詢都沒有了，才確認雲端是否還在
+        if(!member.A.has(id)&&!member.B.has(id))fs.doc('tpPlans/'+id).get().then(d=>{if(!d.exists&&plans.delete(id)){if(id===curId){curId=null;renderEditor()}renderList()}}).catch(()=>{});
+        return}
+      member[key].add(id);
       if(ch.doc.metadata.hasPendingWrites)return;              // 自己剛寫入、還沒送到伺服器
       let p;try{p=freezeUnits(JSON.parse(ch.doc.data().json))}catch(e){return}
       const local=plans.get(id);
@@ -2089,11 +2210,12 @@ function startCloud(){
       else rerenderKeep();
     }
     if(firstSnap){firstSnap=false;checkLocalMigration()}
-  },onErr);
+  };
+  // 先讀到設定（讀取天數、狀態）再開始讀計劃單
   fs.doc('tpConfig/settings').onSnapshot(s=>{
     if(s.exists){try{settings={prices:{},doctors:[],assistants:[],...JSON.parse(s.data().json)}}catch(e){}}
-    migrateCatComm();rebuildCats();
-  },e=>console.warn(e));
+    migrateCatComm();rebuildCats();subscribe();
+  },e=>{console.warn(e);subscribe()});
   fs.collection('staff').onSnapshot(snap=>{
     const n={doctor:[],assistant:[]};
     // 排序與排班系統人員名單相同（依代號）
