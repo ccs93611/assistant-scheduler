@@ -3722,7 +3722,7 @@ function renderSettings(){
       <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有超級管理員可以設定權限"'}>權限</button>${accessLinks[s.id]?.account?` <span class="pill">${PERMS[accessLinks[s.id].perm]||PERMS.view}</span>`:''}</td>
       <td class="num" style="white-space:nowrap">${(a=>`<button class="small${a?.perm==='suspended'?' primary':''}" data-suspend${superOK()&&a?.account&&a.perm!=='super'?'':` disabled title="${!a?.account?'還沒綁定登入帳號':a.perm==='super'?'超級管理員暫時不能停權':'只有超級管理員可以停權'}"`}>${a?.perm==='suspended'?'恢復權限':'停權'}</button> `)(accessLinks[s.id])}<button class="small" data-toggle${dis}>${s.active===false?'恢復在職':'離職'}</button> <button class="small danger" data-delstaff${dis}>刪除</button></td></tr>`).join('')
       :`<tr><td colspan="4" class="empty">${q?`找不到符合「${esc(q)}」的${showRes?'已離職':''}${ROLE[role]}。`:showRes?`沒有已離職的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
-    {const max=role==='assistant'?10:6;const n=limitRows($('staffScroll-'+role),max);$('staffHint-'+role).hidden=n<=max;}
+    {const max=role==='assistant'?10:role==='doctor'?8:6;/* 醫師名單一次顯示 8 人 */const n=limitRows($('staffScroll-'+role),max);$('staffHint-'+role).hidden=n<=max;}
   });
 
 }
