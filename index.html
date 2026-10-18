@@ -687,6 +687,7 @@ body.gated .shell{display:none;}
     <button role="tab" data-tab="stats">工時統計</button>
     <button role="tab" data-tab="att" id="attTabBtn">出勤</button>
     <button role="tab" data-tab="otrev" id="otRevTabBtn">加班審核</button>
+    <button role="tab" data-tab="cscheck" id="csTabBtn" hidden>耗材確認</button>
     <button role="tab" data-tab="pay" id="payTabBtn">薪資</button>
     <button role="tab" data-tab="settings">人員名單</button>
     <button role="tab" data-tab="lottery">排休抽籤</button>
@@ -911,6 +912,24 @@ body.gated .shell{display:none;}
         </div>
       </div>
     </section>
+    <section id="tab-cscheck" hidden>
+      <div class="stack">
+        <div class="card">
+          <div class="lv-title-row"><h2 id="csTitle" style="margin:0">耗材確認</h2><span class="lv-range" id="csCount"></span></div>
+          <p class="desc" id="csDesc"></p>
+          <div class="form-row" id="csFilterRow"><div class="field"><label for="csDoc">醫師</label><select id="csDoc"></select></div></div>
+          <div class="form-row" id="csBulk" hidden><button class="primary" id="csOkSel" disabled>確認勾選的耗材</button><button id="csOkAll">全部確認</button></div>
+          <div class="scroll-x"><table class="list" id="csPendTable"></table></div>
+        </div>
+        <div class="card">
+          <div class="lv-title-row"><h3 class="subhead" style="margin:0">耗材紀錄</h3><span class="lv-range" id="csHistCount"></span></div>
+          <div class="form-row"><div class="field"><label for="csMonth">月份</label><input type="month" id="csMonth"></div>
+            <div class="field"><label for="csHistSt">狀態</label><select id="csHistSt"><option value="">全部</option><option value="pending">待確認</option><option value="confirmed">已確認</option><option value="rejected">已退回</option></select></div></div>
+          <div class="scroll-x"><table class="list" id="csHistTable"></table></div>
+        </div>
+      </div>
+    </section>
+
     <section id="tab-att" hidden>
       <div class="stack">
         <div class="card pay-month-bar">
@@ -1126,6 +1145,7 @@ let pevents=[]; // 個人假事件 {id,staffId,kind,date,rel,months,end,child,no
 let punches=[]; // 打卡紀錄 {id,staffId,ts,date,src:'kiosk'|'manual',device,photo?,by?,note?,void?}，只載入出勤分頁選擇的月份
 let faceMeta={}; // faces/{staffId} 是否已登錄臉部 {staffId:{at,n}}（特徵值本身不留在網頁）
 let devices={}; // 打卡裝置 devices/{uid}={name,approved,at,hwId?,model?}
+let csPend=[],csHist=[]; // 耗材確認：待確認（醫師＝自己的；超級管理員＝全部）、所選月份的紀錄
 let revPunches=[]; // 加班審核分頁用：醫師＝指定給自己的加班申請；超級管理員＝所有待審（不限月份）
 let hwDevs={}; // 裝置編號 hw/{裝置編號}={approved,name,model,platform,at}（App 回報；核准後同一台平板換代碼也沿用）
 let kioskCfg={}; // kiosk/settings：出勤規則與裝置管理密碼
@@ -2134,6 +2154,10 @@ function start(acc){
   const revTo=snap=>{revPunches=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();};
   if(sup)db.collection('punches').where('ot.status','==','pending').onSnapshot(revTo,e=>console.warn(e));
   else if(sid)db.collection('punches').where('ot.reviewer','==',sid).onSnapshot(revTo,e=>console.warn(e));
+  // 耗材確認：超級管理員看所有待確認；其他綁定人員（醫師）看自己的待確認（各月份紀錄在分頁選月份時才讀）
+  const csTo=snap=>{csPend=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();};
+  if(sup)db.collection('csItems').where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
+  else if(sid)db.collection('csItems').where('doctorId','==',sid).where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   if(sup)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
   const paySubs={};
   const syncPaySubs=()=>{if(sup||!sid)return;
@@ -2189,7 +2213,7 @@ const viewOnlyAssistant=()=>lowPerm()&&byId(myStaffId())?.role==='assistant'; //
 const lowPerm=()=>(mode==='live'||(mode==='local'&&SIM_AS))&&['view','self'].includes(effPerm());
 function viewTabs(){
   const r=byId(myStaffId())?.role;
-  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev']:[])];
+  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev','cscheck']:[])];
 }
 // 「登記本人請假」以下的人在請假分頁只看到自己的資料：繪製時暫時只留自己的請假、家庭照顧假、事件與人員
 function withOwnData(fn){
@@ -2240,13 +2264,14 @@ function renderAll(){
   [['assistant','leaveTabBtn','助理請假'],['doctor','docleaveTabBtn','醫師休假']].forEach(([role,bid,lb])=>{const n=leaveReqs.filter(r=>r.status==='pending'&&(canWrite||r.staffId===myStaffId())&&byId(r.staffId)?.role===role).length+(role==='assistant'?fcReqs.filter(r=>r.status==='pending'&&(canWrite||r.staffId===myStaffId())).length:0),m=role==='assistant'?missingProofs().length:0;$(bid).textContent=n||m?`${lb}（${[n?n:'',m?`缺證明 ${m}`:''].filter(Boolean).join('・')}）`:lb;});
   {const show=canSeeOtRev(),n=otRevList('pending').length;$('otRevTabBtn').hidden=!show;$('otRevTabBtn').textContent=n?`加班審核（${n}）`:'加班審核';if(prefs.tab==='otrev'&&!show)prefs.tab='schedule';}
   if(prefs.tab==='att'&&!canWrite&&!viewOnlyAssistant())prefs.tab='schedule';
+  {const show=canSeeCs(),n=csPendList(byId(myStaffId())?.role==='doctor').length;$('csTabBtn').hidden=!show;$('csTabBtn').textContent=n?`耗材確認（${n}）`:'耗材確認';if(prefs.tab==='cscheck'&&!show)prefs.tab='schedule';}
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
   document.body.classList.toggle('view-only',viewOnly());document.body.classList.toggle('low-perm',lowPerm());
   if(lowPerm()){const ok=viewTabs();document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!ok.includes(b.dataset.tab))b.hidden=true;});if(!ok.includes(prefs.tab))prefs.tab='schedule';}
-  else document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!['pay','att','otrev'].includes(b.dataset.tab))b.hidden=false;});
+  else document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!['pay','att','otrev','cscheck'].includes(b.dataset.tab))b.hidden=false;});
   // 排休抽籤：暫時只開放給超級管理員（之後要開放時拿掉這段即可）
   {const lb=document.querySelector('nav.tabs button[data-tab="lottery"]');if(!superOK()){lb.hidden=true;if(prefs.tab==='lottery')prefs.tab='schedule';}}
-  ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
+  ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','cscheck','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
   if(prefs.tab==='schedule') renderSchedule(mi);
@@ -2267,6 +2292,7 @@ function renderAll(){
   renderPresence();
   if(prefs.tab==='att') renderAtt(mi);
   if(prefs.tab==='otrev') renderOtRev();
+  if(prefs.tab==='cscheck') renderCs();
 }
 
 const otMax=()=>Number.isFinite(cfg.otMax)?cfg.otMax:3;
@@ -4749,6 +4775,107 @@ function renderOtRev(){
 }
 $('otRevSt').addEventListener('change',()=>renderAll());
 $('otRevTable').addEventListener('click',otClick);
+// ---- 耗材確認分頁：助理在 consumables.html 登記，醫師在這裡確認或退回（退回要寫原因，助理修改後重新送出） ----
+// 醫師只看指定給自己的；超級管理員看全部（只能看，確認／退回仍限醫師本人；可以對已確認的紀錄「取消確認」）
+const CS_LOCAL='xinhai_cs_local_v1'; // 本機模式：與 consumables.html?local=1 共用
+const csLocal=()=>{try{return JSON.parse(localStorage.getItem(CS_LOCAL)||'null')||{items:[]};}catch(e){return {items:[]};}};
+const canSeeCs=()=>byId(myStaffId())?.role==='doctor'||superOK();
+let csView={doc:'',month:'',st:''},csSel=new Set(),csMonthKey='',csMonthUnsub=null;
+// mine=true：只算指定給自己的（醫師分頁標籤上的數字）
+function csPendList(mine){
+  const me=myStaffId(),sup=superOK(),src=mode==='local'?csLocal().items:csPend;
+  return src.filter(x=>x.status==='pending'&&(mine||!sup?x.doctorId===me:true))
+    .sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0));
+}
+// 所選月份的紀錄：雲端只在月份或身分改變時重新訂閱
+function csSubMonth(){
+  const ym=csView.month,me=myStaffId(),sup=superOK();
+  if(mode==='local'){csHist=csLocal().items.filter(x=>x.month===ym&&(sup||x.doctorId===me));return;}
+  const key=ym+'|'+(sup?'*':me);if(csMonthKey===key)return;
+  csMonthKey=key;if(csMonthUnsub)csMonthUnsub();csMonthUnsub=null;csHist=[];
+  if(!db||(!sup&&!me))return;
+  const q=sup?db.collection('csItems').where('month','==',ym):db.collection('csItems').where('doctorId','==',me).where('month','==',ym);
+  csMonthUnsub=q.onSnapshot(snap=>{csHist=snap.docs.map(d=>Object.assign({id:d.id},d.data()));if(prefs.tab==='cscheck')renderAll();},e=>console.warn(e));
+}
+const csFind=id=>(mode==='local'?csLocal().items:[...csPend,...csHist]).find(x=>x.id===id);
+function csRow(x,opt){
+  const d=parseYmd(x.date),me=myStaffId(),mine=x.doctorId===me,r=x.review,sup=superOK();
+  const st=x.status==='confirmed'?`<span class="att-ok">已確認</span>${r?`<br><small class="att-mute">${esc(r.byName||'')} ${esc(fmtAt(r.at))}</small>`:''}`
+    :x.status==='rejected'?`<span class="att-bad">已退回</span>${x.reason?`<br><small class="att-mute">原因：${esc(x.reason)}</small>`:''}`
+    :`<span class="att-bad">待確認</span>${x.prevReason?`<br><small class="att-mute">（曾退回：${esc(x.prevReason)}，助理已修改）</small>`:''}`;
+  const acts=x.status==='pending'&&mine?`<button class="small primary" data-csok="${esc(x.id)}">確認</button> <button class="small danger" data-csno="${esc(x.id)}">有誤</button>`
+    :x.status==='confirmed'&&sup&&opt.hist?`<button class="small" data-csundo="${esc(x.id)}">取消確認</button>`:'';
+  return `<tr>${opt.check?`<td>${mine?`<input type="checkbox" data-cssel="${esc(x.id)}"${csSel.has(x.id)?' checked':''} aria-label="勾選">`:''}</td>`:''}
+    <td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td>
+    <td style="white-space:nowrap">${esc(x.pName)}${x.pBirth?`<br><small class="att-mute">${esc(x.pBirth)}</small>`:''}</td>
+    <td style="white-space:nowrap">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${esc(x.item)}</td><td class="num">${esc(x.qty)}</td>
+    ${opt.doc?`<td style="white-space:nowrap">${esc(byId(x.doctorId)?.name||x.doctorName||'')}</td>`:''}
+    <td style="white-space:nowrap">${esc(byId(x.assistantId)?.name||x.assistantName||'')}</td>
+    ${opt.hist?`<td>${st}</td>`:''}<td style="white-space:nowrap">${acts}</td></tr>`;
+}
+function renderCs(){
+  const sup=superOK(),me=myStaffId(),isDoc=byId(me)?.role==='doctor',t=new Date();
+  if(!csView.month)csView.month=ymd(t).slice(0,7);
+  csSubMonth();
+  $('csTitle').textContent=sup?'耗材確認（所有醫師）':'耗材確認';
+  $('csDesc').innerHTML=(isDoc?'助理在「耗材登記」頁登記你使用的耗材，請確認是否正確；有誤請按「有誤」並寫原因，會退回給助理修改後重新送出。確認後就不能再修改。':'')
+    +(sup?(isDoc?'<br>':'')+'超級管理員可以看到所有醫師的待確認耗材，但只有醫師本人可以確認或退回；下方紀錄可以對已確認的耗材「取消確認」。':'')
+    +' <a href="consumables.html" target="_blank" rel="noopener">開啟耗材登記頁 ↗</a>';
+  // 醫師篩選：超級管理員才有
+  const all=csPendList(false),ids=[...new Set([...all,...csHist].map(x=>x.doctorId))];
+  $('csFilterRow').hidden=!sup;
+  if(sup){const h='<option value="">全部醫師</option>'+staff.filter(s=>ids.includes(s.id)||s.role==='doctor'&&s.active!==false).sort(sortStaff).map(s=>`<option value="${esc(s.id)}">${esc(fullName(s))}</option>`).join('');
+    if($('csDoc').innerHTML!==h)$('csDoc').innerHTML=h;$('csDoc').value=csView.doc;}
+  const fd=x=>!sup||!csView.doc||x.doctorId===csView.doc;
+  const pend=all.filter(fd),mine=pend.filter(x=>x.doctorId===me);
+  [...csSel].forEach(id=>{if(!mine.some(x=>x.id===id))csSel.delete(id);});
+  $('csCount').textContent=pend.length?`待確認 ${pend.length} 筆`:'';
+  $('csBulk').hidden=mine.length<2;$('csOkSel').disabled=!csSel.size;$('csOkSel').textContent=csSel.size?`確認勾選的 ${csSel.size} 筆`:'確認勾選的耗材';
+  const chk=mine.length>1,showDoc=sup;
+  $('csPendTable').innerHTML=`<thead><tr>${chk?`<th><input type="checkbox" id="csSelAll" aria-label="全選"${csSel.size&&csSel.size===mine.length?' checked':''}></th>`:''}<th>日期</th><th>病患</th><th>病歷號</th><th>牙位</th><th>耗材種類</th><th class="num">數量</th>${showDoc?'<th>醫師</th>':''}<th>助理</th><th></th></tr></thead><tbody>`+
+    (pend.length?pend.map(x=>csRow(x,{check:chk,doc:showDoc})).join(''):`<tr><td colspan="10" class="att-mute">目前沒有待確認的耗材</td></tr>`)+'</tbody>';
+  // 月份紀錄
+  $('csMonth').value=csView.month;$('csHistSt').value=csView.st;
+  const hist=csHist.filter(x=>fd(x)&&(!csView.st||x.status===csView.st)).sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
+  const sum={};hist.filter(x=>x.status==='confirmed').forEach(x=>sum[x.item]=(sum[x.item]||0)+(Number(x.qty)||0));
+  $('csHistCount').textContent=hist.length?`共 ${hist.length} 筆`+(Object.keys(sum).length?`；已確認：${Object.entries(sum).map(([k,v])=>`${k} ${v}`).join('、')}`:''):'';
+  $('csHistTable').innerHTML=`<thead><tr><th>日期</th><th>病患</th><th>病歷號</th><th>牙位</th><th>耗材種類</th><th class="num">數量</th>${showDoc?'<th>醫師</th>':''}<th>助理</th><th>狀態</th><th></th></tr></thead><tbody>`+
+    (hist.length?hist.map(x=>csRow(x,{hist:true,doc:showDoc})).join(''):`<tr><td colspan="10" class="att-mute">這個月沒有耗材紀錄</td></tr>`)+'</tbody>';
+}
+// 確認／退回（醫師本人）、取消確認（超級管理員）
+async function csSet(ids,status,reason){
+  const me=myStaffId(),by=myDisplayName(),at=Date.now();
+  const list=ids.map(csFind).filter(x=>x&&(status==='pending'?x.status==='confirmed'&&superOK():x.status==='pending'&&x.doctorId===me));
+  if(!list.length)return;
+  const a=status==='confirmed'?'confirm':status==='rejected'?'reject':'unconfirm';
+  const patch=x=>Object.assign({status,review:status==='pending'?null:{by:myId||'',byName:by,at},updatedAt:at,hist:[...(x.hist||[]),Object.assign({a,at,by},reason?{note:reason}:{})]},reason?{reason}:{});
+  try{
+    if(mode==='local'){const d=csLocal();list.forEach(x=>{const i=d.items.findIndex(y=>y.id===x.id);if(i>=0)Object.assign(d.items[i],patch(x));});localStorage.setItem(CS_LOCAL,JSON.stringify(d));}
+    else{const b=db.batch();list.forEach(x=>b.update(db.collection('csItems').doc(x.id),patch(x)));await b.commit();}
+    list.forEach(x=>csSel.delete(x.id));
+    toast(status==='confirmed'?`已確認 ${list.length} 筆耗材`:status==='rejected'?'已退回給助理修改':'已取消確認，改回待確認');
+    renderAll();
+  }catch(e){console.error(e);toast('操作失敗：'+(e.code==='permission-denied'?'沒有權限（只有醫師本人可以確認）':e.message),'warn');}
+}
+$('tab-cscheck').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.csok)csSet([b.dataset.csok],'confirmed');
+  if(b.dataset.csno){const x=csFind(b.dataset.csno);if(!x)return;
+    const r=prompt(`退回這筆耗材給助理修改：\n${x.date}　${x.pName}　${x.item} × ${x.qty}\n\n請寫原因（例如：數量應為 2、不是我的病人）`);
+    if(r===null)return;if(!r.trim()){alert('請寫退回原因');return;}csSet([x.id],'rejected',r.trim());}
+  if(b.dataset.csundo){const x=csFind(b.dataset.csundo);if(x&&confirm(`取消確認這筆耗材？\n${x.date}　${x.pName}　${x.item} × ${x.qty}\n取消後改回「待確認」，需要醫師重新確認。`))csSet([x.id],'pending');}
+  if(b.id==='csOkSel')csSet([...csSel],'confirmed');
+  if(b.id==='csOkAll'){const m=csPendList(true).filter(x=>!superOK()||!csView.doc||x.doctorId===csView.doc);if(confirm(`確認全部 ${m.length} 筆耗材都正確？`))csSet(m.map(x=>x.id),'confirmed');}
+});
+$('tab-cscheck').addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.cssel){t.checked?csSel.add(t.dataset.cssel):csSel.delete(t.dataset.cssel);renderAll();}
+  if(t.id==='csSelAll'){const me=myStaffId();csSel=new Set(t.checked?csPendList(true).filter(x=>!csView.doc||x.doctorId===csView.doc).map(x=>x.id):[]);renderAll();}
+  if(t.id==='csDoc'){csView.doc=t.value;renderAll();}
+  if(t.id==='csMonth'&&t.value){csView.month=t.value;renderAll();}
+  if(t.id==='csHistSt'){csView.st=t.value;renderAll();}
+});
+addEventListener('storage',e=>{if(e.key===CS_LOCAL&&mode==='local')renderAll();});
 // 加班申請的篩選與排序（預設依狀態：待審在最上面，同狀態新的在前）
 let otView={date:'',sid:'',sh:'',st:''},otSort={key:'status',dir:1};
 const OT_ST_ORDER={pending:0,approved:1,rejected:2,replaced:3};

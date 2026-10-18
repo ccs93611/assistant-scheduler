@@ -268,5 +268,24 @@ service cloud.firestore {
       allow create: if request.auth != null && request.auth.uid == uid && request.resource.data.approved == false;
       allow update, delete: if isSuper();
     }
+
+    // 耗材審核
+    //   csItems  耗材登記：助理在 consumables.html 登記（本人請假以上或認證設備），一律是「待確認」；
+    //            醫師在排班系統「耗材確認」分頁確認或退回，只能處理指定給自己（doctorId）的待確認紀錄，且只能改審核相關欄位；
+    //            登記的人可以修改或刪除還沒確認的紀錄（修改後一律改回待確認）；已確認的只有超級管理員可以改或刪
+    //   csConfig 耗材種類：只有超級管理員可以修改
+    function canEditCs() { return perm() in ['self', 'manage', 'super'] || isTpDevice(); }
+    match /csItems/{id} {
+      allow read: if canEditCs() || canManage() || (signedIn() && mySid() != '' && resource.data.doctorId == mySid());
+      allow create: if canEditCs() && request.resource.data.status == 'pending';
+      allow update: if isSuper()
+        || (canEditCs() && resource.data.status != 'confirmed' && request.resource.data.status == 'pending')
+        || (signedIn() && mySid() != '' && resource.data.doctorId == mySid() && resource.data.status == 'pending'
+            && request.resource.data.status in ['confirmed', 'rejected']
+            && request.resource.data.doctorId == resource.data.doctorId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'review', 'reason', 'updatedAt', 'hist']));
+      allow delete: if isSuper() || (canEditCs() && resource.data.status != 'confirmed');
+    }
+    match /csConfig/{id} { allow read: if canView() || isTpDevice(); allow write: if isSuper(); }
   }
 }
