@@ -687,10 +687,10 @@ body.gated .shell{display:none;}
     <button role="tab" data-tab="stats">工時統計</button>
     <button role="tab" data-tab="att" id="attTabBtn">出勤</button>
     <button role="tab" data-tab="otrev" id="otRevTabBtn">加班審核</button>
-    <button role="tab" data-tab="cscheck" id="csTabBtn" hidden>耗材確認</button>
     <button role="tab" data-tab="pay" id="payTabBtn">薪資</button>
     <button role="tab" data-tab="settings">人員名單</button>
     <button role="tab" data-tab="lottery">排休抽籤</button>
+    <button role="tab" data-tab="cscheck" id="csTabBtn" hidden>耗材確認</button>
   </nav>
   <div id="banner"></div>
   <main>
@@ -4807,7 +4807,7 @@ function csRow(x,opt){
     :x.status==='confirmed'&&sup&&opt.hist?`<button class="small" data-csundo="${esc(x.id)}">取消確認</button>`:'';
   return `<tr>${opt.check?`<td>${mine?`<input type="checkbox" data-cssel="${esc(x.id)}"${csSel.has(x.id)?' checked':''} aria-label="勾選">`:''}</td>`:''}
     <td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td>
-    <td style="white-space:nowrap">${esc(x.pName)}${x.pBirth?`<br><small class="att-mute">${esc(x.pBirth)}</small>`:''}</td>
+    <td style="white-space:nowrap">${esc(x.pName)}${x.pBirth?` <span class="att-mute">（${esc(x.pBirth.replace(/-/g,'/'))}）</span>`:''}</td>
     <td style="white-space:nowrap">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${esc(x.item)}</td><td class="num">${esc(x.qty)}</td>
     ${opt.doc?`<td style="white-space:nowrap">${esc(byId(x.doctorId)?.name||x.doctorName||'')}</td>`:''}
     <td style="white-space:nowrap">${esc(byId(x.assistantId)?.name||x.assistantName||'')}</td>
