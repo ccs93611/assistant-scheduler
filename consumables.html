@@ -29,8 +29,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .btn-danger{color:var(--danger)}
 .btn-ghost{border-color:transparent;background:transparent}
 .btn-sm{padding:3px 8px;font-size:13px}
-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
-header h1{font-size:20px;margin:0;flex:1;min-width:220px}
+/* 標題置中：左右兩欄等寬，右欄放設定與登入資訊 */
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{grid-column:2;font-size:28px;margin:0;text-align:center;letter-spacing:.04em}
+.head-r{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+@media (max-width:760px){header{grid-template-columns:1fr}header h1{grid-column:1;font-size:22px}.head-r{grid-column:1;justify-content:center}}
 .me{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 main{max-width:1200px;margin:0 auto;padding:16px;display:grid;gap:16px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
@@ -96,8 +99,10 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 <body>
 <header>
   <h1>新海美學牙醫・耗材登記</h1>
-  <button id="cfgBtn" hidden>⚙ 耗材種類</button>
-  <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip perm" id="mePerm"></span> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
+  <div class="head-r">
+    <button id="cfgBtn" hidden>⚙ 耗材種類</button>
+    <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip perm" id="mePerm"></span> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
+  </div>
 </header>
 <main>
   <form class="card" id="form" autocomplete="off" hidden>
@@ -183,6 +188,7 @@ const view={st:'all',month:today().slice(0,7),doc:'',item:'',q:''};
 const byId=id=>staff.find(s=>s.id===id);
 const sortStaff=(a,b)=>String(a.code||a.name||'').localeCompare(String(b.code||b.name||''),'zh-Hant',{numeric:true});
 const people=role=>staff.filter(s=>s.role===role&&s.active!==false&&s.name).sort(sortStaff);
+const codeName=s=>[s.code,s.name].filter(Boolean).join(' '); // 選單顯示「代號 姓名」（與排班系統人員名單相同）
 const myName=()=>byId(mySid)?.name||me;
 
 /* ====== 資料存取：雲端（Firestore）或本機（localStorage，開發測試用，與 index.html?local=1 共用） ====== */
@@ -240,12 +246,12 @@ function bootLocal(){
 
 /* ====== 畫面 ====== */
 function fillSelects(){
-  const opt=(list,v,ph)=>`<option value="">${ph}</option>`+list.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+  const opt=(list,v,ph)=>`<option value="">${ph}</option>`+list.map(s=>`<option value="${esc(s.id)}">${esc(codeName(s))}</option>`).join('');
   const keep=(el,html)=>{const v=el.value;if(el.innerHTML!==html)el.innerHTML=html;el.value=v};
   // 編輯舊紀錄時，已離職的人員也要能顯示
   const docs=people('doctor'),assts=people('assistant');
   keep($('#fDoc'),opt(docs,'','請選擇醫師'));keep($('#fAsst'),opt(assts,'','請選擇助理'));
-  const allDocs='<option value="">全部醫師</option>'+docs.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+  const allDocs='<option value="">全部醫師</option>'+docs.map(s=>`<option value="${esc(s.id)}">${esc(codeName(s))}</option>`).join('');
   keep($('#vDoc'),allDocs);keep($('#sDoc'),allDocs);
   // 預設助理：登入帳號綁定的助理，否則用這台設備上次選的
   if(!$('#fAsst').value&&!editing){let a=byId(mySid)?.role==='assistant'?mySid:'';if(!a)try{a=localStorage.getItem('cs_last_asst')||''}catch(e){}
@@ -319,7 +325,7 @@ function setEditing(x){
   $('#fReason').hidden=!(x&&x.status==='rejected'&&x.reason);$('#fReason').textContent=x&&x.reason?`醫師退回原因：${x.reason}`:'';
   if(x){const v={fDate:x.date,fName:x.pName,fBirth:x.pBirth||'',fChart:x.chartNo,fTooth:x.tooth||'',fItem:x.item,fQty:x.qty,fDoc:x.doctorId,fAsst:x.assistantId};
     // 已離職的醫師／助理：暫時加進選單
-    [['fDoc',x.doctorId,x.doctorName],['fAsst',x.assistantId,x.assistantName]].forEach(([k,id,n])=>{if(id&&!$('#'+k).querySelector(`option[value="${CSS.escape(id)}"]`))$('#'+k).insertAdjacentHTML('beforeend',`<option value="${esc(id)}">${esc(byId(id)?.name||n||id)}</option>`)});
+    [['fDoc',x.doctorId,x.doctorName],['fAsst',x.assistantId,x.assistantName]].forEach(([k,id,n])=>{if(id&&!$('#'+k).querySelector(`option[value="${CSS.escape(id)}"]`))$('#'+k).insertAdjacentHTML('beforeend',`<option value="${esc(id)}">${esc(byId(id)?codeName(byId(id)):n||id)}</option>`)});
     fillItems(x.item);F.forEach(k=>$('#'+k).value=v[k]);$('#form').scrollIntoView({behavior:'smooth',block:'start'});}
   render();
 }
