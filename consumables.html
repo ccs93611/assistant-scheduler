@@ -86,10 +86,11 @@ tr.editing td{background:var(--accent-soft)}
 .sg-b.pk{background:var(--panel)}
 .sg-b.pk.on{background:var(--accent-soft);border:2px solid var(--accent);color:inherit}
 .sg-n{position:absolute;top:-6px;right:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--danger);color:#fff;font:700 11px/18px system-ui,sans-serif;font-style:normal;text-align:center}
-.sg-picks{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
-.sg-pick{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:8px;padding:2px 4px 2px 8px;background:var(--panel);color:var(--ink)}
-.sg-pick b{min-width:16px;text-align:center}
-.sg-pick .btn-sm{padding:0 7px;line-height:20px}
+/* 已選清單：字與按鈕放大，方便在平板上點 */
+.sg-picks{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:16px;color:var(--ink)}
+.sg-pick{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:4px 6px 4px 12px;background:var(--panel);color:var(--ink);font-size:17px;font-weight:600}
+.sg-pick b{min-width:22px;text-align:center;font-size:18px}
+.sg-pick .btn-sm{padding:0;width:32px;height:32px;font-size:18px;line-height:30px;text-align:center}
 .sg-b{padding:7px 0;display:flex;justify-content:center;align-items:center;background:var(--soft)}
 .sg-b .pal{font-size:15px}
 .sg-b.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
