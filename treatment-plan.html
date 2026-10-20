@@ -171,9 +171,10 @@ tr.drop-after td{box-shadow:inset 0 -3px 0 var(--accent)}
 .imp-pick select:focus{outline:none}
 .imp-pick select:disabled{background:transparent}
 .imp-x{color:var(--ink);font-size:16px;font-weight:700;padding:0 3px}
+.imp-row.blx{flex-wrap:wrap}.blx .imp-pick [data-k="impHd"]{width:90px}.blx .imp-pick [data-k="impHh"]{width:70px}.blx .imp-pick [data-k="impHa"]{width:82px}
 .imp-pick [data-k="impDia"]{width:64px}.imp-pick [data-k="impLen"]{width:88px}.imp-pick [data-k="impHd"]{width:86px}.imp-pick [data-k="impHh"]{width:64px}
 .trt-tbl .t-note-h{min-width:220px}.trt-tbl:has(.imp-row) .t-note-h{min-width:370px}
-.trt-tbl .t-teeth-h{min-width:160px}.trt-tbl .t-teeth .teeth-cell{min-width:150px}
+.trt-tbl .t-teeth-h{min-width:150px}.trt-tbl .t-teeth .teeth-cell{min-width:140px}
 /* 日期、項目、牙位、植體、癒合帽、備註排在同一行：欄位內距縮小 */
 @container trts (min-width:641px){.trt-tbl th,.trt-tbl td{padding-left:4px;padding-right:4px}.trt-tbl td input[type=date]{padding-left:4px;padding-right:2px}}.imp-plat{margin-top:2px;font-size:12px}
 @container trts (max-width:640px){
@@ -929,20 +930,34 @@ const healDias=dia=>!dia?[]:hiossenPlat(dia).name.startsWith('Mini')?['4.0','4.5
 const healConn=dia=>!dia?'':hiossenPlat(dia).name.startsWith('Mini')?'Mini (M) 連接平台':'Regular (R) 連接平台';
 const hiossenText=im=>{const p=im&&hiossenPlat(im.dia);if(!p)return '';
   return `${p.name} Ø${im.dia}${im.len?' × '+im.len+' mm':''}${im.hd?`／癒合帽 Ø${im.hd}${im.hh?' × H'+im.hh:''} mm`:''}`};
-// 瑞士 Straumann BLC／BLX 植體：選直徑與長度（各直徑可用的長度不同；沒有癒合帽選單）
+// 瑞士 Straumann BLC／BLX 植體：選直徑與長度（各直徑可用的長度不同）；BLX 另可選癒合帽，BLC 沒有癒合帽選單
 const STRAUMANN={
   '瑞士Straumann BLC植體':{'3.3':['8','10','12','14','16','18'],'3.75':['6','8','10','12','14','16','18'],'4.5':['6','8','10','12','14','16','18'],'5.5':['6','8','10','12','14','16'],'6.5':['6','8','10','12','14']},
   '瑞士Straumann BLX植體':{'3.5':['6','8','10','12','14','16','18'],'3.75':['6','8','10','12','14','16','18'],'4.0':['6','8','10','12','14','16','18'],'4.5':['6','8','10','12','14','16','18'],'5.0':['6','8','10','12','14','16','18'],'5.5':['6','8','10','12','14','16'],'6.5':['6','8','10','12','14','16']},
 };
+// Straumann BLX 癒合帽：RB/WB 通用型（相容所有 BLX 植體）、WB 寬徑型（僅限 Ø5.0 以上植體）；外徑 × 牙齦高度 GH × 基台高度 AH
+const BLX='瑞士Straumann BLX植體';
+const BLX_HEAL=[{k:'RBWB',name:'RB/WB 通用型',short:'通用',dia:['4.0','5.0','6.5','7.5'],gh:['1.5','2.5','3.5']},
+  {k:'WB',name:'WB 寬徑型',short:'寬徑',dia:['6.0','7.5'],gh:['0.75','1.5'],min:5.0}];
+const BLX_AH={L:'Low 2.0',H:'High 4.0'};
+const blxTypes=dia=>!dia?[]:BLX_HEAL.filter(t=>!t.min||parseFloat(dia)>=t.min);
+const blxHealVals=dia=>blxTypes(dia).flatMap(t=>t.dia.map(v=>t.k+'|'+v));
+const blxType=hd=>BLX_HEAL.find(t=>t.k===(hd||'').split('|')[0]);
+const blxHealText=im=>{const t=blxType(im.hd);if(!t)return '';return `／癒合帽 ${t.name} Ø${im.hd.split('|')[1]}${im.hh?' GH'+im.hh:''}${im.ha?' AH '+BLX_AH[im.ha]:''} mm`};
 const isImplant=n=>n===HIOSSEN||n in STRAUMANN;
 const implLens=(n,dia)=>n===HIOSSEN?hiossenLens(dia):(STRAUMANN[n]?.[dia]||[]);
-const implText=(n,im)=>n===HIOSSEN?hiossenText(im):im&&STRAUMANN[n]?.[im.dia]?`${n.replace(/^瑞士|植體$/g,'')} Ø${im.dia}${im.len?' × '+im.len+' mm':''}`:'';
+const implText=(n,im)=>n===HIOSSEN?hiossenText(im):im&&STRAUMANN[n]?.[im.dia]?`${n.replace(/^瑞士|植體$/g,'')} Ø${im.dia}${im.len?' × '+im.len+' mm':''}${n===BLX?blxHealText(im):''}`:'';
+function blxHealCell(im,d){const t=blxType(im.hd),off=d||(im.dia?'':'disabled');
+  return `<div class="imp-grp"><div class="imp-lbl">癒合帽</div><div class="imp-pick"><select data-k="impHd" title="癒合帽類別與外徑" ${off}><option value="">外徑</option>${blxTypes(im.dia).map(ty=>`<optgroup label="${ty.name}">${ty.dia.map(v=>`<option value="${ty.k}|${v}" ${im.hd===ty.k+'|'+v?'selected':''}>${ty.short} Ø${v}</option>`).join('')}</optgroup>`).join('')}</select>
+<span class="imp-x">×</span><select data-k="impHh" title="牙齦高度 GH" ${d||(t?'':'disabled')}><option value="">GH</option>${(t?t.gh:[]).map(v=>`<option value="${v}" ${im.hh===v?'selected':''}>GH ${v}</option>`).join('')}</select>
+<span class="imp-x">×</span><select data-k="impHa" title="基台高度 AH" ${d||(t?'':'disabled')}><option value="">AH</option>${Object.entries(BLX_AH).map(([k,v])=>`<option value="${k}" ${im.ha===k?'selected':''}>${v}</option>`).join('')}</select></div></div>`}
 function trtNoteCell(p,x,d){
   const item=p.items.find(i=>i.id===x.itemId);
   if(!(item&&!item.custom&&isImplant(item.name)))return `<textarea class="note-ta" data-k="note" rows="1" ${d}>${esc(x.note)}</textarea>`;
   const n=item.name,im=x.implant||{},lens=implLens(n,im.dia);
-  if(n!==HIOSSEN)return `<div class="imp-row"><div class="imp-grp"><div class="imp-lbl">植體</div><div class="imp-pick"><select data-k="impDia" ${d}><option value="">直徑</option>${Object.keys(STRAUMANN[n]).map(v=>`<option value="${v}" ${im.dia===v?'selected':''}>Ø${v}</option>`).join('')}</select>
-<span class="imp-x">×</span><select data-k="impLen" ${d||(im.dia?'':'disabled')}><option value="">長度</option>${lens.map(v=>`<option value="${v}" ${im.len===v?'selected':''}>${v} mm</option>`).join('')}</select></div></div></div>`;
+  if(n!==HIOSSEN)return `<div class="imp-row${n===BLX?' blx':''}"><div class="imp-grp"><div class="imp-lbl">植體</div><div class="imp-pick"><select data-k="impDia" ${d}><option value="">直徑</option>${Object.keys(STRAUMANN[n]).map(v=>`<option value="${v}" ${im.dia===v?'selected':''}>Ø${v}</option>`).join('')}</select>
+<span class="imp-x">×</span><select data-k="impLen" ${d||(im.dia?'':'disabled')}><option value="">長度</option>${lens.map(v=>`<option value="${v}" ${im.len===v?'selected':''}>${v} mm</option>`).join('')}</select></div></div>${n===BLX?blxHealCell(im,d):''}</div>
+    ${n===BLX&&im.dia&&parseFloat(im.dia)<5?'<div class="hint imp-plat">WB 寬徑型癒合帽僅限 Ø5.0 以上植體</div>':''}`;
   return `<div class="imp-row"><div class="imp-grp"><div class="imp-lbl">植體</div><div class="imp-pick"><select data-k="impDia" ${d}><option value="">直徑</option>${HIOSSEN_PLAT.map(pl=>`<optgroup label="${pl.name}（${pl.note}）">${pl.dia.map(v=>`<option value="${v}" ${im.dia===v?'selected':''}>Ø${v}</option>`).join('')}</optgroup>`).join('')}</select>
 <span class="imp-x">×</span><select data-k="impLen" ${d||(im.dia?'':'disabled')}><option value="">長度</option>${lens.map(v=>`<option value="${v}" ${im.len===v?'selected':''}>${v} mm${v==='15'&&hiossenPlat(im.dia).name.startsWith('Regular')?'*':''}</option>`).join('')}</select></div></div>
     <div class="imp-grp"><div class="imp-lbl">癒合帽</div><div class="imp-pick"><select data-k="impHd" title="癒合帽外徑" ${d||(im.dia?'':'disabled')}><option value="">外徑</option>${healDias(im.dia).map(v=>`<option value="${v}" ${im.hd===v?'selected':''}>Ø${v}${v==='8.0'?' UW':''}</option>`).join('')}</select>
@@ -1070,12 +1085,14 @@ $('#main').addEventListener('input',e=>{
       const v=teethParts(it);r.tr.querySelectorAll('[data-k="teethIn"]').forEach(i=>{i.value=v[i.dataset.jaw];i.classList.remove('bad')});alignTeeth(r.tr.querySelector('.teeth-cell'));
       if(r.name==='payments'&&(!it.amount||it.amtAuto)){it.amount=Math.max(0,itemAmt(item)-itemPaid(p,item.id,it));it.amtAuto=true;r.tr.querySelector('[data-k="amount"]').value=it.amount||''}}
     if(r.name==='treatments'){const td=r.tr.querySelector('.t-note');td.innerHTML=trtNoteCell(p,it,'');const nt=td.querySelector('.note-ta');if(nt)growNotes(nt)}}
-  else if(['impDia','impLen','impHd','impHh'].includes(k)){ // 植體：直徑換了，長度／癒合帽不適用就清掉（Straumann 沒有癒合帽）
+  else if(['impDia','impLen','impHd','impHh','impHa'].includes(k)){ // 植體：直徑換了，長度／癒合帽不適用就清掉（BLC 沒有癒合帽）
     const n=p.items.find(i=>i.id===it.itemId)?.name;
-    const im=it.implant=it.implant||{};im[{impDia:'dia',impLen:'len',impHd:'hd',impHh:'hh'}[k]]=t.value;
+    const im=it.implant=it.implant||{};im[{impDia:'dia',impLen:'len',impHd:'hd',impHh:'hh',impHa:'ha'}[k]]=t.value;
     if(!implLens(n,im.dia).includes(im.len))im.len='';
-    if(n!==HIOSSEN){im.hd='';im.hh=''}else{if(!healDias(im.dia).includes(im.hd))im.hd='';if(!im.dia)im.hh=''}
-    it.note=implText(n,im);if(k==='impDia'){const td=r.tr.querySelector('.t-note');td.innerHTML=trtNoteCell(p,it,'')}}
+    if(n===HIOSSEN){if(!healDias(im.dia).includes(im.hd))im.hd='';if(!im.dia)im.hh='';im.ha=''}
+    else if(n===BLX){if(!blxHealVals(im.dia).includes(im.hd))im.hd='';const ty=blxType(im.hd);if(!ty||!ty.gh.includes(im.hh))im.hh='';if(!ty)im.ha=''}
+    else{im.hd='';im.hh='';im.ha=''}
+    it.note=implText(n,im);if(k==='impDia'||(k==='impHd'&&n===BLX)){const td=r.tr.querySelector('.t-note');td.innerHTML=trtNoteCell(p,it,'')}}
   else if(k==='taken')it.taken=t.checked;
   else if(k in it||['date','note','handler','remark'].includes(k)){it[k]=t.value;
     if(r.name==='payments'&&(k==='date'||k==='handler'))p.payments.forEach(x=>{if(payGid(x)===payGid(it))x[k]=t.value})} // 同一次繳費共用日期與經手助理
