@@ -73,6 +73,27 @@ tr.editing td{background:var(--accent-soft)}
 .item-list{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 .item-list span{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;display:inline-flex;align-items:center;gap:2px}
 .item-list button{border:0;background:none;padding:0 6px;color:var(--danger)}
+/* 乳牙套尺寸：4 列 × 12 格的表格狀按鈕 */
+.sg{display:grid;gap:4px;min-width:640px;padding:8px 6px 2px 0} /* 上、右留空間給支數標記 */
+.sg-h{text-align:center;font-size:12px;font-weight:600;color:var(--muted);border-bottom:2px solid var(--line);padding-bottom:2px}
+.sg-r{display:flex;flex-direction:column;justify-content:center;font-weight:700;padding-right:6px;font-size:13px;line-height:1.2}
+.sg-r small{font-weight:400;color:var(--muted);font-size:11px}
+.sg-sep{grid-column:1/-1;height:6px}
+.sg-corner{font-weight:400;font-size:11px;align-self:end;padding-right:6px;border-bottom:0}
+.sg-b .mx{font-size:14px;font-weight:600}
+.sg-b{position:relative}
+.sg-n{position:absolute;top:-6px;right:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--danger);color:#fff;font:700 11px/18px system-ui,sans-serif;font-style:normal;text-align:center}
+.sg-picks{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.sg-pick{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:8px;padding:2px 4px 2px 8px;background:var(--panel);color:var(--ink)}
+.sg-pick b{min-width:16px;text-align:center}
+.sg-pick .btn-sm{padding:0 7px;line-height:20px}
+.sg-b{padding:7px 0;display:flex;justify-content:center;align-items:center;background:var(--soft)}
+.sg-b .pal{font-size:15px}
+.sg-b.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+/* Palmer 角標：左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉ */
+.pal{display:inline-block;padding:0 3px;line-height:1.15;font-weight:700;border:0 solid currentColor}
+.pal.ul{border-left-width:2px;border-bottom-width:2px}.pal.ur{border-right-width:2px;border-bottom-width:2px}
+.pal.ll{border-left-width:2px;border-top-width:2px}.pal.lr{border-right-width:2px;border-top-width:2px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 18px;border-radius:8px;z-index:90;max-width:90vw;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 @media (max-width:640px){header{padding:10px 12px}main{padding:12px}}
 </style>
@@ -115,6 +136,8 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
       <div class="field req"><label for="fChart">病歷號</label><input id="fChart" required></div>
       <div class="field"><label for="fTooth">牙位</label><input id="fTooth" placeholder="例如 36、11-21"></div>
       <div class="field req" style="grid-column:span 2"><label for="fItem">耗材種類</label><select id="fItem" required></select></div>
+      <div class="field req" id="fSpecF" hidden><label for="fSpec" id="fSpecL">長度</label><select id="fSpec"></select></div>
+      <div class="field req" id="fGridF" hidden style="grid-column:1/-1"><label id="fGridL">尺寸</label><div class="scroll-x"><div class="sg" id="fGrid"></div></div><div class="sub" id="fGridSel"></div></div>
       <div class="field req"><label for="fQty">數量</label><input type="number" id="fQty" min="1" step="1" value="1" required></div>
       <div class="field req"><label for="fDoc">醫師</label><select id="fDoc" required></select></div>
       <div class="field req"><label for="fAsst">助理</label><select id="fAsst" required></select></div>
@@ -181,6 +204,76 @@ let cfg={};             // csConfig/settings：耗材種類 items（還沒設定
 const DEFAULT_ITEMS=['玻璃纖維釘','兒童乳牙套(SSC)','MTA(管)','MTA(粉)','膠原蛋白(速吉安)','膠原蛋白(亞果)','FDBA骨粉(粗)','FDBA骨粉(細)',
   '可吸收再生膜(海昌/20*30mm/盒)','不可吸收再生膜(cytoplast)','鈦網(Titanlum Membrane)','植牙骨釘(Bone screw)','植牙骨釘(Tenting screw)','植牙骨釘(Bone tack)',
   '植體(Hiossen)','矯正骨釘','手捏臨時假牙','隱適美口掃'];
+// 需要追加選擇規格的耗材（存在紀錄的 spec 欄位）
+const ITEM_SPECS={
+  '植牙骨釘(Bone screw)':{label:'長度',opts:['6 mm','8 mm','10 mm']},
+  '植牙骨釘(Tenting screw)':{label:'長度',opts:['8.5 mm','10.0 mm','11.5 mm','13.0 mm']},
+  '玻璃纖維釘':{label:'顏色',opts:['黃','紅','藍','綠'],colors:{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c7',綠:'#2e8b3d'}}, // 字體顯示對應顏色（要和 index.html 的 CS_SPEC_COLORS 一致）
+  // 乳牙套：照診所套組盒的排列，4 列 × 12 格。上到下：上顎 D（第一乳臼齒）、上顎 E（第二乳臼齒）、下顎 D、下顎 E；
+  // 每列左半是 LEFT（7 → 2 號），右半是 RIGHT（2 → 7 號）。存成例如「左上 D4」，畫面用 Palmer 角標（⌊D4、D4⌋、⌈D4、D4⌉）顯示
+  '兒童乳牙套(SSC)':{label:'尺寸',grid:{halves:[['左','LEFT'],['右','RIGHT']],
+    rows:[['上','D','第一乳臼齒'],['上','E','第二乳臼齒'],['下','D','第一乳臼齒'],['下','E','第二乳臼齒']],sizes:[2,3,4,5,6,7]}},
+  // 矯正骨釘：直徑（列）× 長度（欄）的表格，存成例如「∅1.6 × 8 mm」
+  '矯正骨釘':{label:'規格',matrix:{rowLabel:'直徑 (Diameter)',colLabel:'長度 (Length)',rows:['1.4','1.6','1.8'],cols:['6','8','10','12']}},
+};
+const matrixVal=(r,c)=>`∅${r} × ${c} mm`;
+// 表格格子的順序（左半大到小、右半小到大），也是排序用的規格順序
+const gridCells=(G,[ud,t])=>G.halves.flatMap(([side],i)=>(i?G.sizes:[...G.sizes].reverse()).map(z=>`${side}${ud} ${t}${z}`));
+Object.values(ITEM_SPECS).forEach(s=>{
+  if(s.grid)s.opts=s.grid.rows.flatMap(r=>gridCells(s.grid,r));
+  if(s.matrix)s.opts=s.matrix.rows.flatMap(r=>s.matrix.cols.map(c=>matrixVal(r,c)));
+});
+const isGrid=s=>!!(s&&(s.grid||s.matrix)); // 用表格按鈕點選（可以複選）
+// Palmer 角標：左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉（與套組盒標示相同）
+const palmer=v=>{const m=/^([左右])([上下]) ([DE]\d)$/.exec(v||'');return m?`<span class="pal ${m[2]==='上'?'u':'l'}${m[1]==='左'?'l':'r'}" title="${esc(v)}">${esc(m[3])}</span>`:''};
+let gridSel={}; // 表格按鈕選到的規格 → 支數（新增時可複選；修改既有紀錄時只能選一個規格）
+const itemLabel=x=>x.item+(x.spec?` ${x.spec}`:'');
+const specColor=x=>ITEM_SPECS[x.item]?.colors?.[x.spec]||'';
+// 表格用：規格有對應顏色時用該顏色顯示
+const itemHtml=x=>esc(x.item)+(x.spec?' '+(specColor(x)?`<b style="color:${specColor(x)}">${esc(x.spec)}</b>`:palmer(x.spec)?`${esc(x.spec.slice(0,2))} ${palmer(x.spec)}`:esc(x.spec)):'');
+const specIdx=x=>x.spec?(ITEM_SPECS[x.item]?.opts.indexOf(x.spec)??99)+1:0; // 排序用：沒有規格排前面，其餘依選單順序
+// 選了需要規格的耗材時顯示規格選單（必填）
+function syncSpec(v,qty){
+  const s=ITEM_SPECS[$('#fItem').value],sel=$('#fSpec'),grid=isGrid(s);
+  $('#fGridF').hidden=!grid;gridSel=grid&&v?{[v]:Number(qty)||1}:{};
+  // 表格點選時，數量在表格裡逐一設定，不用下方的「數量」欄
+  $('#fQty').closest('.field').hidden=grid;$('#fQty').required=!grid;
+  if(grid){$('#fGridL').textContent=s.label;drawGrid(s)}
+  $('#fSpecF').hidden=!s||grid;sel.required=!!s&&!grid;
+  if(grid){sel.innerHTML='';colorSpec();return}
+  sel.innerHTML=s?'<option value="">請選擇</option>'+s.opts.map(o=>`<option value="${esc(o)}"${s.colors?.[o]?` style="color:${s.colors[o]};font-weight:700"`:''}>${esc(o)}</option>`).join(''):'';
+  if(s){$('#fSpecL').textContent=s.label;sel.value=v||''}
+  colorSpec();
+}
+// 表格狀按鈕：乳牙套尺寸（grid）或 直徑 × 長度（matrix）
+function drawGrid(s){
+  // 已選清單：每個規格可以用 − ＋ 調整支數（減到 0 就取消）
+  const hint=lab=>{const sel=s.opts.filter(v=>gridSel[v]),tot=sel.reduce((t,v)=>t+gridSel[v],0);
+    $('#fGridSel').innerHTML=sel.length?`<div class="sg-picks">已選${sel.length>1?` ${sel.length} 種、共 ${tot} 支`:''}：${sel.map(v=>`<span class="sg-pick" data-pk="${esc(v)}">${lab(v)}<button type="button" class="btn-sm" data-dec aria-label="減少">−</button><b>${gridSel[v]}</b><button type="button" class="btn-sm" data-inc aria-label="增加">＋</button></span>`).join('')}</div>${sel.length>1?`<div class="sub">送出後每個${s.label}各存一筆</div>`:''}`
+      :`<span class="reason">請點選${s.label}</span><span class="sub">${editing?'':'（可以複選）'}再點一次同一格可以增加支數</span>`};
+  const btn=(v,html,title)=>{const n=gridSel[v]||0;return `<button type="button" class="sg-b${n?' on':''}" data-sg="${esc(v)}" aria-pressed="${!!n}" title="${esc(title||v)}">${html}${n?`<i class="sg-n">${n}</i>`:''}</button>`};
+  if(s.matrix){const M=s.matrix;
+    let h=`<div class="sg-h sg-corner">${esc(M.rowLabel)} ＼ ${esc(M.colLabel)}</div>${M.cols.map(c=>`<div class="sg-h">${esc(c)} mm</div>`).join('')}`;
+    M.rows.forEach(r=>{h+=`<div class="sg-r">∅ ${esc(r)} mm</div>`+M.cols.map(c=>btn(matrixVal(r,c),`<span class="mx">∅${esc(r)} × ${esc(c)}</span>`)).join('')});
+    $('#fGrid').style.gridTemplateColumns=`auto repeat(${M.cols.length},minmax(70px,1fr))`;
+    $('#fGrid').style.minWidth='0';$('#fGrid').innerHTML=h;
+    hint(esc);return;
+  }
+  const G=s.grid,n=G.sizes.length;$('#fGrid').style.minWidth='';
+  let h=`<div></div>${G.halves.map(([s,en],i)=>`<div class="sg-h" style="grid-column:${i?n+3:2}/span ${n}">${en}　${s}</div>`).join('')}`;
+  G.rows.forEach((row,ri)=>{const [ud,t,name]=row;
+    if(ri&&ud!==G.rows[ri-1][0])h+='<div class="sg-sep"></div>'; // 上顎、下顎之間留空
+    h+=`<div class="sg-r">${ud==='上'?'UPPER':'LOWER'} ${t}<small>${ud}顎・${name}</small></div>`;
+    gridCells(G,row).forEach((v,i)=>{if(i===n)h+='<div></div>';
+      h+=btn(v,palmer(v),`${v}（${ud}顎${name}）`)});
+  });
+  $('#fGrid').style.gridTemplateColumns=`auto repeat(${n},minmax(40px,1fr)) 10px repeat(${n},minmax(40px,1fr))`;
+  $('#fGrid').innerHTML=h;
+  // 依表格順序列出已選的尺寸
+  hint(v=>`${esc(v.slice(0,2))} ${palmer(v)}`);
+}
+// 規格選單本身也用選到的顏色顯示
+function colorSpec(){const c=ITEM_SPECS[$('#fItem').value]?.colors?.[$('#fSpec').value]||'';$('#fSpec').style.color=c;$('#fSpec').style.fontWeight=c?'700':''}
 const itemList=()=>Array.isArray(cfg.items)?cfg.items:DEFAULT_ITEMS;
 let items=new Map();    // 目前讀到的登記紀錄
 let editing=null;       // 正在修改的紀錄 id
@@ -284,7 +377,7 @@ function filtered(){
     if(view.st==='open'?!['pending','rejected'].includes(x.status):(view.st!=='all'&&x.status!==view.st))return false;
     if(view.doc&&x.doctorId!==view.doc)return false;
     if(view.item&&x.item!==view.item)return false;
-    if(q&&![x.pName,x.chartNo,x.item,x.tooth].some(v=>String(v||'').toLowerCase().includes(q)))return false;
+    if(q&&![x.pName,x.chartNo,itemLabel(x),x.tooth].some(v=>String(v||'').toLowerCase().includes(q)))return false;
     return true;
   }).sort((a,b)=>({rejected:0,pending:1,confirmed:2}[a.status]-{rejected:0,pending:1,confirmed:2}[b.status])||b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
 }
@@ -308,7 +401,7 @@ function render(){
     (list.length?list.map(x=>`<tr data-id="${esc(x.id)}"${editing===x.id?' class="editing"':''}>
       <td class="nw">${esc(fmtD(x.date))}<div class="sub">${esc(x.date.slice(0,4))}</div></td>
       <td>${esc(x.pName)}${x.pBirth?`<div class="sub">生日 ${esc(x.pBirth)}</div>`:''}</td>
-      <td class="nw">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${esc(x.item)}</td><td class="num">${esc(x.qty)}</td>
+      <td class="nw">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${itemHtml(x)}</td><td class="num">${esc(x.qty)}</td>
       <td class="nw">${esc(byId(x.doctorId)?.name||x.doctorName||'')}</td><td class="nw">${esc(byId(x.assistantId)?.name||x.assistantName||'')}</td>
       <td>${statusHtml(x)}</td>
       <td class="nw">${canChange(x)&&x.status!=='confirmed'?`<button type="button" class="btn-sm${x.status==='rejected'?' btn-primary':''}" data-edit>${x.status==='rejected'?'修改重送':'修改'}</button> `:''}${canChange(x)?'<button type="button" class="btn-sm btn-danger" data-del>刪除</button>':''}</td>
@@ -319,50 +412,69 @@ function render(){
 const F=['fDate','fName','fBirth','fChart','fTooth','fItem','fQty','fDoc','fAsst'];
 function setEditing(x){
   editing=x?x.id:null;
-  $('#fTitle').textContent=x?`修改耗材登記（${x.pName}・${x.item}）`:'登記耗材';
+  $('#fTitle').textContent=x?`修改耗材登記（${x.pName}・${itemLabel(x)}）`:'登記耗材';
   $('#fSubmit').textContent=x?(x.status==='rejected'?'修改後重新送出':'儲存修改'):'送出，等醫師確認';
   $('#fCancel').hidden=!x;$('#fHint').hidden=!!x;
   $('#fReason').hidden=!(x&&x.status==='rejected'&&x.reason);$('#fReason').textContent=x&&x.reason?`醫師退回原因：${x.reason}`:'';
   if(x){const v={fDate:x.date,fName:x.pName,fBirth:x.pBirth||'',fChart:x.chartNo,fTooth:x.tooth||'',fItem:x.item,fQty:x.qty,fDoc:x.doctorId,fAsst:x.assistantId};
     // 已離職的醫師／助理：暫時加進選單
     [['fDoc',x.doctorId,x.doctorName],['fAsst',x.assistantId,x.assistantName]].forEach(([k,id,n])=>{if(id&&!$('#'+k).querySelector(`option[value="${CSS.escape(id)}"]`))$('#'+k).insertAdjacentHTML('beforeend',`<option value="${esc(id)}">${esc(byId(id)?codeName(byId(id)):n||id)}</option>`)});
-    fillItems(x.item);F.forEach(k=>$('#'+k).value=v[k]);$('#form').scrollIntoView({behavior:'smooth',block:'start'});}
+    fillItems(x.item);F.forEach(k=>$('#'+k).value=v[k]);syncSpec(x.spec,x.qty);$('#form').scrollIntoView({behavior:'smooth',block:'start'});}
   render();
 }
 $('#form').addEventListener('submit',async e=>{
   e.preventDefault();if(!canEdit())return;
-  const g=k=>$('#'+k).value.trim(),qty=Number(g('fQty'));
-  if(!(qty>0)){alert('數量要大於 0');return}
+  const g=k=>$('#'+k).value.trim();
+  // 表格按鈕可以複選：新增時每個規格各存一筆紀錄，數量是表格裡設定的支數；其他耗材用「數量」欄
+  const sp=ITEM_SPECS[g('fItem')],grid=isGrid(sp);
+  const specs=sp?(grid?sp.opts.filter(v=>gridSel[v]):[g('fSpec')].filter(Boolean)):[''];
+  if(sp&&!specs.length){alert(`請選擇${sp.label}`);return}
+  if(!grid&&!(Number(g('fQty'))>0)){alert('數量要大於 0');return}
   const old=editing&&items.get(editing),now=Date.now(),who=myName();
-  const x=old?JSON.parse(JSON.stringify(old)):{id:newId(),createdAt:now,createdBy:who,hist:[]};
-  Object.assign(x,{date:g('fDate'),month:g('fDate').slice(0,7),pName:g('fName'),pBirth:g('fBirth'),chartNo:g('fChart'),tooth:g('fTooth'),item:g('fItem'),qty,
-    doctorId:g('fDoc'),doctorName:byId(g('fDoc'))?.name||'',assistantId:g('fAsst'),assistantName:byId(g('fAsst'))?.name||'',
-    status:'pending',updatedAt:now,updatedBy:who});
-  x.hist=(x.hist||[]).concat({a:!old?'create':old.status==='rejected'?'resubmit':'edit',at:now,by:who});
-  if(old?.status==='rejected'){x.prevReason=old.reason;delete x.reason;delete x.review}
+  const xs=specs.map(spec=>{const qty=grid?gridSel[spec]:Number(g('fQty'));
+    const x=old?JSON.parse(JSON.stringify(old)):{id:newId(),createdAt:now,createdBy:who,hist:[]};
+    Object.assign(x,{date:g('fDate'),month:g('fDate').slice(0,7),pName:g('fName'),pBirth:g('fBirth'),chartNo:g('fChart'),tooth:g('fTooth'),item:g('fItem'),spec,qty,
+      doctorId:g('fDoc'),doctorName:byId(g('fDoc'))?.name||'',assistantId:g('fAsst'),assistantName:byId(g('fAsst'))?.name||'',
+      status:'pending',updatedAt:now,updatedBy:who});
+    x.hist=(x.hist||[]).concat({a:!old?'create':old.status==='rejected'?'resubmit':'edit',at:now,by:who});
+    if(old?.status==='rejected'){x.prevReason=old.reason;delete x.reason;delete x.review}
+    return x;
+  });
   const btn=$('#fSubmit');btn.disabled=true;
   try{
-    await DB.put(x);
-    if(!fs){items.set(x.id,x);}
-    try{localStorage.setItem('cs_last_asst',x.assistantId)}catch(err){}
+    for(const x of xs){await DB.put(x);if(!fs)items.set(x.id,x)}
+    try{localStorage.setItem('cs_last_asst',xs[0].assistantId)}catch(err){}
     if(old){setEditing(null);clearForm(true);toast(old.status==='rejected'?'已重新送出，等醫師確認':'已儲存修改')}
-    else{['fTooth','fItem'].forEach(k=>$('#'+k).value='');$('#fQty').value=1;$('#fItem').focus();toast('已登記，等醫師確認')}
+    else{['fTooth','fItem'].forEach(k=>$('#'+k).value='');$('#fQty').value=1;syncSpec();$('#fItem').focus();toast(xs.length>1?`已登記 ${xs.length} 筆，等醫師確認`:'已登記，等醫師確認')}
     render();
   }catch(err){console.error(err);alert('儲存失敗：'+(err.code==='permission-denied'?'沒有權限（確認的紀錄不能修改，或安全規則尚未更新）':err.message))}
   finally{btn.disabled=false}
 });
 function clearForm(keepStaff){
-  ['fName','fBirth','fChart','fTooth','fItem'].forEach(k=>$('#'+k).value='');$('#fQty').value=1;
+  ['fName','fBirth','fChart','fTooth','fItem'].forEach(k=>$('#'+k).value='');$('#fQty').value=1;syncSpec();
   if(!keepStaff){$('#fDoc').value=''}
   $('#fDate').value=$('#fDate').value||today();
 }
-$('#clearPt').addEventListener('click',()=>{['fName','fBirth','fChart','fTooth','fItem'].forEach(k=>$('#'+k).value='');$('#fQty').value=1;$('#fName').focus()});
+$('#clearPt').addEventListener('click',()=>{['fName','fBirth','fChart','fTooth','fItem'].forEach(k=>$('#'+k).value='');$('#fQty').value=1;syncSpec();$('#fName').focus()});
+$('#fItem').addEventListener('change',()=>syncSpec());
+$('#fSpec').addEventListener('change',colorSpec);
+$('#fGrid').addEventListener('click',e=>{const b=e.target.closest('[data-sg]');if(!b)return;const v=b.dataset.sg;
+  // 點格子：沒選過 → 1 支；已選 → 再加 1 支。修改既有紀錄時換成別格（保留支數）
+  if(editing&&!gridSel[v]){const n=Object.values(gridSel)[0]||1;gridSel={[v]:n}}
+  else gridSel={...gridSel,[v]:(gridSel[v]||0)+1};
+  drawGrid(ITEM_SPECS[$('#fItem').value])});
+$('#fGridSel').addEventListener('click',e=>{
+  const p=e.target.closest('[data-pk]'),b=e.target.closest('[data-inc],[data-dec]');if(!p||!b)return;
+  const v=p.dataset.pk,n=(gridSel[v]||0)+(b.hasAttribute('data-inc')?1:-1);
+  gridSel={...gridSel};if(n>0)gridSel[v]=n;else delete gridSel[v];
+  drawGrid(ITEM_SPECS[$('#fItem').value]);
+});
 $('#fCancel').addEventListener('click',()=>{setEditing(null);clearForm(true)});
 $('#list').addEventListener('click',async e=>{
   const tr=e.target.closest('tr[data-id]');if(!tr)return;const x=items.get(tr.dataset.id);if(!x)return;
   if(e.target.closest('[data-edit]'))setEditing(x);
   if(e.target.closest('[data-del]')){
-    if(!confirm(`刪除這筆耗材登記？\n${x.date}　${x.pName}　${x.item} × ${x.qty}${x.status==='confirmed'?'\n（這筆醫師已確認）':''}`))return;
+    if(!confirm(`刪除這筆耗材登記？\n${x.date}　${x.pName}　${itemLabel(x)} × ${x.qty}${x.status==='confirmed'?'\n（這筆醫師已確認）':''}`))return;
     try{await DB.del(x.id);if(!fs)items.delete(x.id);if(editing===x.id)setEditing(null);render()}
     catch(err){alert('刪除失敗：'+(err.code==='permission-denied'?'沒有權限':err.message))}
   }
@@ -389,14 +501,14 @@ function exportExcel(sortBy){
   const L=itemList(),io=n=>{const i=L.indexOf(n);return i<0?999:i};
   const docKey=x=>{const s=byId(x.doctorId);return s?String(s.code||s.name||''):'~'+(x.doctorName||'')};
   const byDate=(a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0);
-  const list=filtered().sort(sortBy==='item'?(a,b)=>io(a.item)-io(b.item)||a.item.localeCompare(b.item,'zh-Hant')||byDate(a,b)
+  const list=filtered().sort(sortBy==='item'?(a,b)=>io(a.item)-io(b.item)||a.item.localeCompare(b.item,'zh-Hant')||specIdx(a)-specIdx(b)||byDate(a,b)
     :sortBy==='doc'?(a,b)=>docKey(a).localeCompare(docKey(b),'zh-Hant',{numeric:true})||byDate(a,b):byDate);
   const at=t=>t?new Date(t).toLocaleString('zh-TW',{hour12:false}):'';
-  const rows=list.map(x=>({'日期':x.date,'病患姓名':x.pName,'病患生日':x.pBirth||'','病歷號':x.chartNo,'牙位':x.tooth||'','耗材種類':x.item,'數量':Number(x.qty)||0,
+  const rows=list.map(x=>({'日期':x.date,'病患姓名':x.pName,'病患生日':x.pBirth||'','病歷號':x.chartNo,'牙位':x.tooth||'','耗材種類':x.item,'規格':x.spec||'','數量':Number(x.qty)||0,
     '醫師':byId(x.doctorId)?.name||x.doctorName||'','助理':byId(x.assistantId)?.name||x.assistantName||'','狀態':ST[x.status]||x.status,
     '確認／退回':x.review?.byName||'','確認／退回時間':at(x.review?.at),'退回原因':x.status==='rejected'?(x.reason||''):'','登記者':x.createdBy||'','登記時間':at(x.createdAt)}));
   const ws=XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[11,10,11,10,10,28,6,8,8,11,10,18,20,12,18].map(w=>({wch:w}));
+  ws['!cols']=[11,10,11,10,10,28,8,6,8,8,11,10,18,20,12,18].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'耗材登記');
   const tag=[view.item,view.doc&&byId(view.doc)?.name,view.st!=='all'&&$('#vSt').selectedOptions[0].text.replace(/（.*）/,'')].filter(Boolean).join('_');
   XLSX.writeFile(wb,`耗材登記_${view.month}${tag?'_'+tag:''}.xlsx`.replace(/[\\/:*?"<>|]/g,'-'));
@@ -455,18 +567,19 @@ const docName=x=>byId(x.doctorId)?.name||x.doctorName||'（未填）';
 function renderStats(){
   if(!stData){$('#stTable').innerHTML='<tbody><tr><td class="empty">選擇日期區間後按「開始統計」。</td></tr></tbody>';$('#stInfo').textContent='';$('#stDetail').hidden=true;return}
   const by=$('#sBy').value,doc=$('#sDoc').value,data=stData.filter(x=>!doc||x.doctorId===doc);
-  const keyOf=x=>by==='doc'?docName(x):by==='itemDoc'?x.item+'\u0001'+docName(x):x.item;
-  const g=new Map();
-  data.forEach(x=>{const k=keyOf(x);if(!g.has(k))g.set(k,{k,n:0,q:{pending:0,rejected:0,confirmed:0}});const r=g.get(k);r.n++;r.q[x.status]=(r.q[x.status]||0)+(Number(x.qty)||0)});
-  // 依耗材清單順序排（清單外的放後面），醫師依姓名
+  // 有規格的耗材（例如 Bone screw 各長度）分開統計
+  const keyOf=x=>by==='doc'?docName(x):by==='itemDoc'?itemLabel(x)+'\u0001'+docName(x):itemLabel(x);
+  // 依耗材清單順序排（清單外的放後面），同耗材依規格順序，醫師依姓名
   const L=itemList(),io=n=>{const i=L.indexOf(n);return i<0?999:i};
-  const rows=[...g.values()].sort((a,b)=>{const [ai,ad]=a.k.split('\u0001'),[bi,bd]=b.k.split('\u0001');return by==='doc'?ai.localeCompare(bi,'zh-Hant'):(io(ai)-io(bi))||ai.localeCompare(bi,'zh-Hant')||String(ad).localeCompare(String(bd),'zh-Hant')});
+  const g=new Map();
+  data.forEach(x=>{const k=keyOf(x);if(!g.has(k))g.set(k,{k,x,o:io(x.item)*100+specIdx(x),n:0,q:{pending:0,rejected:0,confirmed:0}});const r=g.get(k);r.n++;r.q[x.status]=(r.q[x.status]||0)+(Number(x.qty)||0)});
+  const rows=[...g.values()].sort((a,b)=>{const [ai,ad]=a.k.split('\u0001'),[bi,bd]=b.k.split('\u0001');return by==='doc'?ai.localeCompare(bi,'zh-Hant'):(a.o-b.o)||ai.localeCompare(bi,'zh-Hant')||String(ad).localeCompare(String(bd),'zh-Hant')});
   const tot={n:0,pending:0,rejected:0,confirmed:0};rows.forEach(r=>{tot.n+=r.n;['pending','rejected','confirmed'].forEach(s=>tot[s]+=r.q[s])});
   $('#stInfo').textContent=`${stRange}　共 ${tot.n} 筆`;
   const head=by==='doc'?'<th>醫師</th>':by==='itemDoc'?'<th>耗材種類</th><th>醫師</th>':'<th>耗材種類</th>';
-  const cells=k=>{const [a,b]=k.split('\u0001');return by==='itemDoc'?`<td>${esc(a)}</td><td class="nw">${esc(b)}</td>`:`<td>${esc(a)}</td>`};
+  const cells=r=>{const [a,b]=r.k.split('\u0001');return by==='itemDoc'?`<td>${itemHtml(r.x)}</td><td class="nw">${esc(b)}</td>`:by==='item'?`<td>${itemHtml(r.x)}</td>`:`<td>${esc(a)}</td>`};
   $('#stTable').innerHTML=`<thead><tr>${head}<th class="num">已確認數量</th><th class="num">待醫師確認</th><th class="num">醫師退回</th><th class="num">合計數量</th><th class="num">筆數</th><th></th></tr></thead><tbody>`+
-    (rows.length?rows.map(r=>`<tr${stKey===r.k?' class="editing"':''}>${cells(r.k)}<td class="num"><b>${r.q.confirmed}</b></td><td class="num">${r.q.pending||''}</td><td class="num">${r.q.rejected?`<span class="reason">${r.q.rejected}</span>`:''}</td><td class="num">${r.q.confirmed+r.q.pending+r.q.rejected}</td><td class="num">${r.n}</td><td><button type="button" class="btn-sm" data-stk="${esc(r.k)}">明細</button></td></tr>`).join('')
+    (rows.length?rows.map(r=>`<tr${stKey===r.k?' class="editing"':''}>${cells(r)}<td class="num"><b>${r.q.confirmed}</b></td><td class="num">${r.q.pending||''}</td><td class="num">${r.q.rejected?`<span class="reason">${r.q.rejected}</span>`:''}</td><td class="num">${r.q.confirmed+r.q.pending+r.q.rejected}</td><td class="num">${r.n}</td><td><button type="button" class="btn-sm" data-stk="${esc(r.k)}">明細</button></td></tr>`).join('')
       +`<tr><th${by==='itemDoc'?' colspan="2"':''}>合計</th><th class="num">${tot.confirmed}</th><th class="num">${tot.pending}</th><th class="num">${tot.rejected}</th><th class="num">${tot.confirmed+tot.pending+tot.rejected}</th><th class="num">${tot.n}</th><th></th></tr>`
       :`<tr><td colspan="8" class="empty">這段期間沒有耗材登記</td></tr>`)+'</tbody>';
   // 明細
@@ -475,7 +588,7 @@ function renderStats(){
   const st=$('#stDetailSt').value,list=det.filter(x=>!st||x.status===st).sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
   $('#stDetailTitle').textContent=`明細：${stKey.replace('\u0001','・')}（${list.length} 筆）`;
   $('#stDetailTable').innerHTML='<thead><tr><th>日期</th><th>病患</th><th>病歷號</th><th>牙位</th><th>耗材種類</th><th class="num">數量</th><th>醫師</th><th>助理</th><th>狀態</th></tr></thead><tbody>'+
-    (list.length?list.map(x=>`<tr><td class="nw">${esc(x.date)}</td><td>${esc(x.pName)}${x.pBirth?`<div class="sub">生日 ${esc(x.pBirth)}</div>`:''}</td><td class="nw">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${esc(x.item)}</td><td class="num">${esc(x.qty)}</td><td class="nw">${esc(docName(x))}</td><td class="nw">${esc(byId(x.assistantId)?.name||x.assistantName||'')}</td><td>${statusHtml(x)}</td></tr>`).join('')
+    (list.length?list.map(x=>`<tr><td class="nw">${esc(x.date)}</td><td>${esc(x.pName)}${x.pBirth?`<div class="sub">生日 ${esc(x.pBirth)}</div>`:''}</td><td class="nw">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${itemHtml(x)}</td><td class="num">${esc(x.qty)}</td><td class="nw">${esc(docName(x))}</td><td class="nw">${esc(byId(x.assistantId)?.name||x.assistantName||'')}</td><td>${statusHtml(x)}</td></tr>`).join('')
       :'<tr><td colspan="9" class="empty">沒有符合的紀錄</td></tr>')+'</tbody>';
 }
 document.querySelectorAll('[data-rng]').forEach(b=>b.addEventListener('click',()=>setRange(b.dataset.rng)));

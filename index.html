@@ -217,6 +217,10 @@ table.grid{border-collapse:collapse; width:100%; min-width:1000px;}
 .ar-field small{font-size:.7rem;color:var(--faint);line-height:1.45;}
 .att-bad{color:var(--warn); font-weight:500;}
 .att-ok{color:var(--ok);}
+/* 耗材確認：乳牙套尺寸的 Palmer 角標（左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉） */
+.pal{display:inline-block;padding:0 3px;line-height:1.15;font-weight:700;border:0 solid currentColor;}
+.pal.ul{border-left-width:2px;border-bottom-width:2px;}.pal.ur{border-right-width:2px;border-bottom-width:2px;}
+.pal.ll{border-left-width:2px;border-top-width:2px;}.pal.lr{border-right-width:2px;border-top-width:2px;}
 .att-mute{color:var(--faint);}
 /* 排休抽籤 */
 .lot-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;background:var(--accent-soft);border-radius:10px;padding:10px 14px;margin:0 0 12px;}
@@ -4779,6 +4783,12 @@ $('otRevTable').addEventListener('click',otClick);
 // 醫師只看指定給自己的；超級管理員看全部（只能看，確認／退回仍限醫師本人；可以對已確認的紀錄「取消確認」）
 const CS_LOCAL='xinhai_cs_local_v1'; // 本機模式：與 consumables.html?local=1 共用
 const csLocal=()=>{try{return JSON.parse(localStorage.getItem(CS_LOCAL)||'null')||{items:[]};}catch(e){return {items:[]};}};
+const csLabel=x=>x.item+(x.spec?` ${x.spec}`:''); // 耗材＋規格（例如 Bone screw 的長度）
+// 規格字體顏色（玻璃纖維釘的顏色；要和 consumables.html 的 ITEM_SPECS 一致）
+const CS_SPEC_COLORS={'玻璃纖維釘':{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c7',綠:'#2e8b3d'}};
+// 乳牙套尺寸（例如「左上 D4」）加上 Palmer 角標：左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉
+const csPalmer=v=>{const m=/^([左右])([上下]) ([DE]\d)$/.exec(v||'');return m?`${esc(m[1]+m[2])} <span class="pal ${m[2]==='上'?'u':'l'}${m[1]==='左'?'l':'r'}">${esc(m[3])}</span>`:'';};
+const csHtml=x=>{const c=CS_SPEC_COLORS[x.item]?.[x.spec];return esc(x.item)+(x.spec?' '+(c?`<b style="color:${c}">${esc(x.spec)}</b>`:csPalmer(x.spec)||esc(x.spec)):'');};
 const canSeeCs=()=>byId(myStaffId())?.role==='doctor'||superOK();
 let csView={doc:'',month:'',st:''},csSel=new Set(),csMonthKey='',csMonthUnsub=null;
 // mine=true：只算指定給自己的（醫師分頁標籤上的數字）
@@ -4808,7 +4818,7 @@ function csRow(x,opt){
   return `<tr>${opt.check?`<td>${mine?`<input type="checkbox" data-cssel="${esc(x.id)}"${csSel.has(x.id)?' checked':''} aria-label="勾選">`:''}</td>`:''}
     <td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td>
     <td style="white-space:nowrap">${esc(x.pName)}${x.pBirth?` <span class="att-mute">（${esc(x.pBirth.replace(/-/g,'/'))}）</span>`:''}</td>
-    <td style="white-space:nowrap">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${esc(x.item)}</td><td class="num">${esc(x.qty)}</td>
+    <td style="white-space:nowrap">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${csHtml(x)}</td><td class="num">${esc(x.qty)}</td>
     ${opt.doc?`<td style="white-space:nowrap">${esc(byId(x.doctorId)?.name||x.doctorName||'')}</td>`:''}
     <td style="white-space:nowrap">${esc(byId(x.assistantId)?.name||x.assistantName||'')}</td>
     ${opt.hist?`<td>${st}</td>`:''}<td style="white-space:nowrap">${acts}</td></tr>`;
@@ -4837,7 +4847,7 @@ function renderCs(){
   // 月份紀錄
   $('csMonth').value=csView.month;$('csHistSt').value=csView.st;
   const hist=csHist.filter(x=>fd(x)&&(!csView.st||x.status===csView.st)).sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
-  const sum={};hist.filter(x=>x.status==='confirmed').forEach(x=>sum[x.item]=(sum[x.item]||0)+(Number(x.qty)||0));
+  const sum={};hist.filter(x=>x.status==='confirmed').forEach(x=>sum[csLabel(x)]=(sum[csLabel(x)]||0)+(Number(x.qty)||0));
   $('csHistCount').textContent=hist.length?`共 ${hist.length} 筆`+(Object.keys(sum).length?`；已確認：${Object.entries(sum).map(([k,v])=>`${k} ${v}`).join('、')}`:''):'';
   $('csHistTable').innerHTML=`<thead><tr><th>日期</th><th>病患</th><th>病歷號</th><th>牙位</th><th>耗材種類</th><th class="num">數量</th>${showDoc?'<th>醫師</th>':''}<th>助理</th><th>狀態</th><th></th></tr></thead><tbody>`+
     (hist.length?hist.map(x=>csRow(x,{hist:true,doc:showDoc})).join(''):`<tr><td colspan="10" class="att-mute">這個月沒有耗材紀錄</td></tr>`)+'</tbody>';
@@ -4861,9 +4871,9 @@ $('tab-cscheck').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.csok)csSet([b.dataset.csok],'confirmed');
   if(b.dataset.csno){const x=csFind(b.dataset.csno);if(!x)return;
-    const r=prompt(`退回這筆耗材給助理修改：\n${x.date}　${x.pName}　${x.item} × ${x.qty}\n\n請寫原因（例如：數量應為 2、不是我的病人）`);
+    const r=prompt(`退回這筆耗材給助理修改：\n${x.date}　${x.pName}　${csLabel(x)} × ${x.qty}\n\n請寫原因（例如：數量應為 2、不是我的病人）`);
     if(r===null)return;if(!r.trim()){alert('請寫退回原因');return;}csSet([x.id],'rejected',r.trim());}
-  if(b.dataset.csundo){const x=csFind(b.dataset.csundo);if(x&&confirm(`取消確認這筆耗材？\n${x.date}　${x.pName}　${x.item} × ${x.qty}\n取消後改回「待確認」，需要醫師重新確認。`))csSet([x.id],'pending');}
+  if(b.dataset.csundo){const x=csFind(b.dataset.csundo);if(x&&confirm(`取消確認這筆耗材？\n${x.date}　${x.pName}　${csLabel(x)} × ${x.qty}\n取消後改回「待確認」，需要醫師重新確認。`))csSet([x.id],'pending');}
   if(b.id==='csOkSel')csSet([...csSel],'confirmed');
   if(b.id==='csOkAll'){const m=csPendList(true).filter(x=>!superOK()||!csView.doc||x.doctorId===csView.doc);if(confirm(`確認全部 ${m.length} 筆耗材都正確？`))csSet(m.map(x=>x.id),'confirmed');}
 });

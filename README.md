@@ -302,7 +302,7 @@ npx eas-cli build -p ios --profile preview       # 需 Apple Developer 帳號，
 | 耗材登記頁 | `consumables.html` | 助理登記醫師用了哪些耗材：日期、病患姓名、病患生日、病歷號、牙位、耗材種類、數量、醫師、助理。Google 登入（「登記本人請假」以上）或認證設備（與治療計劃單共用 `tpDevices`，在治療計劃單 ⚙ 核准）。送出後保留病患／醫師／助理，可以連續登記同一位病患的其他耗材。被醫師退回的紀錄會排在最上面並顯示原因，按「修改重送」後改回待確認。耗材種類從下拉選單選；只有超級管理員可以在「⚙ 耗材種類」新增、刪除、調整順序（還沒設定過時用程式內建的 `DEFAULT_ITEMS`）。紀錄可依狀態、月份、醫師、耗材種類篩選。下方「耗材統計」選日期區間後按「開始統計」（依登記日期讀取），可依耗材種類、耗材種類＋醫師、醫師分列已確認／待確認／退回數量，按「明細」查看每一筆與登錄狀態 |
 | 耗材確認分頁 | `index.html` 的「耗材確認」 | 醫師才看得到（超級管理員也看得到）。醫師看指定給自己的待確認耗材，可單筆確認、勾選確認、全部確認，或按「有誤」寫原因退回給助理；下方可依月份查看紀錄與已確認數量合計。超級管理員看所有醫師，但不能代替醫師確認，只能對已確認的紀錄「取消確認」 |
 
-- 資料：`csItems/{id}`（`{date, month, pName, pBirth, chartNo, tooth, item, qty, doctorId, doctorName, assistantId, assistantName, status: pending|rejected|confirmed, reason, prevReason, review:{by, byName, at}, hist:[{a, at, by, note}], createdAt, createdBy, updatedAt, updatedBy}`）、`csConfig/settings`（`{items: [耗材種類]}`）。
+- 資料：`csItems/{id}`（`{date, month, pName, pBirth, chartNo, tooth, item, spec（規格，例如 Bone screw 的長度；在 consumables.html 的 `ITEM_SPECS` 設定）, qty, doctorId, doctorName, assistantId, assistantName, status: pending|rejected|confirmed, reason, prevReason, review:{by, byName, at}, hist:[{a, at, by, note}], createdAt, createdBy, updatedAt, updatedBy}`）、`csConfig/settings`（`{items: [耗材種類]}`）。
 - 讀取量：登記頁讀「未完成（待確認＋退回）」與所選月份；醫師只讀自己的待確認，月份紀錄進分頁選月份時才讀。都是單欄位或等值查詢，不需要另建複合索引。
 - 規則：登記只能是待確認；醫師只能把指定給自己的待確認紀錄改成確認或退回，且只能改審核欄位；已確認的只有超級管理員能改或刪。**新增這個功能後要把 `firestore.rules` 重新發布到 Firebase。**
 - 本機測試：`consumables.html?local=1&perm=self&as=助理id` 與 `index.html?local=1&as=view:醫師id` 共用同一份瀏覽器資料（`xinhai_cs_local_v1`）。
