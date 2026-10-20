@@ -977,7 +977,7 @@ function trtRowsHtml(p,L){
       <td class="t-teeth" data-label="牙位">${teethCell(payTeeth(x),d)}</td>
       <td class="t-note" data-label="治療內容">${trtNoteCell(p,x,d)}</td>
       <td class="t-remark" data-label="備註"><textarea class="note-ta" data-k="remark" rows="1" ${d}>${esc(x.remark||'')}</textarea></td>
-      ${L?'':`<td class="t-del no-print"><div class="trt-acts"><button class="btn-sm ${sv?'':'btn-primary'}" data-k="trtSave" data-to="${sv?0:1}">${sv?'修改':'儲存'}</button>${sv?'':'<button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button>'}</div></td>`}
+      ${L?'':`<td class="t-del no-print"><div class="trt-acts"><button class="btn-sm ${sv?'':'btn-primary'}" data-k="trtSave" data-to="${sv?0:1}">${sv?'修改':'儲存'}</button><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除" ${sv?'style="visibility:hidden" tabindex="-1" aria-hidden="true"':''}>✕</button></div></td>`}
     </tr>`}).join('');
 }
 // 項目選單：選單本身不能換行，所以在上面蓋一層文字（一行放不下自動換行），選單透明疊在上面負責點選
@@ -1168,6 +1168,7 @@ $('#main').addEventListener('click',async e=>{
   }
   const t=e.target.closest('[data-k]');if(!t)return;const r=rowOf(p,t);if(!r||!r.row)return;const k=t.dataset.k,L=p.status!=='open',IL=L||!!p.finalized;
   if(k==='trtSave'){r.row.saved=t.dataset.to==='1';touch();flushPending();renderEditor();return}
+  if(k==='del'&&r.name==='treatments'&&trtSaved(r.row))return; // 已儲存的治療紀錄不能刪
   if(k==='del'){
     // 刪除前一律跳出詢問
     const x=r.row,what=r.name==='items'?`治療項目「${x.name||'（未選項目）'}」${x.teeth&&x.teeth.length?'（'+teethLabel(x)+'）':''}`
