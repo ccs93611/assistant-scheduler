@@ -779,9 +779,21 @@ function newItem(){return {id:uid(),cat:'',name:'',custom:false,teeth:[],pontics
 function setSideHidden(h){document.documentElement.classList.toggle('side-hidden',h);const t=$('#sideTab');t.querySelector('.st-d').textContent=h?'»':'«';t.querySelector('.st-m').textContent=h?'▼ 展開列表':'▲ 收起列表';t.title=t.ariaLabel=h?'顯示左側欄':'隱藏左側欄';try{localStorage.setItem('tpSideHidden',h?'1':'')}catch(e){}setTimeout(()=>alignTeeth(),0)}
 $('#sideTab').addEventListener('click',()=>setSideHidden(!document.documentElement.classList.contains('side-hidden')));
 try{if(localStorage.getItem('tpSideHidden'))setSideHidden(true)}catch(e){}
-$('#newBtn').addEventListener('click',async()=>{const p=blankPlan();plans.set(p.id,p);await saveNow(p);openPlan(p.id);setTimeout(()=>{const n=document.querySelector('[data-f="name"]');n&&n.focus()},50)});
+$('#newBtn').addEventListener('click',async()=>{if(!await leaveCheck())return;const p=blankPlan();plans.set(p.id,p);await saveNow(p);openPlan(p.id,true);setTimeout(()=>{const n=document.querySelector('[data-f="name"]');n&&n.focus()},50)});
 
-function openPlan(id){curId=id;renderList();renderEditor();ensureLinked(plans.get(id));if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
+// 離開目前這張單前檢查：治療紀錄未儲存、繳費紀錄未簽名、收據開立紀錄未簽名，就跳通知
+async function leaveCheck(){
+  const p=cur();if(!p||!canEdit()||!plans.has(p.id))return true;
+  const t=(p.treatments||[]).filter(x=>!trtSaved(x)).length;
+  const pay=p.status==='open'?payGroups(p).filter(g=>!g[0].transfer&&!g[0].sig).length:0;
+  const rc=(p.receipts||[]).filter(r=>!r.sig).length;
+  if(!t&&!pay&&!rc)return true;
+  const li=[t&&`治療紀錄有 <b>${t}</b> 筆還沒按「儲存」`,pay&&`繳費紀錄有 <b>${pay}</b> 次還沒簽名`,rc&&`收據開立紀錄有 <b>${rc}</b> 筆還沒簽名`].filter(Boolean);
+  const ok=await askDialog('這張單還有未完成的項目',`<p>${esc(p.name||'（未填姓名）')}（${esc(p.no)}）：</p><ul>${li.map(x=>`<li>${x}</li>`).join('')}</ul><p class="hint">內容都已自動儲存${fs?'到雲端':''}，只是還沒完成。</p>`,
+    [{label:'留在這張單',value:null,cls:'btn-primary'},{label:'仍要切換',value:'go'}]);
+  return ok==='go';
+}
+async function openPlan(id,force){if(!force&&id!==curId&&!await leaveCheck())return;curId=id;renderList();renderEditor();ensureLinked(plans.get(id));if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
 window.addEventListener('pagehide',flushPending);
 
 /* ====== 編輯畫面 ====== */
@@ -1241,7 +1253,7 @@ async function closeChanged(p){
     items:p.items.map(i=>({...i,id:uid(),teeth:[...i.teeth],pontics:[...(i.pontics||[])],bridgeTeeth:[...bridgeTeethOf(i)],bridgeGroups:(i.bridgeGroups||[]).map(g=>[...g])}))});
   if(c.paid)n.payments.push({id:uid(),date:today(),amount:c.paid,note:`前單轉入（由 ${p.no} 轉入）`,sig:null,transfer:true});
   p.status='changed';p.closedAt=nowLocal();p.nextId=n.id;
-  plans.set(n.id,n);await saveNow(p);await saveNow(n);openPlan(n.id);
+  plans.set(n.id,n);await saveNow(p);await saveNow(n);openPlan(n.id,true);
 }
 
 /* ====== Modal ====== */
