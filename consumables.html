@@ -82,6 +82,9 @@ tr.editing td{background:var(--accent-soft)}
 .sg-corner{font-weight:400;font-size:11px;align-self:end;padding-right:6px;border-bottom:0}
 .sg-b .mx{font-size:14px;font-weight:600}
 .sg-b{position:relative}
+/* 有顏色的字（玻璃纖維釘）：選取時不換底色，改用粗外框，字的顏色才看得清楚 */
+.sg-b.pk{background:var(--panel)}
+.sg-b.pk.on{background:var(--accent-soft);border:2px solid var(--accent);color:inherit}
 .sg-n{position:absolute;top:-6px;right:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--danger);color:#fff;font:700 11px/18px system-ui,sans-serif;font-style:normal;text-align:center}
 .sg-picks{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
 .sg-pick{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:8px;padding:2px 4px 2px 8px;background:var(--panel);color:var(--ink)}
@@ -206,9 +209,9 @@ const DEFAULT_ITEMS=['玻璃纖維釘','兒童乳牙套(SSC)','MTA(管)','MTA(�
   '植體(Hiossen)','矯正骨釘','手捏臨時假牙','隱適美口掃'];
 // 需要追加選擇規格的耗材（存在紀錄的 spec 欄位）
 const ITEM_SPECS={
-  '植牙骨釘(Bone screw)':{label:'長度',opts:['6 mm','8 mm','10 mm']},
-  '植牙骨釘(Tenting screw)':{label:'長度',opts:['8.5 mm','10.0 mm','11.5 mm','13.0 mm']},
-  '玻璃纖維釘':{label:'顏色',opts:['黃','紅','藍','綠'],colors:{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c7',綠:'#2e8b3d'}}, // 字體顯示對應顏色（要和 index.html 的 CS_SPEC_COLORS 一致）
+  '植牙骨釘(Bone screw)':{label:'長度',pick:true,opts:['6 mm','8 mm','10 mm']},
+  '植牙骨釘(Tenting screw)':{label:'長度',pick:true,opts:['8.5 mm','10.0 mm','11.5 mm','13.0 mm']},
+  '玻璃纖維釘':{label:'顏色',pick:true,opts:['黃','紅','藍','綠'],colors:{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c7',綠:'#2e8b3d'}}, // 字體顯示對應顏色（要和 index.html 的 CS_SPEC_COLORS 一致）
   // 乳牙套：照診所套組盒的排列，4 列 × 12 格。上到下：上顎 D（第一乳臼齒）、上顎 E（第二乳臼齒）、下顎 D、下顎 E；
   // 每列左半是 LEFT（7 → 2 號），右半是 RIGHT（2 → 7 號）。存成例如「左上 D4」，畫面用 Palmer 角標（⌊D4、D4⌋、⌈D4、D4⌉）顯示
   '兒童乳牙套(SSC)':{label:'尺寸',grid:{halves:[['左','LEFT'],['右','RIGHT']],
@@ -223,7 +226,7 @@ Object.values(ITEM_SPECS).forEach(s=>{
   if(s.grid)s.opts=s.grid.rows.flatMap(r=>gridCells(s.grid,r));
   if(s.matrix)s.opts=s.matrix.rows.flatMap(r=>s.matrix.cols.map(c=>matrixVal(r,c)));
 });
-const isGrid=s=>!!(s&&(s.grid||s.matrix)); // 用表格按鈕點選（可以複選）
+const isGrid=s=>!!(s&&(s.grid||s.matrix||s.pick)); // 用表格按鈕點選（可以複選、同一格可選多支）
 // Palmer 角標：左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉（與套組盒標示相同）
 const palmer=v=>{const m=/^([左右])([上下]) ([DE]\d)$/.exec(v||'');return m?`<span class="pal ${m[2]==='上'?'u':'l'}${m[1]==='左'?'l':'r'}" title="${esc(v)}">${esc(m[3])}</span>`:''};
 let gridSel={}; // 表格按鈕選到的規格 → 支數（新增時可複選；修改既有紀錄時只能選一個規格）
@@ -252,6 +255,12 @@ function drawGrid(s){
     $('#fGridSel').innerHTML=sel.length?`<div class="sg-picks">已選${sel.length>1?` ${sel.length} 種、共 ${tot} 支`:''}：${sel.map(v=>`<span class="sg-pick" data-pk="${esc(v)}">${lab(v)}<button type="button" class="btn-sm" data-dec aria-label="減少">−</button><b>${gridSel[v]}</b><button type="button" class="btn-sm" data-inc aria-label="增加">＋</button></span>`).join('')}</div>${sel.length>1?`<div class="sub">送出後每個${s.label}各存一筆</div>`:''}`
       :`<span class="reason">請點選${s.label}</span><span class="sub">${editing?'':'（可以複選）'}再點一次同一格可以增加支數</span>`};
   const btn=(v,html,title)=>{const n=gridSel[v]||0;return `<button type="button" class="sg-b${n?' on':''}" data-sg="${esc(v)}" aria-pressed="${!!n}" title="${esc(title||v)}">${html}${n?`<i class="sg-n">${n}</i>`:''}</button>`};
+  // 一列按鈕（玻璃纖維釘顏色）：字體用對應顏色
+  if(s.pick){const lab=v=>s.colors?.[v]?`<b style="color:${s.colors[v]}">${esc(v)}</b>`:esc(v);
+    $('#fGrid').style.gridTemplateColumns=`repeat(${s.opts.length},minmax(70px,120px))`;
+    $('#fGrid').style.minWidth='0';$('#fGrid').innerHTML=s.opts.map(v=>btn(v,`<span class="mx">${lab(v)}</span>`).replace('class="sg-b','class="sg-b pk')).join('');
+    hint(lab);return;
+  }
   if(s.matrix){const M=s.matrix;
     let h=`<div class="sg-h sg-corner">${esc(M.rowLabel)} ＼ ${esc(M.colLabel)}</div>${M.cols.map(c=>`<div class="sg-h">${esc(c)} mm</div>`).join('')}`;
     M.rows.forEach(r=>{h+=`<div class="sg-r">∅ ${esc(r)} mm</div>`+M.cols.map(c=>btn(matrixVal(r,c),`<span class="mx">∅${esc(r)} × ${esc(c)}</span>`)).join('')});
