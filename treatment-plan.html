@@ -564,7 +564,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 const BASE_CATS=[
  ['固定式贗復',['DSD數位微笑設計','MTA活髓保存','BPR齒雕','Veneer美學貼片','Post玻璃纖維釘','Temp臨時假牙','Crown全瓷-前牙','Crown全瓷-後牙','Crown氧化鋯-前牙','Crown氧化鋯-後牙','馬里蘭牙橋']],
  ['活動式贗復',['CD全口活動假牙-上顎','CD全口活動假牙-下顎','RPD部分活動假牙-上顎','RPD部分活動假牙-下顎','彈性床活動假牙','活動假牙維修','活動假牙加牙']],
- ['植牙式贗復',['APR齒槽骨保存術','GBR少量補骨','GBR水平骨增量','GBR垂直骨增高','Sinus Lift頂竇','Sinus Lift開窗','植牙手術導版','美國Hiossen植體','植牙全鋯冠-前牙','植牙全鋯冠-後牙']],
+ ['植牙式贗復',['APR齒槽骨保存術','GBR少量補骨','GBR水平骨增量','GBR垂直骨增高','Sinus Lift頂竇','Sinus Lift開窗','植牙手術導版','美國Hiossen植體','瑞士Straumann BLC植體','瑞士Straumann BLX植體','植牙全鋯冠-前牙','植牙全鋯冠-後牙']],
  ['全口重建',['Over Denture植牙固位式活動假牙','Locator 連接頭','Locator 扣環','All-on-x植牙導版','All-on-8','All-on-7','All-on-6','All-on-5','All-on-4','All-on-x臨時牙','All-on-x正式氧化鋯牙','All-on-x輕量化合金牙架']],
  ['顯微治療',['顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補']],
  ['牙周手術',['CLP牙冠增長術','FGG角化牙齦移植','CTG結締組織移植','GTR引導組織再生術']],
@@ -576,7 +576,7 @@ const BASE_CATS=[
 ];
 // 以「顆」計價的項目：選牙位時數量自動等於顆數
 const PER_TOOTH=new Set(['MTA活髓保存','BPR齒雕','Veneer美學貼片','Post玻璃纖維釘','Temp臨時假牙','Crown全瓷-前牙','Crown全瓷-後牙','Crown氧化鋯-前牙','Crown氧化鋯-後牙','馬里蘭牙橋',
- 'APR齒槽骨保存術','美國Hiossen植體','植牙全鋯冠-前牙','植牙全鋯冠-後牙',
+ 'APR齒槽骨保存術','美國Hiossen植體','瑞士Straumann BLC植體','瑞士Straumann BLX植體','植牙全鋯冠-前牙','植牙全鋯冠-後牙',
  '顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補',
  'SSC金屬乳牙套','Strip crown樹酯乳牙套']);
 const pk=(cat,name)=>cat+'|'+name;
@@ -929,10 +929,20 @@ const healDias=dia=>!dia?[]:hiossenPlat(dia).name.startsWith('Mini')?['4.0','4.5
 const healConn=dia=>!dia?'':hiossenPlat(dia).name.startsWith('Mini')?'Mini (M) 連接平台':'Regular (R) 連接平台';
 const hiossenText=im=>{const p=im&&hiossenPlat(im.dia);if(!p)return '';
   return `${p.name} Ø${im.dia}${im.len?' × '+im.len+' mm':''}${im.hd?`／癒合帽 Ø${im.hd}${im.hh?' × H'+im.hh:''} mm`:''}`};
+// 瑞士 Straumann BLC／BLX 植體：選直徑與長度（各直徑可用的長度不同；沒有癒合帽選單）
+const STRAUMANN={
+  '瑞士Straumann BLC植體':{'3.3':['8','10','12','14','16','18'],'3.75':['6','8','10','12','14','16','18'],'4.5':['6','8','10','12','14','16','18'],'5.5':['6','8','10','12','14','16'],'6.5':['6','8','10','12','14']},
+  '瑞士Straumann BLX植體':{'3.5':['6','8','10','12','14','16','18'],'3.75':['6','8','10','12','14','16','18'],'4.0':['6','8','10','12','14','16','18'],'4.5':['6','8','10','12','14','16','18'],'5.0':['6','8','10','12','14','16','18'],'5.5':['6','8','10','12','14','16'],'6.5':['6','8','10','12','14','16']},
+};
+const isImplant=n=>n===HIOSSEN||n in STRAUMANN;
+const implLens=(n,dia)=>n===HIOSSEN?hiossenLens(dia):(STRAUMANN[n]?.[dia]||[]);
+const implText=(n,im)=>n===HIOSSEN?hiossenText(im):im&&STRAUMANN[n]?.[im.dia]?`${n.replace(/^瑞士|植體$/g,'')} Ø${im.dia}${im.len?' × '+im.len+' mm':''}`:'';
 function trtNoteCell(p,x,d){
   const item=p.items.find(i=>i.id===x.itemId);
-  if(!(item&&!item.custom&&item.name===HIOSSEN))return `<textarea class="note-ta" data-k="note" rows="1" ${d}>${esc(x.note)}</textarea>`;
-  const im=x.implant||{},lens=hiossenLens(im.dia);
+  if(!(item&&!item.custom&&isImplant(item.name)))return `<textarea class="note-ta" data-k="note" rows="1" ${d}>${esc(x.note)}</textarea>`;
+  const n=item.name,im=x.implant||{},lens=implLens(n,im.dia);
+  if(n!==HIOSSEN)return `<div class="imp-row"><div class="imp-grp"><div class="imp-lbl">植體</div><div class="imp-pick"><select data-k="impDia" ${d}><option value="">直徑</option>${Object.keys(STRAUMANN[n]).map(v=>`<option value="${v}" ${im.dia===v?'selected':''}>Ø${v}</option>`).join('')}</select>
+<span class="imp-x">×</span><select data-k="impLen" ${d||(im.dia?'':'disabled')}><option value="">長度</option>${lens.map(v=>`<option value="${v}" ${im.len===v?'selected':''}>${v} mm</option>`).join('')}</select></div></div></div>`;
   return `<div class="imp-row"><div class="imp-grp"><div class="imp-lbl">植體</div><div class="imp-pick"><select data-k="impDia" ${d}><option value="">直徑</option>${HIOSSEN_PLAT.map(pl=>`<optgroup label="${pl.name}（${pl.note}）">${pl.dia.map(v=>`<option value="${v}" ${im.dia===v?'selected':''}>Ø${v}</option>`).join('')}</optgroup>`).join('')}</select>
 <span class="imp-x">×</span><select data-k="impLen" ${d||(im.dia?'':'disabled')}><option value="">長度</option>${lens.map(v=>`<option value="${v}" ${im.len===v?'selected':''}>${v} mm${v==='15'&&hiossenPlat(im.dia).name.startsWith('Regular')?'*':''}</option>`).join('')}</select></div></div>
     <div class="imp-grp"><div class="imp-lbl">癒合帽</div><div class="imp-pick"><select data-k="impHd" title="癒合帽外徑" ${d||(im.dia?'':'disabled')}><option value="">外徑</option>${healDias(im.dia).map(v=>`<option value="${v}" ${im.hd===v?'selected':''}>Ø${v}${v==='8.0'?' UW':''}</option>`).join('')}</select>
@@ -1060,10 +1070,12 @@ $('#main').addEventListener('input',e=>{
       const v=teethParts(it);r.tr.querySelectorAll('[data-k="teethIn"]').forEach(i=>{i.value=v[i.dataset.jaw];i.classList.remove('bad')});alignTeeth(r.tr.querySelector('.teeth-cell'));
       if(r.name==='payments'&&(!it.amount||it.amtAuto)){it.amount=Math.max(0,itemAmt(item)-itemPaid(p,item.id,it));it.amtAuto=true;r.tr.querySelector('[data-k="amount"]').value=it.amount||''}}
     if(r.name==='treatments'){const td=r.tr.querySelector('.t-note');td.innerHTML=trtNoteCell(p,it,'');const nt=td.querySelector('.note-ta');if(nt)growNotes(nt)}}
-  else if(['impDia','impLen','impHd','impHh'].includes(k)){ // Hiossen 植體：直徑換了，長度／癒合帽不適用就清掉
+  else if(['impDia','impLen','impHd','impHh'].includes(k)){ // 植體：直徑換了，長度／癒合帽不適用就清掉（Straumann 沒有癒合帽）
+    const n=p.items.find(i=>i.id===it.itemId)?.name;
     const im=it.implant=it.implant||{};im[{impDia:'dia',impLen:'len',impHd:'hd',impHh:'hh'}[k]]=t.value;
-    if(!hiossenLens(im.dia).includes(im.len))im.len='';if(!healDias(im.dia).includes(im.hd))im.hd='';if(!im.dia)im.hh='';
-    it.note=hiossenText(im);if(k==='impDia'){const td=r.tr.querySelector('.t-note');td.innerHTML=trtNoteCell(p,it,'')}}
+    if(!implLens(n,im.dia).includes(im.len))im.len='';
+    if(n!==HIOSSEN){im.hd='';im.hh=''}else{if(!healDias(im.dia).includes(im.hd))im.hd='';if(!im.dia)im.hh=''}
+    it.note=implText(n,im);if(k==='impDia'){const td=r.tr.querySelector('.t-note');td.innerHTML=trtNoteCell(p,it,'')}}
   else if(k==='taken')it.taken=t.checked;
   else if(k in it||['date','note','handler','remark'].includes(k)){it[k]=t.value;
     if(r.name==='payments'&&(k==='date'||k==='handler'))p.payments.forEach(x=>{if(payGid(x)===payGid(it))x[k]=t.value})} // 同一次繳費共用日期與經手助理
