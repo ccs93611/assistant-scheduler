@@ -79,6 +79,8 @@ tr.editing td{background:var(--accent-soft)}
 .sg-r{display:flex;flex-direction:column;justify-content:center;font-weight:700;padding-right:6px;font-size:13px;line-height:1.2}
 .sg-r small{font-weight:400;color:var(--muted);font-size:11px}
 .sg-sep{grid-column:1/-1;height:6px}
+.sg-g{grid-column:1/-1;font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;border-bottom:1px dashed var(--line)}
+.sg-x{border-radius:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--soft) 6px 8px)}
 .sg-corner{font-weight:400;font-size:11px;align-self:end;padding-right:6px;border-bottom:0}
 .sg-b .mx{font-size:14px;font-weight:600}
 .sg-b{position:relative}
@@ -219,13 +221,19 @@ const ITEM_SPECS={
     rows:[['上','D','第一乳臼齒'],['上','E','第二乳臼齒'],['下','D','第一乳臼齒'],['下','E','第二乳臼齒']],sizes:[2,3,4,5,6,7]}},
   // 矯正骨釘：直徑（列）× 長度（欄）的表格，存成例如「∅1.6 × 8 mm」
   '矯正骨釘':{label:'規格',matrix:{rowLabel:'直徑 (Diameter)',colLabel:'長度 (Length)',rows:['1.4','1.6','1.8'],cols:['6','8','10','12']}},
+  // Hiossen 植體：直徑 × 長度，規格與治療計劃單（treatment-plan.html 的 HIOSSEN_PLAT）相同
+  //   Mini 窄徑 Ø3.2／3.5：7～15 mm；Regular 標準 Ø4.0～5.5：6～15 mm（6 mm 僅限 Ø5.0 以上）；Ultra-Wide 寬徑 Ø6.0／7.0：6～13 mm；15 mm 多為特殊訂製
+  '植體(Hiossen)':{label:'規格',matrix:{rowLabel:'直徑',colLabel:'長度',rows:['3.2','3.5','4.0','4.5','5.0','5.5','6.0','7.0'],cols:['6','7','8.5','10','11.5','13','15'],colNote:{'15':'*'},foot:'* 15 mm 多為特殊訂製；斜線格是沒有的規格',
+    group:r=>['3.2','3.5'].includes(r)?'Mini 窄徑平台（內部六角 2.1mm）':['6.0','7.0'].includes(r)?'Ultra-Wide 寬徑平台（標準平台連接）':'Regular 標準平台（內部六角 2.5mm）',
+    valid:(r,c)=>{const d=parseFloat(r);return d<4?c!=='6':d<6?!(c==='6'&&d<5):c!=='15'}}},
 };
 const matrixVal=(r,c)=>`∅${r} × ${c} mm`;
+const matrixOk=(M,r,c)=>!M.valid||M.valid(r,c);
 // 表格格子的順序（左半大到小、右半小到大），也是排序用的規格順序
 const gridCells=(G,[ud,t])=>G.halves.flatMap(([side],i)=>(i?G.sizes:[...G.sizes].reverse()).map(z=>`${side}${ud} ${t}${z}`));
 Object.values(ITEM_SPECS).forEach(s=>{
   if(s.grid)s.opts=s.grid.rows.flatMap(r=>gridCells(s.grid,r));
-  if(s.matrix)s.opts=s.matrix.rows.flatMap(r=>s.matrix.cols.map(c=>matrixVal(r,c)));
+  if(s.matrix)s.opts=s.matrix.rows.flatMap(r=>s.matrix.cols.filter(c=>matrixOk(s.matrix,r,c)).map(c=>matrixVal(r,c)));
 });
 const isGrid=s=>!!(s&&(s.grid||s.matrix||s.pick)); // 用表格按鈕點選（可以複選、同一格可選多支）
 // Palmer 角標：左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉（與套組盒標示相同）
@@ -263,10 +271,14 @@ function drawGrid(s){
     hint(lab);return;
   }
   if(s.matrix){const M=s.matrix;
-    let h=`<div class="sg-h sg-corner">${esc(M.rowLabel)} ＼ ${esc(M.colLabel)}</div>${M.cols.map(c=>`<div class="sg-h">${esc(c)} mm</div>`).join('')}`;
-    M.rows.forEach(r=>{h+=`<div class="sg-r">∅ ${esc(r)} mm</div>`+M.cols.map(c=>btn(matrixVal(r,c),`<span class="mx">∅${esc(r)} × ${esc(c)}</span>`)).join('')});
-    $('#fGrid').style.gridTemplateColumns=`auto repeat(${M.cols.length},minmax(70px,1fr))`;
-    $('#fGrid').style.minWidth='0';$('#fGrid').innerHTML=h;
+    let h=`<div class="sg-h sg-corner">${esc(M.rowLabel)} ＼ ${esc(M.colLabel)}</div>${M.cols.map(c=>`<div class="sg-h">${esc(c)} mm${M.colNote?.[c]||''}</div>`).join('')}`;
+    // 分組（例如植體平台）換組時留空並顯示組名；沒有這個規格的格子留白
+    M.rows.forEach((r,i)=>{const gr=M.group?.(r);
+      if(gr&&gr!==M.group(M.rows[i-1]))h+=`<div class="sg-g">${esc(gr)}</div>`;
+      h+=`<div class="sg-r">∅ ${esc(r)} mm</div>`+M.cols.map(c=>matrixOk(M,r,c)?btn(matrixVal(r,c),`<span class="mx">∅${esc(r)} × ${esc(c)}</span>`):'<div class="sg-x"></div>').join('')});
+    if(M.foot)h+=`<div class="sg-g" style="border:0;font-weight:400">${esc(M.foot)}</div>`;
+    $('#fGrid').style.gridTemplateColumns=`auto repeat(${M.cols.length},minmax(${M.cols.length>5?62:70}px,1fr))`;
+    $('#fGrid').style.minWidth=M.cols.length>5?'560px':'0';$('#fGrid').innerHTML=h;
     hint(esc);return;
   }
   const G=s.grid,n=G.sizes.length;$('#fGrid').style.minWidth='';
