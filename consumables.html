@@ -210,7 +210,9 @@ let staff=[];           // 排班系統的人員名單 {id,role,code,name,active
 let cfg={};             // csConfig/settings：耗材種類 items（還沒設定過時用 DEFAULT_ITEMS）
 const DEFAULT_ITEMS=['玻璃纖維釘','兒童乳牙套(SSC)','MTA(管)','MTA(粉)','膠原蛋白(速吉安)','膠原蛋白(亞果)','FDBA骨粉(粗)','FDBA骨粉(細)',
   '可吸收再生膜(海昌/20*30mm/盒)','不可吸收再生膜(cytoplast)','鈦網(Titanlum Membrane)','植牙骨釘(Bone screw)','植牙骨釘(Tenting screw)','植牙骨釘(Bone tack)',
-  '植體(Hiossen)','矯正骨釘','手捏臨時假牙','隱適美口掃'];
+  '植體(Hiossen)','植體(Straumann BLC)','植體(Straumann BLX)','矯正骨釘','手捏臨時假牙','隱適美口掃'];
+// 之後才加進預設清單的種類：超級管理員已經自訂過清單時，自動插在指定種類後面（在 ⚙ 刪掉後記在 cfg.removed，不會再加回來）
+const LATER_ITEMS=[['植體(Straumann BLC)','植體(Hiossen)'],['植體(Straumann BLX)','植體(Straumann BLC)']];
 // 需要追加選擇規格的耗材（存在紀錄的 spec 欄位）
 const ITEM_SPECS={
   '植牙骨釘(Bone screw)':{label:'長度',pick:true,opts:['6 mm','8 mm','10 mm']},
@@ -227,9 +229,15 @@ const ITEM_SPECS={
   '植體(Hiossen)':{label:'規格',matrix:{rowLabel:'直徑',colLabel:'長度',rows:['3.2','3.5','4.0','4.5','5.0','5.5','6.0','7.0'],cols:['6','7','8.5','10','11.5','13','15'],colNote:{'15':'*'},foot:'* 15 mm 多為特殊訂製；斜線格是沒有的規格',
     group:r=>['3.2','3.5'].includes(r)?'Mini 窄徑平台（內部六角 2.1mm）':['6.0','7.0'].includes(r)?'Ultra-Wide 寬徑平台（標準平台連接）':'Regular 標準平台（內部六角 2.5mm）',
     valid:(r,c)=>{const d=parseFloat(r);return d<4?c!=='6':d<6?!(c==='6'&&d<5):c!=='15'}}},
+  // Straumann BLC 植體：直徑 × 長度（各直徑可用的長度不同）
+  '植體(Straumann BLC)':{label:'規格',matrix:{rowLabel:'直徑',colLabel:'長度',rows:['3.3','3.75','4.5','5.5','6.5'],cols:['6','8','10','12','14','16','18'],foot:'斜線格是沒有的規格',
+    lens:{'3.3':['8','10','12','14','16','18'],'3.75':['6','8','10','12','14','16','18'],'4.5':['6','8','10','12','14','16','18'],'5.5':['6','8','10','12','14','16'],'6.5':['6','8','10','12','14']}}},
+  // Straumann BLX 植體：直徑 × 長度
+  '植體(Straumann BLX)':{label:'規格',matrix:{rowLabel:'直徑',colLabel:'長度',rows:['3.5','3.75','4.0','4.5','5.0','5.5','6.5'],cols:['6','8','10','12','14','16','18'],foot:'斜線格是沒有的規格',
+    lens:Object.fromEntries([['3.5',18],['3.75',18],['4.0',18],['4.5',18],['5.0',18],['5.5',16],['6.5',16]].map(([d,max])=>[d,['6','8','10','12','14','16','18'].filter(l=>Number(l)<=max)]))}},
 };
 const matrixVal=(r,c)=>`∅${r} × ${c} mm`;
-const matrixOk=(M,r,c)=>!M.valid||M.valid(r,c);
+const matrixOk=(M,r,c)=>M.lens?M.lens[r].includes(c):!M.valid||M.valid(r,c);
 // 表格格子的順序（左半大到小、右半小到大），也是排序用的規格順序
 const gridCells=(G,[ud,t])=>G.halves.flatMap(([side],i)=>(i?G.sizes:[...G.sizes].reverse()).map(z=>`${side}${ud} ${t}${z}`));
 Object.values(ITEM_SPECS).forEach(s=>{
@@ -297,7 +305,12 @@ function drawGrid(s){
 }
 // 規格選單本身也用選到的顏色顯示
 function colorSpec(){const c=ITEM_SPECS[$('#fItem').value]?.colors?.[$('#fSpec').value]||'';$('#fSpec').style.color=c;$('#fSpec').style.fontWeight=c?'700':''}
-const itemList=()=>Array.isArray(cfg.items)?cfg.items:DEFAULT_ITEMS;
+const itemList=()=>{
+  if(!Array.isArray(cfg.items))return DEFAULT_ITEMS;
+  const L=[...cfg.items];
+  LATER_ITEMS.forEach(([n,after])=>{if(L.includes(n)||(cfg.removed||[]).includes(n))return;const i=L.indexOf(after);i<0?L.push(n):L.splice(i+1,0,n)});
+  return L;
+};
 let items=new Map();    // 目前讀到的登記紀錄
 let editing=null;       // 正在修改的紀錄 id
 const view={st:'all',month:today().slice(0,7),doc:'',item:'',q:''};
@@ -561,8 +574,9 @@ $('#cfgBtn').addEventListener('click',()=>{
     if(e.target===bg||e.target.closest('[data-close]')){bg.remove();return}
     let ch=false;
     const L=[...itemList()];
-    if(e.target.closest('[data-add]')){const n=bg.querySelector('#newItem').value.trim();if(!n)return;if(L.includes(n)){alert('已經有這個種類');return}cfg.items=[...L,n];ch=true}
-    const rm=e.target.closest('[data-rm]');if(rm){const n=L[rm.dataset.rm];if(!confirm(`刪除耗材種類「${n}」？`))return;cfg.items=L.filter((_,i)=>i!==Number(rm.dataset.rm));ch=true}
+    if(e.target.closest('[data-add]')){const n=bg.querySelector('#newItem').value.trim();if(!n)return;if(L.includes(n)){alert('已經有這個種類');return}cfg.items=[...L,n];if(cfg.removed)cfg.removed=cfg.removed.filter(x=>x!==n);ch=true}
+    const rm=e.target.closest('[data-rm]');if(rm){const n=L[rm.dataset.rm];if(!confirm(`刪除耗材種類「${n}」？`))return;cfg.items=L.filter((_,i)=>i!==Number(rm.dataset.rm));
+      if(LATER_ITEMS.some(([x])=>x===n))cfg.removed=[...new Set([...(cfg.removed||[]),n])];ch=true}
     const up=e.target.closest('[data-up]');if(up){const i=Number(up.dataset.up);[L[i-1],L[i]]=[L[i],L[i-1]];cfg.items=L;ch=true}
     if(ch){try{await DB.saveCfg()}catch(err){alert('儲存失敗：'+(err.code==='permission-denied'?'沒有權限':err.message))}fillItems();draw();bg.querySelector('#newItem').focus()}
   });
