@@ -91,7 +91,8 @@ tr.editing td{background:var(--accent-soft)}
 /* 已選清單：字與按鈕放大，方便在平板上點 */
 .sg-picks{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;font-size:16px;color:var(--ink)}
 .sg-pick{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:4px 6px 4px 12px;background:var(--panel);color:var(--ink);font-size:17px;font-weight:600}
-.sg-pick b{min-width:22px;text-align:center;font-size:18px}
+.sg-pick b,.sg-picks .sg-cnt{min-width:22px;text-align:center;font-size:18px;color:var(--danger)} /* 已選的支數用紅色 */
+.sg-picks .sg-cnt{min-width:0;font-weight:700}
 .sg-pick .btn-sm{padding:0;width:32px;height:32px;font-size:18px;line-height:30px;text-align:center}
 .sg-b{padding:7px 0;display:flex;justify-content:center;align-items:center;background:var(--soft)}
 .sg-b .pal{font-size:15px}
@@ -261,7 +262,7 @@ function syncSpec(v,qty){
 function drawGrid(s){
   // 已選清單：每個規格可以用 − ＋ 調整支數（減到 0 就取消）
   const hint=lab=>{const sel=s.opts.filter(v=>gridSel[v]),tot=sel.reduce((t,v)=>t+gridSel[v],0);
-    $('#fGridSel').innerHTML=sel.length?`<div class="sg-picks">已選${sel.length>1?` ${sel.length} 種、共 ${tot} 支`:''}：${sel.map(v=>`<span class="sg-pick" data-pk="${esc(v)}">${lab(v)}<button type="button" class="btn-sm" data-dec aria-label="減少">−</button><b>${gridSel[v]}</b><button type="button" class="btn-sm" data-inc aria-label="增加">＋</button></span>`).join('')}</div>${sel.length>1?`<div class="sub">送出後每個${s.label}各存一筆</div>`:''}`
+    $('#fGridSel').innerHTML=sel.length?`<div class="sg-picks">已選${sel.length>1?` ${sel.length} 種、共 <span class="sg-cnt">${tot}</span> 支`:''}：${sel.map(v=>`<span class="sg-pick" data-pk="${esc(v)}">${lab(v)}<button type="button" class="btn-sm" data-dec aria-label="減少">−</button><b>${gridSel[v]}</b><button type="button" class="btn-sm" data-inc aria-label="增加">＋</button></span>`).join('')}</div>${sel.length>1?`<div class="sub">送出後每個${s.label}各存一筆</div>`:''}`
       :`<span class="reason">請點選${s.label}</span><span class="sub">${editing?'':'（可以複選）'}再點一次同一格可以增加支數</span>`};
   const btn=(v,html,title)=>{const n=gridSel[v]||0;return `<button type="button" class="sg-b${n?' on':''}" data-sg="${esc(v)}" aria-pressed="${!!n}" title="${esc(title||v)}">${html}${n?`<i class="sg-n">${n}</i>`:''}</button>`};
   // 一列按鈕（玻璃纖維釘顏色）：字體用對應顏色
