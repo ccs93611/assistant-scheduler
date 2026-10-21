@@ -1025,8 +1025,8 @@ function payItemOptions(p,x){
   return h;
 }
 // 牙位欄（治療項目與繳費紀錄共用）：上顎、下顎各一個輸入欄，中線虛線對齊，🦷 開牙位圖
-// 牙位固定的項目：DSD 帶入「全口」、全口活動假牙帶入「上顎／下顎」並鎖住；部分活動假牙只能填那一顎的牙位
-const JAW_LOCK={'DSD數位微笑設計':{fill:'全口'},'CD全口活動假牙-上顎':{jaw:'up',fill:'上顎'},'CD全口活動假牙-下顎':{jaw:'lo',fill:'下顎'},'RPD部分活動假牙-上顎':{jaw:'up'},'RPD部分活動假牙-下顎':{jaw:'lo'}};
+// 牙位固定的項目：DSD 帶入「全口」、全口／部分活動假牙帶入「上顎／下顎」並鎖住（jaw 沒有 fill 時＝只能填那一顎的牙位）
+const JAW_LOCK={'DSD數位微笑設計':{fill:'全口'},'CD全口活動假牙-上顎':{jaw:'up',fill:'上顎'},'CD全口活動假牙-下顎':{jaw:'lo',fill:'下顎'},'RPD部分活動假牙-上顎':{jaw:'up',fill:'上顎'},'RPD部分活動假牙-下顎':{jaw:'lo',fill:'下顎'}};
 const jawLock=name=>JAW_LOCK[name]||null;
 const rowLock=(p,name,row)=>jawLock(name==='items'?row.name:p.items.find(i=>i.id===row.itemId)?.name);
 function lockTeeth(out,lk){
