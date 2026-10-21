@@ -584,7 +584,7 @@ const BASE_CATS=[
 ];
 // 以「顆」計價的項目：選牙位時數量自動等於顆數
 const PER_TOOTH=new Set(['MTA活髓保存','BPR齒雕','Veneer美學貼片','Post玻璃纖維釘','Temp臨時假牙','Crown全瓷-前牙','Crown全瓷-後牙','Crown氧化鋯-前牙','Crown氧化鋯-後牙','馬里蘭牙橋',
- 'APR齒槽骨保存術','美國Hiossen植體-前牙','美國Hiossen植體-後牙','瑞士Straumann BLC植體-前牙','瑞士Straumann BLC植體-後牙','瑞士Straumann BLX植體-前牙','瑞士Straumann BLX植體-後牙','植牙全鋯冠-前牙','植牙全鋯冠-後牙',
+ '活動假牙加牙','CLP牙冠增長術','FGG角化牙齦移植','CTG結締組織移植','GTR引導組織再生術','All-on-x植牙導版','APR齒槽骨保存術','GBR少量補骨','GBR水平骨增量','GBR垂直骨增高','Sinus Lift頂竇','Sinus Lift開窗','植牙手術導版','美國Hiossen植體-前牙','美國Hiossen植體-後牙','瑞士Straumann BLC植體-前牙','瑞士Straumann BLC植體-後牙','瑞士Straumann BLX植體-前牙','瑞士Straumann BLX植體-後牙','植牙全鋯冠-前牙','植牙全鋯冠-後牙',
  '顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補',
  'SSC金屬乳牙套','Strip crown樹酯乳牙套']);
 const pk=(cat,name)=>cat+'|'+name;
@@ -866,7 +866,7 @@ function renderEditor(){
         ${IL?`<td class="c-no">${i+1}</td>`:`<td class="c-no drag-handle" title="拖曳調整順序"><i>⋮⋮</i>${i+1}</td>`}
         <td class="c-item"><span class="cat-tag">${it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;'}</span>
           <div class="combo-wrap"><textarea class="note-ta item-ta" data-k="itemIn" rows="1" placeholder="選擇或輸入搜尋" autocomplete="off" spellcheck="false" ${idis}>${esc(it.name)}</textarea></div></td>
-        <td class="c-teeth">${teethCell(it,idis)}</td>
+        <td class="c-teeth">${teethCell(it,idis,jawLock(it.name))}</td>
         <td class="c-unit" data-label="單價"><span class="ro-amt" data-k="unit">${roAmt(unitOf(it))}</span></td>
         <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis||(qtyOne(it)?'disabled title="此項目數量固定為 1 單位"':'')}></td>
         <td class="c-orig" data-label="金額"><span class="ro-amt" data-k="orig">${roAmt(it.orig)}</span></td>
@@ -1009,7 +1009,7 @@ function trtRowsHtml(p,L){
   return list.map(x=>{const sv=trtSaved(x),d=L||sv?'disabled':'';return `<tr data-list="treatments" data-id="${x.id}" class="${sv?'trt-saved':''}">
       <td class="t-date" data-label="日期"><input type="date" data-k="date" value="${esc(x.date)}" ${d}></td>
       <td class="t-item" data-label="項目">${itemSel(p,x,d)}</td>
-      <td class="t-teeth" data-label="牙位">${teethCell(payTeeth(x),d)}</td>
+      <td class="t-teeth" data-label="牙位">${teethCell(payTeeth(x),d,rowLock(p,'treatments',x))}</td>
       <td class="t-note" data-label="治療內容">${trtNoteCell(p,x,d)}</td>
       <td class="t-remark" data-label="備註"><textarea class="note-ta" data-k="remark" rows="1" ${d}>${esc(x.remark||'')}</textarea></td>
       ${L?'':`<td class="t-del no-print"><div class="trt-acts"><button class="btn-sm ${sv?'':'btn-primary'}" data-k="trtSave" data-to="${sv?0:1}">${sv?'修改':'儲存'}</button><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除" ${sv?'style="visibility:hidden" tabindex="-1" aria-hidden="true"':''}>✕</button></div></td>`}
@@ -1025,10 +1025,21 @@ function payItemOptions(p,x){
   return h;
 }
 // 牙位欄（治療項目與繳費紀錄共用）：上顎、下顎各一個輸入欄，中線虛線對齊，🦷 開牙位圖
-function teethCell(o,disAttr){
+// 牙位固定的項目：DSD 帶入「全口」、全口活動假牙帶入「上顎／下顎」並鎖住；部分活動假牙只能填那一顎的牙位
+const JAW_LOCK={'DSD數位微笑設計':{fill:'全口'},'CD全口活動假牙-上顎':{jaw:'up',fill:'上顎'},'CD全口活動假牙-下顎':{jaw:'lo',fill:'下顎'},'RPD部分活動假牙-上顎':{jaw:'up'},'RPD部分活動假牙-下顎':{jaw:'lo'}};
+const jawLock=name=>JAW_LOCK[name]||null;
+const rowLock=(p,name,row)=>jawLock(name==='items'?row.name:p.items.find(i=>i.id===row.itemId)?.name);
+function lockTeeth(out,lk){
+  if(!lk)return out;
+  if(lk.fill)return {...out,teeth:[lk.fill],pontics:[],bridgeTeeth:[],bridgeGroups:[]};
+  const ok=t=>t!=='全口'&&(lk.jaw==='up')===isUpperQ(t);
+  return {...out,teeth:out.teeth.filter(ok),pontics:(out.pontics||[]).filter(ok),bridgeTeeth:(out.bridgeTeeth||[]).filter(ok),bridgeGroups:(out.bridgeGroups||[]).filter(g=>g.every(ok))};
+}
+function teethCell(o,disAttr,lk){
   const v=teethInputs(o),bad=o.teethBad&&o.teethBad.length,ti=bad?esc('無法辨識：'+o.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
-  const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" title="${ti}" ${disAttr}>`;
-  return `<div class="teeth-cell"><div class="jaws"><div class="jaw"><span>上</span>${inp('up','')}</div><div class="jaw"><span>下</span>${inp('lo','')}</div><i class="midl"></i></div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${disAttr}>🦷</button></div>`;
+  const off=j=>disAttr||(lk&&(lk.fill||lk.jaw!==j)?`disabled title="${lk.fill?'此項目固定為'+lk.fill:'此項目只能填'+(lk.jaw==='up'?'上顎':'下顎')+'牙位'}"`:'');
+  const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" ${off(j)} title="${ti}">`;
+  return `<div class="teeth-cell"><div class="jaws"><div class="jaw"><span>上</span>${inp('up','')}</div><div class="jaw"><span>下</span>${inp('lo','')}</div><i class="midl"></i></div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${disAttr||(lk&&lk.fill?'disabled':'')}>🦷</button></div>`;
 }
 // 舊的繳費紀錄牙位是文字，轉成和治療項目相同的格式
 function payTeeth(x){
@@ -1067,7 +1078,7 @@ function payRowsHtml(p,L){
           ${n>1?`<div class="hint pay-gsum">本次 ${n} 項，合計 $${money(tot)}</div>`:''}
           ${!L&&!signed&&!tr?`<button class="btn-sm btn-ghost no-print pay-addline" data-act="addPayLine" data-gid="${esc(payGid(x))}">＋ 同次加項目</button>`:''}</td>`:''}
         <td class="p-item" data-label="項目">${x.transfer?'<span class="hint">前單轉入</span>':itemSel(p,x,pd)}</td>
-        <td class="p-teeth" data-label="牙位">${x.transfer?'':teethCell(payTeeth(x),pd)}</td>
+        <td class="p-teeth" data-label="牙位">${x.transfer?'':teethCell(payTeeth(x),pd,rowLock(p,'payments',x))}</td>
         <td class="p-note" data-label="備註"><textarea class="note-ta" data-k="note" rows="1" ${pd}>${esc(x.note)}</textarea></td>
         <td class="p-amt" data-label="金額"><input class="num ${(x.amount||0)<0?'refund':''}" type="number" step="1" inputmode="numeric" data-k="amount" value="${x.amount||''}" title="負數代表退費" ${pd||x.transfer?'disabled':''}>${(x.amount||0)<0?'<span class="refund-tag">退費</span>':''}</td>
         ${first?`<td class="p-hand" data-label="經手助理"${rs}>${tr?'':`<input data-k="handler" data-pp="asst" autocomplete="off" value="${esc(x.handler||'')}" placeholder="經手助理" ${pd}>`}</td>
@@ -1123,7 +1134,8 @@ $('#main').addEventListener('input',e=>{
     if(item){it.teeth=[...item.teeth];it.pontics=[...(item.pontics||[])];it.bridgeTeeth=[...bridgeTeethOf(item)];it.bridgeGroups=(item.bridgeGroups||[]).map(g=>[...g]);it.teethText=null;it.teethBad=null;
       const v=teethParts(it);r.tr.querySelectorAll('[data-k="teethIn"]').forEach(i=>{i.value=v[i.dataset.jaw];i.classList.remove('bad')});alignTeeth(r.tr.querySelector('.teeth-cell'));
       if(r.name==='payments'&&(!it.amount||it.amtAuto)){it.amount=Math.max(0,itemAmt(item)-itemPaid(p,item.id,it));it.amtAuto=true;r.tr.querySelector('[data-k="amount"]').value=it.amount||''}}
-    if(r.name==='treatments'){const td=r.tr.querySelector('.t-note');td.innerHTML=trtNoteCell(p,it,'');const nt=td.querySelector('.note-ta');if(nt)growNotes(nt)}}
+    if(r.name==='treatments'){const td=r.tr.querySelector('.t-note');td.innerHTML=trtNoteCell(p,it,'');const nt=td.querySelector('.note-ta');if(nt)growNotes(nt)}
+    {const c=r.tr.querySelector('.t-teeth,.p-teeth');if(c){c.innerHTML=teethCell(payTeeth(it),'',rowLock(p,r.name,it));alignTeeth(c.querySelector('.teeth-cell'))}}}
   else if(['impDia','impLen','impHd','impHh','impHa'].includes(k)){ // 植體：直徑換了，長度／癒合帽不適用就清掉（BLC 沒有癒合帽）
     const n=implBase(p.items.find(i=>i.id===it.itemId)?.name);
     const im=it.implant=it.implant||{};im[{impDia:'dia',impLen:'len',impHd:'hd',impHh:'hh',impHa:'ha'}[k]]=t.value;
@@ -1148,6 +1160,7 @@ $('#main').addEventListener('change',e=>{
       if(hit&&QTY_ONE.has(hit.name)){it.qty=1;it.qtyManual=true}}
     if(hit){if(it.custom||it.cat!==hit.cat||it.name!==hit.name){it.custom=false;it.cat=hit.cat;it.name=hit.name;
         if(PER_TOOTH.has(hit.name)&&!it.qtyManual&&it.teeth.length)it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;
+        const lk=jawLock(hit.name);if(lk){applyTeeth(it,lockTeeth({teeth:it.teeth,pontics:it.pontics||[],bridgeTeeth:bridgeTeethOf(it),bridgeGroups:it.bridgeGroups||[]},lk));it.teethText=null;it.teethBad=null}
         const pr=priceOf(it);it.unit=pr;it.orig=pr*it.qty}}  // 開單當下的單價存進這張單，之後價目表改價不影響
     else if(v){if(!it.custom&&it.name){it.unit=null;it.orig=0}it.custom=true;it.cat='其他';it.name=v}
     else{if(!it.custom&&it.name){it.unit=null;it.orig=0}it.custom=false;it.cat='';it.name=''}
@@ -1155,10 +1168,12 @@ $('#main').addEventListener('change',e=>{
     t.value=it.name;r.tr.querySelector('.cat-tag').innerHTML=it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;';
     {const q=r.tr.querySelector('[data-k="qty"]'),lk=qtyOne(it);q.disabled=lk;q.title=lk?'此項目數量固定為 1 單位':''}
     r.tr.querySelector('[data-k="unit"]').textContent=roAmt(unitOf(it));r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').textContent=roAmt(it.orig);syncAmtRow(r.tr,it);
+    {const c=r.tr.querySelector('.c-teeth');c.innerHTML=teethCell(it,'',jawLock(it.name));alignTeeth(c.querySelector('.teeth-cell'))} // 上顎／下顎鎖定跟著項目變
     refreshTotals();touch();
   }
   if(t.dataset.k==='teethIn'){const r=rowOf(p,t),it=r.row,ins=[...r.tr.querySelectorAll('[data-k="teethIn"]')],raw={};ins.forEach(i=>raw[i.dataset.jaw]=i.value);
-    const out=parseTeeth(raw.up+','+raw.lo);applyTeeth(it,out);
+    const lk=rowLock(p,r.name,it);if(lk&&!lk.fill)raw[lk.jaw==='up'?'lo':'up']='';
+    const out=lockTeeth(parseTeeth(raw.up+','+raw.lo),lk);applyTeeth(it,out);
     it.teethBad=out.bad.length?out.bad:null;it.teethText=out.bad.length?raw:null;
     if(!out.bad.length){const v=teethParts(it);ins.forEach(i=>i.value=v[i.dataset.jaw])}
     ins.forEach(i=>{i.classList.toggle('bad',!!out.bad.length);i.title=out.bad.length?'無法辨識：'+out.bad.join('、'):'可直接輸入，例如 14X12X21X23, 46, 17(X)'});
@@ -1214,7 +1229,7 @@ $('#main').addEventListener('click',async e=>{
     if(ok!=='del')return;
     if(r.name==='receipts')r.row.photos.forEach(DB.delFile);
     r.list.splice(r.list.indexOf(r.row),1);touch();renderEditor();
-  }else if(k==='teeth'){if(r.name==='items'?IL:(L||r.row.sig))return;const it=r.row;const out=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it),it.bridgeGroups);if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
+  }else if(k==='teeth'){if(r.name==='items'?IL:(L||r.row.sig))return;const it=r.row;const out0=await openTeeth(it.teeth,it.pontics,bridgeTeethOf(it),it.bridgeGroups);const out=out0&&lockTeeth(out0,rowLock(p,r.name,it));if(out){applyTeeth(it,out);it.teethText=null;it.teethBad=null;touch();renderEditor()}}
   else if(k==='sig'){const lock=r.name==='payments'&&(L||r.row.sig);
     // 繳費：同一次繳費（同組）一起簽一次名
     const grp=r.name==='payments'?p.payments.filter(x=>payGid(x)===payGid(r.row)):[r.row],tot=grp.reduce((s,x)=>s+(x.amount||0),0);
