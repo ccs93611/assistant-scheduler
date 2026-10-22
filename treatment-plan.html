@@ -6,13 +6,13 @@
 <title>新海治療計劃單</title>
 <style>
 :root{
-  --bg:#e6ecf6;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#d3e0ec;--card-line:#9fb3c8;--soft:#eef3f4;
+  --bg:#e6ecf6;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#d3e0ec;--card-line:#8fb0c4;--soft:#eef3f4;
   --accent:#0f7c80;--accent-ink:#fff;--accent-soft:#e1f1f1;
   --danger:#c0392b;--danger-soft:#fbe9e7;--ok:#1e8449;--ok-soft:#e5f4ea;--warn:#b9770e;--warn-soft:#fdf2e0;--info:#1f5fae;--info-soft:#e3eefb;
   --sig-bg:#fff;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0e1823;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--card-line:#4a5a66;--soft:#212b30;
+  --bg:#0e1823;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--card-line:#4a6572;--soft:#212b30;
   --accent:#3fb6b9;--accent-ink:#0b1416;--accent-soft:#16383a;
   --danger:#ef7a6c;--danger-soft:#3a1f1c;--ok:#5cc98a;--ok-soft:#173023;--warn:#e7b25a;--warn-soft:#352a16;--info:#7fb3f0;--info-soft:#16283f;
   --sig-bg:#f7f7f7;
@@ -117,7 +117,7 @@ aside{background:var(--panel);border-right:1px solid var(--line);display:flex;fl
 main{padding:20px;min-width:0}
 .empty{color:var(--muted);text-align:center;padding:80px 20px}
 .sheet{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
-.card{background:var(--panel);border:1.5px solid var(--card-line);border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(30,60,100,.10)} /* 區塊外框加深、加淡陰影 */
+.card{background:var(--panel);border:2px solid var(--card-line);border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(15,60,80,.12)} /* 區塊外框：與耗材登記相同 */
 .card h2{font-size:20px;margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .card h2 .sp{flex:1}
 .topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
