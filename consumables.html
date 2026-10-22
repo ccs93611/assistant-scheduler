@@ -9,11 +9,13 @@
   --bg:#e6ecf6;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#d3e0ec;--soft:#eef3f4;
   --accent:#0f7c80;--accent-ink:#fff;--accent-soft:#e1f1f1;
   --danger:#c0392b;--danger-soft:#fbe9e7;--ok:#1e8449;--ok-soft:#e5f4ea;--warn:#b9770e;--warn-soft:#fdf2e0;
+  --card-line:#8fb0c4;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0e1823;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--soft:#212b30;
   --accent:#3fb6b9;--accent-ink:#0b1416;--accent-soft:#16383a;
   --danger:#ef7a6c;--danger-soft:#3a1f1c;--ok:#5cc98a;--ok-soft:#173023;--warn:#e7b25a;--warn-soft:#352a16;
+  --card-line:#4a6572;
 }}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -36,12 +38,14 @@ header h1{grid-column:2;font-size:28px;margin:0;text-align:center;letter-spacing
 @media (max-width:760px){header{grid-template-columns:1fr}header h1{grid-column:1;font-size:22px}.head-r{grid-column:1;justify-content:center}}
 .me{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 main{max-width:1200px;margin:0 auto;padding:16px;display:grid;gap:16px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+/* 區塊外框加粗、加深並加陰影，三個區塊（登記耗材、登記紀錄、耗材統計）分得清楚 */
+.card{background:var(--panel);border:2px solid var(--card-line);border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(15,60,80,.12)}
+.card>h2:first-child{padding-bottom:10px;border-bottom:1px solid var(--line)}
 .card h2{font-size:18px;margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .card h2 .sp{flex:1}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 12px}
 .field{display:flex;flex-direction:column;gap:3px}
-.field label{font-size:13px;color:var(--muted)}
+.field>label{font-size:16px;font-weight:600;color:var(--ink)} /* 欄位名稱：黑色、放大（登記表單、篩選、統計） */
 .field.req label::after{content:" *";color:var(--danger)}
 .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
 .hint{font-size:13px;color:var(--muted);margin:6px 0 0}
@@ -49,7 +53,7 @@ main{max-width:1200px;margin:0 auto;padding:16px;display:grid;gap:16px}
 .scroll-x{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
-th{background:var(--soft);font-weight:600;white-space:nowrap;font-size:13px}
+th{background:var(--soft);font-weight:700;white-space:nowrap;font-size:15px;color:var(--ink)}
 td.num,th.num{text-align:right}
 tr.editing td{background:var(--accent-soft)}
 .nw{white-space:nowrap}
