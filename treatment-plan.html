@@ -1026,18 +1026,18 @@ function payItemOptions(p,x){
 }
 // 牙位欄（治療項目與繳費紀錄共用）：上顎、下顎各一個輸入欄，中線虛線對齊，🦷 開牙位圖
 // 牙位固定的項目：DSD 帶入「全口」、全口／部分活動假牙帶入「上顎／下顎」並鎖住（jaw 沒有 fill 時＝只能填那一顎的牙位）
-const JAW_LOCK={'DSD數位微笑設計':{fill:'全口'},'CD全口活動假牙-上顎':{jaw:'up',fill:'上顎'},'CD全口活動假牙-下顎':{jaw:'lo',fill:'下顎'},'RPD部分活動假牙-上顎':{jaw:'up',fill:'上顎'},'RPD部分活動假牙-下顎':{jaw:'lo',fill:'下顎'}};
+const JAW_LOCK={'DSD數位微笑設計':{fill:'全口'},'客製化居家美白':{fill:'全口'},'噴砂美白-全口':{fill:'全口'},'噴砂美白-前牙':{fill:['13','12','11','21','22','23','33','32','31','41','42','43']},'CD全口活動假牙-上顎':{jaw:'up',fill:'上顎'},'CD全口活動假牙-下顎':{jaw:'lo',fill:'下顎'},'RPD部分活動假牙-上顎':{jaw:'up',fill:'上顎'},'RPD部分活動假牙-下顎':{jaw:'lo',fill:'下顎'}};
 const jawLock=name=>JAW_LOCK[name]||null;
 const rowLock=(p,name,row)=>jawLock(name==='items'?row.name:p.items.find(i=>i.id===row.itemId)?.name);
 function lockTeeth(out,lk){
   if(!lk)return out;
-  if(lk.fill)return {...out,teeth:[lk.fill],pontics:[],bridgeTeeth:[],bridgeGroups:[]};
+  if(lk.fill)return {...out,teeth:[].concat(lk.fill),pontics:[],bridgeTeeth:[],bridgeGroups:[]}; // fill 可以是區域（全口、上顎…）或固定的幾顆牙
   const ok=t=>t!=='全口'&&(lk.jaw==='up')===isUpperQ(t);
   return {...out,teeth:out.teeth.filter(ok),pontics:(out.pontics||[]).filter(ok),bridgeTeeth:(out.bridgeTeeth||[]).filter(ok),bridgeGroups:(out.bridgeGroups||[]).filter(g=>g.every(ok))};
 }
 function teethCell(o,disAttr,lk){
   const v=teethInputs(o),bad=o.teethBad&&o.teethBad.length,ti=bad?esc('無法辨識：'+o.teethBad.join('、')):'可直接輸入，例如 14X12X21X23, 46, 17(X)';
-  const off=j=>disAttr||(lk&&(lk.fill||lk.jaw!==j)?`disabled title="${lk.fill?'此項目固定為'+lk.fill:'此項目只能填'+(lk.jaw==='up'?'上顎':'下顎')+'牙位'}"`:'');
+  const off=j=>disAttr||(lk&&(lk.fill||lk.jaw!==j)?`disabled title="${lk.fill?'此項目固定為'+[].concat(lk.fill).join('、'):'此項目只能填'+(lk.jaw==='up'?'上顎':'下顎')+'牙位'}"`:'');
   const inp=(j,ph)=>`<input data-k="teethIn" data-jaw="${j}" class="${bad?'bad':''}" value="${esc(v[j])}" placeholder="${ph}" ${off(j)} title="${ti}">`;
   return `<div class="teeth-cell"><div class="jaws"><div class="jaw"><span>上</span>${inp('up','')}</div><div class="jaw"><span>下</span>${inp('lo','')}</div><i class="midl"></i></div><button class="btn-sm no-print" data-k="teeth" title="開啟牙位圖" ${disAttr||(lk&&lk.fill?'disabled':'')}>🦷</button></div>`;
 }
