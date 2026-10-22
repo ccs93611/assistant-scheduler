@@ -512,6 +512,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="read-counter.js"></script>
 <script>
 // 與排班系統（index.html）共用同一個 Firebase 專案、Google 登入與權限（access/{Gmail}.perm）
 window.FIREBASE_CONFIG = {
@@ -1997,7 +1998,7 @@ function openSettings(tab){
     ${fs&&PERM==='super'?`<div data-pane="sync">
       <p class="hint">設定每台設備一打開治療計劃單時，先讀進來並即時同步哪些單。讀得越少，每天用掉的雲端讀取次數越少；其他舊單可在左側列表最下方用「在雲端搜尋舊單」或「載入 n 個月內有異動的舊單」讀取，「📊 統計」也會自動讀需要的單。</p>
       ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改，你目前只能查看。</div>'}
-      <h4 style="margin:14px 0 6px">今日雲端讀取筆數（估計）<button class="btn-sm btn-ghost" data-x="userefresh" style="margin-left:6px">重新整理</button></h4>
+      <h4 style="margin:14px 0 6px">今日雲端讀取筆數（全專案估計）<button class="btn-sm btn-ghost" data-x="userefresh" style="margin-left:6px">重新整理</button></h4>
       <div id="usageBox"><p class="hint">讀取中…</p></div>
       <p><a href="https://console.firebase.google.com/project/assistant-schedular/firestore/databases/-default-/usage" target="_blank" rel="noopener">開啟 Firebase 主控台查看官方用量 ↗</a></p>
       <h4 style="margin:14px 0 6px">一定讀取的單據狀態</h4>
@@ -2195,7 +2196,7 @@ async function bootLocal(){
 function bootCloud(){
   if(!window.firebase){showGate('error','無法載入登入元件，請確認網路連線後重新整理。');return}
   firebase.initializeApp(window.FIREBASE_CONFIG);
-  fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});countReads();
+  fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});if(window.ReadCounter)ReadCounter.install(fs,()=>me,'治療計劃單');
   // 登入狀態（含認證設備的匿名身分）預設就長期保存在這台電腦（Firebase 網頁版預設 LOCAL），關機、重開瀏覽器都不用重新登入／認證。
   // 注意：不要在這裡呼叫 setPersistence()，會讓「整頁跳轉」方式登入回來時的結果遺失，造成登入失敗。
   // 請瀏覽器把本站資料列為「持續保存」，避免空間不足時被自動清掉（清掉的話設備就要重新申請認證）
@@ -2267,33 +2268,17 @@ async function ensureLinked(p){
   for(const id of [p.prevId,p.nextId])if(id&&!plans.has(id)){try{const d=await fs.doc('tpPlans/'+id).get();if(d.exists&&addPlanDoc(d))got=true}catch(e){}}
   if(got&&curId===p.id)rerenderKeep();
 }
-/* ====== 雲端讀取筆數（估計）======
-   攔截所有讀取（get／即時同步），依 Firestore 計費方式估算：查詢每筆文件算 1 次、沒有結果也算 1 次；即時同步只算有變動的文件；
-   本機快取讀到的不算。每台設備每 2 分鐘把累計數加到 tpUsage/{日期}（日期以美西時間計，跟 Firebase 免費額度每天重算的時間一致）。 */
+/* ====== 雲端讀取筆數（估計）：排班系統、治療計劃單、耗材登記共用 read-counter.js，合計寫在 tpUsage/{美西日期} ====== */
 const FREE_READS=50000;
-const usageDay=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Los_Angeles'});
-let readsPending=0,readsSession=0;
-function addReads(n){if(n>0){readsPending+=n;readsSession+=n}}
-function countReads(){
-  const F=firebase.firestore,wrapGet=(proto,isDoc)=>{const g=proto.get;proto.get=function(...a){return g.apply(this,a).then(s=>{if(!s.metadata||!s.metadata.fromCache)addReads(isDoc?1:Math.max(1,s.size));return s})}};
-  const wrapSnap=(proto,isDoc)=>{const o=proto.onSnapshot;proto.onSnapshot=function(...a){let first=true;
-    const wrap=fn=>function(s){try{if(!s.metadata.fromCache){if(isDoc)addReads(1);else{const n=s.docChanges().length;addReads(first?Math.max(1,n):n)}first=false}}catch(e){}return fn.apply(this,arguments)};
-    const i=a.findIndex(x=>typeof x==='function');if(i>=0)a[i]=wrap(a[i]);else if(a[0]&&typeof a[0].next==='function')a[0]={...a[0],next:wrap(a[0].next)};
-    return o.apply(this,a)}};
-  wrapGet(F.Query.prototype,false);wrapGet(F.DocumentReference.prototype,true);wrapSnap(F.Query.prototype,false);wrapSnap(F.DocumentReference.prototype,true);
-  const flush=()=>{if(!readsPending||!me)return;const n=readsPending;readsPending=0;
-    fs.doc('tpUsage/'+usageDay()).set({total:F.FieldValue.increment(n),devs:{[me]:F.FieldValue.increment(n)},at:Date.now()},{merge:true}).catch(()=>{readsPending+=n})};
-  setInterval(flush,120000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flush()});window.addEventListener('pagehide',flush);
-  window.flushReads=flush;
-}
 async function usageHtml(){
-  flushReads&&flushReads();
-  let d=null;try{const s=await fs.doc('tpUsage/'+usageDay()).get();d=s.exists?s.data():null}catch(e){return `<p class="hint">讀取失敗（${esc(e.code||e.message)}）。請確認 Firestore 安全規則已更新。</p>`}
-  const tot=(d&&d.total||0)+readsPending,pct=Math.min(100,tot/FREE_READS*100),devs=Object.entries(d&&d.devs||{}).sort((a,b)=>b[1]-a[1]);
+  const RC=window.ReadCounter;if(!RC)return '<p class="hint">讀取統計程式沒有載入。</p>';RC.flush();
+  let d=null;try{const s=await fs.doc('tpUsage/'+RC.day()).get();d=s.exists?s.data():null}catch(e){return `<p class="hint">讀取失敗（${esc(e.code||e.message)}）。請確認 Firestore 安全規則已更新。</p>`}
+  const tot=(d&&d.total||0)+RC.pending,sy=Object.entries(d&&d.sys||{}).sort((a,b)=>b[1]-a[1]),pct=Math.min(100,tot/FREE_READS*100),devs=Object.entries(d&&d.devs||{}).sort((a,b)=>b[1]-a[1]);
   return `<div class="use-total"><b>${tot.toLocaleString()}</b> 筆<span class="hint">／免費額度 ${FREE_READS.toLocaleString()} 筆（${pct.toFixed(1)}%）</span></div>
     <div class="use-bar"><i style="width:${pct}%;background:${pct>80?'var(--danger)':pct>50?'var(--warn)':'var(--accent)'}"></i></div>
-    ${devs.length?`<table class="st-tbl" style="margin-top:8px"><thead><tr><th>帳號／設備</th><th class="num">今日讀取</th></tr></thead><tbody>${devs.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${v.toLocaleString()}</td></tr>`).join('')}</tbody></table>`:''}
-    <p class="hint">日期 ${usageDay()}（美西時間，台灣時間每天下午 3 點或 4 點重新計算，跟 Firebase 免費額度同步）。這是各設備自己估算加總的數字，約每 2 分鐘更新一次，跟官方數字可能有些微差距。這台設備本次開啟後讀取約 ${readsSession.toLocaleString()} 筆。</p>`;
+    ${sy.length?`<table class="st-tbl" style="margin-top:8px"><thead><tr><th>系統</th><th class="num">今日讀取</th></tr></thead><tbody>${sy.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${v.toLocaleString()}</td></tr>`).join('')}</tbody></table>`:''}
+    ${devs.length?`<table class="st-tbl" style="margin-top:8px"><thead><tr><th>系統｜帳號／設備</th><th class="num">今日讀取</th></tr></thead><tbody>${devs.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${v.toLocaleString()}</td></tr>`).join('')}</tbody></table>`:''}
+    <p class="hint">日期 ${RC.day()}（美西時間，台灣時間每天下午 3 點或 4 點重新計算，跟 Firebase 免費額度同步）。這是各設備自己估算加總的數字，約每 2 分鐘更新一次，跟官方數字可能有些微差距。合計包含排班系統、治療計劃單、耗材登記（打卡裝置 kiosk 不在內）。這台設備本次開啟治療計劃單後讀取約 ${RC.session.toLocaleString()} 筆。</p>`;
 }
 function startCloud(){
   afterLogin();watchDevices();$('#planList').innerHTML='<div class="empty" style="padding:30px 10px">載入中…</div>';

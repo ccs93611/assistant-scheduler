@@ -112,6 +112,7 @@ tr.editing td{background:var(--accent-soft)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="read-counter.js"></script>
 <script>
 // 與排班系統（index.html）共用同一個 Firebase 專案、Google 登入與權限（access/{Gmail}.perm）
 window.FIREBASE_CONFIG = {
@@ -699,6 +700,7 @@ function bootCloud(){
   if(!window.firebase){showGate('error','無法載入登入元件，請確認網路連線後重新整理。');return}
   firebase.initializeApp(window.FIREBASE_CONFIG);
   fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});
+  if(window.ReadCounter)ReadCounter.install(fs,()=>me,'耗材登記'); // 雲端讀取筆數（估計），與排班系統、治療計劃單合計
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
   showGate('loading');
   firebase.auth().onAuthStateChanged(async u=>{
