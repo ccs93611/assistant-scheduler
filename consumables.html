@@ -214,10 +214,10 @@ const canCfg=()=>PERM==='super';                                     // 只有�
 let staff=[];           // 排班系統的人員名單 {id,role,code,name,active}
 let cfg={};             // csConfig/settings：耗材種類 items（還沒設定過時用 DEFAULT_ITEMS）
 const DEFAULT_ITEMS=['玻璃纖維釘','兒童乳牙套(SSC)','MTA(管)','MTA(粉)','膠原蛋白(速吉安)','膠原蛋白(亞果)','FDBA骨粉(粗)','FDBA骨粉(細)',
-  '可吸收再生膜(海昌/20*30mm/盒)','不可吸收再生膜(cytoplast)','鈦網(Titanlum Membrane)','植牙骨釘(Bone screw)','植牙骨釘(Tenting screw)','植牙骨釘(Bone tack)',
+  '可吸收再生膜(海昌/20*30mm/盒)','可吸收再生膜(Dentsply/15*25mm/盒)','不可吸收再生膜(cytoplast)','鈦網(Titanlum Membrane)','植牙骨釘(Bone screw)','植牙骨釘(Tenting screw)','植牙骨釘(Bone tack)',
   '植體(Hiossen)','植體(Straumann BLC)','植體(Straumann BLX)','矯正骨釘','手捏臨時假牙','隱適美口掃'];
 // 之後才加進預設清單的種類：超級管理員已經自訂過清單時，自動插在指定種類後面（在 ⚙ 刪掉後記在 cfg.removed，不會再加回來）
-const LATER_ITEMS=[['植體(Straumann BLC)','植體(Hiossen)'],['植體(Straumann BLX)','植體(Straumann BLC)']];
+const LATER_ITEMS=[['植體(Straumann BLC)','植體(Hiossen)'],['植體(Straumann BLX)','植體(Straumann BLC)'],['可吸收再生膜(Dentsply/15*25mm/盒)','可吸收再生膜(海昌/20*30mm/盒)']];
 // 需要追加選擇規格的耗材（存在紀錄的 spec 欄位）
 const ITEM_SPECS={
   '植牙骨釘(Bone screw)':{label:'長度',pick:true,opts:['6 mm','8 mm','10 mm']},
