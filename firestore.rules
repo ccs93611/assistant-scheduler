@@ -263,6 +263,8 @@ service cloud.firestore {
     }
     match /tpFiles/{id}  { allow read: if canView() || isTpDevice(); allow create, update, delete: if canEditTp(); }
     match /tpConfig/{id} { allow read: if canView() || isTpDevice(); allow write: if isSuper(); }
+    // tpUsage 每日雲端讀取筆數（估計）：各設備自己加總上去，只有超級管理員看得到
+    match /tpUsage/{day} { allow read: if isSuper(); allow create, update: if canView() || isTpDevice(); }
     match /tpDevices/{uid} {
       allow read: if isSuper() || (request.auth != null && request.auth.uid == uid);
       allow create: if request.auth != null && request.auth.uid == uid && request.resource.data.approved == false;
