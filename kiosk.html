@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="read-counter.js"></script>
 <script>
 // 與 index.html 相同的 Firebase 專案。打卡裝置用「匿名登入」取得裝置 uid，
 // 由管理者在排班系統「出勤 → 打卡裝置」核准後才能讀寫（見 firestore.rules 的 isKiosk）。
@@ -338,6 +339,8 @@ let human=null, running=false, paused=true;
 function firebaseSource(){
   firebase.initializeApp(window.FIREBASE_CONFIG);
   const db=firebase.firestore();
+  // 雲端讀取筆數（估計），與排班系統、治療計劃單、耗材登記合計；本機快取讀到的不算
+  if(window.ReadCounter)ReadCounter.install(db,()=>{const u=firebase.auth().currentUser;return u?(device&&device.name?device.name:'裝置 '+devCode(u.uid)):''},'打卡裝置');
   // 離線時打卡先存在裝置上，連線後自動上傳
   db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('persistence',e.code));
   const auth=firebase.auth();

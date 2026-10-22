@@ -2278,7 +2278,7 @@ async function usageHtml(){
     <div class="use-bar"><i style="width:${pct}%;background:${pct>80?'var(--danger)':pct>50?'var(--warn)':'var(--accent)'}"></i></div>
     ${sy.length?`<table class="st-tbl" style="margin-top:8px"><thead><tr><th>系統</th><th class="num">今日讀取</th></tr></thead><tbody>${sy.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${v.toLocaleString()}</td></tr>`).join('')}</tbody></table>`:''}
     ${devs.length?`<table class="st-tbl" style="margin-top:8px"><thead><tr><th>系統｜帳號／設備</th><th class="num">今日讀取</th></tr></thead><tbody>${devs.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${v.toLocaleString()}</td></tr>`).join('')}</tbody></table>`:''}
-    <p class="hint">日期 ${RC.day()}（美西時間，台灣時間每天下午 3 點或 4 點重新計算，跟 Firebase 免費額度同步）。這是各設備自己估算加總的數字，約每 2 分鐘更新一次，跟官方數字可能有些微差距。合計包含排班系統、治療計劃單、耗材登記（打卡裝置 kiosk 不在內）。這台設備本次開啟治療計劃單後讀取約 ${RC.session.toLocaleString()} 筆。</p>`;
+    <p class="hint">日期 ${RC.day()}（美西時間，台灣時間每天下午 3 點或 4 點重新計算，跟 Firebase 免費額度同步）。這是各設備自己估算加總的數字，約每 2 分鐘更新一次，跟官方數字可能有些微差距。合計包含排班系統、治療計劃單、耗材登記、打卡裝置。這台設備本次開啟治療計劃單後讀取約 ${RC.session.toLocaleString()} 筆。</p>`;
 }
 function startCloud(){
   afterLogin();watchDevices();$('#planList').innerHTML='<div class="empty" style="padding:30px 10px">載入中…</div>';
