@@ -508,6 +508,10 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .dialog .opts{display:flex; flex-direction:column; gap:8px; margin:6px 0 16px;}
 .dialog .opts label{display:flex; gap:8px; align-items:flex-start; padding:10px 12px; border:1px solid var(--line); border-radius:8px; cursor:pointer; font-size:.86rem;}
 .dialog .opts input{flex-shrink:0; margin-top:3px;}
+/* 權限設定：排班、治療計劃單、耗材三組；後兩組兩欄排列 */
+.dialog .pm-h{margin:14px 0 2px; font-size:.95rem; border-bottom:1px solid var(--line); padding-bottom:4px;}
+.dialog .opts.two{display:grid; grid-template-columns:1fr 1fr;}
+@media (max-width:560px){.dialog .opts.two{grid-template-columns:1fr;}}
 .dialog .opts label small{display:block; color:var(--sub); font-size:.75rem;}
 .dialog .acts{display:flex; justify-content:flex-end; gap:8px;}
 
@@ -2022,7 +2026,7 @@ const store={
     if(!db){saveLocal();return;}
     return queue('link/'+id,async()=>{
       if(old&&old!==obj?.account)await db.doc('access/'+old).delete();
-      if(obj)await db.doc('access/'+obj.account).set(Object.assign({staffId:id,perm:obj.perm},obj.prevPerm?{prevPerm:obj.prevPerm}:{}));
+      if(obj)await db.doc('access/'+obj.account).set(Object.assign({staffId:id,perm:obj.perm},obj.prevPerm?{prevPerm:obj.prevPerm}:{},obj.tp?{tp:obj.tp}:{},obj.cs?{cs:obj.cs}:{}));
     });
   },
   async delPriv(id){
@@ -2106,13 +2110,15 @@ async function boot(){
     if(!isAdmin&&!acc){showGate('pending',email);fs.doc('access/'+email).onSnapshot(s=>{if(s.exists)location.reload();},()=>{});return;}
     // 停權：保留帳號綁定但不能進入系統（Firestore 規則也不會給任何讀寫權限）；恢復權限後自動重新載入
     if(!isAdmin&&acc.perm==='suspended'){showGate('suspended',email);fs.doc('access/'+email).onSnapshot(s=>{if(!s.exists||s.data().perm!=='suspended')location.reload();},()=>{});return;}
+    // 排班權限「無」：不能進入排班系統，改權限後自動重新載入
+    if(!isAdmin&&acc.perm==='none'){showGate('noperm',email);fs.doc('access/'+email).onSnapshot(s=>{if(!s.exists||s.data().perm!=='none')location.reload();},()=>{});return;}
     $('gate').hidden=true;document.body.classList.remove('gated');
     db=fs;start(acc);
   });
 }
 function start(acc){
   const email=myId;
-  if(acc)accessLinks={[acc.staffId]:{account:email,perm:acc.perm}};
+  if(acc)accessLinks={[acc.staffId]:{account:email,perm:acc.perm,tp:acc.tp||null,cs:acc.cs||null}};
   const perm=isAdmin?'super':acc.perm, sup=perm==='super', mng=sup||perm==='manage', sid=acc?.staffId;
   let loaded={staff:false,weeks:false,leaves:false,cfg:false,fc:false};
   const done=k=>{loaded[k]=true;if(Object.values(loaded).every(Boolean))mode='live';renderAll();};
@@ -2141,7 +2147,7 @@ function start(acc){
   const recheck=d=>{if(isAdmin)return;if(!d||d.perm!==acc.perm||d.staffId!==acc.staffId)location.reload();};
   if(sup){
     db.collection('data/private/people').onSnapshot(snap=>{privateInfo=docsTo(snap);staff.forEach(s=>{if(privateInfo[s.id]?.birthday)syncBirthMonth(s.id,privateInfo[s.id].birthday);});renderAll();},e=>console.warn(e));
-    db.collection('access').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();if(v.staffId)m[v.staffId]={account:d.id,perm:v.perm,prevPerm:v.prevPerm||null};if(d.id===email)recheck(v);});if(!isAdmin&&!snap.docs.some(d=>d.id===email))recheck(null);accessLinks=m;renderAll();},e=>console.warn(e));
+    db.collection('access').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();if(v.staffId)m[v.staffId]={account:d.id,perm:v.perm,prevPerm:v.prevPerm||null,tp:v.tp||null,cs:v.cs||null};if(d.id===email)recheck(v);});if(!isAdmin&&!snap.docs.some(d=>d.id===email))recheck(null);accessLinks=m;renderAll();},e=>console.warn(e));
   }else db.doc('access/'+email).onSnapshot(s=>recheck(s.exists?s.data():null),e=>console.warn(e));
   if(mng){
     db.collection('faces').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();m[d.id]={at:v.at,n:v.n};});faceMeta=m;renderAll();},e=>console.warn(e));
@@ -2162,7 +2168,7 @@ function start(acc){
   else if(sid)db.collection('punches').where('ot.reviewer','==',sid).onSnapshot(revTo,e=>console.warn(e));
   // 耗材確認：超級管理員看所有待確認；其他綁定人員（醫師）看自己的待確認（各月份紀錄在分頁選月份時才讀）
   const csTo=snap=>{csPend=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();};
-  if(sup)db.collection('csItems').where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
+  if(isAdmin||appLv(acc,'cs')==='admin')db.collection('csItems').where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   else if(sid)db.collection('csItems').where('doctorId','==',sid).where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   if(sup)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
   const paySubs={};
@@ -2192,6 +2198,12 @@ function showGate(kind,email){
     acts.innerHTML='<button class="primary" id="gSignIn">使用 Google 登入</button>';
     $('gSignIn').onclick=signIn;return;
   }
+  if(kind==='noperm'){ // 排班權限「無」：只能使用治療計劃單／耗材登記
+    msg.innerHTML=`你的帳號 <span class="who">${esc(email)}</span> 沒有排班休假系統的權限。`;
+    acts.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="primary" id="gTp">治療計劃單</button><button class="primary" id="gCs">耗材登記</button><button id="gOther">改用其他帳號登入</button></div>';
+    $('gTp').onclick=()=>location.href='treatment-plan.html';$('gCs').onclick=()=>location.href='consumables.html';
+    $('gOther').onclick=signOutAndReload;return;
+  }
   msg.innerHTML=kind==='suspended'?`你的帳號 <span class="who">${esc(email)}</span> 已被停權，無法使用本系統。<br>如有疑問請洽診所管理者。`:`你的帳號 <span class="who">${esc(email)}</span> 還沒開通。<br>請把這個 Gmail 告訴診所管理者，開通後這個頁面會自動進入。`;
   acts.innerHTML='<button id="gOther">改用其他帳號登入</button>';
   $('gOther').onclick=signOutAndReload;
@@ -2210,7 +2222,16 @@ function signOutAndReload(){if(fbAuth)fbAuth.signOut().then(()=>location.reload(
 
 // ---------- rendering ----------
 const $=id=>document.getElementById(id);
-const PERMS={view:'僅檢視',self:'登記本人請假',manage:'排班管理',super:'超級管理員',suspended:'已停權'};
+const PERMS={none:'無',view:'僅檢視',self:'登記本人請假',manage:'排班管理',super:'超級管理員',suspended:'已停權'};
+// 治療計劃單、耗材的權限（access/{Gmail}.tp／.cs），與排班權限分開設定。還沒設定時沿用排班權限（要和 firestore.rules 的 legacyLv、
+// treatment-plan.html／consumables.html 的 appLv 一致）：僅檢視→治療計劃單檢視、耗材無；登記本人請假／排班管理→編輯（耗材：登記）；超級管理員→管理
+// 沿用規則與拆分前相同：僅檢視→治療計劃單「檢視」、耗材「無」
+const LEGACY_LV={view:'view',self:'edit',manage:'edit',super:'admin'},LEGACY_VIEW={tp:'view',cs:'none'};
+const appLv=(acc,k)=>!acc||acc.perm==='suspended'?'none':(acc[k]||(acc.perm==='view'?LEGACY_VIEW[k]:LEGACY_LV[acc.perm])||'none');
+const APP_LV={
+  tp:{none:['無','看不到治療計劃單。'],view:['檢視','只能查看計劃單，不能修改。'],edit:['編輯','可以開單、編輯、記錄治療、繳費與收據，只能刪除未定案的單。'],admin:['管理','編輯＋價目表、抽成、統計、收入、刪除任何計劃單、設備認證、資料備份、雲端讀取。']},
+  cs:{none:['無','不能進入耗材登記頁。'],view:['檢視','可以查看登記紀錄與統計，不能登記。'],edit:['登記','可以登記耗材，修改或刪除還沒確認的紀錄。'],admin:['管理','登記＋設定耗材種類、刪除已確認的紀錄；在「耗材確認」分頁看所有醫師並可取消確認。']},
+};
 // 僅檢視：助理只看排班表、自己的請假、自己的出勤、自己的薪資；醫師只看排班表、自己的休假、待自己審核的加班；未綁定人員只看排班表
 const viewOnly=()=>(mode==='live'||(mode==='local'&&SIM_AS))&&effPerm()==='view';
 // 僅檢視的助理可以看自己的出勤（醫師不需要）
@@ -2219,7 +2240,7 @@ const viewOnlyAssistant=()=>lowPerm()&&byId(myStaffId())?.role==='assistant'; //
 const lowPerm=()=>(mode==='live'||(mode==='local'&&SIM_AS))&&['view','self'].includes(effPerm());
 function viewTabs(){
   const r=byId(myStaffId())?.role;
-  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev','cscheck']:[])];
+  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev','cscheck']:[]),...(r!=='doctor'&&csAdmin()?['cscheck']:[])];
 }
 // 「登記本人請假」以下的人在請假分頁只看到自己的資料：繪製時暫時只留自己的請假、家庭照顧假、事件與人員
 function withOwnData(fn){
@@ -3751,7 +3772,7 @@ function renderSettings(){
     :`<tr class="${s.active===false?'inactive':''}" data-srow="${s.id}">
       <td><b>${esc(s.code||'')}</b></td>
       <td>${esc(s.name||'')||'<span style="color:var(--faint)">—</span>'}${s.active===false&&sep?`<br><small style="color:var(--sub);white-space:nowrap">到職 ${fmtD(hireOf(s.id))}・離職 ${fmtD(resignOf(s.id))}</small>`:''}</td>
-      <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有超級管理員可以設定權限"'}>權限</button>${accessLinks[s.id]?.account?` <span class="pill">${PERMS[accessLinks[s.id].perm]||PERMS.view}</span>`:''}</td>
+      <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有超級管理員可以設定權限"'}>權限</button>${accessLinks[s.id]?.account?` <span class="pill">${PERMS[accessLinks[s.id].perm]||PERMS.view}</span>${(a=>a.perm==='suspended'?'':` <small class="att-mute" title="治療計劃單／耗材權限">計劃單 ${APP_LV.tp[appLv(a,'tp')][0]}・耗材 ${APP_LV.cs[appLv(a,'cs')][0]}</small>`)(accessLinks[s.id])}`:''}</td>
       <td class="num" style="white-space:nowrap">${(a=>`<button class="small${a?.perm==='suspended'?' primary':''}" data-suspend${superOK()&&a?.account&&a.perm!=='super'?'':` disabled title="${!a?.account?'還沒綁定登入帳號':a.perm==='super'?'超級管理員暫時不能停權':'只有超級管理員可以停權'}"`}>${a?.perm==='suspended'?'恢復權限':'停權'}</button> `)(accessLinks[s.id])}<button class="small" data-toggle${dis}>${s.active===false?'恢復在職':'離職'}</button> <button class="small danger" data-delstaff${dis}>刪除</button></td></tr>`).join('')
       :`<tr><td colspan="4" class="empty">${q?`找不到符合「${esc(q)}」的${showRes?'已離職':''}${ROLE[role]}。`:showRes?`沒有已離職的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
     {const max=role==='assistant'?10:role==='doctor'?8:6;/* 醫師名單一次顯示 8 人 */const n=limitRows($('staffScroll-'+role),max);$('staffHint-'+role).hidden=n<=max;}
@@ -4569,20 +4590,26 @@ function seniority(hire,resign){
 }
 async function openPerm(s){
   if(!superOK()){toast('只有超級管理員可以設定權限。','warn');return;}
-  const cur=accessLinks[s.id]||{};
+  const cur=accessLinks[s.id]||{},curEff=Object.assign({},cur,{perm:(cur.perm==='suspended'?cur.prevPerm:cur.perm)||'view'}); // 停權中的人：預設顯示停權前的權限
   dialog(`<h3>${esc(fullName(s))} 的權限</h3><p>填入這位人員登入用的 Gmail，並設定他登入後可以做什麼。清空 Gmail 就是解除綁定，對方將無法再登入。</p>
     <div class="field" style="margin-bottom:10px"><label for="pmEmail">登入用的 Gmail</label>
       <input id="pmEmail" type="email" placeholder="name@gmail.com" autocomplete="off" value="${esc(cur.account||'')}">
     </div>
-    <div class="opts">${Object.entries({view:s.role==='doctor'?'只能查看排班表、自己的休假，以及審核指定給自己的加班，不能修改。':s.role==='assistant'?'只能查看排班表、自己的請假、自己的出勤與自己的薪資，不能修改。':'只能查看排班表，不能修改。',self:s.role==='doctor'?'可以查看班表，登記、變更自己的休假，並審核指定給自己的加班。不能排班。':'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休診日與規則、管理出勤，但不能看其他人的薪資、個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${((cur.perm==='suspended'?cur.prevPerm:cur.perm)||'view')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>`,
+    <h4 class="pm-h">排班休假系統</h4>
+    <div class="opts">${Object.entries({none:'不能進入排班休假系統（只使用治療計劃單或耗材時選這個）。',view:s.role==='doctor'?'只能查看排班表、自己的休假，以及審核指定給自己的加班，不能修改。':s.role==='assistant'?'只能查看排班表、自己的請假、自己的出勤與自己的薪資，不能修改。':'只能查看排班表，不能修改。',self:s.role==='doctor'?'可以查看班表，登記、變更自己的休假，並審核指定給自己的加班。不能排班。':'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休診日與規則、管理出勤，但不能看其他人的薪資、個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${((cur.perm==='suspended'?cur.prevPerm:cur.perm)||'view')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>
+    <h4 class="pm-h">治療計劃單</h4>
+    <div class="opts two">${Object.entries(APP_LV.tp).map(([k,[l,d]])=>`<label><input type="radio" name="pmTp" value="${k}"${appLv(curEff,'tp')===k?' checked':''}><span>${l}<small>${d}</small></span></label>`).join('')}</div>
+    <h4 class="pm-h">耗材系統</h4>
+    <div class="opts two">${Object.entries(APP_LV.cs).map(([k,[l,d]])=>`<label><input type="radio" name="pmCs" value="${k}"${appLv(curEff,'cs')===k?' checked':''}><span>${l}<small>${d}</small></span></label>`).join('')}</div>
+    ${s.role==='doctor'?'<p class="desc">醫師確認或退回自己的耗材不受耗材權限影響（排班休假系統至少要「僅檢視」才能進入「耗材確認」分頁）。</p>':''}`,
     ov=>{
-      const perm=ov.querySelector('input[name=pm]:checked').value;
+      const perm=ov.querySelector('input[name=pm]:checked').value,tp=ov.querySelector('input[name=pmTp]:checked').value,cs=ov.querySelector('input[name=pmCs]:checked').value;
       const account=ov.querySelector('#pmEmail').value.trim().toLowerCase();
       if(!account){if(cur.account){store.link(s.id,null);toast('已解除綁定。');}return;}
       if(!/^[^@\s\/]+@[^@\s\/]+\.[^@\s\/]+$/.test(account)){toast('Gmail 格式不正確。','warn');return false;}
       const other=Object.entries(accessLinks).find(([sid,v])=>sid!==s.id&&v&&v.account===account);
       if(other){toast(`這個帳號已經綁定給 ${codeOf(other[0])}，請先解除。`,'warn');return false;}
-      store.link(s.id,{account,perm});toast(`已設定 ${codeOf(s.id)} 的權限：${PERMS[perm]}。`);
+      store.link(s.id,{account,perm,tp,cs});toast(`已設定 ${codeOf(s.id)} 的權限：排班 ${PERMS[perm]}、治療計劃單 ${APP_LV.tp[tp][0]}、耗材 ${APP_LV.cs[cs][0]}。`);
     },'儲存');
   const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
   ov.querySelector('#pmEmail').focus();
@@ -4791,17 +4818,19 @@ const CS_SPEC_COLORS={'玻璃纖維釘':{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c
 // 乳牙套尺寸（例如「左上 D4」）加上 Palmer 角標：左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉
 const csPalmer=v=>{const m=/^([左右])([上下]) ([DE]\d)$/.exec(v||'');return m?`${esc(m[1]+m[2])} <span class="pal ${m[2]==='上'?'u':'l'}${m[1]==='左'?'l':'r'}">${esc(m[3])}</span>`:'';};
 const csHtml=x=>{const c=CS_SPEC_COLORS[x.item]?.[x.spec];return esc(x.item)+(x.spec?' '+(c?`<b style="color:${c}">${esc(x.spec)}</b>`:csPalmer(x.spec)||esc(x.spec)):'');};
-const canSeeCs=()=>byId(myStaffId())?.role==='doctor'||superOK();
+// 耗材「管理」權限：看所有醫師的待確認、可以取消確認（本機模式沒有模擬身分時視為管理）
+const csAdmin=()=>{if(mode==='local'&&!SIM_AS)return true;if(isAdmin&&myId)return true;const a=mode==='local'?{perm:SIM_AS[1]}:accessLinks[myStaffId()];return appLv(a,'cs')==='admin';};
+const canSeeCs=()=>byId(myStaffId())?.role==='doctor'||csAdmin();
 let csView={doc:'',month:'',st:''},csSel=new Set(),csMonthKey='',csMonthUnsub=null;
 // mine=true：只算指定給自己的（醫師分頁標籤上的數字）
 function csPendList(mine){
-  const me=myStaffId(),sup=superOK(),src=mode==='local'?csLocal().items:csPend;
+  const me=myStaffId(),sup=csAdmin(),src=mode==='local'?csLocal().items:csPend;
   return src.filter(x=>x.status==='pending'&&(mine||!sup?x.doctorId===me:true))
     .sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0));
 }
 // 所選月份的紀錄：雲端只在月份或身分改變時重新訂閱
 function csSubMonth(){
-  const ym=csView.month,me=myStaffId(),sup=superOK();
+  const ym=csView.month,me=myStaffId(),sup=csAdmin();
   if(mode==='local'){csHist=csLocal().items.filter(x=>x.month===ym&&(sup||x.doctorId===me));return;}
   const key=ym+'|'+(sup?'*':me);if(csMonthKey===key)return;
   csMonthKey=key;if(csMonthUnsub)csMonthUnsub();csMonthUnsub=null;csHist=[];
@@ -4811,7 +4840,7 @@ function csSubMonth(){
 }
 const csFind=id=>(mode==='local'?csLocal().items:[...csPend,...csHist]).find(x=>x.id===id);
 function csRow(x,opt){
-  const d=parseYmd(x.date),me=myStaffId(),mine=x.doctorId===me,r=x.review,sup=superOK();
+  const d=parseYmd(x.date),me=myStaffId(),mine=x.doctorId===me,r=x.review,sup=csAdmin();
   const st=x.status==='confirmed'?`<span class="att-ok">已確認</span>${r?`<br><small class="att-mute">${esc(r.byName||'')} ${esc(fmtAt(r.at))}</small>`:''}`
     :x.status==='rejected'?`<span class="att-bad">已退回</span>${x.reason?`<br><small class="att-mute">原因：${esc(x.reason)}</small>`:''}`
     :`<span class="att-bad">待確認</span>${x.prevReason?`<br><small class="att-mute">（曾退回：${esc(x.prevReason)}，助理已修改）</small>`:''}`;
@@ -4826,12 +4855,12 @@ function csRow(x,opt){
     ${opt.hist?`<td>${st}</td>`:''}<td style="white-space:nowrap">${acts}</td></tr>`;
 }
 function renderCs(){
-  const sup=superOK(),me=myStaffId(),isDoc=byId(me)?.role==='doctor',t=new Date();
+  const sup=csAdmin(),me=myStaffId(),isDoc=byId(me)?.role==='doctor',t=new Date();
   if(!csView.month)csView.month=ymd(t).slice(0,7);
   csSubMonth();
   $('csTitle').textContent=sup?'耗材確認（所有醫師）':'耗材確認';
   $('csDesc').innerHTML=(isDoc?'助理在「耗材登記」頁登記你使用的耗材，請確認是否正確；有誤請按「有誤」並寫原因，會退回給助理修改後重新送出。確認後就不能再修改。':'')
-    +(sup?(isDoc?'<br>':'')+'超級管理員可以看到所有醫師的待確認耗材，但只有醫師本人可以確認或退回；下方紀錄可以對已確認的耗材「取消確認」。':'')
+    +(sup?(isDoc?'<br>':'')+'有耗材「管理」權限可以看到所有醫師的待確認耗材，但只有醫師本人可以確認或退回；下方紀錄可以對已確認的耗材「取消確認」。':'')
     +' <a href="consumables.html" target="_blank" rel="noopener">開啟耗材登記頁 ↗</a>';
   // 醫師篩選：超級管理員才有
   const all=csPendList(false),ids=[...new Set([...all,...csHist].map(x=>x.doctorId))];
@@ -4857,7 +4886,7 @@ function renderCs(){
 // 確認／退回（醫師本人）、取消確認（超級管理員）
 async function csSet(ids,status,reason){
   const me=myStaffId(),by=myDisplayName(),at=Date.now();
-  const list=ids.map(csFind).filter(x=>x&&(status==='pending'?x.status==='confirmed'&&superOK():x.status==='pending'&&x.doctorId===me));
+  const list=ids.map(csFind).filter(x=>x&&(status==='pending'?x.status==='confirmed'&&csAdmin():x.status==='pending'&&x.doctorId===me));
   if(!list.length)return;
   const a=status==='confirmed'?'confirm':status==='rejected'?'reject':'unconfirm';
   const patch=x=>Object.assign({status,review:status==='pending'?null:{by:myId||'',byName:by,at},updatedAt:at,hist:[...(x.hist||[]),Object.assign({a,at,by},reason?{note:reason}:{})]},reason?{reason}:{});
@@ -4877,7 +4906,7 @@ $('tab-cscheck').addEventListener('click',e=>{
     if(r===null)return;if(!r.trim()){alert('請寫退回原因');return;}csSet([x.id],'rejected',r.trim());}
   if(b.dataset.csundo){const x=csFind(b.dataset.csundo);if(x&&confirm(`取消確認這筆耗材？\n${x.date}　${x.pName}　${csLabel(x)} × ${x.qty}\n取消後改回「待確認」，需要醫師重新確認。`))csSet([x.id],'pending');}
   if(b.id==='csOkSel')csSet([...csSel],'confirmed');
-  if(b.id==='csOkAll'){const m=csPendList(true).filter(x=>!superOK()||!csView.doc||x.doctorId===csView.doc);if(confirm(`確認全部 ${m.length} 筆耗材都正確？`))csSet(m.map(x=>x.id),'confirmed');}
+  if(b.id==='csOkAll'){const m=csPendList(true).filter(x=>!csAdmin()||!csView.doc||x.doctorId===csView.doc);if(confirm(`確認全部 ${m.length} 筆耗材都正確？`))csSet(m.map(x=>x.id),'confirmed');}
 });
 $('tab-cscheck').addEventListener('change',e=>{
   const t=e.target;
@@ -6264,8 +6293,8 @@ document.querySelectorAll('.staff-table').forEach(tb=>tb.addEventListener('click
   if(e.target.closest('[data-suspend]')){
     // 停權：保留帳號綁定，權限改為 suspended（記下原本的權限，恢復時還原）
     const a=accessLinks[s.id];if(!superOK()||!a?.account||a.perm==='super')return; // 超級管理員暫時不能停權
-    if(a.perm==='suspended'){store.link(s.id,{account:a.account,perm:a.prevPerm||'view'});toast(`已恢復 ${codeOf(s.id)} 的權限（${PERMS[a.prevPerm||'view']}）。`);return;}
-    dialog(`<h3>停權 ${esc(fullName(s))}？</h3><p>停權後 ${esc(a.account)} 將無法登入系統，人員資料與班表都會保留。之後可以按「恢復權限」還原成原本的權限（${PERMS[a.perm]||PERMS.view}）。</p>`,()=>{store.link(s.id,{account:a.account,perm:'suspended',prevPerm:a.perm||'view'});toast(`已停權 ${codeOf(s.id)}。`);},'停權',true);
+    if(a.perm==='suspended'){store.link(s.id,{account:a.account,perm:a.prevPerm||'view',tp:a.tp,cs:a.cs});toast(`已恢復 ${codeOf(s.id)} 的權限（${PERMS[a.prevPerm||'view']}）。`);return;}
+    dialog(`<h3>停權 ${esc(fullName(s))}？</h3><p>停權後 ${esc(a.account)} 將無法登入系統，人員資料與班表都會保留。之後可以按「恢復權限」還原成原本的權限（${PERMS[a.perm]||PERMS.view}）。</p>`,()=>{store.link(s.id,{account:a.account,perm:'suspended',prevPerm:a.perm||'view',tp:a.tp,cs:a.cs});toast(`已停權 ${codeOf(s.id)}。`);},'停權',true);
     return;
   }
   if(e.target.closest('[data-toggle]')){

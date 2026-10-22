@@ -644,11 +644,17 @@ const LocalDB={
   get(k){return this.tx('kv','readonly',s=>s.get(k))},
   set(k,v){return this.tx('kv','readwrite',s=>s.put(v,k))},
 };
-let fs=null,me='',PERM='super';            // 目前登入者與權限
-const canEdit=()=>['self','manage','super','device'].includes(PERM); // 可以開單、編輯、記錄繳費與收據
-const canPrice=()=>PERM==='super';                          // 可以修改價目表與單上的單價
+// 治療計劃單權限（access/{Gmail}.tp，在排班系統「人員名單 → 權限」設定，與排班權限分開）：
+//   none 無、view 檢視、edit 編輯（開單、繳費、收據）、admin 管理（價目表、統計、收入、刪單、設備認證、備份）；device 認證設備＝編輯
+// 還沒設定 tp 時沿用排班權限：僅檢視→檢視、登記本人請假／排班管理→編輯、超級管理員→管理（要和 firestore.rules 的 legacyLv 一致）
+// 沿用規則與拆分前相同：僅檢視→治療計劃單「檢視」、耗材「無」
+const LEGACY_LV={view:'view',self:'edit',manage:'edit',super:'admin'},LEGACY_VIEW={tp:'view',cs:'none'};
+const appLv=(acc,k)=>!acc||acc.perm==='suspended'?'none':(acc[k]||(acc.perm==='view'?LEGACY_VIEW[k]:LEGACY_LV[acc.perm])||'none');
+let fs=null,me='',PERM='admin';            // 目前登入者與權限
+const canEdit=()=>['edit','admin','device'].includes(PERM); // 可以開單、編輯、記錄繳費與收據
+const canPrice=()=>PERM==='admin';                          // 可以修改價目表與單上的單價
 // 刪除計劃單：超級管理員可刪任何一張（含已定案、已結單）；其他可編輯的人只能刪還沒定案的
-const canDelPlan=p=>PERM==='super'||(canEdit()&&!p.finalized&&p.status==='open');
+const canDelPlan=p=>PERM==='admin'||(canEdit()&&!p.finalized&&p.status==='open');
 const isPhotoData=s=>typeof s==='string'&&s.startsWith('data:');
 const fileCache=new Map();
 // 雲端一打開就讀、並即時同步的單：所選狀態的單＋近 N 天內有異動的單（在「⚙ 設定 → 雲端讀取」調整）；allLoaded＝已讀進全部舊單
@@ -1702,7 +1708,7 @@ const isOrthoPlan=p=>p.items.some(i=>!i.custom&&ORTHO_MAIN.has(i.name));
 const orthoPlanComm=()=>settings.orthoPlanComm==null?500:Number(settings.orthoPlanComm)||0;
 const firstPay=p=>(p.payments||[]).filter(x=>!x.transfer&&x.amount>0&&x.date).sort((a,b)=>a.date.localeCompare(b.date))[0]||null;
 const ORTHO_ITEMS=new Set(['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','矯正器升級','Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正']);
-const canSeeIncome=()=>PERM==='super'; // 醫師自費收入(月)、醫師支出助理獎金(月)、抽成比例：只有超級管理員看得到
+const canSeeIncome=()=>PERM==='admin'; // 醫師自費收入(月)、醫師支出助理獎金(月)、抽成比例：只有超級管理員看得到
 function incomeRows(ym){
   const rows=[];
   for(const p of plans.values())for(const x of p.payments||[]){
@@ -1967,10 +1973,10 @@ function addExtra(cat,name){
 function openSettings(tab){
   const P=settings.prices;
   modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>設定</h3>
-    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button>${canSeeIncome()?'<button data-tab="comm">抽成比例</button>':''}${fs&&PERM==='super'?'<button data-tab="sync">雲端讀取</button>':''}${PERM==='super'?'<button data-tab="backup">資料備份</button>':''}${fs&&PERM==='super'?'<button data-tab="device">設備認證</button>':''}</div>
+    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button>${canSeeIncome()?'<button data-tab="comm">抽成比例</button>':''}${fs&&PERM==='admin'?'<button data-tab="sync">雲端讀取</button>':''}${PERM==='admin'?'<button data-tab="backup">資料備份</button>':''}${fs&&PERM==='admin'?'<button data-tab="device">設備認證</button>':''}</div>
     <div data-pane="price">
       <div class="hint">輸入每個項目的單價（新台幣）。開單選項目時自動帶入「單價 × 數量」為金額；已開立的計劃單不受影響。</div>
-      ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改價目表，你目前只能查看。</div>'}
+      ${canPrice()?'':'<div class="ro-note">只有治療計劃單「管理」權限可以修改價目表，你目前只能查看。</div>'}
       <div id="priceList">${priceRows()}</div>
     </div>
     <div data-pane="staff">
@@ -1984,10 +1990,10 @@ function openSettings(tab){
       </div>
       <div class="hint" style="margin-top:6px">本機模式：輸入欄位時會出現這些名字供選擇，也可以直接打字。</div>`}
     </div>
-    ${fs&&PERM==='super'?`<div data-pane="device">${devicePane()}</div>`:''}
+    ${fs&&PERM==='admin'?`<div data-pane="device">${devicePane()}</div>`:''}
     ${canSeeIncome()?`<div data-pane="comm">
       <div class="hint">用於「📊 統計 → 醫師支出助理獎金(月)」。</div>
-      ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改抽成比例。</div>'}
+      ${canPrice()?'':'<div class="ro-note">只有治療計劃單「管理」權限可以修改抽成比例。</div>'}
       <h4 style="margin:16px 0 4px">矯正療程單</h4>
       <div class="hint">含 LH日式矯正（全口／半口／局部）或 Invisalign隱適美（全方位／中度／輕度／快速／兒童早期矯正）的計劃單，第一次繳費的那個月就計抽成，每單固定金額，不等結單；由計畫變更延續的新單不重複計算。</div>
       <div class="price-row comm-row"><span>每單抽成</span><span class="comm-in"><input class="num" type="number" min="0" step="1" data-orthocomm value="${orthoPlanComm()}" style="text-align:right" ${canPrice()?'':'disabled'}><span class="hint" style="align-self:center">元／單</span></span></div>
@@ -1995,9 +2001,9 @@ function openSettings(tab){
       <div class="hint">選「%」時抽成＝該項目已繳金額 × 比例；選「元/單位」時抽成＝數量 × 金額（該項目有繳費才計）。留空＝不抽成。自訂項目與繳費時未選項目的金額不抽成。</div>
       <div id="itemCommList">${itemCommRows()}</div>
     </div>`:''}
-    ${fs&&PERM==='super'?`<div data-pane="sync">
+    ${fs&&PERM==='admin'?`<div data-pane="sync">
       <p class="hint">設定每台設備一打開治療計劃單時，先讀進來並即時同步哪些單。讀得越少，每天用掉的雲端讀取次數越少；其他舊單可在左側列表最下方用「在雲端搜尋舊單」或「載入 n 個月內有異動的舊單」讀取，「📊 統計」也會自動讀需要的單。</p>
-      ${canPrice()?'':'<div class="ro-note">只有超級管理員可以修改，你目前只能查看。</div>'}
+      ${canPrice()?'':'<div class="ro-note">只有治療計劃單「管理」權限可以修改，你目前只能查看。</div>'}
       <h4 style="margin:14px 0 6px">今日雲端讀取筆數（全專案估計）<button class="btn-sm btn-ghost" data-x="userefresh" style="margin-left:6px">重新整理</button></h4>
       <div id="usageBox"><p class="hint">讀取中…</p></div>
       <p><a href="https://console.firebase.google.com/project/assistant-schedular/firestore/databases/-default-/usage" target="_blank" rel="noopener">開啟 Firebase 主控台查看官方用量 ↗</a></p>
@@ -2010,7 +2016,7 @@ function openSettings(tab){
       <p class="hint">「在雲端搜尋舊單」與「統計只讀需要的單」要用到每張單的搜尋欄位；新存的單會自動有，舊單需要補一次（會讀取全部計劃單一次）。</p>
       ${settings.idxV===IDX_V?'<p>✔ 已補好。</p>':'<button class="btn-sm" data-x="idxfix">補舊單欄位（一次性）</button>'}`:''}
     </div>`:''}
-    ${PERM==='super'?`<div data-pane="backup">
+    ${PERM==='admin'?`<div data-pane="backup">
       <p class="hint">${fs?'資料存在雲端（與排班系統同一個 Firebase 專案），各台電腦登入後即時同步。仍建議定期匯出備份檔另存。':'本機模式：資料存在這台電腦的瀏覽器裡（IndexedDB）。清除瀏覽器資料、換電腦或換瀏覽器都看不到，請定期匯出備份檔並另存。'}</p>
       <p>目前共 <b>${plans.size}</b> 張治療計劃單。</p>
       <div class="acts" style="justify-content:flex-start"><button class="btn-primary" data-x="export">匯出備份（.json）</button>${canEdit()?'<button data-x="import">從備份檔匯入</button>':''}</div>
@@ -2109,7 +2115,7 @@ async function handleDevice(u){
     return;
   }
   if(!d.approved){
-    msg.innerHTML=`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請超級管理員到「⚙ → 設備認證」核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
+    msg.innerHTML=`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請治療計劃單管理者到「⚙ → 設備認證」核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
     acts.innerHTML='<button id="devCancel">改用 Google 登入</button>';$('#devCancel').onclick=signOut;
     ref.onSnapshot(s=>{if(s.exists&&s.data().approved)location.reload()},()=>{});
     return;
@@ -2120,7 +2126,7 @@ async function handleDevice(u){
   startCloud();
 }
 function watchDevices(){
-  if(PERM!=='super')return;
+  if(PERM!=='admin')return;
   fs.collection('tpDevices').onSnapshot(snap=>{
     tpDevices=snap.docs.map(d=>({uid:d.id,...d.data()})).sort((a,b)=>(a.approved-b.approved)||(b.reqAt||0)-(a.reqAt||0));
     const pane=document.querySelector('.modal [data-pane="device"]');if(pane)pane.innerHTML=devicePane();
@@ -2151,7 +2157,7 @@ async function deviceAction(uid,act){
 /* ====== 啟動：Google 登入 → 權限（沿用排班系統）→ 雲端即時同步 ====== */
 let staffNames={doctor:[],assistant:[]};
 let staffCodes={}; // 姓名 → 排班系統的人員代號（醫師代號去掉開頭的 Dr.）
-const PERM_LABEL={view:'僅檢視',self:'一般編輯',manage:'排班管理',super:'超級管理員',device:'認證設備'};
+const PERM_LABEL={view:'檢視',edit:'編輯',admin:'管理',device:'認證設備'};
 function showGate(kind,email){
   const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
   if(kind==='loading'){msg.textContent='連線中…';acts.innerHTML='';return}
@@ -2180,12 +2186,12 @@ function afterLogin(){
   $('#signOutBtn').textContent=PERM==='device'?'退出設備模式':'登出';
   $('#newBtn').hidden=!canEdit();
   // 統計、資料備份、雲端讀取只有超級管理員看得到；設定按鈕的字樣只列出看得到的分頁
-  $('#statsBtn').hidden=PERM!=='super';$('#settingsBtn').textContent=PERM==='super'?'⚙ 價目表／人員／備份':'⚙ 價目表／人員';
+  $('#statsBtn').hidden=PERM!=='admin';$('#settingsBtn').textContent=PERM==='admin'?'⚙ 價目表／人員／備份':'⚙ 價目表／人員';
   renderList();renderEditor();
 }
 // 本機模式（開發測試）
 async function bootLocal(){
-  const m=location.search.match(/[?&]perm=(view|self|manage|super)/);PERM=m?m[1]:'super';
+  const m=location.search.match(/[?&]perm=(view|edit|admin|self|manage|super)/);PERM=m?(LEGACY_LV[m[1]]||m[1]):'admin';
   try{await LocalDB.open()}catch(e){$('#main').innerHTML='<div class="empty">此瀏覽器無法使用本機資料庫（可能是無痕模式），資料將無法保存。</div>';return}
   const s=await LocalDB.get('settings');if(s)settings={...settings,...s};
   migrateCatComm();rebuildCats();
@@ -2210,7 +2216,8 @@ function bootCloud(){
     let acc=null;try{const s=await fs.doc('access/'+me).get();acc=s.exists?s.data():null}catch(e){console.error(e)}
     if(!owner&&!acc){showGate('pending',me);fs.doc('access/'+me).onSnapshot(s=>{if(s.exists)location.reload()},()=>{});return}
     if(!owner&&acc.perm==='suspended'){showGate('suspended',me);return}
-    PERM=owner?'super':(acc.perm||'view');
+    PERM=owner?'admin':appLv(acc,'tp');
+    if(PERM==='none'){showGate('error','你的帳號沒有治療計劃單的權限。如需使用，請洽診所管理者在排班系統「人員名單 → 權限」開通。');return}
     startCloud();
   });
 }

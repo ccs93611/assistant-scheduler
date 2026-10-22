@@ -208,9 +208,15 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 /* ====== 狀態 ====== */
 const ST={pending:'待醫師確認',rejected:'醫師退回',confirmed:'已確認'};
-let fs=null,me='',mySid='',PERM='super';
-const canEdit=()=>['self','manage','super','device'].includes(PERM); // 可以登記、修改、刪除未確認的耗材
-const canCfg=()=>PERM==='super';                                     // 只有超級管理員可以設定耗材種類
+// 耗材權限（access/{Gmail}.cs，在排班系統「人員名單 → 權限」設定，與排班權限分開）：
+//   none 無、view 檢視（紀錄與統計）、edit 登記（登記、修改／刪除未確認的）、admin 管理（耗材種類、刪除已確認的紀錄）；device 認證設備＝登記
+// 還沒設定 cs 時沿用排班權限：僅檢視→無、登記本人請假／排班管理→登記、超級管理員→管理（要和 firestore.rules 的 legacyLv 一致）
+// 沿用規則與拆分前相同：僅檢視→治療計劃單「檢視」、耗材「無」
+const LEGACY_LV={view:'view',self:'edit',manage:'edit',super:'admin'},LEGACY_VIEW={tp:'view',cs:'none'};
+const appLv=(acc,k)=>!acc||acc.perm==='suspended'?'none':(acc[k]||(acc.perm==='view'?LEGACY_VIEW[k]:LEGACY_LV[acc.perm])||'none');
+let fs=null,me='',mySid='',PERM='admin';
+const canEdit=()=>['edit','admin','device'].includes(PERM); // 可以登記、修改、刪除未確認的耗材
+const canCfg=()=>PERM==='admin';                            // 耗材管理：設定耗材種類、刪除已確認的紀錄
 let staff=[];           // 排班系統的人員名單 {id,role,code,name,active}
 let cfg={};             // csConfig/settings：耗材種類 items（還沒設定過時用 DEFAULT_ITEMS）
 const DEFAULT_ITEMS=['玻璃纖維釘','兒童乳牙套(SSC)','MTA(管)','MTA(粉)','膠原蛋白(速吉安)','膠原蛋白(亞果)','FDBA骨粉(粗)','FDBA骨粉(細)',
@@ -366,7 +372,7 @@ function startCloud(){
   subscribeMonth();
 }
 function bootLocal(){
-  const m=location.search.match(/[?&]perm=(view|self|manage|super|device)/);PERM=m?m[1]:'super';me='本機測試';
+  const m=location.search.match(/[?&]perm=(view|edit|admin|device|self|manage|super)/);PERM=m?(LEGACY_LV[m[1]]||m[1]):'admin';me='本機測試';
   const as=location.search.match(/[?&]as=([\w-]+)/);mySid=as?as[1]:'';
   const loadAll=()=>{
     let r=null;try{r=JSON.parse(localStorage.getItem(ROSTER_KEY)||'null')}catch(e){}
@@ -404,7 +410,7 @@ function fillItems(extra){
 function afterLogin(){
   $('#gate').hidden=true;$('#me').hidden=false;
   $('#meEmail').textContent=PERM==='device'?me:myName();
-  $('#mePerm').textContent={view:'僅檢視',self:'一般編輯',manage:'排班管理',super:'超級管理員',device:'認證設備'}[PERM]||PERM;
+  $('#mePerm').textContent={view:'檢視',edit:'登記',admin:'管理',device:'認證設備'}[PERM]||PERM;
   $('#signOutBtn').textContent=PERM==='device'?'退出設備模式':'登出';
   $('#form').hidden=!canEdit();$('#cfgBtn').hidden=!canCfg();
   if(!$('#fDate').value)$('#fDate').value=today();
@@ -437,7 +443,7 @@ function render(){
   const by={};open.forEach(x=>{if(x.month!==view.month){const b=by[x.month]||(by[x.month]={n:0,r:0});b.n++;if(x.status==='rejected')b.r++}});
   const yms=Object.keys(by).sort().reverse(),om=$('#otherMonths');om.hidden=!yms.length;
   om.innerHTML=yms.length?'其他月份還有未完成的紀錄：'+yms.map(ym=>`<button type="button" class="btn-sm" data-goto="${ym}">${Number(ym.slice(0,4))}年${Number(ym.slice(5))}月（${by[ym].n}${by[ym].r?`，退回 ${by[ym].r}`:''}）</button>`).join(' '):'';
-  const canChange=x=>canEdit()&&(x.status!=='confirmed'||PERM==='super');
+  const canChange=x=>canEdit()&&(x.status!=='confirmed'||PERM==='admin');
   $('#list').innerHTML='<thead><tr><th>日期</th><th>病患</th><th>病歷號</th><th>牙位</th><th>耗材種類</th><th class="num">數量</th><th>醫師</th><th>助理</th><th>狀態</th><th></th></tr></thead><tbody>'+
     (list.length?list.map(x=>`<tr data-id="${esc(x.id)}"${editing===x.id?' class="editing"':''}>
       <td class="nw">${esc(fmtD(x.date))}<div class="sub">${esc(x.date.slice(0,4))}</div></td>
@@ -687,7 +693,7 @@ async function handleDevice(u){
     return;
   }
   if(!d.approved){
-    msg.innerHTML=`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請超級管理員到「治療計劃單 → ⚙ → 設備認證」核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
+    msg.innerHTML=`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請治療計劃單管理者到「治療計劃單 → ⚙ → 設備認證」核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
     acts.innerHTML='<button id="devCancel">改用 Google 登入</button>';$('#devCancel').onclick=signOut;
     ref.onSnapshot(s=>{if(s.exists&&s.data().approved)location.reload()},()=>{});
     return;
@@ -711,8 +717,8 @@ function bootCloud(){
     let acc=null;try{const s=await fs.doc('access/'+me).get();acc=s.exists?s.data():null}catch(e){console.error(e)}
     if(!owner&&!acc){showGate('pending',me);fs.doc('access/'+me).onSnapshot(s=>{if(s.exists)location.reload()},()=>{});return}
     if(!owner&&acc.perm==='suspended'){showGate('suspended',me);return}
-    PERM=owner?'super':(acc.perm||'view');mySid=acc?.staffId||'';
-    if(!canEdit()&&!canCfg()){showGate('error',`你的權限（僅檢視）無法登記耗材。醫師請到排班系統的「耗材確認」分頁確認耗材。`);return}
+    PERM=owner?'admin':appLv(acc,'cs');mySid=acc?.staffId||'';
+    if(PERM==='none'){showGate('error',`你的帳號沒有耗材系統的權限。醫師確認自己的耗材請到排班系統的「耗材確認」分頁；其他需求請洽診所管理者在排班系統「人員名單 → 權限」開通。`);return}
     startCloud();
   });
 }
