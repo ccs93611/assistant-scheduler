@@ -20,7 +20,7 @@ const TI_CAT_DESC={
 };
 const TREATMENT_INFO=[
 /* ---------- 固定式贗復 ---------- */
-{id:'dsd',cat:'固定式贗復',title:'DSD 數位微笑設計',items:['DSD數位微笑設計'],
+{id:'dsd',cat:'固定式贗復',title:'DSD 數位微笑設計',items:['DSD數位微笑設計'],photo:{src:'media/dsd.webp',alt:'DSD 數位微笑設計：依臉部中線、牙齒比例與微笑曲線設計每顆牙齒的外形'},
  what:'DSD（Digital Smile Design）是在治療前，先用照片、影片與口內掃描，依您的臉型、唇形與笑容比例，在電腦上設計出未來牙齒的形狀與排列。必要時可做出模擬牙套戴在口中試看，讓您在動手之前就看到治療後的樣子。',
  who:['想改善門牙形狀、顏色、大小或排列的人','準備做貼片、全瓷冠、矯正等美學治療的人','想先看到成果再決定治療方式的人'],
  steps:['拍攝臉部與牙齒照片、影片，進行口內掃描','醫師與技師依臉部比例設計微笑','與您討論設計，必要時試戴模擬牙套（Mock-up）','確認後作為後續治療的藍圖'],
@@ -337,7 +337,7 @@ const TI_CSS=`
 .ti-what{margin-bottom:12px!important}
 .ti-fig{margin:0 0 14px}.ti-fig svg{display:block;width:100%;height:auto}
 .ti-fig figcaption{display:grid;margin-top:6px;text-align:center;font-size:13px;line-height:1.45}
-.ti-photo{margin:0 0 14px}.ti-photo img{display:block;width:100%;max-width:520px;height:auto;border-radius:12px;border:1px solid var(--line)}
+.ti-photo{margin:0 0 14px}.ti-photo img{display:block;width:auto;max-width:100%;max-height:380px;height:auto;border-radius:12px;border:1px solid var(--line)}
 @media print{.ti-fig,.ti-photo{break-inside:avoid}}
 .ti-sec{margin-top:12px}
 .ti-sec h4{margin:0 0 4px;font-size:15px;color:var(--accent);display:flex;align-items:center;gap:6px}
