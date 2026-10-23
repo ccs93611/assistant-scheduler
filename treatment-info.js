@@ -67,7 +67,7 @@ const TREATMENT_INFO=[
  steps:['修磨牙齒、口內掃描或取模','配戴臨時假牙','技工室製作牙冠','試戴、調整咬合與顏色後黏著'],
  time:'約 2～3 次，前後約 1～3 週。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','仍要確實刷牙、使用牙線']},
-{id:'maryland',cat:'固定式贗復',title:'馬里蘭牙橋',items:['馬里蘭牙橋'],photo:{src:'media/maryland.webp',alt:'馬里蘭牙橋：假牙兩側的金屬翼片黏在鄰牙內側'},
+{id:'maryland',cat:'固定式贗復',title:'馬里蘭牙橋',items:['馬里蘭牙橋'],photo:{src:'media/maryland.webp?v=2',alt:'馬里蘭牙橋：假牙兩側的金屬翼片黏在鄰牙內側'},
  what:'缺一顆牙（多為前牙）時，假牙兩側（或一側）有薄薄的翼片，黏在隔壁牙齒的內側來固定。隔壁牙齒只需要很少量的修磨，是不植牙時較保守的固定方式。',
  who:['缺一顆前牙、隔壁牙齒健康的人','年紀尚輕、暫時不適合植牙的人','不想大量磨隔壁牙齒的人'],
  steps:['評估咬合與隔壁牙齒狀況','微量修整牙齒內側、取模','製作牙橋','試戴後黏著'],
@@ -335,9 +335,9 @@ const TI_CSS=`
 .ti-body{font-size:15px;line-height:1.7}
 .ti-body p{margin:0}
 .ti-what{margin-bottom:12px!important}
-.ti-fig{margin:0 0 14px}.ti-fig svg{display:block;width:100%;height:auto}
+.ti-fig{margin:0 auto 14px}.ti-fig svg{display:block;width:100%;height:auto}
 .ti-fig figcaption{display:grid;margin-top:6px;text-align:center;font-size:13px;line-height:1.45}
-.ti-photo{margin:0 0 14px}.ti-photo img{display:block;width:auto;max-width:100%;max-height:380px;height:auto;border-radius:12px;border:1px solid var(--line)}
+.ti-photo{margin:0 0 14px}.ti-photo img{display:block;margin:0 auto;width:auto;max-width:100%;max-height:380px;height:auto;border-radius:12px;border:1px solid var(--line)}
 @media print{.ti-fig,.ti-photo{break-inside:avoid}}
 .ti-sec{margin-top:12px}
 .ti-sec h4{margin:0 0 4px;font-size:15px;color:var(--accent);display:flex;align-items:center;gap:6px}
@@ -356,5 +356,14 @@ const TI_CSS=`
 .ti-str td.mpa{white-space:nowrap;font-weight:700}
 .ti-str tr.cur td{background:var(--accent-soft)}
 @media print{.ti-str-btn{display:none}}
+/* 平板（觸控、寬 600px 以上，或寬 600～1100px）：字放大，方便拿給病人看 */
+@media screen and (min-width:600px) and (pointer:coarse),screen and (min-width:600px) and (max-width:1100px){
+  .ti-body{font-size:17.5px;line-height:1.75}
+  .ti-sec h4{font-size:17.5px}
+  .ti-fig figcaption{font-size:15.5px}
+  .ti-str table{font-size:15px}
+  .ti-str-btn{font-size:14px;padding:2px 11px}
+  .ti-disclaimer{font-size:14px}
+}
 `;
 const TI_DISCLAIMER='以上為一般性說明，實際治療方式、次數與時間依醫師檢查診斷為準；有任何疑問歡迎詢問醫師或助理。';

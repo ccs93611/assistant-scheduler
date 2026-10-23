@@ -67,6 +67,22 @@ details.ti[open]>summary .lead{display:none}
 .print-head,.print-foot{display:none}
 footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 @media (max-width:520px){header.top h1{font-size:21px}}
+/* 平板：標題、搜尋、分類、卡片摘要的字放大（內文放大在 treatment-info.js 的 TI_CSS） */
+@media screen and (min-width:600px) and (pointer:coarse),screen and (min-width:600px) and (max-width:1100px){
+  body{font-size:17px}
+  header.top h1{font-size:28px}header.top .sub{font-size:15px}
+  .tools input{font-size:17px;padding:11px 14px}
+  .chips button{font-size:16px;padding:6px 15px}
+  .btn-sm{font-size:15px;padding:5px 12px}
+  section.cat>h2{font-size:22px}section.cat>.desc{font-size:16px}
+  details.ti>summary{padding:15px 18px}
+  details.ti>summary .t{font-size:21px}
+  details.ti>summary .lead{font-size:16px;margin-left:13px}
+  .ti-in{padding:4px 18px 16px}
+  .ti-items span{font-size:14px;padding:2px 11px}
+  .sel-bar{font-size:16px}
+  footer.disc{font-size:14px}
+}
 /* ---- 列印：A4，只印標記 .pr 的項目 ---- */
 @page{size:A4;margin:14mm 14mm 16mm}
 @media print{
@@ -111,7 +127,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
   <div class="print-foot" id="printFoot"></div>
   <footer class="disc" id="disc"></footer>
 </div>
-<script src="treatment-info.js?v=15"></script>
+<script src="treatment-info.js?v=18"></script>
 <script src="treatment-figs.js?v=5"></script>
 <script>
 'use strict';
