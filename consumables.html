@@ -94,6 +94,9 @@ tr.editing td{background:var(--accent-soft)}
 .sg-x{border-radius:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--soft) 6px 8px)}
 .sg-corner{font-weight:400;font-size:11px;align-self:end;padding-right:6px;border-bottom:0}
 .sg-b .mx{font-size:14px;font-weight:600}
+.sg-b .mx2{display:flex;flex-direction:column;align-items:center;line-height:1.25}
+.sg-b .mx2 b{font-size:14px}.sg-b .mx2 small{font-size:11px;color:var(--muted)}
+.sg-b.on .mx2 small{color:inherit;opacity:.85}
 .sg-b{position:relative}
 /* 有顏色的字（玻璃纖維釘）：選取時不換底色，改用粗外框，字的顏色才看得清楚 */
 .sg-b.pk{background:var(--panel)}
@@ -253,6 +256,14 @@ const ITEM_SPECS={
   // Straumann BLX 植體：直徑 × 長度
   '植體(Straumann BLX)':{label:'規格',matrix:{rowLabel:'直徑',colLabel:'長度',rows:['3.5','3.75','4.0','4.5','5.0','5.5','6.5'],cols:['6','8','10','12','14','16','18'],foot:'斜線格是沒有的規格',
     lens:Object.fromEntries([['3.5',18],['3.75',18],['4.0',18],['4.5',18],['5.0',18],['5.5',16],['6.5',16]].map(([d,max])=>[d,['6','8','10','12','14','16','18'].filter(l=>Number(l)<=max)]))}},
+  // 鈦網（Osstem OssBuilder）：依型錄分組的型號按鈕，存成型號（例如 SM2W10129SB）；尺寸單位 mm
+  '鈦網(Titanlum Membrane)':{label:'型號',unit:'片',groups:[
+    {t:'OB2 Lateral Builder・1 Wall',h:'P・BW・BL・BD',rows:[['SM1W487SB','4・8・7・5.5'],['SM1W4107SB','4・10・7・5.5'],['SM1W4109SB','4・10・9・5.5']]},
+    {t:'OB2 Lateral Builder・2 Wall（Buccal-Proximal）',h:'P・BW・BL・BD',rows:[['SM2W797SB','7・9・7・5.5'],['SM2W799SB','7・9・9・5.5'],['SM2W10127SB','10・12・7・5.5'],['SM2W10129SB','10・12・9・5.5'],['SM2W12127SB','12・12・7・5.5'],['SM2W12129SB','12・12・9・5.5']]},
+    {t:'OB2 Lateral Builder・3 Wall',h:'P・BW・BL・BD',rows:[['SM3W797SB','7・9・7・5.5'],['SM3W799SB','7・9・9・5.5'],['SM3W10127SB','10・12・7・5.5'],['SM3W10129SB','10・12・9・5.5'],['SM3W12127SB','12・12・7・5.5'],['SM3W12129SB','12・12・9・5.5']]},
+    {t:'OB3 Jaw Builder・Horizontal',h:'BW・BL・LL・BD・LD',rows:[['SB3H107F','10・7・3.5・5.5・3.7'],['SB3H109F','10・9・4.5・5.5・3.7'],['SB3H1011F','10・11・6・5.5・3.7'],['SB3H207F','20・7・3.5・5.5・3.7'],['SB3H209F','20・9・4.5・5.5・3.7'],['SB3H2011F','20・11・6・5.5・3.7']]},
+    {t:'OB3 Jaw Builder・Vertical',h:'BW・BL・LL・BD・LD',rows:[['SB3V107F','10・7・7・5.5・5.5'],['SB3V109F','10・9・9・5.5・5.5'],['SB3V1011F','10・11・11・5.5・5.5'],['SB3V207F','20・7・7・5.5・5.5'],['SB3V209F','20・9・9・5.5・5.5'],['SB3V2011F','20・11・11・5.5・5.5']]},
+  ]},
 };
 const matrixVal=(r,c)=>`∅${r} × ${c} mm`;
 const matrixOk=(M,r,c)=>M.lens?M.lens[r].includes(c):!M.valid||M.valid(r,c);
@@ -261,8 +272,9 @@ const gridCells=(G,[ud,t])=>G.halves.flatMap(([side],i)=>(i?G.sizes:[...G.sizes]
 Object.values(ITEM_SPECS).forEach(s=>{
   if(s.grid)s.opts=s.grid.rows.flatMap(r=>gridCells(s.grid,r));
   if(s.matrix)s.opts=s.matrix.rows.flatMap(r=>s.matrix.cols.filter(c=>matrixOk(s.matrix,r,c)).map(c=>matrixVal(r,c)));
+  if(s.groups)s.opts=s.groups.flatMap(g=>g.rows.map(([c])=>c));
 });
-const isGrid=s=>!!(s&&(s.grid||s.matrix||s.pick)); // 用表格按鈕點選（可以複選、同一格可選多支）
+const isGrid=s=>!!(s&&(s.grid||s.matrix||s.pick||s.groups)); // 用表格按鈕點選（可以複選、同一格可選多支）
 // Palmer 角標：左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉（與套組盒標示相同）
 const palmer=v=>{const m=/^([左右])([上下]) ([DE]\d)$/.exec(v||'');return m?`<span class="pal ${m[2]==='上'?'u':'l'}${m[1]==='左'?'l':'r'}" title="${esc(v)}">${esc(m[3])}</span>`:''};
 let gridSel={}; // 表格按鈕選到的規格 → 支數（新增時可複選；修改既有紀錄時只能選一個規格）
@@ -288,10 +300,16 @@ function syncSpec(v,qty){
 function drawGrid(s){
   // 已選清單：每個規格可以用 − ＋ 調整支數（減到 0 就取消）
   const hint=lab=>{const sel=s.opts.filter(v=>gridSel[v]),tot=sel.reduce((t,v)=>t+gridSel[v],0);
-    $('#fGridSel').innerHTML=sel.length?`<div class="sg-picks">已選${sel.length>1?` ${sel.length} 種、共 <span class="sg-cnt">${tot}</span> 支`:''}：${sel.map(v=>`<span class="sg-pick" data-pk="${esc(v)}">${lab(v)}<button type="button" class="btn-sm" data-dec aria-label="減少">−</button><b>${gridSel[v]}</b><button type="button" class="btn-sm" data-inc aria-label="增加">＋</button></span>`).join('')}</div>${sel.length>1?`<div class="sub">送出後每個${s.label}各存一筆</div>`:''}`
-      :`<span class="reason">請點選${s.label}</span><span class="sub">${editing?'':'（可以複選）'}再點一次同一格可以增加支數</span>`};
+    $('#fGridSel').innerHTML=sel.length?`<div class="sg-picks">已選${sel.length>1?` ${sel.length} 種、共 <span class="sg-cnt">${tot}</span> ${s.unit||"支"}`:''}：${sel.map(v=>`<span class="sg-pick" data-pk="${esc(v)}">${lab(v)}<button type="button" class="btn-sm" data-dec aria-label="減少">−</button><b>${gridSel[v]}</b><button type="button" class="btn-sm" data-inc aria-label="增加">＋</button></span>`).join('')}</div>${sel.length>1?`<div class="sub">送出後每個${s.label}各存一筆</div>`:''}`
+      :`<span class="reason">請點選${s.label}</span><span class="sub">${editing?'':'（可以複選）'}再點一次同一格可以增加${s.unit||"支"}數</span>`};
   const btn=(v,html,title)=>{const n=gridSel[v]||0;return `<button type="button" class="sg-b${n?' on':''}" data-sg="${esc(v)}" aria-pressed="${!!n}" title="${esc(title||v)}">${html}${n?`<i class="sg-n">${n}</i>`:''}</button>`};
   // 一列按鈕（玻璃纖維釘顏色）：字體用對應顏色
+  // 分組的型號按鈕（鈦網）：每組一行標題，按鈕顯示型號與尺寸
+  if(s.groups){
+    $('#fGrid').style.gridTemplateColumns='repeat(auto-fill,minmax(150px,1fr))';$('#fGrid').style.minWidth='0';
+    $('#fGrid').innerHTML=s.groups.map(g=>`<div class="sg-g">${esc(g.t)}<span style="font-weight:400">　（${esc(g.h)}，mm）</span></div>`+g.rows.map(([c,d])=>btn(c,`<span class="mx2"><b>${esc(c)}</b><small>${esc(d)}</small></span>`,`${g.t} ${c}（${g.h}：${d}）`)).join('')).join('');
+    hint(esc);return;
+  }
   if(s.pick){const lab=v=>s.colors?.[v]?`<b style="color:${s.colors[v]}">${esc(v)}</b>`:esc(v);
     $('#fGrid').style.gridTemplateColumns=`repeat(${s.opts.length},minmax(70px,120px))`;
     $('#fGrid').style.minWidth='0';$('#fGrid').innerHTML=s.opts.map(v=>btn(v,`<span class="mx">${lab(v)}</span>`).replace('class="sg-b','class="sg-b pk')).join('');
