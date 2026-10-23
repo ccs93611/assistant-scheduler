@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <style>
 :root{
-  --bg:#e6ecf6;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#d3e0ec;--soft:#eef3f4;
+  --bg:#d2deef;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#d3e0ec;--soft:#eef3f4;
   --accent:#0f7c80;--accent-ink:#fff;--accent-soft:#e1f1f1;
   --danger:#c0392b;--danger-soft:#fbe9e7;--ok:#1e8449;--ok-soft:#e5f4ea;--warn:#b9770e;--warn-soft:#fdf2e0;
   --card-line:#8fb0c4;
@@ -28,6 +28,10 @@
 [hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+/* 背景與治療計劃單相同：淡藍底＋置中的診所 Logo 浮水印（列印時不顯示） */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url(tp-watermark.png?v=3) center/min(85vmin,720px) auto no-repeat;opacity:.14}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) body::before{opacity:.06}}
+@media print{body::before{display:none}}
 button,input,select,textarea{font:inherit;color:inherit}
 input,select,textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
