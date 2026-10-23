@@ -128,7 +128,13 @@ main{padding:20px;min-width:0}
 .card h2{font-size:20px;margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .card h2 .sp{flex:1}
 .topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.topbar .title{font-size:20px;font-weight:700}
+/* 計劃單上方標題：圖示＋大標題＋診所名稱（與治療項目介紹頁相同排法） */
+.tp-brand{display:inline-flex;align-items:center;gap:12px;margin-right:6px}
+.tp-brand img{width:44px;height:44px;border-radius:10px;flex:0 0 auto}
+.tp-brand>span{display:flex;flex-direction:column}
+.topbar .title{font-size:30px;font-weight:700;line-height:1.25;white-space:nowrap}
+.tp-brand .sub{font-size:16px;color:var(--muted);white-space:nowrap}
+@media (max-width:520px){.topbar .title{font-size:24px}.tp-brand .sub{font-size:14px}.tp-brand img{width:38px;height:38px}}
 .topbar .no{color:var(--muted);font-size:13px}
 .topbar .sp{flex:1}
 .chip{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;font-weight:600;white-space:nowrap}
@@ -858,7 +864,7 @@ function renderEditor(){
   ${datalists()}
   <div class="print-only" style="text-align:center"><h2 style="margin:0">新海美學牙醫診所　治療計劃單</h2></div>
   <div class="topbar">
-    <span class="title no-print">治療計劃單</span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${stOf(p)}">${STATUS[stOf(p)]}</span>
+    <span class="tp-brand no-print"><img src="icon-tp.svg?v=2" alt=""><span><span class="title">治療計劃單</span><span class="sub">新海美學牙醫診所</span></span></span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${stOf(p)}">${STATUS[stOf(p)]}</span>
     <span class="sp"></span><span class="save-ind no-print" id="saveInd"></span>
     <button class="no-print" data-act="print">🖨 列印</button>
     <button class="no-print" data-ti-plan title="開啟這張單所有項目的治療說明，可列印給病人" ${planTiIds(p).length?'':'hidden'}>📄 治療說明</button>
