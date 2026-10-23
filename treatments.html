@@ -69,19 +69,34 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 @media (max-width:520px){header.top h1{font-size:21px}}
 /* 平板：標題、搜尋、分類、卡片摘要的字放大（內文放大在 treatment-info.js 的 TI_CSS） */
 @media screen and (min-width:600px) and (pointer:coarse),screen and (min-width:600px) and (max-width:1100px){
-  body{font-size:17px}
-  header.top h1{font-size:28px}header.top .sub{font-size:15px}
-  .tools input{font-size:17px;padding:11px 14px}
-  .chips button{font-size:16px;padding:6px 15px}
-  .btn-sm{font-size:15px;padding:5px 12px}
-  section.cat>h2{font-size:22px}section.cat>.desc{font-size:16px}
-  details.ti>summary{padding:15px 18px}
-  details.ti>summary .t{font-size:21px}
-  details.ti>summary .lead{font-size:16px;margin-left:13px}
-  .ti-in{padding:4px 18px 16px}
-  .ti-items span{font-size:14px;padding:2px 11px}
-  .sel-bar{font-size:16px}
-  footer.disc{font-size:14px}
+  body{font-size:18px}
+  header.top h1{font-size:30px}header.top .sub{font-size:16px}
+  .tools input{font-size:18px;padding:12px 15px}
+  .chips button{font-size:17px;padding:7px 16px}
+  .btn-sm{font-size:16px;padding:6px 13px}
+  section.cat>h2{font-size:24px}section.cat>.desc{font-size:17px}
+  details.ti>summary{padding:16px 20px}
+  details.ti>summary .t{font-size:23px}
+  details.ti>summary .lead{font-size:17px;margin-left:13px}
+  .ti-in{padding:4px 20px 18px}
+  .ti-items span{font-size:15px;padding:2px 12px}
+  .sel-bar{font-size:17px}
+  footer.disc{font-size:15px}
+}
+/* 電腦（滑鼠、寬 1101px 以上）：字比預設大一點 */
+@media screen and (min-width:1101px) and (pointer:fine){
+  .wrap{max-width:1040px}
+  body{font-size:16.5px}
+  header.top h1{font-size:27px}header.top .sub{font-size:14.5px}
+  .tools input{font-size:16.5px;padding:10px 14px}
+  .chips button{font-size:15px;padding:5px 14px}
+  .btn-sm{font-size:14px}
+  section.cat>h2{font-size:21px}section.cat>.desc{font-size:15px}
+  details.ti>summary .t{font-size:20px}
+  details.ti>summary .lead{font-size:15px}
+  .ti-items span{font-size:13px}
+  .sel-bar{font-size:15px}
+  footer.disc{font-size:13px}
 }
 /* ---- 列印：A4，只印標記 .pr 的項目 ---- */
 @page{size:A4;margin:14mm 14mm 16mm}
@@ -127,7 +142,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
   <div class="print-foot" id="printFoot"></div>
   <footer class="disc" id="disc"></footer>
 </div>
-<script src="treatment-info.js?v=18"></script>
+<script src="treatment-info.js?v=19"></script>
 <script src="treatment-figs.js?v=5"></script>
 <script>
 'use strict';
