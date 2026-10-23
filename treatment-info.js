@@ -358,19 +358,28 @@ const TI_CSS=`
 @media print{.ti-str-btn{display:none}}
 /* 平板（觸控、寬 600px 以上，或寬 600～1100px）：字放大，方便拿給病人看 */
 @media screen and (min-width:600px) and (pointer:coarse),screen and (min-width:600px) and (max-width:1100px){
+  .ti-body{font-size:21px;line-height:1.75}
+  .ti-sec h4{font-size:21px}
+  .ti-fig figcaption{font-size:18px}
+  .ti-str table{font-size:17.5px}
+  .ti-str-btn{font-size:16px;padding:2px 13px}
+  .ti-disclaimer{font-size:16px}
+}
+/* 電腦（滑鼠、寬 1101px 以上）：字比預設大一點 */
+@media screen and (min-width:1101px) and (pointer:fine){
   .ti-body{font-size:19px;line-height:1.75}
   .ti-sec h4{font-size:19px}
   .ti-fig figcaption{font-size:16.5px}
   .ti-str table{font-size:16px}
-  .ti-str-btn{font-size:15px;padding:2px 12px}
+  .ti-str-btn{font-size:15px}
   .ti-disclaimer{font-size:15px}
 }
-/* 電腦（滑鼠、寬 1101px 以上）：字比預設大一點 */
-@media screen and (min-width:1101px) and (pointer:fine){
+/* 手機（寬 599px 以下） */
+@media screen and (max-width:599px){
   .ti-body{font-size:17px;line-height:1.75}
   .ti-sec h4{font-size:17px}
-  .ti-fig figcaption{font-size:15px}
-  .ti-str table{font-size:14.5px}
+  .ti-fig figcaption{font-size:14.5px}
+  .ti-str table{font-size:14px}
   .ti-str-btn{font-size:13.5px}
   .ti-disclaimer{font-size:13.5px}
 }
