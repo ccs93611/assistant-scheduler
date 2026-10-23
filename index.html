@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
 <meta property="og:title" content="新海美學牙醫診所">
 <meta property="og:description" content="新海美學牙醫診所員工系統">
-<meta property="og:image" content="https://assistant-scheduler-five.vercel.app/og-image.png?v=2">
+<meta property="og:image" content="https://shinyhi-dental.vercel.app/og-image.png?v=2">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +33,7 @@ window.FIREBASE_CONFIG = {
 };
 // 正式網域透過 vercel.json 把 /__/auth/ 轉給 Firebase，登入流程留在同一個網域，
 // 避免 iPhone Safari 等封鎖跨網域儲存的瀏覽器出現「missing initial state」。
-if (location.hostname === 'assistant-scheduler-five.vercel.app') window.FIREBASE_CONFIG.authDomain = location.hostname;
+if (['assistant-scheduler-five.vercel.app','shinyhi-dental.vercel.app'].includes(location.hostname)) window.FIREBASE_CONFIG.authDomain = location.hostname; // 新舊網址都用自己的網域做 Google 登入（vercel.json 轉送 /__/auth）
 // 開發用：本機網址加上 ?local=1 改用 localStorage，不碰雲端資料
 if (location.hostname === 'localhost' && /[?&]local=[\w-]+/.test(location.search)) window.FIREBASE_CONFIG = null;
 // LINE 內建瀏覽器不能用 Google 登入：自動改用手機預設瀏覽器開啟
@@ -4671,7 +4671,7 @@ const otApproved=(mi,sid)=>punches.reduce((n,p)=>n+(p.staffId===sid&&!p.void&&p.
 const outEnd=(sh,end,C=attCfg())=>sh.id==='night'&&/^\d{1,2}:\d{2}$/.test(C.nightOut||'')?Math.min(end,hm(C.nightOut)):end;
 const ATT_WINDOW=180;
 const attCfg=()=>Object.assign({},ATT_DEF,kioskCfg);
-const KIOSK_URL='https://assistant-scheduler-five.vercel.app/kiosk.html';
+const KIOSK_URL='https://shinyhi-dental.vercel.app/kiosk.html';
 let attSel=null, attSubYm=null, attUnsub=null, attLoadedYm=null, ownPunchLoaded=false;
 const punchMin=ts=>{const d=new Date(ts);return d.getHours()*60+d.getMinutes()+d.getSeconds()/60;};
 const hhmm=ts=>{const d=new Date(ts);return `${pad(d.getHours())}:${pad(d.getMinutes())}`;};

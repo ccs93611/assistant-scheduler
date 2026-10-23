@@ -9,7 +9,7 @@ import { useCameraPermissions } from 'expo-camera';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 
-const KIOSK_URL = 'https://assistant-scheduler-five.vercel.app/kiosk.html';
+const KIOSK_URL = 'https://shinyhi-dental.vercel.app/kiosk.html';
 const RETRY_MS = 15000;
 
 // 裝置編號：Android 用 Android ID（重裝 App 不變，恢復原廠設定才變）；

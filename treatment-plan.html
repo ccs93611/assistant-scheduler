@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon-tp.png?v=2">
 <meta property="og:title" content="新海治療計劃單">
 <meta property="og:description" content="新海美學牙醫診所員工系統">
-<meta property="og:image" content="https://assistant-scheduler-five.vercel.app/og-image-tp.png?v=2">
+<meta property="og:image" content="https://shinyhi-dental.vercel.app/og-image-tp.png?v=2">
 <meta property="og:type" content="website">
 <style>
 :root{
@@ -530,7 +530,7 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "325806157772",
   appId: "1:325806157772:web:9c8912c3659c31b2823769"
 };
-if (location.hostname === 'assistant-scheduler-five.vercel.app') window.FIREBASE_CONFIG.authDomain = location.hostname;
+if (['assistant-scheduler-five.vercel.app','shinyhi-dental.vercel.app'].includes(location.hostname)) window.FIREBASE_CONFIG.authDomain = location.hostname; // 新舊網址都用自己的網域做 Google 登入（vercel.json 轉送 /__/auth）
 // 開發用：本機網址加上 ?local=1 改用這台電腦的瀏覽器資料庫（可加 &perm=view|self|manage|super 模擬權限）
 if (location.hostname === 'localhost' && /[?&]local=[\w-]+/.test(location.search)) window.FIREBASE_CONFIG = null;
 window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.rules 一致
