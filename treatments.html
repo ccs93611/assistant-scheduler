@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e1823">
 <title>新海治療項目介紹</title>
 <link rel="icon" href="icon-tp.svg?v=2" type="image/svg+xml">
 <link rel="icon" href="icon-tp-512.png?v=2" type="image/png" sizes="512x512">
@@ -12,15 +13,11 @@
 <meta property="og:image" content="https://shinyhi-dental.vercel.app/og-image-tp.png?v=2">
 <meta property="og:type" content="website">
 <style>
-/* 色彩與治療計劃單相同 */
-:root{
-  --bg:#e6ecf6;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#d3e0ec;--card-line:#8fb0c4;--soft:#eef3f4;
-  --accent:#0f7c80;--accent-ink:#fff;--accent-soft:#e1f1f1;
-}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+/* 固定使用深色背景（不跟手機、電腦的淺色／深色設定走；色彩同治療計劃單的深色模式）。列印時改回白底，見下方 @media print */
+:root{color-scheme:dark;
   --bg:#0e1823;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--card-line:#4a6572;--soft:#212b30;
   --accent:#3fb6b9;--accent-ink:#0b1416;--accent-soft:#16383a;
-}}
+}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
@@ -113,7 +110,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 /* ---- 列印：A4，只印標記 .pr 的項目 ---- */
 @page{size:A4;margin:14mm 14mm 16mm}
 @media print{
-  :root{--bg:#fff;--panel:#fff;--ink:#111;--muted:#555;--line:#cfd8dc;--soft:#f1f4f5;--accent:#0f7c80;--accent-soft:#e8f4f4}
+  :root{color-scheme:light;--card-line:#cfd8dc;--accent-ink:#fff;--bg:#fff;--panel:#fff;--ink:#111;--muted:#555;--line:#cfd8dc;--soft:#f1f4f5;--accent:#0f7c80;--accent-soft:#e8f4f4}
   body{background:#fff;font-size:13.5px}
   .wrap{max-width:none;padding:0}
   header.top,.tools,.sel-bar,.ti-acts,section.cat>h2 button,footer.disc,.arr,.lead{display:none!important}
