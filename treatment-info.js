@@ -1,6 +1,6 @@
 /* 新海美學牙醫・治療項目介紹（給病人看的說明）
    treatments.html（介紹頁、列印衛教單）與 treatment-plan.html（項目旁的 ⓘ）共用這份資料。
-   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
+   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
    what（這是什麼）、who（適合誰）、steps（治療流程）、time（療程時間）、care（注意事項，可省略）、note（補充，可省略）。
    內容僅為一般說明，實際療程依醫師診斷為準；修改內容時只要改這個檔案。 */
 'use strict';
@@ -67,7 +67,7 @@ const TREATMENT_INFO=[
  steps:['修磨牙齒、口內掃描或取模','配戴臨時假牙','技工室製作牙冠','試戴、調整咬合與顏色後黏著'],
  time:'約 2～3 次，前後約 1～3 週。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','仍要確實刷牙、使用牙線']},
-{id:'maryland',cat:'固定式贗復',title:'馬里蘭牙橋',items:['馬里蘭牙橋'],
+{id:'maryland',cat:'固定式贗復',title:'馬里蘭牙橋',items:['馬里蘭牙橋'],photo:{src:'media/maryland.webp',alt:'馬里蘭牙橋：假牙兩側的金屬翼片黏在鄰牙內側'},
  what:'缺一顆牙（多為前牙）時，假牙兩側（或一側）有薄薄的翼片，黏在隔壁牙齒的內側來固定。隔壁牙齒只需要很少量的修磨，是不植牙時較保守的固定方式。',
  who:['缺一顆前牙、隔壁牙齒健康的人','年紀尚輕、暫時不適合植牙的人','不想大量磨隔壁牙齒的人'],
  steps:['評估咬合與隔壁牙齒狀況','微量修整牙齒內側、取模','製作牙橋','試戴後黏著'],
@@ -323,7 +323,7 @@ function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
   const sb=e.strength?`<button type="button" class="ti-str-btn" onclick="const s=this.closest('.ti-body').querySelector('.ti-str');s.hidden=!s.hidden;this.classList.toggle('on',!s.hidden)">📊 強度比較</button>`:'';
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}
+    <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}${e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
     <div class="ti-sec"><h4>療程時間</h4><p>${tiEsc(e.time)}</p></div>
@@ -335,6 +335,10 @@ const TI_CSS=`
 .ti-body{font-size:15px;line-height:1.7}
 .ti-body p{margin:0}
 .ti-what{margin-bottom:12px!important}
+.ti-fig{margin:0 0 14px}.ti-fig svg{display:block;width:100%;height:auto}
+.ti-fig figcaption{display:grid;margin-top:6px;text-align:center;font-size:13px;line-height:1.45}
+.ti-photo{margin:0 0 14px}.ti-photo img{display:block;width:100%;max-width:520px;height:auto;border-radius:12px;border:1px solid var(--line)}
+@media print{.ti-fig,.ti-photo{break-inside:avoid}}
 .ti-sec{margin-top:12px}
 .ti-sec h4{margin:0 0 4px;font-size:15px;color:var(--accent);display:flex;align-items:center;gap:6px}
 .ti-sec h4::before{content:"";width:4px;height:1em;border-radius:2px;background:var(--accent)}
