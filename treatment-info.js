@@ -31,14 +31,14 @@ const TREATMENT_INFO=[
  steps:['局部麻醉，清除蛀牙','以 MTA 材料覆蓋接近神經的部位','填補或製作牙套恢復牙齒','定期回診拍 X 光追蹤'],
  time:'約 1～2 次，之後依醫師安排追蹤。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','若出現持續或夜間疼痛、腫脹，請儘快回診，可能需要改做根管治療','成功率與蛀牙深度、神經狀況有關，並非每顆牙都適合']},
-{id:'bpr',cat:'固定式贗復',title:'BPR 齒雕（黏著式陶瓷局部修復）',items:['BPR齒雕'],
+{id:'bpr',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 齒雕',items:['日本GC Initial LiSi Block齒雕','BPR齒雕'],
  what:'牙齒缺損較大、但不需要整顆磨小做牙冠時，只修整缺損部分，再黏上依形狀訂製的陶瓷修復體（例如嵌體、高嵌體）。保留較多健康牙齒，顏色自然、耐磨。',
  who:['大範圍蛀牙或舊補綴物需要重做的人','牙齒裂開、缺角但結構還算完整的人','希望少磨牙齒的人'],
  steps:['移除蛀牙或舊填補物、修整牙齒','口內掃描或取模，暫時封填','技工室製作陶瓷修復體','試戴、調整後黏著固定'],
  time:'約 2 次（修整取模 → 黏著），部分可當日完成。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
-{id:'veneer',cat:'固定式贗復',title:'GC Initial LiSi Block 美學貼片',items:['GC Initial LiSi Block美學貼片','Veneer美學貼片'],
- what:'在門牙表面只磨薄薄一層（部分情況可以幾乎不磨），再黏上薄的陶瓷片，改善牙齒顏色、形狀、縫隙或輕微不整齊。',
+{id:'veneer',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 美學貼片',items:['日本GC Initial LiSi Block美學貼片','GC Initial LiSi Block美學貼片','Veneer美學貼片'],
+ what:'在門牙表面只磨薄薄一層（部分情況可以幾乎不磨），再黏上薄的陶瓷片，改善牙齒顏色、形狀、縫隙或輕微不整齊，強度（Flexural Strength） 408 MPa，大約是人類天然牙齒的 2 倍以上。',
  who:['牙齒顏色深、美白效果不理想的人','門牙有縫隙、缺角、形狀或大小不協調的人','想快速改善笑容的人'],
  steps:['美學評估，可搭配 DSD 數位微笑設計','微量修整牙齒表面、口內掃描或取模','配戴臨時貼片','試戴確認顏色與形狀後黏著'],
  time:'約 1～2 次，部分可當日完成。',
@@ -55,13 +55,13 @@ const TREATMENT_INFO=[
  steps:['牙齒修形後當場製作或預先製作','暫時黏著','正式假牙完成後移除'],
  time:'配戴到正式假牙完成，約數週至數月。',
  care:['臨時假牙較不堅固，避免咬硬、黏的食物（麻糬、牛軋糖、口香糖）','用牙線時從側邊抽出，不要往上拉','若鬆脫請保留並儘快回診重新黏上']},
-{id:'crown-emax',cat:'固定式贗復',title:'列支敦斯登 E.max 全瓷冠',items:['列支敦斯登E.max全瓷冠-前牙','Crown全瓷-前牙','列支敦斯登E.max全瓷冠-後牙','Crown全瓷-後牙'],
+{id:'crown-emax',cat:'固定式贗復',strength:'emax',title:'列支敦斯登 E.max 全瓷冠',items:['列支敦斯登E.max全瓷冠-前牙','Crown全瓷-前牙','列支敦斯登E.max全瓷冠-後牙','Crown全瓷-後牙'],
  what:'使用列支敦斯登 Ivoclar 的 E.max 二矽酸鋰玻璃陶瓷製作。不含金屬，透光性好、顏色最接近自然牙齒，不會有牙齦邊緣發黑的問題，特別適合在意美觀的前牙，強度（Flexural Strength）約為 360 MPa，足夠承受日常咬合。',
  who:['蛀牙或缺損範圍大、一般填補無法修復的人','根管治療後需要保護的牙齒','想改善牙齒顏色、形狀，美觀要求高的人'],
  steps:['修磨牙齒、口內掃描或取模','配戴臨時假牙','技工室製作牙冠','試戴、調整咬合與顏色後黏著'],
  time:'約 1～2 次，部分可當日完成。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','仍要確實刷牙、使用牙線','避免咬冰塊、骨頭等硬物；有磨牙習慣建議配戴咬合板']},
-{id:'crown-cercon',cat:'固定式贗復',title:'德國 Cercon 全鋯冠',items:['德國 Cercon全鋯冠-前牙','Crown氧化鋯-前牙','德國 Cercon全鋯冠-後牙','Crown氧化鋯-後牙'],
+{id:'crown-cercon',cat:'固定式贗復',strength:'zr',title:'德國 Cercon 全鋯冠',items:['德國Cercon全鋯冠-前牙','Crown氧化鋯-前牙','德國Cercon全鋯冠-後牙','Crown氧化鋯-後牙'],
  what:'使用德國 Cercon 氧化鋯製作。不含金屬，強度（Flexural Strength）最高可達 1200 MPa、耐咬、不易崩瓷，適合咀嚼力大的後牙；高透度的氧化鋯也可用於前牙。不會有牙齦邊緣發黑的問題。',
  who:['蛀牙或缺損範圍大、一般填補無法修復的人','根管治療後需要保護的牙齒','咬合力大、有磨牙習慣，需要較耐用牙冠的人'],
  steps:['修磨牙齒、口內掃描或取模','配戴臨時假牙','技工室製作牙冠','試戴、調整咬合與顏色後黏著'],
@@ -307,11 +307,23 @@ const TI_BY_ITEM={};TREATMENT_INFO.forEach(e=>e.items.forEach(n=>TI_BY_ITEM[n]=e
 const TI_BY_ID={};TREATMENT_INFO.forEach(e=>TI_BY_ID[e.id]=e);
 function tiFind(name){return TI_BY_ITEM[name]||null}
 function tiEsc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+/* 陶瓷材質強度比較（介紹裡有 strength 的項目，說明後面會有「強度比較」按鈕；key 對應 strength） */
+const TI_STRENGTH=[
+  {key:'enamel',name:'人類天然牙齒（琺瑯質）',mpa:'約 200 MPa',use:'天然保護層'},
+  {key:'gc',name:'GC 玻璃陶瓷（二矽酸鋰）',mpa:'約 408～508 MPa',use:'美白貼片、前牙及小臼齒單顆假牙、3D 齒雕（強調免燒結、快速完工）'},
+  {key:'emax',name:'E.max 玻璃陶瓷（二矽酸鋰）',mpa:'約 400～530 MPa',use:'美白貼片、前牙及小臼齒單顆假牙、3D 齒雕（業界金標準、文獻最多）'},
+  {key:'zr',name:'二氧化鋯（全鋯冠）',mpa:'約 900～1200+ MPa',use:'後牙牙橋、需要承受極大咬合力的區域'},
+];
+function tiStrengthHtml(cur){
+  return `<div class="ti-str" hidden><table><thead><tr><th>材質</th><th>抗彎強度</th><th>臨床主要用途</th></tr></thead><tbody>${
+    TI_STRENGTH.map(r=>`<tr class="${r.key===cur?'cur':''}"><td>${tiEsc(r.name)}</td><td class="mpa">${tiEsc(r.mpa)}</td><td>${tiEsc(r.use)}</td></tr>`).join('')}</tbody></table></div>`;
+}
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
+  const sb=e.strength?`<button type="button" class="ti-str-btn" onclick="const s=this.closest('.ti-body').querySelector('.ti-str');s.hidden=!s.hidden;this.classList.toggle('on',!s.hidden)">📊 強度比較</button>`:'';
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}</p>
+    <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
     <div class="ti-sec"><h4>療程時間</h4><p>${tiEsc(e.time)}</p></div>
@@ -330,5 +342,15 @@ const TI_CSS=`
 .ti-sec li{margin:2px 0}
 .ti-note{background:var(--accent-soft);border-radius:8px;padding:8px 12px}
 .ti-disclaimer{font-size:12px;color:var(--muted);margin-top:14px}
+.ti-str-btn{margin-left:6px;padding:1px 9px;font-size:12px;line-height:1.6;border-radius:999px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;vertical-align:1px;white-space:nowrap}
+.ti-str-btn:hover,.ti-str-btn.on{background:var(--accent);color:var(--accent-ink)}
+.ti-str{margin:-4px 0 12px;overflow-x:auto}
+.ti-str table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.5}
+.ti-str th,.ti-str td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.ti-str th{color:var(--muted);font-weight:600;white-space:nowrap}
+.ti-str td:first-child{font-weight:600;min-width:8em}
+.ti-str td.mpa{white-space:nowrap;font-weight:700}
+.ti-str tr.cur td{background:var(--accent-soft)}
+@media print{.ti-str-btn{display:none}}
 `;
 const TI_DISCLAIMER='以上為一般性說明，實際治療方式、次數與時間依醫師檢查診斷為準；有任何疑問歡迎詢問醫師或助理。';
