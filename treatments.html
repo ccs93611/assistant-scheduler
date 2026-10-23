@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新海治療項目介紹</title>
+<link rel="icon" href="icon-tp.svg?v=2" type="image/svg+xml">
+<link rel="icon" href="icon-tp-512.png?v=2" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="apple-touch-icon-tp.png?v=2">
+<meta property="og:title" content="新海治療項目介紹">
+<meta property="og:description" content="新海美學牙醫診所・治療項目說明">
+<meta property="og:image" content="https://shinyhi-dental.vercel.app/og-image-tp.png?v=2">
+<meta property="og:type" content="website">
+<style>
+/* 色彩與治療計劃單相同 */
+:root{
+  --bg:#e6ecf6;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#d3e0ec;--soft:#eef3f4;
+  --accent:#0f7c80;--accent-ink:#fff;--accent-soft:#e1f1f1;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1823;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--soft:#212b30;
+  --accent:#3fb6b9;--accent-ink:#0b1416;--accent-soft:#16383a;
+}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 12px}
+button:hover{border-color:var(--accent)}
+.btn-sm{padding:3px 10px;font-size:13px}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px 40px}
+header.top{padding:22px 0 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header.top img{width:44px;height:44px;border-radius:10px}
+header.top h1{margin:0;font-size:24px;line-height:1.25}
+header.top .sub{font-size:13px;color:var(--muted)}
+header.top .sp{flex:1}
+.tools{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 8px;display:grid;gap:8px}
+.tools input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.tools input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.chips button{flex:0 0 auto;border-radius:999px;padding:4px 12px;font-size:14px}
+.chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.sel-bar{background:var(--accent-soft);border-radius:10px;padding:8px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+.sel-bar .sp{flex:1}
+section.cat{margin-top:22px}
+section.cat>h2{font-size:19px;margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+section.cat>h2 .sp{flex:1}
+section.cat>.desc{color:var(--muted);font-size:14px;margin:2px 0 10px}
+details.ti{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:8px 0;overflow:hidden;scroll-margin-top:150px} /* 捲到項目時不被上方搜尋列蓋住 */
+details.ti>summary{list-style:none;cursor:pointer;padding:12px 16px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:start}
+details.ti>summary::-webkit-details-marker{display:none}
+details.ti>summary .t{font-weight:700;font-size:16px}
+details.ti>summary .arr{grid-row:1/3;grid-column:2;color:var(--muted);transition:transform .15s;align-self:center}
+details.ti[open]>summary .arr{transform:rotate(90deg)}
+details.ti>summary .lead{grid-column:1;color:var(--muted);font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+details.ti[open]>summary .lead{display:none}
+.ti-in{padding:0 16px 14px;border-top:1px solid var(--line)}
+.ti-items{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0}
+.ti-items span{font-size:12px;background:var(--soft);border-radius:999px;padding:1px 9px;color:var(--muted)}
+.ti-acts{display:flex;justify-content:flex-end;gap:6px;margin-top:12px}
+.empty{color:var(--muted);text-align:center;padding:30px 0}
+.print-head,.print-foot{display:none}
+footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
+@media (max-width:520px){header.top h1{font-size:21px}}
+/* ---- 列印：A4，只印標記 .pr 的項目 ---- */
+@page{size:A4;margin:14mm 14mm 16mm}
+@media print{
+  :root{--bg:#fff;--panel:#fff;--ink:#111;--muted:#555;--line:#cfd8dc;--soft:#f1f4f5;--accent:#0f7c80;--accent-soft:#e8f4f4}
+  body{background:#fff;font-size:13.5px}
+  .wrap{max-width:none;padding:0}
+  header.top,.tools,.sel-bar,.ti-acts,section.cat>h2 button,footer.disc,.arr,.lead{display:none!important}
+  section.cat:not(:has(details.pr)),details.ti:not(.pr){display:none!important}
+  section.cat{margin-top:0}
+  section.cat>h2{font-size:13px;color:var(--muted);font-weight:400}
+  section.cat>.desc{display:none}
+  details.ti{border:0;border-radius:0;margin:0 0 6mm;break-inside:avoid;page-break-inside:avoid}
+  details.ti+details.ti.pr,section.cat~section.cat details.ti.pr{border-top:1px dashed var(--line);padding-top:5mm}
+  details.ti>summary{padding:0 0 4px;display:block}
+  details.ti>summary .t{font-size:19px}
+  .ti-in{padding:0;border:0}
+  .ti-body{font-size:13.5px;line-height:1.6}
+  .print-head{display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--accent);padding-bottom:6px;margin-bottom:8mm}
+  .print-head img{width:34px;height:34px}
+  .print-head b{font-size:17px}.print-head span{color:var(--muted);font-size:12px;margin-left:auto}
+  .print-foot{display:block;font-size:11px;color:var(--muted);border-top:1px solid var(--line);padding-top:4px;margin-top:6mm}
+  .ti-items span{border:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="print-head"><img src="icon-tp.svg?v=2" alt=""><b>新海美學牙醫診所・治療說明</b><span id="printDate"></span></div>
+  <header class="top">
+    <img src="icon-tp.svg?v=2" alt="">
+    <div><h1>治療項目介紹</h1><div class="sub">新海美學牙醫診所</div></div>
+    <span class="sp"></span>
+    <button id="printAll" class="btn-sm" title="列印目前顯示的所有項目">🖨 列印</button>
+  </header>
+  <div class="tools">
+    <input id="q" type="search" placeholder="搜尋治療項目，例如：植牙、美白、根管" autocomplete="off">
+    <div class="chips" id="chips"></div>
+    <div class="sel-bar" id="selBar" hidden><span id="selTxt"></span><span class="sp"></span><button class="btn-sm" id="selPrint">🖨 列印這些項目</button><button class="btn-sm" id="selClear">顯示全部項目</button></div>
+  </div>
+  <main id="list"></main>
+  <div class="print-foot" id="printFoot"></div>
+  <footer class="disc" id="disc"></footer>
+</div>
+<script src="treatment-info.js?v=1"></script>
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+document.head.insertAdjacentHTML('beforeend',`<style>${TI_CSS}</style>`);
+$('#disc').textContent=$('#printFoot').textContent=TI_DISCLAIMER;
+$('#printDate').textContent=new Date().toLocaleDateString('zh-TW');
+
+// 網址參數：?ids=a,b 只顯示指定的項目（治療計劃單帶過來）；&print=1 開啟後直接列印；#id 打開並捲到該項目
+const qs=new URLSearchParams(location.search);
+let sel=(qs.get('ids')||'').split(',').filter(id=>TI_BY_ID[id]);
+let cat='全部';
+
+$('#list').innerHTML=TI_CATS.map(c=>{const es=TREATMENT_INFO.filter(e=>e.cat===c);
+  return `<section class="cat" data-cat="${tiEsc(c)}"><h2>${tiEsc(c)}<span class="sp"></span><button class="btn-sm" data-print-cat="${tiEsc(c)}">🖨 列印此類</button></h2>
+    <div class="desc">${tiEsc(TI_CAT_DESC[c]||'')}</div>
+    ${es.map(e=>`<details class="ti" id="${e.id}" data-id="${e.id}">
+      <summary><span class="t">${tiEsc(e.title)}</span><span class="arr">›</span><span class="lead">${tiEsc(e.what)}</span></summary>
+      <div class="ti-in">
+        <div class="ti-items">${e.items.map(n=>`<span>${tiEsc(n)}</span>`).join('')}</div>
+        ${tiBodyHtml(e)}
+        <div class="ti-acts"><button class="btn-sm" data-print="${e.id}">🖨 列印這一項</button></div>
+      </div></details>`).join('')}
+  </section>`}).join('')+'<div class="empty" id="empty" hidden>找不到符合的治療項目</div>';
+
+$('#chips').innerHTML=['全部',...TI_CATS].map(c=>`<button data-cat="${tiEsc(c)}">${tiEsc(c)}</button>`).join('');
+
+const norm=s=>String(s).toLowerCase().replace(/[\s\-－_]/g,'');
+function hay(e){return norm([e.title,e.cat,e.what,...e.items,e.note||''].join(' '))}
+function filter(){
+  const q=norm($('#q').value);let n=0;
+  document.querySelectorAll('details.ti').forEach(d=>{const e=TI_BY_ID[d.dataset.id];
+    const ok=(sel.length?sel.includes(e.id):(cat==='全部'||e.cat===cat))&&(!q||hay(e).includes(q));
+    d.hidden=!ok;if(ok)n++});
+  document.querySelectorAll('section.cat').forEach(s=>s.hidden=!s.querySelector('details.ti:not([hidden])'));
+  $('#empty').hidden=n>0;
+  document.querySelectorAll('#chips button').forEach(b=>b.classList.toggle('on',!sel.length&&b.dataset.cat===cat));
+  $('#selBar').hidden=!sel.length;$('#selTxt').textContent=`治療計劃單的 ${sel.length} 個項目說明`;
+}
+// 列印指定的項目：暫時展開並標記 .pr，印完恢復
+function printIds(ids){
+  const ds=ids.map(id=>document.getElementById(id)).filter(Boolean);if(!ds.length)return;
+  const was=ds.map(d=>d.open);ds.forEach(d=>{d.open=true;d.classList.add('pr')});
+  const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr')});removeEventListener('afterprint',done)};
+  addEventListener('afterprint',done);window.print();
+}
+const shown=()=>[...document.querySelectorAll('details.ti:not([hidden])')].map(d=>d.dataset.id);
+
+$('#q').addEventListener('input',filter);
+$('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;cat=b.dataset.cat;sel=[];filter();scrollTo({top:0})});
+$('#list').addEventListener('click',e=>{
+  const p=e.target.closest('[data-print]');if(p){printIds([p.dataset.print]);return}
+  const c=e.target.closest('[data-print-cat]');if(c){printIds(TREATMENT_INFO.filter(x=>x.cat===c.dataset.printCat&&!document.getElementById(x.id).hidden).map(x=>x.id))}
+});
+$('#printAll').onclick=()=>printIds(shown());
+$('#selPrint').onclick=()=>printIds(sel);
+$('#selClear').onclick=()=>{sel=[];history.replaceState(null,'',location.pathname);filter()};
+
+filter();
+if(sel.length)document.querySelectorAll('details.ti:not([hidden])').forEach(d=>d.open=true);
+const h=decodeURIComponent(location.hash.slice(1));
+if(h&&TI_BY_ID[h]){const d=document.getElementById(h);d.open=true;setTimeout(()=>d.scrollIntoView({block:'start'}),50)}
+if(qs.get('print')==='1'&&sel.length)setTimeout(()=>printIds(sel),300);
+</script>
+</body>
+</html>

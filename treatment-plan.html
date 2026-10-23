@@ -315,6 +315,10 @@ tr.drop-after td{box-shadow:inset 0 -3px 0 var(--accent)}
 }
 textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:block;min-height:34px;white-space:pre-wrap;word-break:break-word}
 .cat-tag{font-size:11px;color:var(--accent);display:block}
+/* 項目旁的 ⓘ：開啟給病人看的治療介紹（treatment-info.js） */
+.ti-btn{border:0;background:none;padding:0 2px;margin-left:4px;color:var(--accent);font-size:13px;line-height:1;vertical-align:baseline}
+.ti-btn:hover{filter:brightness(1.2);text-decoration:underline}
+@media print{.ti-btn{display:none}}
 .combo-wrap{position:relative}
 .combo-wrap::after{content:"▾";position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:12px}
 .combo-wrap input{padding-right:24px}
@@ -576,11 +580,12 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 <div id="gate" class="gate" hidden><div class="gate-box"><h2>新海美學牙醫・治療計劃單</h2><p id="gateMsg">連線中…</p><div id="gateActs"></div></div></div>
 <input type="file" id="importInput" accept="application/json,.json" hidden>
 
+<script src="treatment-info.js?v=1"></script>
 <script>
 'use strict';
 /* ====== 治療項目 ====== */
 const BASE_CATS=[
- ['固定式贗復',['DSD數位微笑設計','MTA活髓保存','BPR齒雕','Veneer美學貼片','Post玻璃纖維釘','Temp臨時假牙','Crown全瓷-前牙','Crown全瓷-後牙','Crown氧化鋯-前牙','Crown氧化鋯-後牙','馬里蘭牙橋']],
+ ['固定式贗復',['DSD數位微笑設計','MTA活髓保存','BPR齒雕','Veneer美學貼片','Post玻璃纖維釘','Temp臨時假牙','列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙','德國 Cercon全鋯冠-前牙','德國 Cercon全鋯冠-後牙','馬里蘭牙橋']],
  ['活動式贗復',['CD全口活動假牙-上顎','CD全口活動假牙-下顎','RPD部分活動假牙-上顎','RPD部分活動假牙-下顎','彈性床活動假牙','活動假牙維修','活動假牙加牙']],
  ['植牙式贗復',['APR齒槽骨保存術','GBR少量補骨','GBR水平骨增量','GBR垂直骨增高','Sinus Lift頂竇','Sinus Lift開窗','植牙手術導版','美國Hiossen植體-前牙','美國Hiossen植體-後牙','瑞士Straumann BLC植體-前牙','瑞士Straumann BLC植體-後牙','瑞士Straumann BLX植體-前牙','瑞士Straumann BLX植體-後牙','植牙全鋯冠-前牙','植牙全鋯冠-後牙']],
  ['全口重建',['Over Denture植牙固位式活動假牙','Locator 連接頭','Locator 扣環','All-on-x植牙導版','All-on-8','All-on-7','All-on-6','All-on-5','All-on-4','All-on-x臨時牙','All-on-x正式氧化鋯牙','All-on-x輕量化合金牙架']],
@@ -593,13 +598,13 @@ const BASE_CATS=[
  ['自費醫材',['膠原蛋白栓','可吸收再生膜','不可吸收再生膜','FDBA骨粉']],
 ];
 // 以「顆」計價的項目：選牙位時數量自動等於顆數
-const PER_TOOTH=new Set(['MTA活髓保存','BPR齒雕','Veneer美學貼片','Post玻璃纖維釘','Temp臨時假牙','Crown全瓷-前牙','Crown全瓷-後牙','Crown氧化鋯-前牙','Crown氧化鋯-後牙','馬里蘭牙橋',
+const PER_TOOTH=new Set(['MTA活髓保存','BPR齒雕','Veneer美學貼片','Post玻璃纖維釘','Temp臨時假牙','列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙','德國 Cercon全鋯冠-前牙','德國 Cercon全鋯冠-後牙','馬里蘭牙橋',
  '活動假牙加牙','CLP牙冠增長術','FGG角化牙齦移植','CTG結締組織移植','GTR引導組織再生術','All-on-x植牙導版','All-on-x正式氧化鋯牙','APR齒槽骨保存術','GBR少量補骨','GBR水平骨增量','GBR垂直骨增高','Sinus Lift頂竇','Sinus Lift開窗','植牙手術導版','美國Hiossen植體-前牙','美國Hiossen植體-後牙','瑞士Straumann BLC植體-前牙','瑞士Straumann BLC植體-後牙','瑞士Straumann BLX植體-前牙','瑞士Straumann BLX植體-後牙','植牙全鋯冠-前牙','植牙全鋯冠-後牙',
  '顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補',
  'SSC金屬乳牙套','Strip crown樹酯乳牙套']);
 const pk=(cat,name)=>cat+'|'+name;
 // 改過名稱的項目：[種類, 舊名, 新名]。舊單的項目、價目表單價與抽成設定都自動換成新名稱
-const RENAMED=[['牙齒美白','居家美白','客製化居家美白']];
+const RENAMED=[['牙齒美白','居家美白','客製化居家美白'],['固定式贗復','Crown全瓷-前牙','列支敦斯登E.max全瓷冠-前牙'],['固定式贗復','Crown全瓷-後牙','列支敦斯登E.max全瓷冠-後牙'],['固定式贗復','Crown氧化鋯-前牙','德國 Cercon全鋯冠-前牙'],['固定式贗復','Crown氧化鋯-後牙','德國 Cercon全鋯冠-後牙']];
 function renameItems(p){for(const it of p.items||[])if(!it.custom)for(const [c,o,n] of RENAMED)if(it.cat===c&&it.name===o)it.name=n;return p}
 // 拆成前牙／後牙的項目：[種類, 舊名]
 const SPLIT=[['植牙式贗復','美國Hiossen植體'],['植牙式贗復','瑞士Straumann BLC植體'],['植牙式贗復','瑞士Straumann BLX植體']];
@@ -855,6 +860,7 @@ function renderEditor(){
     <span class="title no-print">治療計劃單</span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${stOf(p)}">${STATUS[stOf(p)]}</span>
     <span class="sp"></span><span class="save-ind no-print" id="saveInd"></span>
     <button class="no-print" data-act="print">🖨 列印</button>
+    <button class="no-print" data-ti-plan title="開啟這張單所有項目的治療說明，可列印給病人" ${planTiIds(p).length?'':'hidden'}>📄 治療說明</button>
     ${canDelPlan(p)?'<button class="no-print btn-danger" data-act="delete">刪除此單</button>':''}
   </div>
   ${prev?`<div class="banner changed no-print">此單由 <button class="link" data-open-plan="${prev.id}">${esc(prev.no)}</button>（計畫變更）延續而來。</div>`:''}
@@ -880,7 +886,7 @@ function renderEditor(){
       <thead><tr><th class="h-no">#</th><th class="h-item">治療種類／項目</th><th class="h-teeth">牙位</th><th class="num h-unit">單價</th><th class="num h-qty">數量</th><th class="num h-orig">金額</th><th class="num h-chg">確認金額</th>${IL?'':'<th class="no-print h-del"></th>'}</tr></thead>
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         ${IL?`<td class="c-no">${i+1}</td>`:`<td class="c-no drag-handle" title="拖曳調整順序"><i>⋮⋮</i>${i+1}</td>`}
-        <td class="c-item"><span class="cat-tag">${it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;'}</span>
+        <td class="c-item"><span class="cat-tag">${catTagHtml(it)}</span>
           <div class="combo-wrap"><textarea class="note-ta item-ta" data-k="itemIn" rows="1" placeholder="選擇或輸入搜尋" autocomplete="off" spellcheck="false" ${idis}>${esc(it.name)}</textarea></div></td>
         <td class="c-teeth">${teethCell(it,idis,jawLock(it.name))}</td>
         <td class="c-unit" data-label="單價"><span class="ro-amt" data-k="unit">${roAmt(unitOf(it))}</span></td>
@@ -1181,7 +1187,8 @@ $('#main').addEventListener('change',e=>{
     else if(v){if(!it.custom&&it.name){it.unit=null;it.orig=0}it.custom=true;it.cat='其他';it.name=v}
     else{if(!it.custom&&it.name){it.unit=null;it.orig=0}it.custom=false;it.cat='';it.name=''}
     // 只更新這一列，避免重畫整張表讓游標跳走
-    t.value=it.name;r.tr.querySelector('.cat-tag').innerHTML=it.name?esc(it.custom?'自訂項目':it.cat):'&nbsp;';
+    t.value=it.name;r.tr.querySelector('.cat-tag').innerHTML=catTagHtml(it);
+    {const b=$('#main [data-ti-plan]');if(b)b.hidden=!planTiIds(p).length}
     {const q=r.tr.querySelector('[data-k="qty"]'),lk=qtyOne(it);q.disabled=lk;q.title=lk?'此項目數量固定為 1 單位':''}
     r.tr.querySelector('[data-k="unit"]').textContent=roAmt(unitOf(it));r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').textContent=roAmt(it.orig);syncAmtRow(r.tr,it);
     {const c=r.tr.querySelector('.c-teeth');c.innerHTML=teethCell(it,'',jawLock(it.name));alignTeeth(c.querySelector('.teeth-cell'))} // 上顎／下顎鎖定跟著項目變
@@ -1205,6 +1212,8 @@ $('#main').addEventListener('click',async e=>{
     if(a&&a.dataset.act!=='print'){if(a.dataset.act==='consentSig'&&p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}
     if(k&&k!=='photo'){if(k==='sig'){const r=rowOf(p,e.target);if(r&&r.row.sig)showImage(r.row.sig,'患者簽名')}return}
   }
+  const ti=e.target.closest('[data-ti]');if(ti){e.preventDefault();openTreatmentInfo(ti.dataset.ti);return}
+  if(e.target.closest('[data-ti-plan]')){window.open('treatments.html?ids='+planTiIds(p).join(','),'_blank','noopener');return}
   const op=e.target.closest('[data-open-plan]');if(op){openPlan(op.dataset.openPlan);return}
   const a=e.target.closest('[data-act]');
   if(a){const act=a.dataset.act,L=p.status!=='open';
@@ -1319,6 +1328,20 @@ function modal(html,onMount,sticky){
     bg.addEventListener('mousedown',e=>{if(e.target===bg&&!sticky)close(undefined)});
     onMount(bg.firstElementChild,close)});
 }
+
+/* ====== 治療介紹（treatment-info.js，與 treatments.html 共用） ====== */
+document.head.insertAdjacentHTML('beforeend',`<style>${TI_CSS}</style>`);
+const tiOf=it=>it&&it.name&&!it.custom?tiFind(it.name):null;
+function catTagHtml(it){if(!it.name)return '&nbsp;';const e=tiOf(it);
+  return esc(it.custom?'自訂項目':it.cat)+(e?`<button type="button" class="ti-btn" data-ti="${e.id}" title="治療介紹（可給病人看、列印）">ⓘ 介紹</button>`:'')}
+const planTiIds=p=>[...new Set((p.items||[]).map(tiOf).filter(Boolean).map(e=>e.id))];
+function openTreatmentInfo(id){const e=TI_BY_ID[id];if(!e)return;
+  modal(`<h3>${esc(e.title)}<span class="hint" style="margin-left:8px">${esc(e.cat)}</span></h3>${tiBodyHtml(e)}<div class="ti-disclaimer">${esc(TI_DISCLAIMER)}</div>
+    <div class="acts"><button data-x="page">開啟介紹頁</button><button data-x="print">🖨 列印給病人</button><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
+  (box,close)=>box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;
+    if(x==='page')window.open('treatments.html#'+id,'_blank','noopener');
+    else if(x==='print')window.open('treatments.html?ids='+id+'&print=1','_blank','noopener');
+    else close()}))}
 
 /* 簽名板：回傳 dataURL、null（清除）或 undefined（取消） */
 function openSig(title,existing,note){
