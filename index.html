@@ -3772,7 +3772,7 @@ function renderSettings(){
     :`<tr class="${s.active===false?'inactive':''}" data-srow="${s.id}">
       <td><b>${esc(s.code||'')}</b></td>
       <td>${esc(s.name||'')||'<span style="color:var(--faint)">—</span>'}${s.active===false&&sep?`<br><small style="color:var(--sub);white-space:nowrap">到職 ${fmtD(hireOf(s.id))}・離職 ${fmtD(resignOf(s.id))}</small>`:''}</td>
-      <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有超級管理員可以設定權限"'}>權限</button>${accessLinks[s.id]?.account?` <span class="pill">${PERMS[accessLinks[s.id].perm]||PERMS.view}</span>${(a=>a.perm==='suspended'?'':` <small class="att-mute" title="治療計劃單／耗材權限">計劃單 ${APP_LV.tp[appLv(a,'tp')][0]}・耗材 ${APP_LV.cs[appLv(a,'cs')][0]}</small>`)(accessLinks[s.id])}`:''}</td>
+      <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有超級管理員可以設定權限"'}>權限</button>${accessLinks[s.id]?.account?` <span class="pill">${PERMS[accessLinks[s.id].perm]||PERMS.view}</span>${(a=>a.perm==='suspended'?'':` <small class="att-mute" title="治療計劃單／耗材權限">計劃單 ${APP_LV.tp[appLv(a,'tp')][0]}・耗材 ${APP_LV.cs[appLv(a,'cs')][0]}</small>`)(accessLinks[s.id])}`:s.permPreset?` <span class="pill" style="opacity:.7" title="尚未填 Gmail：填入後套用這組權限">預設 ${PERMS[s.permPreset.perm]||PERMS.view}</span> <small class="att-mute">計劃單 ${APP_LV.tp[appLv(s.permPreset,'tp')][0]}・耗材 ${APP_LV.cs[appLv(s.permPreset,'cs')][0]}（未填 Gmail）</small>`:''}</td>
       <td class="num" style="white-space:nowrap">${(a=>`<button class="small${a?.perm==='suspended'?' primary':''}" data-suspend${superOK()&&a?.account&&a.perm!=='super'?'':` disabled title="${!a?.account?'還沒綁定登入帳號':a.perm==='super'?'超級管理員暫時不能停權':'只有超級管理員可以停權'}"`}>${a?.perm==='suspended'?'恢復權限':'停權'}</button> `)(accessLinks[s.id])}<button class="small" data-toggle${dis}>${s.active===false?'恢復在職':'離職'}</button> <button class="small danger" data-delstaff${dis}>刪除</button></td></tr>`).join('')
       :`<tr><td colspan="4" class="empty">${q?`找不到符合「${esc(q)}」的${showRes?'已離職':''}${ROLE[role]}。`:showRes?`沒有已離職的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
     {const max=role==='assistant'?10:role==='doctor'?8:6;/* 醫師名單一次顯示 8 人 */const n=limitRows($('staffScroll-'+role),max);$('staffHint-'+role).hidden=n<=max;}
@@ -4590,13 +4590,14 @@ function seniority(hire,resign){
 }
 async function openPerm(s){
   if(!superOK()){toast('只有超級管理員可以設定權限。','warn');return;}
-  const cur=accessLinks[s.id]||{},curEff=Object.assign({},cur,{perm:(cur.perm==='suspended'?cur.prevPerm:cur.perm)||'view'}); // 停權中的人：預設顯示停權前的權限
-  dialog(`<h3>${esc(fullName(s))} 的權限</h3><p>填入這位人員登入用的 Gmail，並設定他登入後可以做什麼。清空 Gmail 就是解除綁定，對方將無法再登入。</p>
+  // 尚未填 Gmail 的人可以預先設定權限（存在人員資料 staff.permPreset），之後填入 Gmail 時套用
+  const cur=accessLinks[s.id]||{},base=cur.account?cur:(s.permPreset||{}),curEff=Object.assign({},base,{perm:(base.perm==='suspended'?base.prevPerm:base.perm)||'view'}); // 停權中的人：預設顯示停權前的權限
+  dialog(`<h3>${esc(fullName(s))} 的權限</h3><p>填入這位人員登入用的 Gmail，並設定他登入後可以做什麼。還不知道 Gmail 也可以先設定權限，之後填入 Gmail 時就會套用。清空 Gmail 就是解除綁定，對方將無法再登入。</p>
     <div class="field" style="margin-bottom:10px"><label for="pmEmail">登入用的 Gmail</label>
       <input id="pmEmail" type="email" placeholder="name@gmail.com" autocomplete="off" value="${esc(cur.account||'')}">
     </div>
     <h4 class="pm-h">排班休假系統</h4>
-    <div class="opts">${Object.entries({none:'不能進入排班休假系統（只使用治療計劃單或耗材時選這個）。',view:s.role==='doctor'?'只能查看排班表、自己的休假，以及審核指定給自己的加班，不能修改。':s.role==='assistant'?'只能查看排班表、自己的請假、自己的出勤與自己的薪資，不能修改。':'只能查看排班表，不能修改。',self:s.role==='doctor'?'可以查看班表，登記、變更自己的休假，並審核指定給自己的加班。不能排班。':'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休診日與規則、管理出勤，但不能看其他人的薪資、個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${((cur.perm==='suspended'?cur.prevPerm:cur.perm)||'view')===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>
+    <div class="opts">${Object.entries({none:'不能進入排班休假系統（只使用治療計劃單或耗材時選這個）。',view:s.role==='doctor'?'只能查看排班表、自己的休假，以及審核指定給自己的加班，不能修改。':s.role==='assistant'?'只能查看排班表、自己的請假、自己的出勤與自己的薪資，不能修改。':'只能查看排班表，不能修改。',self:s.role==='doctor'?'可以查看班表，登記、變更自己的休假，並審核指定給自己的加班。不能排班。':'可以查看班表，登記、變更自己的請假（含家庭照顧假），並查看自己的薪資。不能排班。',manage:'可以排班、登記所有人的請假、設定休診日與規則、管理出勤，但不能看其他人的薪資、個資與設定權限。',super:'可以做所有事，包含查看個資與設定其他人的權限。'}).map(([k,d])=>`<label><input type="radio" name="pm" value="${k}"${curEff.perm===k?' checked':''}><span>${PERMS[k]}<small>${d}</small></span></label>`).join('')}</div>
     <h4 class="pm-h">治療計劃單</h4>
     <div class="opts two">${Object.entries(APP_LV.tp).map(([k,[l,d]])=>`<label><input type="radio" name="pmTp" value="${k}"${appLv(curEff,'tp')===k?' checked':''}><span>${l}<small>${d}</small></span></label>`).join('')}</div>
     <h4 class="pm-h">耗材系統</h4>
@@ -4605,11 +4606,14 @@ async function openPerm(s){
     ov=>{
       const perm=ov.querySelector('input[name=pm]:checked').value,tp=ov.querySelector('input[name=pmTp]:checked').value,cs=ov.querySelector('input[name=pmCs]:checked').value;
       const account=ov.querySelector('#pmEmail').value.trim().toLowerCase();
-      if(!account){if(cur.account){store.link(s.id,null);toast('已解除綁定。');}return;}
+      if(!account){ // 沒有 Gmail：存成預設權限
+        if(cur.account)store.link(s.id,null);
+        store.staff(Object.assign(clone(s),{permPreset:{perm,tp,cs}}));
+        toast(`${cur.account?'已解除綁定，':''}已預先設定 ${codeOf(s.id)} 的權限（排班 ${PERMS[perm]}、治療計劃單 ${APP_LV.tp[tp][0]}、耗材 ${APP_LV.cs[cs][0]}），填入 Gmail 後生效。`);return;}
       if(!/^[^@\s\/]+@[^@\s\/]+\.[^@\s\/]+$/.test(account)){toast('Gmail 格式不正確。','warn');return false;}
       const other=Object.entries(accessLinks).find(([sid,v])=>sid!==s.id&&v&&v.account===account);
       if(other){toast(`這個帳號已經綁定給 ${codeOf(other[0])}，請先解除。`,'warn');return false;}
-      store.link(s.id,{account,perm,tp,cs});toast(`已設定 ${codeOf(s.id)} 的權限：排班 ${PERMS[perm]}、治療計劃單 ${APP_LV.tp[tp][0]}、耗材 ${APP_LV.cs[cs][0]}。`);
+      store.link(s.id,{account,perm,tp,cs});if(s.permPreset){const n=clone(s);delete n.permPreset;store.staff(n);}toast(`已設定 ${codeOf(s.id)} 的權限：排班 ${PERMS[perm]}、治療計劃單 ${APP_LV.tp[tp][0]}、耗材 ${APP_LV.cs[cs][0]}。`);
     },'儲存');
   const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
   ov.querySelector('#pmEmail').focus();
