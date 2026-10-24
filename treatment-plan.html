@@ -523,11 +523,42 @@ tfoot td{font-weight:700;background:var(--soft)}
   aside,.no-print,.close-bar,.add-photo,.btn-x{display:none!important}
   .app{display:block}
   main,.app main,.side-hidden .app main{padding:12mm!important}
-  .card{border:1px solid #999;break-inside:avoid;padding:10px}
   input,select{border:0;padding:0;background:none!important;appearance:none;-webkit-appearance:none}
   .print-only{display:block}
-  .sigbox{border:1px solid #999}
-  th{background:#eee!important}
+  /* ---- 列印美化 ---- */
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  :root{--accent:#0f7c80;--ink:#1d2a30;--muted:#5f6f76;--line:#d5dee3}
+  /* 標題列：左邊圖示＋治療計劃單＋診所名稱，右邊單號；下方一條主色線 */
+  .topbar{border-bottom:2.5px solid var(--accent);padding-bottom:8px;margin-bottom:14px}
+  .topbar .chip{display:none}
+  .topbar .no{margin-left:auto;font-size:12px;color:var(--muted)}
+  .tp-brand img,.tp-brand .sub{display:none} /* 列印不印診所 Logo 與「新海美學牙醫診所」字樣 */
+  .topbar .title{font-size:24px;color:var(--accent)}
+
+  .banner{display:none!important}
+  /* 區塊：細框、圓角，標題前面加主色直條 */
+  .card{border:1px solid var(--line)!important;border-radius:8px;box-shadow:none!important;break-inside:avoid;padding:10px 14px 12px;margin-bottom:10px;background:#fff}
+  .card h2{font-size:15px;color:var(--accent);margin:0 0 8px;padding-left:8px;border-left:4px solid var(--accent);line-height:1.2}
+  label{font-size:11px;color:var(--muted)}
+  label input,label .pp-wrap input{font-size:14px;color:var(--ink);font-weight:600}
+  /* 沒填的欄位不印提示字、空日期不印「年／月／日」 */
+  ::placeholder{color:transparent!important}
+  input[type=date][value=""],input[type=datetime-local][value=""]{color:transparent}
+  input::-webkit-calendar-picker-indicator{display:none}
+  .combo-wrap::after,.sel-face::after{display:none}
+  .mo-chip{border:0;background:none;padding:0 0 0 4px;color:var(--muted);font-weight:400}
+  /* 治療項目表：表頭淡色底、主色字 */
+  th{background:#eaf4f4!important;color:var(--accent);font-size:12px}
+  .items-tbl td{border-bottom:1px solid var(--line)}
+  .item-ta{font-size:14px;border:0!important;padding:0!important;background:none}
+  .totals b{color:var(--ink)}.totals .hl b,#tChg{color:var(--accent)}
+  .items-note:has(textarea:placeholder-shown){display:none} /* 備註沒寫就不印 */
+  tr.extra-disc:has(input:placeholder-shown){display:none} /* 沒有調整金額就不印「調整」 */
+  .items-note textarea{border:1px solid var(--line)}
+  /* 患者同意：簽名框留白（不印「點此簽名」） */
+  .sigbox{border:1px solid #9fb0b8;border-radius:6px;background:#fff}
+  .sigbox:not(:has(img)){color:transparent}
+  .ro-box{background:none;border:0;border-bottom:1px solid #9fb0b8;border-radius:0}
 }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -883,7 +914,7 @@ function renderEditor(){
   m.innerHTML=`<div class="sheet">
   ${datalists()}
   <div class="topbar">
-    <span class="tp-brand no-print"><img src="icon-tp.svg?v=2" alt=""><span><span class="title">治療計劃單</span><span class="sub">新海美學牙醫診所</span></span></span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${stOf(p)}">${STATUS[stOf(p)]}</span>
+    <span class="tp-brand"><img src="icon-tp.svg?v=2" alt=""><span><span class="title">治療計劃單</span><span class="sub">新海美學牙醫診所</span></span></span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${stOf(p)}">${STATUS[stOf(p)]}</span>
     <span class="sp"></span><span class="save-ind no-print" id="saveInd"></span>
     <button class="no-print" data-act="print">🖨 列印</button>
     <button class="no-print" data-ti-plan title="開啟這張單所有項目的治療說明，可列印給病人" ${planTiIds(p).length?'':'hidden'}>📄 治療說明</button>
