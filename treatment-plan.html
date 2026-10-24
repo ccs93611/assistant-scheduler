@@ -514,7 +514,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .pp-opts .hint{display:block;font-weight:400;margin-top:2px}
 .pp-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .pp-list span{padding:3px 10px;border-radius:999px;background:var(--accent-soft,#e8f4f4);color:var(--accent,#0f7c80);font-size:14px;font-weight:600}
-/* 列印治療計劃單＋項目說明：#tiPrint 只在列印時出現；計算縮放時暫時加 .measure 放到畫面外 */
+/* 列印治療計劃單＋項目介紹：#tiPrint 只在列印時出現；計算縮放時暫時加 .measure 放到畫面外 */
 #tiPrint{display:none}
 #tiPrint.measure{display:block;position:absolute;left:-9999px;top:0}
 .tip-page{width:210mm;background:#fff;color:#111}
@@ -1426,12 +1426,12 @@ function openTreatmentInfo(id){const e=TI_BY_ID[id];if(!e)return;
     else if(x==='print')window.open('treatments.html?ids='+id+'&print=1','_blank','noopener');
     else close()}))}
 
-/* 列印：這張單有項目說明時，先選「僅列印治療計劃單」或「列印治療計劃單＋項目說明」 */
+/* 列印：這張單有項目說明時，先選「僅列印治療計劃單」或「列印治療計劃單＋項目介紹」 */
 function printPlan(p){
   const ids=planTiIds(p);if(!ids.length){window.print();return}
   modal(`<h3>列印</h3><div class="pp-opts">
       <button data-x="plan">🖨 僅列印治療計劃單</button>
-      <button data-x="info">🖨 列印治療計劃單＋項目說明<span class="hint">將列印的項目說明（接在治療計劃單後面）：</span><span class="pp-list">${ids.map(id=>`<span>${esc(TI_BY_ID[id].title)}</span>`).join('')}</span></button></div>
+      <button data-x="info">🖨 列印治療計劃單＋項目介紹<span class="hint">將列印的項目介紹（接在治療計劃單後面）：</span><span class="pp-list">${ids.map(id=>`<span>${esc(TI_BY_ID[id].title)}</span>`).join('')}</span></button></div>
     <div class="acts"><span class="sp"></span><button data-x="close">取消</button></div>`,
   (box,close)=>box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;close();
     if(x==='plan')setTimeout(()=>window.print(),50);else if(x==='info')printWithInfo(ids)}))}
