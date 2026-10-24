@@ -1,6 +1,6 @@
 /* 新海美學牙醫・治療項目介紹（給病人看的說明）
    treatments.html（介紹頁、列印衛教單）與 treatment-plan.html（項目旁的 ⓘ）共用這份資料。
-   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
+   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
    what（這是什麼）、who（適合誰）、steps（治療流程）、time（療程時間）、care（注意事項，可省略）、note（補充，可省略）。
    內容僅為一般說明，實際療程依醫師診斷為準；修改內容時只要改這個檔案。 */
 'use strict';
@@ -26,54 +26,81 @@ const TREATMENT_INFO=[
  steps:['拍攝臉部與牙齒照片、影片，進行口內掃描','醫師與技師依臉部比例設計微笑','與您討論設計，必要時試戴模擬牙套（Mock-up）','確認後作為後續治療的藍圖'],
  time:'約 2～3 次回診（拍攝 → 設計討論 → 試戴）。'},
 {id:'mta-vpt',cat:'固定式贗復',title:'MTA 活髓保存',items:['MTA活髓保存'],
+ pics:{src:'media/mta-source.webp',w:1672,h:941,rows:[
+  [{x:85,y:124,w:472,h:296,cap:'蛀牙很深，接近牙髓'},{x:603,y:124,w:470,h:296,cap:'清除蛀牙，以 MTA 蓋住神經'},{x:1119,y:124,w:471,h:296,cap:'填補恢復牙齒，保留神經'}],
+  [{x:82,y:494,w:726,h:312,cap:'術前：蛀牙很深，接近牙髓'},{x:862,y:494,w:726,h:312,cap:'放置 MTA 材料覆蓋神經'}]]},
  what:'蛀牙很深、接近或稍微碰到神經時，以生物相容性高的 MTA 材料覆蓋在神經上，促進牙齒自行修復，盡量保留神經的活性，避免抽神經（根管治療）。',
  who:['蛀牙很深但牙齒沒有長時間自發性疼痛的人','希望保留牙齒神經的人（含年輕恆牙）'],
  steps:['局部麻醉，清除蛀牙','以 MTA 材料覆蓋接近神經的部位','填補或製作牙套恢復牙齒','定期回診拍 X 光追蹤'],
  time:'約 1～2 次，之後依醫師安排追蹤。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','若出現持續或夜間疼痛、腫脹，請儘快回診，可能需要改做根管治療','成功率與蛀牙深度、神經狀況有關，並非每顆牙都適合']},
 {id:'bpr',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 齒雕',items:['日本GC Initial LiSi Block齒雕'],old:['BPR齒雕'],
+ pics:{src:'media/bpr-source.webp',w:1672,h:941,rows:[
+  [{x:79,y:122,w:478,h:264,cap:'蛀牙或缺損，去除齲壞組織'},{x:610,y:122,w:454,h:264,cap:'清潔並修整牙齒外形'},{x:1116,y:122,w:482,h:264,cap:'以陶瓷齒雕恢復牙齒外形與功能'}],
+  [{x:77,y:470,w:730,h:336,cap:'術前：蛀牙較大，去除齲壞組織'},{x:867,y:470,w:731,h:336,cap:'術後：以陶瓷齒雕恢復牙齒外形'}]]},
  what:'牙齒缺損較大、但不需要整顆磨小做牙冠時，只修整缺損部分，再黏上依形狀訂製的陶瓷修復體（例如嵌體、高嵌體）。保留較多健康牙齒，顏色自然、耐磨。',
  who:['大範圍蛀牙或舊補綴物需要重做的人','牙齒裂開、缺角但結構還算完整的人','希望少磨牙齒的人'],
  steps:['移除蛀牙或舊填補物、修整牙齒','口內掃描或取模，暫時封填','技工室製作陶瓷修復體','試戴、調整後黏著固定'],
  time:'約 2 次（修整取模 → 黏著），部分可當日完成。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
 {id:'veneer',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 美學貼片',items:['日本GC Initial LiSi Block美學貼片'],old:['GC Initial LiSi Block美學貼片','Veneer美學貼片'],
+ pics:{src:'media/veneer-gc-source.webp',w:1671,h:941,rows:[
+  [{x:36,y:117,w:510,h:231,cap:'治療前：上顎前牙 8 顆顏色較黃、有缺損、輕微汙漬與不整齊'},{x:603,y:117,w:461,h:231,cap:'少量修磨牙齒，進行數位取模，製作 GC 瓷塊貼片'},{x:1121,y:117,w:512,h:231,cap:'完成上顎前牙 8 顆 GC 瓷塊貼片，色澤自然、型態美觀、與臉型協調'}],
+  [{x:40,y:459,w:774,h:351,cap:'術前：上顎前牙 8 顆有缺損、汙漬、形態不整齊，顏色較黃'},{x:856,y:459,w:774,h:351,cap:'術後：上顎前牙 8 顆使用 GC 瓷塊貼片，色澤明亮、自然'}]]},
  what:'使用日本 GC Initial LiSi Block 二矽酸鋰玻璃陶瓷製作的貼片。在門牙表面只磨薄薄一層（部分情況可以幾乎不磨），再黏上薄的陶瓷片，改善牙齒顏色、形狀、縫隙或輕微不整齊，強度（Flexural Strength） 408 MPa，大約是人類天然牙齒的 2 倍以上。',
  who:['牙齒顏色深、美白效果不理想的人','門牙有縫隙、缺角、形狀或大小不協調的人','想快速改善笑容的人'],
  steps:['美學評估，可搭配 DSD 數位微笑設計','微量修整牙齒表面、口內掃描或取模','配戴臨時貼片','試戴確認顏色與形狀後黏著'],
  time:'約 1～2 次，部分可當日完成。',
  care:['避免啃咬過硬物體（啃骨頭、咬瓜子殼、開瓶蓋）','治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
 {id:'veneer-emax',cat:'固定式贗復',strength:'emax',title:'列支敦斯登 E.max 美學貼片',items:['列支敦斯登E.max美學貼片'],
+ pics:{src:'media/veneer-emax-source.webp',w:1672,h:941,rows:[
+  [{x:83,y:118,w:473,h:271,cap:'牙齒變色、缺損或外形不佳'},{x:612,y:118,w:451,h:271,cap:'少量修磨牙齒表面'},{x:1117,y:118,w:473,h:271,cap:'製作並黏著陶瓷貼片，恢復美觀'}],
+  [{x:80,y:468,w:723,h:320,cap:'術前：前牙變色與缺角'},{x:867,y:468,w:724,h:320,cap:'術後：以陶瓷貼片恢復牙齒外形與色澤'}]]},
  what:'使用列支敦斯登 Ivoclar 的 E.max 二矽酸鋰玻璃陶瓷製作的貼片。在門牙表面只磨薄薄一層（部分情況可以幾乎不磨），再黏上薄的陶瓷片，改善牙齒顏色、形狀、縫隙或輕微不整齊。透光性極好，強度（Flexural Strength） 360 MPa以上，足夠承受日常咬合。',
  who:['門牙有縫隙、缺角、形狀或大小不協調的人','想快速改善笑容的人'],
  steps:['美學評估，可搭配 DSD 數位微笑設計','微量修整牙齒表面、口內掃描或取模','配戴臨時貼片','試戴確認顏色與形狀後黏著'],
  time:'約 1～2 次，部分可當日完成。',
  care:['避免啃咬過硬物體（啃骨頭、咬瓜子殼、開瓶蓋）','治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
 {id:'post',cat:'固定式贗復',title:'義大利 Over Post 玻璃纖維釘',items:['義大利Over Post玻璃纖維釘'],old:['Post玻璃纖維釘'],
+ pics:{src:'media/post-source.webp',w:1312,h:1199,rows:[
+  [{x:38,y:111,w:356,h:335,cap:'1. 根管治療完成\n清潔根管並以馬來膠充填完成'},{x:433,y:111,w:321,h:335,cap:'2. 選擇合適的玻璃纖維釘\n依根管直徑選擇合適尺寸'},{x:793,y:111,w:198,h:335,cap:'3. 放置玻璃纖維釘\n使用樹脂黏著劑將玻璃纖維釘黏著於根管內'},{x:1014,y:111,w:263,h:335,cap:'4. 核心堆築\n以樹脂材料進行核心堆築，準備製作假牙'}],
+  [{x:37,y:586,w:595,h:416,cap:'術前\n上顎左側正中門牙因蛀牙斷裂，經根管治療後需放置玻璃纖維釘並進行核心堆築'},{x:677,y:586,w:600,h:416,cap:'術後\n完成假牙製作，恢復牙齒外形、顏色與功能，左右正中門牙對稱自然'}]]},
  what:'根管治療後的牙齒，會在牙根內放一支玻璃纖維釘，再堆出牙齒的核心，讓之後的牙冠更穩固。玻璃纖維釘的彈性接近牙齒，顏色也不會透出灰色。',
  who:['已完成根管治療、牙齒缺損較大，準備做牙冠的人'],
  steps:['確認根管治療完成','整理牙根內部空間，黏上玻璃纖維釘','堆出牙齒核心','接著進行牙冠製作'],
  time:'約 1 次，通常與牙冠修形同一次完成。',
  care:['完成牙冠前，避免用這顆牙咬硬物','根管治療後的牙齒較脆弱，建議儘早完成牙冠保護']},
 {id:'temp',cat:'固定式贗復',title:'Temp 臨時假牙',items:['Temp臨時假牙'],
+ pics:{src:'media/temp-source.webp',w:1536,h:1024,rows:[
+  [{x:0,y:66,w:480,h:324,cap:'1. 牙齒修磨與預備\n依治療計畫進行牙齒修磨，確認修磨量、邊緣線及咬合空間'},{x:552,y:66,w:438,h:324,cap:'2. 3D 口內掃描\n使用口內掃描機取得上下顎牙齒的 3D 數位模型，記錄咬合關係'},{x:1064,y:66,w:472,h:324,cap:'3. 電腦數位設計（CAD）\n依照修磨後的牙齒形態設計臨時假牙，調整長度、寬度、外型及鄰接關係'}],
+  [{x:0,y:560,w:480,h:328,cap:'4. 3D 列印臨時假牙\n將設計完成的檔案傳送至 3D 列印機，使用牙科專用臨時牙冠樹脂進行列印'},{x:552,y:560,w:438,h:328,cap:'5. 清洗、固化與修整\n清洗列印完成的臨時假牙，進行二次光固化，移除支撐結構，並修整邊緣與拋光'},{x:1064,y:560,w:472,h:328,cap:'6. 口內試戴與臨時黏著\n將臨時假牙完整戴入，確認邊緣密合度、鄰接接觸及咬合，使用適當的臨時黏著劑固定，清除多餘黏著劑'}]]},
  what:'正式假牙製作期間，先戴上的暫時性牙冠或牙橋，保護修磨過的牙齒、維持美觀與咀嚼，也讓醫師與您先確認形狀與咬合。',
  who:['正在製作牙冠、牙橋、貼片或植牙假牙的人'],
  steps:['牙齒修形後當場製作或預先製作','暫時黏著','正式假牙完成後移除'],
  time:'配戴到正式假牙完成，約數週至數月。',
  care:['臨時假牙較不堅固，避免咬硬、黏的食物（麻糬、牛軋糖、口香糖）','用牙線時從側邊抽出，不要往上拉','若鬆脫請保留並儘快回診重新黏上']},
 {id:'crown-cercon',cat:'固定式贗復',strength:'zr',title:'德國 Cercon 全鋯冠',items:['德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙'],old:['Crown氧化鋯-前牙','Crown氧化鋯-後牙','德國 Cercon全鋯冠-前牙','德國 Cercon全鋯冠-後牙'],
+ pics:{src:'media/crown-cercon-source.webp',w:1536,h:1024,rows:[
+  [{x:60,y:117,w:445,h:262,cap:'1. 舊有全瓷冠\n舊全瓷冠已有磨損、變色或邊緣不密合'},{x:556,y:117,w:427,h:262,cap:'2. 拆除舊假牙\n拆除舊全瓷冠，評估牙齒狀況'},{x:1039,y:117,w:438,h:262,cap:'3. 修型磨邊緣\n修磨牙齒，製作全鋯冠所需的牙體形態'}],
+  [{x:60,y:517,w:671,h:330,cap:'4. 裝臨時假牙\n裝戴臨時假牙，保護牙齒並維持咬合'},{x:804,y:517,w:673,h:330,cap:'5. 裝正式假牙\n以全鋯材料製作正式假牙，完成裝戴，恢復牙齒外形與功能'}]]},
  what:'使用德國 Cercon 氧化鋯製作。不含金屬，強度（Flexural Strength）最高可達 1200 MPa、耐咬、不易崩瓷，適合咀嚼力大的後牙；高透度的氧化鋯也可用於前牙。不會有牙齦邊緣發黑的問題。',
  who:['蛀牙或缺損範圍大、一般填補無法修復的人','根管治療後需要保護的牙齒','咬合力大、有磨牙習慣，需要較耐用牙冠的人'],
  steps:['修磨牙齒、口內掃描或取模','配戴臨時假牙','技工室製作牙冠','試戴、調整咬合與顏色後黏著'],
  time:'約 2～3 次，前後約 1～3 週。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','仍要確實刷牙、使用牙線']},
 {id:'crown-gc',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 全瓷冠',items:['日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙'],
+ pics:{src:'media/crown-gc-source.webp',w:1536,h:1024,rows:[
+  [{x:61,y:116,w:444,h:252,cap:'1. 術前評估\n下顎第一小臼齒因蛀牙或舊補綴物造成結構缺損，影響咀嚼功能'},{x:554,y:116,w:427,h:252,cap:'2. 牙齒修磨\n依 GC 全瓷冠的設計需求，修磨牙齒取得適當的外形與空間'},{x:1032,y:116,w:443,h:252,cap:'3. 比色確認\n進行牙齒比色，選擇最適合的 GC 全瓷冠顏色'}],
+  [{x:237,y:538,w:548,h:270,cap:'4. GC 全瓷冠製作\n以 GC 全瓷材料製作正式假牙，具備良好的美觀性與生物相容性'},{x:840,y:538,w:635,h:270,cap:'5. 裝戴正式全瓷冠\n裝戴 GC 全瓷冠，確認咬合與邊緣密合，恢復牙齒外形、咀嚼功能與美觀'}]]},
  what:'使用日本 GC Initial LiSi Block 二矽酸鋰玻璃陶瓷製作的牙冠。不含金屬，顏色自然，不會有牙齦邊緣發黑的問題，強度（Flexural Strength） 408 MPa，大約是人類天然牙齒的 2 倍以上，適合前牙及小臼齒。',
  who:['蛀牙或缺損範圍大、一般填補無法修復的人','根管治療後需要保護的牙齒','想改善牙齒顏色、形狀，美觀要求高的人'],
  steps:['修磨牙齒、口內掃描或取模','配戴臨時假牙','製作牙冠','試戴、調整咬合與顏色後黏著'],
  time:'約 1～2 次，部分可當日完成。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','仍要確實刷牙、使用牙線','避免咬冰塊、骨頭等硬物；有磨牙習慣建議配戴咬合板']},
 {id:'crown-emax',cat:'固定式贗復',strength:'emax',title:'列支敦斯登 E.max 全瓷冠',items:['列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙'],old:['Crown全瓷-前牙','Crown全瓷-後牙'],
+ pics:{src:'media/crown-emax-source.webp',w:1536,h:1024,rows:[
+  [{x:62,y:117,w:444,h:253,cap:'1. 術前評估\n前牙因外傷或齲齒造成缺損、變色，影響美觀與功能'},{x:555,y:117,w:425,h:253,cap:'2. 牙齒修磨\n修磨牙齒，製作適合 E.max 全瓷冠的牙體形態'},{x:1035,y:117,w:441,h:253,cap:'3. 數位口掃取模\n以數位口掃取得牙齒資料，進行 E.max 全瓷冠數位設計與製作'}],
+  [{x:236,y:539,w:551,h:271,cap:'4. E.max 全瓷冠製作\n以 E.max 全瓷材料製作正式假牙，顏色與形態比對自然牙'},{x:842,y:539,w:634,h:271,cap:'5. 裝戴正式全瓷冠\n裝戴 E.max 全瓷冠，恢復牙齒外形、美觀與功能'}]]},
  what:'使用列支敦斯登 Ivoclar 的 E.max 二矽酸鋰玻璃陶瓷製作。不含金屬，透光性好、顏色最接近自然牙齒，不會有牙齦邊緣發黑的問題，特別適合在意美觀的前牙，強度（Flexural Strength） 360 MPa以上，足夠承受日常咬合。',
  who:['蛀牙或缺損範圍大、一般填補無法修復的人','根管治療後需要保護的牙齒','想改善牙齒顏色、形狀，美觀要求高的人'],
  steps:['修磨牙齒、口內掃描或取模','配戴臨時假牙','技工室製作牙冠','試戴、調整咬合與顏色後黏著'],
@@ -330,12 +357,20 @@ function tiStrengthHtml(cur){
   return `<div class="ti-str" hidden><table><thead><tr><th>材質</th><th>抗彎強度</th><th>臨床主要用途</th></tr></thead><tbody>${
     TI_STRENGTH.map(r=>`<tr class="${r.key===cur?'cur':''}"><td>${tiEsc(r.name)}</td><td class="mpa">${tiEsc(r.mpa)}</td><td>${tiEsc(r.use)}</td></tr>`).join('')}</tbody></table></div>`;
 }
+/* 步驟圖：從同一張圖裁出每一格（CSS 背景定位），每列格子之間加箭頭，下方是說明文字 */
+function tiStepsHtml(p){
+  const crop=r=>`<div class="ti-crop" role="img" aria-label="${tiEsc(r.cap)}" style="aspect-ratio:${r.w}/${r.h};background-image:url('${tiEsc(p.src)}');`+
+    `background-size:${(p.w/r.w*100).toFixed(3)}% auto;background-position:${(r.x/(p.w-r.w)*100).toFixed(3)}% ${(r.y/(p.h-r.h)*100).toFixed(3)}%"></div>`;
+  const capHtml=c=>{const[t,...m]=c.split('\n');return m.length?`<b>${tiEsc(t)}</b><br>${m.map(tiEsc).join('<br>')}`:tiEsc(t)}; // 有換行時第一行當小標題
+  const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return `<div class="ti-steps">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}<figcaption>${capHtml(r.cap)}</figcaption></figure>`).join('')}</div>`).join('')}</div>`;
+}
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
   const sb=e.strength?`<button type="button" class="ti-str-btn" onclick="const s=this.closest('.ti-body').querySelector('.ti-str');s.hidden=!s.hidden;this.classList.toggle('on',!s.hidden)">📊 強度比較</button>`:'';
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}${e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
+    <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}${e.pics?tiStepsHtml(e.pics):e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
     <div class="ti-sec"><h4>療程時間</h4><p>${tiEsc(e.time)}</p></div>
@@ -349,6 +384,13 @@ const TI_CSS=`
 .ti-what{margin-bottom:12px!important}
 .ti-fig{margin:0 auto 14px}.ti-fig svg{display:block;width:100%;height:auto}
 .ti-fig figcaption{display:grid;margin-top:6px;text-align:center;font-size:13px;line-height:1.45}
+.ti-steps{margin:0 auto 14px;max-width:760px;display:grid;gap:14px}
+.ti-row{display:flex;align-items:flex-start;gap:6px}
+.ti-row figure{flex:1 1 0;min-width:0;margin:0}
+.ti-crop{width:100%;border-radius:14px;background-repeat:no-repeat;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ti-row figcaption{margin-top:6px;text-align:center;font-size:13px;line-height:1.45}
+.ti-arr{flex:0 0 12px;width:12px;height:20px;align-self:center;margin-top:-1.6em}
+@media print{.ti-steps{break-inside:avoid}}
 .ti-photo{margin:0 0 14px}.ti-photo img{display:block;margin:0 auto;width:auto;max-width:100%;max-height:380px;height:auto;border-radius:12px;border:1px solid var(--line)}
 @media print{.ti-fig,.ti-photo{break-inside:avoid}}
 .ti-sec{margin-top:12px}
@@ -372,7 +414,7 @@ const TI_CSS=`
 @media screen and (min-width:600px) and (pointer:coarse),screen and (min-width:600px) and (max-width:1100px){
   .ti-body{font-size:21px;line-height:1.75}
   .ti-sec h4{font-size:21px}
-  .ti-fig figcaption{font-size:18px}
+  .ti-fig figcaption,.ti-row figcaption{font-size:18px}
   .ti-str table{font-size:17.5px}
   .ti-str-btn{font-size:16px;padding:2px 13px}
   .ti-disclaimer{font-size:16px}
@@ -381,7 +423,7 @@ const TI_CSS=`
 @media screen and (min-width:1101px) and (pointer:fine){
   .ti-body{font-size:19px;line-height:1.75}
   .ti-sec h4{font-size:19px}
-  .ti-fig figcaption{font-size:16.5px}
+  .ti-fig figcaption,.ti-row figcaption{font-size:16.5px}
   .ti-str table{font-size:16px}
   .ti-str-btn{font-size:15px}
   .ti-disclaimer{font-size:15px}
@@ -390,7 +432,7 @@ const TI_CSS=`
 @media screen and (max-width:599px){
   .ti-body{font-size:17px;line-height:1.75}
   .ti-sec h4{font-size:17px}
-  .ti-fig figcaption{font-size:14.5px}
+  .ti-fig figcaption,.ti-row figcaption{font-size:14.5px}
   .ti-str table{font-size:14px}
   .ti-str-btn{font-size:13.5px}
   .ti-disclaimer{font-size:13.5px}
