@@ -130,6 +130,9 @@ main{padding:20px;min-width:0}
 .topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 /* 計劃單上方標題：圖示＋大標題＋診所名稱（與治療項目介紹頁相同排法） */
 .qty-u{font-size:11px;text-align:center;line-height:1.2;margin-top:2px}
+.u-lbl{font-size:12px;color:var(--muted);font-weight:400;margin-left:2px;white-space:nowrap}
+.item-u{position:absolute;color:var(--muted);font-weight:400;pointer-events:none;white-space:nowrap}
+@container items (max-width:640px){.qty-u{display:none}} /* 窄畫面卡片版：單位只顯示在單價下方，數量欄不擠 */
 .tp-brand{display:inline-flex;align-items:center;gap:12px;margin-right:6px}
 .tp-brand img{width:44px;height:44px;border-radius:10px;flex:0 0 auto}
 .tp-brand>span{display:flex;flex-direction:column}
@@ -587,7 +590,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 <div id="gate" class="gate" hidden><div class="gate-box"><h2>新海美學牙醫・治療計劃單</h2><p id="gateMsg">連線中…</p><div id="gateActs"></div></div></div>
 <input type="file" id="importInput" accept="application/json,.json" hidden>
 
-<script src="treatment-info.js?v=35"></script>
+<script src="treatment-info.js?v=36"></script>
 <script src="treatment-figs.js?v=9"></script>
 <script>
 'use strict';
@@ -613,6 +616,20 @@ const PER_TOOTH=new Set(['MTA活髓保存','日本GC Initial LiSi Block齒雕','
 const pk=(cat,name)=>cat+'|'+name;
 // 以其他單位計價的項目：價目表顯示「／單位」，治療項目的數量欄下方註明（數量自己填，不會依牙位自動算）
 const PER_UNIT={'All-on-x輕量化合金牙架':'每一植體'};
+// 項目的計價單位：以顆計價→「顆」；其他單位→PER_UNIT（例如「每一植體」）；其餘沒有特別單位
+const unitName=n=>PER_TOOTH.has(n)?'顆':PER_UNIT[n]||'';
+const unitTag=n=>unitName(n)?`<span class="u-lbl">／${unitName(n)}</span>`:'';
+const itemUHtml=it=>!it.custom&&unitName(it.name)?`<span class="item-u">／${unitName(it.name)}</span>`:'';
+// 把單位標在項目名稱文字後面；名稱一行放不下時改放在欄位右下角
+function placeItemU(ta){
+  const u=ta.parentElement&&ta.parentElement.querySelector('.item-u');if(!u||!ta.clientWidth)return;
+  const cs=getComputedStyle(ta),pl=parseFloat(cs.paddingLeft)+parseFloat(cs.borderLeftWidth),pt=parseFloat(cs.paddingTop)+parseFloat(cs.borderTopWidth);
+  const w=textW(ta,ta.value),avail=ta.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+  u.style.lineHeight=cs.lineHeight;u.style.fontSize=cs.fontSize;
+  if(ta.value&&w+u.offsetWidth+6<=avail){u.style.left=(pl+w+4)+'px';u.style.top=pt+'px';u.style.right=u.style.bottom=''}
+  else{u.style.left=u.style.top='';u.style.right='26px';u.style.bottom=pt+'px'}
+}
+const qtyUnitHtml=n=>unitName(n)?`<div class="hint qty-u">${unitName(n).replace(/^每一/,'')}數</div>`:'';
 // 改過名稱的項目：[種類, 舊名, 新名]。舊單的項目、價目表單價與抽成設定都自動換成新名稱
 const RENAMED=[['矯正','Invisalign隱適美-全方位方案','Invisalign隱適美-Comprehensive全方位方案'],['矯正','Invisalign隱適美-中度方案','Invisalign隱適美-Moderate中度方案'],['矯正','Invisalign隱適美-輕度方案','Invisalign隱適美-Lite輕度方案'],['矯正','Invisalign隱適美-快速方案','Invisalign隱適美-Express快速方案'],['矯正','Invisalign隱適美-兒童早期矯正','Invisalign隱適美-First兒童早期矯正'],['植牙式贗復','植牙全鋯冠-前牙','德國Cercon全鋯植牙冠-前牙'],['植牙式贗復','植牙全鋯冠-後牙','德國Cercon全鋯植牙冠-後牙'],['固定式贗復','Post玻璃纖維釘','義大利Over Post玻璃纖維釘'],['固定式贗復','BPR齒雕','日本GC Initial LiSi Block齒雕'],['牙齒美白','居家美白','客製化居家美白'],['固定式贗復','Veneer美學貼片','日本GC Initial LiSi Block美學貼片'],['固定式贗復','GC Initial LiSi Block美學貼片','日本GC Initial LiSi Block美學貼片'],['固定式贗復','Crown全瓷-前牙','列支敦斯登E.max全瓷冠-前牙'],['固定式贗復','Crown全瓷-後牙','列支敦斯登E.max全瓷冠-後牙'],['固定式贗復','Crown氧化鋯-前牙','德國Cercon全鋯冠-前牙'],['固定式贗復','Crown氧化鋯-後牙','德國Cercon全鋯冠-後牙'],['固定式贗復','德國 Cercon全鋯冠-前牙','德國Cercon全鋯冠-前牙'],['固定式贗復','德國 Cercon全鋯冠-後牙','德國Cercon全鋯冠-後牙']];
 function renameItems(p){for(const it of p.items||[])if(!it.custom)for(const [c,o,n] of RENAMED)if(it.cat===c&&it.name===o)it.name=n;return p}
@@ -897,10 +914,10 @@ function renderEditor(){
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         ${IL?`<td class="c-no">${i+1}</td>`:`<td class="c-no drag-handle" title="拖曳調整順序"><i>⋮⋮</i>${i+1}</td>`}
         <td class="c-item"><span class="cat-tag">${catTagHtml(it)}</span>
-          <div class="combo-wrap"><textarea class="note-ta item-ta" data-k="itemIn" rows="1" placeholder="選擇或輸入搜尋" autocomplete="off" spellcheck="false" ${idis}>${esc(it.name)}</textarea></div></td>
+          <div class="combo-wrap"><textarea class="note-ta item-ta" data-k="itemIn" rows="1" placeholder="選擇或輸入搜尋" autocomplete="off" spellcheck="false" ${idis}>${esc(it.name)}</textarea>${itemUHtml(it)}</div></td>
         <td class="c-teeth">${teethCell(it,idis,jawLock(it.name))}</td>
         <td class="c-unit" data-label="單價"><span class="ro-amt" data-k="unit">${roAmt(unitOf(it))}</span></td>
-        <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis||(qtyOne(it)?'disabled title="此項目數量固定為 1 單位"':'')}>${PER_UNIT[it.name]?`<div class="hint qty-u">${PER_UNIT[it.name].replace(/^每一/,'')}數</div>`:''}</td>
+        <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis||(qtyOne(it)?'disabled title="此項目數量固定為 1 單位"':'')}>${qtyUnitHtml(it.name)}</td>
         <td class="c-orig" data-label="金額"><span class="ro-amt" data-k="orig">${roAmt(it.orig)}</span></td>
         <td class="c-chg" data-label="確認金額"><input class="num ${discOf(it)?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.disc!=null||it.chg!=null?chgOf(it):''}" placeholder="" ${idis}></td>
         ${IL?'':`<td class="c-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
@@ -977,7 +994,7 @@ function renderEditor(){
   alignTeeth();growNotes();requestAnimationFrame(()=>growNotes());loadPhotos();applyPerms();
 }
 // 備註欄依內容自動長高，字多時換行顯示全部內容
-function growNotes(el){for(const ta of el?[el]:document.querySelectorAll('textarea.note-ta')){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px'}}
+function growNotes(el){for(const ta of el?[el]:document.querySelectorAll('textarea.note-ta')){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px';if(ta.classList.contains('item-ta'))placeItemU(ta)}}
 window.addEventListener('resize',()=>growNotes());
 // 繳費紀錄的「項目」：從這張單的治療項目選；牙位預設帶入該項目的牙位，可修改
 const itemAmt=it=>chgOf(it);
@@ -1190,6 +1207,8 @@ $('#main').addEventListener('change',e=>{
       // 8 項矯正療程（LH日式矯正全口／半口／局部、Invisalign隱適美各方案）一張單只能有一項
       if(hit&&ORTHO_MAIN.has(hit.name)&&others.some(i=>!i.custom&&ORTHO_MAIN.has(i.name))){alert('一張計劃單只能有一項矯正療程（LH日式矯正全口／半口／局部、Invisalign隱適美各方案）。');t.value=it.name||'';return}
       if(hit&&QTY_ONE.has(hit.name)){it.qty=1;it.qtyManual=true}}
+    // 原本是牙位自動帶入並鎖住的項目（DSD、活動假牙、噴砂美白…），換成別的項目時先清空牙位
+    {const pl=!it.custom&&jawLock(it.name);const nn=hit?hit.name:v;if(pl&&pl.fill&&nn!==it.name){applyTeeth(it,{teeth:[],pontics:[],bridgeTeeth:[],bridgeGroups:[]});it.teethText=null;it.teethBad=null}}
     if(hit){if(it.custom||it.cat!==hit.cat||it.name!==hit.name){it.custom=false;it.cat=hit.cat;it.name=hit.name;
         if(PER_TOOTH.has(hit.name)&&!it.qtyManual&&it.teeth.length)it.qty=it.teeth.filter(x=>!REGIONS.includes(x)).length||1;
         const lk=jawLock(hit.name);if(lk){applyTeeth(it,lockTeeth({teeth:it.teeth,pontics:it.pontics||[],bridgeTeeth:bridgeTeethOf(it),bridgeGroups:it.bridgeGroups||[]},lk));it.teethText=null;it.teethBad=null}
@@ -1200,7 +1219,8 @@ $('#main').addEventListener('change',e=>{
     t.value=it.name;r.tr.querySelector('.cat-tag').innerHTML=catTagHtml(it);
     {const b=$('#main [data-ti-plan]');if(b)b.hidden=!planTiIds(p).length}
     {const q=r.tr.querySelector('[data-k="qty"]'),lk=qtyOne(it);q.disabled=lk;q.title=lk?'此項目數量固定為 1 單位':''}
-    {const c=r.tr.querySelector('.c-qty');c.querySelector('.qty-u')?.remove();if(PER_UNIT[it.name])c.insertAdjacentHTML('beforeend',`<div class="hint qty-u">${PER_UNIT[it.name].replace(/^每一/,'')}數</div>`)} // 以其他單位計價時，數量欄下方註明單位
+    {const c=r.tr.querySelector('.c-qty');c.querySelector('.qty-u')?.remove();c.insertAdjacentHTML('beforeend',qtyUnitHtml(it.name))} // 數量欄下方註明單位
+    {const w=t.parentElement;w.querySelector('.item-u')?.remove();w.insertAdjacentHTML('beforeend',itemUHtml(it));growNotes(t)} // 項目名稱後面的單位跟著換
     r.tr.querySelector('[data-k="unit"]').textContent=roAmt(unitOf(it));r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').textContent=roAmt(it.orig);syncAmtRow(r.tr,it);
     {const c=r.tr.querySelector('.c-teeth');c.innerHTML=teethCell(it,'',jawLock(it.name));alignTeeth(c.querySelector('.teeth-cell'))} // 上顎／下顎鎖定跟著項目變
     refreshTotals();touch();
@@ -1567,12 +1587,12 @@ function comboFilter(showAll){
   if(!q){ // 分層：治療種類 → 項目
     for(const [cat,list] of CATS){const open=combo.openCats.has(cat);
       opt({cat,toggle:true},`<span class="arr">${open?'▾':'▸'}</span>${esc(cat)}<span class="cnt">${list.length}</span>`,'combo-opt combo-cat'+(open?' open':''));
-      if(open)for(const n of list)opt({cat,name:n},esc(n),'combo-opt combo-sub'+(n===raw?' sel':''));
+      if(open)for(const n of list)opt({cat,name:n},esc(n)+unitTag(n),'combo-opt combo-sub'+(n===raw?' sel':''));
     }
   }else{ // 搜尋：符合的項目，依治療種類分組
     for(const [cat,list] of CATS){const hit=m(cat)?list:list.filter(m);if(!hit.length)continue;
       h+=`<div class="combo-grp">${esc(cat)}</div>`;
-      for(const n of hit)opt({cat,name:n},esc(n),'combo-opt combo-sub'+(n===raw?' sel':''));}
+      for(const n of hit)opt({cat,name:n},esc(n)+unitTag(n),'combo-opt combo-sub'+(n===raw?' sel':''));}
     if(raw&&!findItem(raw)){h+=`<div class="combo-grp">其他</div>`;opt({custom:raw},`自訂項目：「${esc(raw)}」`,'combo-opt combo-sub')}
     if(!combo.opts.length)h='<div class="combo-empty">沒有符合的項目</div>';
   }
