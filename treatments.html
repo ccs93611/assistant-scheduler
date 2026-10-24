@@ -109,7 +109,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 }
 /* ---- 列印：A4，只印標記 .pr 的項目 ---- */
 @page{size:A4;margin:14mm 14mm 16mm}
-/* 列印模式：列印前在 body 加上 .pm（列印完移除），每個項目一張 A4；內容較多時 printIds 會自動縮小（zoom）塞進一頁。
+/* 列印模式：列印前在 body 加上 .pm（列印完移除），每個項目一張 A4；printIds 會自動放大或縮小（zoom）讓內容剛好填滿一頁。
    寫成 body.pm 而不是 @media print，列印前才量得到排版後的高度 */
 body.pm details.ti.pr{width:182mm;margin:0;padding:0!important;border:0!important;border-radius:0;box-shadow:none;background:#fff;color:#111}
 body.pm section.cat>h2,body.pm section.cat>.desc,body.pm .ti-items,body.pm .ti-acts{display:none!important}
@@ -211,15 +211,19 @@ function filter(){
   $('#selBar').hidden=!sel.length;$('#selTxt').textContent=`治療計劃單的 ${sel.length} 個項目說明`;
 }
 // 列印指定的項目：暫時展開並標記 .pr，印完恢復
-// 列印指定的項目：每項一張 A4（暫時展開、標記 .pr、body 加 .pm），放不下就等比例縮小，印完恢復
+// 列印指定的項目：每項一張 A4（暫時展開、標記 .pr、body 加 .pm），自動放大或縮小到剛好填滿一頁，印完恢復
 async function printIds(ids){
   const ds=ids.map(id=>document.getElementById(id)).filter(Boolean);if(!ds.length)return;
   const was=ds.map(d=>d.open);ds.forEach(d=>{d.open=true;d.classList.add('pr')});
   document.body.classList.add('pm');
   await Promise.all(ds.flatMap(d=>[...d.querySelectorAll('img')].map(i=>(i.loading='eager',i.decode().catch(()=>{})))));
   const PAGE=1000; // A4 扣掉上下邊界約 267mm ≈ 1009px，留一點空間
-  ds.forEach((d,i)=>{d.style.breakBefore=i?'page':'';const h=d.getBoundingClientRect().height;if(h>PAGE)d.style.zoom=(PAGE/h).toFixed(3)});
-  const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr');d.style.zoom='';d.style.breakBefore=''});document.body.classList.remove('pm');removeEventListener('afterprint',done)};
+  // 每項找出最大的縮放比例 z，讓高度剛好填滿一頁：版面寬度設為 182mm÷z 再放大 z 倍，印出來仍是 182mm 寬（字和圖跟著變大）；超過一頁時 z<1 會縮小
+  const fit=(d,z)=>{d.style.width=(182/z).toFixed(2)+'mm';d.style.zoom=z;return d.getBoundingClientRect().height<=PAGE};
+  ds.forEach((d,i)=>{d.style.breakBefore=i?'page':'';let lo=.5,hi=1.8; // 最多放大 1.8 倍，避免字太大
+    if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
+    fit(d,lo)});
+  const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr');d.style.zoom='';d.style.width='';d.style.breakBefore=''});document.body.classList.remove('pm');removeEventListener('afterprint',done)};
   addEventListener('afterprint',done);window.print();
 }
 const shown=()=>[...document.querySelectorAll('details.ti:not([hidden])')].map(d=>d.dataset.id);
