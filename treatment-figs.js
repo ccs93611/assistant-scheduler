@@ -248,5 +248,6 @@ const F={
   [()=>front({face:'happy'}),'恢復原本光澤']]),
 };
 F['veneer-emax']=F.veneer; // E.max 美學貼片與 GC 美學貼片同一張圖
+F['crown-gc']=F['crown-cercon']; // GC 全瓷冠與其他牙冠同一張圖
 return F;
 })();
