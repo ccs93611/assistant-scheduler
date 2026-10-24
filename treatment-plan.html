@@ -508,6 +508,25 @@ tfoot td{font-weight:700;background:var(--soft)}
 .tabs-m button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .photo-view img{max-width:100%;max-height:70vh;display:block;margin:0 auto}
 .print-only{display:none}
+/* 列印選項視窗 */
+.pp-opts{display:grid;gap:10px;margin:6px 0 4px}
+.pp-opts button{padding:14px 16px;font-size:16px;text-align:left}
+.pp-opts .hint{display:block;font-weight:400;margin-top:2px;color:inherit;opacity:.85}
+/* 列印治療計劃單＋項目說明：#tiPrint 只在列印時出現；計算縮放時暫時加 .measure 放到畫面外 */
+#tiPrint{display:none}
+#tiPrint.measure{display:block;position:absolute;left:-9999px;top:0}
+.tip-page{width:210mm;background:#fff;color:#111}
+.tip-page>h3{margin:0 0 6px;padding-bottom:4px;border-bottom:1.5px solid #0f7c80;font-size:19px;color:#0f7c80}
+.tip-page .ti-body{font-size:12.5px;line-height:1.5;display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
+.tip-page .ti-body>.ti-what,.tip-page .ti-body>.ti-tbl,.tip-page .ti-body>.ti-str,.tip-page .ti-body>.ti-steps,.tip-page .ti-body>.ti-fig,.tip-page .ti-body>.ti-photo,.tip-page .ti-body>.ti-note{grid-column:1/-1}
+.tip-page .ti-what{margin-bottom:6px!important}
+.tip-page .ti-sec{margin-top:5px}.tip-page .ti-sec h4{font-size:13px}
+.tip-page .ti-steps{max-width:none;gap:6px;margin-bottom:4px}
+.tip-page .ti-fig{max-width:150mm!important;margin-bottom:4px}
+.tip-page .ti-row figcaption,.tip-page .ti-fig figcaption{font-size:10.5px;line-height:1.35}
+.tip-page .ti-photo img{max-height:70mm}
+.tip-page .ti-str-btn{display:none}
+.tip-disc{margin-top:6px;padding-top:4px;border-top:1px solid #cfd8dc;font-size:10px;color:#555}
 @media (max-width:820px){
   .app{grid-template-columns:1fr}
   aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
@@ -525,6 +544,7 @@ tfoot td{font-weight:700;background:var(--soft)}
   main,.app main,.side-hidden .app main{padding:12mm!important}
   input,select{border:0;padding:0;background:none!important;appearance:none;-webkit-appearance:none}
   .print-only{display:block}
+  #tiPrint{display:block}.tip-page{break-before:page;page-break-before:always}
   /* ---- 列印美化 ---- */
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   :root{--accent:#0f7c80;--ink:#1d2a30;--muted:#5f6f76;--line:#d5dee3}
@@ -1278,7 +1298,7 @@ $('#main').addEventListener('click',async e=>{
   const op=e.target.closest('[data-open-plan]');if(op){openPlan(op.dataset.openPlan);return}
   const a=e.target.closest('[data-act]');
   if(a){const act=a.dataset.act,L=p.status!=='open';
-    if(act==='print')window.print();
+    if(act==='print')printPlan(p);
     else if(act==='addItem'){p.items.push(newItem());touch();renderEditor()}
     else if(act==='addPayLine'){ // 同一次繳費再加一個項目（共用日期、經手助理、簽名）
       const gid=a.dataset.gid,grp=p.payments.filter(x=>payGid(x)===gid);if(!grp.length||grp[0].sig)return;
@@ -1403,6 +1423,37 @@ function openTreatmentInfo(id){const e=TI_BY_ID[id];if(!e)return;
     if(x==='page')window.open('treatments.html#'+id,'_blank','noopener');
     else if(x==='print')window.open('treatments.html?ids='+id+'&print=1','_blank','noopener');
     else close()}))}
+
+/* 列印：這張單有項目說明時，先選「僅列印治療計劃單」或「列印治療計劃單＋項目說明」 */
+function printPlan(p){
+  const ids=planTiIds(p);if(!ids.length){window.print();return}
+  modal(`<h3>列印</h3><div class="pp-opts">
+      <button data-x="plan">🖨 僅列印治療計劃單</button>
+      <button class="btn-primary" data-x="info">🖨 列印治療計劃單＋項目說明<span class="hint">（接在後面，共 ${ids.length} 項說明）</span></button></div>
+    <div class="acts"><span class="sp"></span><button data-x="close">取消</button></div>`,
+  (box,close)=>box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;close();
+    if(x==='plan')setTimeout(()=>window.print(),50);else if(x==='info')printWithInfo(ids)}))}
+// 治療計劃單後面接著印項目說明：每項一張 A4，跟 treatments.html 的 printIds 一樣自動縮放到剛好填滿一頁；
+// 有比較表的項目把比較表拆到第二頁；不印診所 Logo 與名稱；印完移除
+async function printWithInfo(ids){
+  document.getElementById('tiPrint')?.remove();
+  const box=document.createElement('div');box.id='tiPrint';box.className='measure';
+  const page=(title,body)=>`<div class="tip-page"><h3>${esc(title)}</h3>${body}<div class="tip-disc">${esc(TI_DISCLAIMER)}</div></div>`;
+  box.innerHTML=ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('');
+  document.body.appendChild(box);
+  box.querySelectorAll('.tip-page').forEach(d=>{const t=d.querySelector('.ti-body>.ti-tbl');if(!t)return;
+    const p2=document.createElement('div');p2.innerHTML=page(d.querySelector('h3').textContent+'（'+(t.querySelector('h4')?.textContent||'續')+'）','<div class="ti-body"></div>');
+    const pg=p2.firstElementChild;pg.querySelector('.ti-body').appendChild(t);d.after(pg)});
+  await Promise.all([...box.querySelectorAll('img')].map(i=>(i.loading='eager',i.decode().catch(()=>{}))));
+  const PAGE=1050; // A4 可用高度（同 treatments.html）
+  const fit=(d,z)=>{const m=(14/z).toFixed(2)+'mm';d.style.width=(210/z).toFixed(2)+'mm';d.style.padding=m+' '+m+' 0';d.style.zoom=z;return d.getBoundingClientRect().height<=PAGE};
+  box.querySelectorAll('.tip-page').forEach(d=>{let lo=.5,hi=1.5; // 最多放大 1.5 倍
+    if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
+    fit(d,lo)});
+  box.className='';
+  const done=()=>{box.remove();removeEventListener('afterprint',done)};
+  addEventListener('afterprint',done);window.print();
+}
 
 /* 簽名板：回傳 dataURL、null（清除）或 undefined（取消） */
 function openSig(title,existing,note){
