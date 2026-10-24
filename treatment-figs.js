@@ -142,7 +142,7 @@ const recession=(label,cap2)=>fig(label,[
   [()=>bone(108)+tooth(70,{t:'s'})+gumOver(100,108)+path('M52,78Q70,74 88,78L90,102Q70,98 50,102Z',C.flap,C.gumS,1.2,' fill-opacity=".9"')+path('M56,84v12M84,84v12','none',C.text,1),cap2],
   [()=>bone(108)+tooth(70,{t:'s',face:'happy'})+gumOver(74,108),'牙齦增厚、\n蓋住牙根']]);
 
-return {
+const F={
 'mta-vpt':()=>fig('MTA 活髓保存步驟',[
   [()=>base()+tooth(70,{pulp:'live',face:'sad',fx:-8})+ell(79,34,8,7,C.decay),'蛀牙很深、\n接近神經'],
   [()=>base()+tooth(70,{pulp:'live'})+path(cavDeep(70),C.hole,C.toothS,1,DASH)+path(mtaCap(70),C.mta,C.mtaS,1.2),'清除蛀牙，\n以 MTA 蓋住神經'],
@@ -247,4 +247,6 @@ return {
   [()=>front({stains:1,extra:path('M136,156L114,120L121,116L142,152Z',C.metal,C.metalS,1.2)+path('M110,114L98,100M114,112L106,96M106,118L92,108','none',C.mem,1.6,DASH)}),'細粉與水氣\n噴洗表面'],
   [()=>front({face:'happy'}),'恢復原本光澤']]),
 };
+F['veneer-emax']=F.veneer; // E.max 美學貼片與 GC 美學貼片同一張圖
+return F;
 })();
