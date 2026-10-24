@@ -112,9 +112,13 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 /* 列印模式：列印前在 body 加上 .pm（列印完移除），每個項目一張 A4；printIds 會自動放大或縮小（zoom）讓內容剛好填滿一頁。
    寫成 body.pm 而不是 @media print，列印前才量得到排版後的高度 */
 body.pm details.ti.pr{width:182mm;margin:0;padding:0!important;border:0!important;border-radius:0;box-shadow:none;background:transparent;color:#111}
-/* 列印浮水印：診所 Logo 固定在頁面中央，列印時每一頁都會出現（用 <img> 而不是背景圖，不用勾「背景圖形」也印得出來） */
+/* 列印浮水印：診所 Logo（淺藍色）固定在頁面中央，列印時每一頁都會出現（用 <img> 而不是背景圖，不用勾「背景圖形」也印得出來） */
 .pm-wm{display:none}
-body.pm .pm-wm{display:block;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:130mm;max-width:none;opacity:.08;z-index:0;pointer-events:none}
+body.pm .pm-wm{display:flex;flex-direction:column;align-items:center;gap:6mm;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);opacity:.22;filter:url(#wm-blue);z-index:0;pointer-events:none}
+/* 浮水印由同一張 Logo 圖切成兩塊：上方牙齒圖案放大一倍、下方診所名稱維持原大小（原圖 324×184px：圖案 x89～232／y9～127，文字 x10～309／y144～177） */
+.pm-wm>div{overflow:hidden}.pm-wm img{display:block;max-width:none}
+.wm-icon{width:115.6mm;height:95.6mm}.wm-icon img{width:260.2mm;margin:-7.2mm 0 0 -71.5mm}
+.wm-text{width:120.3mm;height:13.7mm}.wm-text img{width:130mm;margin:-57.8mm 0 0 -4mm}
 body.pm .wrap{position:relative;z-index:1}
 body.pm section.cat>h2,body.pm section.cat>.desc,body.pm .ti-items,body.pm .ti-acts{display:none!important}
 body.pm details.ti.pr>summary{display:block;padding:0 0 4px;margin-bottom:6px;background:none;border-bottom:1.5px solid #0f7c80}
@@ -157,7 +161,8 @@ body.pm .ti-str table{font-size:11px}
 </style>
 </head>
 <body>
-<img class="pm-wm" src="tp-watermark.png?v=3" alt="">
+<div class="pm-wm" aria-hidden="true"><div class="wm-icon"><img src="tp-watermark.png?v=3" alt=""></div><div class="wm-text"><img src="tp-watermark.png?v=3" alt=""></div></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wm-blue"><feFlood flood-color="#6fb3e8"/><feComposite in2="SourceAlpha" operator="in"/></filter></svg>
 <div class="wrap">
   <div class="print-head"><img src="icon-tp.svg?v=2" alt=""><b>新海美學牙醫診所・治療說明</b><span id="printDate"></span></div>
   <header class="top">
