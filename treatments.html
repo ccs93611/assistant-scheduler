@@ -108,10 +108,10 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
   footer.disc{font-size:13.5px}
 }
 /* ---- 列印：A4，只印標記 .pr 的項目 ---- */
-@page{size:A4;margin:14mm 14mm 16mm}
+@page{size:A4;margin:0} /* 邊界設 0：瀏覽器就不會印日期、網址、頁碼等頁首頁尾；頁面留白改由 printIds 加在每個項目上 */
 /* 列印模式：列印前在 body 加上 .pm（列印完移除），每個項目一張 A4；printIds 會自動放大或縮小（zoom）讓內容剛好填滿一頁。
    寫成 body.pm 而不是 @media print，列印前才量得到排版後的高度 */
-body.pm details.ti.pr{width:182mm;margin:0;padding:0!important;border:0!important;border-radius:0;box-shadow:none;background:transparent;color:#111}
+body.pm details.ti.pr{width:182mm;margin:0;padding:0;border:0!important;border-radius:0;box-shadow:none;background:transparent;color:#111}
 /* 列印浮水印：診所 Logo（淺藍色）固定在頁面中央，列印時每一頁都會出現（用 <img> 而不是背景圖，不用勾「背景圖形」也印得出來） */
 .pm-wm{display:none}
 body.pm .pm-wm{display:flex;flex-direction:column;align-items:center;gap:6mm;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);opacity:.22;filter:url(#wm-blue);z-index:0;pointer-events:none}
@@ -227,13 +227,14 @@ async function printIds(ids){
   const was=ds.map(d=>d.open);ds.forEach(d=>{d.open=true;d.classList.add('pr')});
   document.body.classList.add('pm');
   await Promise.all(ds.flatMap(d=>[...d.querySelectorAll('img')].map(i=>(i.loading='eager',i.decode().catch(()=>{})))));
-  const PAGE=1000; // A4 扣掉上下邊界約 267mm ≈ 1009px，留一點空間
-  // 每項找出最大的縮放比例 z，讓高度剛好填滿一頁：版面寬度設為 182mm÷z 再放大 z 倍，印出來仍是 182mm 寬（字和圖跟著變大）；超過一頁時 z<1 會縮小
-  const fit=(d,z)=>{d.style.width=(182/z).toFixed(2)+'mm';d.style.zoom=z;return d.getBoundingClientRect().height<=PAGE};
+  const PAGE=1050; // A4 高 297mm，扣掉上 14mm、下 16mm 留白 = 267mm ≈ 1009px；加上上方留白 14mm 後上限約 281mm ≈ 1062px，留一點空間
+  // 每項找出最大的縮放比例 z，讓高度剛好填滿一頁：版面寬度設為 210mm÷z 再放大 z 倍，印出來剛好 A4 寬（字和圖跟著變大）；超過一頁時 z<1 會縮小
+  // 頁面四周留白（上 14mm、左右 14mm）放在項目自己的 padding，跟著縮放比例換算，印出來剛好 14mm
+  const fit=(d,z)=>{const m=(14/z).toFixed(2)+'mm';d.style.width=(210/z).toFixed(2)+'mm';d.style.padding=m+' '+m+' 0';d.style.zoom=z;return d.getBoundingClientRect().height<=PAGE};
   ds.forEach((d,i)=>{d.style.breakBefore=i?'page':'';let lo=.5,hi=1.8; // 最多放大 1.8 倍，避免字太大
     if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
     fit(d,lo)});
-  const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr');d.style.zoom='';d.style.width='';d.style.breakBefore=''});document.body.classList.remove('pm');removeEventListener('afterprint',done)};
+  const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr');d.style.zoom='';d.style.width='';d.style.padding='';d.style.breakBefore=''});document.body.classList.remove('pm');removeEventListener('afterprint',done)};
   addEventListener('afterprint',done);window.print();
 }
 const shown=()=>[...document.querySelectorAll('details.ti:not([hidden])')].map(d=>d.dataset.id);
