@@ -129,6 +129,7 @@ main{padding:20px;min-width:0}
 .card h2 .sp{flex:1}
 .topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 /* 計劃單上方標題：圖示＋大標題＋診所名稱（與治療項目介紹頁相同排法） */
+.qty-u{font-size:11px;text-align:center;line-height:1.2;margin-top:2px}
 .tp-brand{display:inline-flex;align-items:center;gap:12px;margin-right:6px}
 .tp-brand img{width:44px;height:44px;border-radius:10px;flex:0 0 auto}
 .tp-brand>span{display:flex;flex-direction:column}
@@ -610,6 +611,8 @@ const PER_TOOTH=new Set(['MTA活髓保存','日本GC Initial LiSi Block齒雕','
  '顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補',
  'SSC金屬乳牙套','Strip crown樹酯乳牙套']);
 const pk=(cat,name)=>cat+'|'+name;
+// 以其他單位計價的項目：價目表顯示「／單位」，治療項目的數量欄下方註明（數量自己填，不會依牙位自動算）
+const PER_UNIT={'All-on-x輕量化合金牙架':'每一植體'};
 // 改過名稱的項目：[種類, 舊名, 新名]。舊單的項目、價目表單價與抽成設定都自動換成新名稱
 const RENAMED=[['植牙式贗復','植牙全鋯冠-前牙','德國Cercon全鋯植牙冠-前牙'],['植牙式贗復','植牙全鋯冠-後牙','德國Cercon全鋯植牙冠-後牙'],['固定式贗復','Post玻璃纖維釘','義大利Over Post玻璃纖維釘'],['固定式贗復','BPR齒雕','日本GC Initial LiSi Block齒雕'],['牙齒美白','居家美白','客製化居家美白'],['固定式贗復','Veneer美學貼片','日本GC Initial LiSi Block美學貼片'],['固定式贗復','GC Initial LiSi Block美學貼片','日本GC Initial LiSi Block美學貼片'],['固定式贗復','Crown全瓷-前牙','列支敦斯登E.max全瓷冠-前牙'],['固定式贗復','Crown全瓷-後牙','列支敦斯登E.max全瓷冠-後牙'],['固定式贗復','Crown氧化鋯-前牙','德國Cercon全鋯冠-前牙'],['固定式贗復','Crown氧化鋯-後牙','德國Cercon全鋯冠-後牙'],['固定式贗復','德國 Cercon全鋯冠-前牙','德國Cercon全鋯冠-前牙'],['固定式贗復','德國 Cercon全鋯冠-後牙','德國Cercon全鋯冠-後牙']];
 function renameItems(p){for(const it of p.items||[])if(!it.custom)for(const [c,o,n] of RENAMED)if(it.cat===c&&it.name===o)it.name=n;return p}
@@ -897,7 +900,7 @@ function renderEditor(){
           <div class="combo-wrap"><textarea class="note-ta item-ta" data-k="itemIn" rows="1" placeholder="選擇或輸入搜尋" autocomplete="off" spellcheck="false" ${idis}>${esc(it.name)}</textarea></div></td>
         <td class="c-teeth">${teethCell(it,idis,jawLock(it.name))}</td>
         <td class="c-unit" data-label="單價"><span class="ro-amt" data-k="unit">${roAmt(unitOf(it))}</span></td>
-        <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis||(qtyOne(it)?'disabled title="此項目數量固定為 1 單位"':'')}></td>
+        <td class="c-qty" data-label="數量"><input class="num" type="number" min="1" step="1" inputmode="numeric" data-k="qty" value="${it.qty}" ${idis||(qtyOne(it)?'disabled title="此項目數量固定為 1 單位"':'')}>${PER_UNIT[it.name]?`<div class="hint qty-u">${PER_UNIT[it.name].replace(/^每一/,'')}數</div>`:''}</td>
         <td class="c-orig" data-label="金額"><span class="ro-amt" data-k="orig">${roAmt(it.orig)}</span></td>
         <td class="c-chg" data-label="確認金額"><input class="num ${discOf(it)?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.disc!=null||it.chg!=null?chgOf(it):''}" placeholder="" ${idis}></td>
         ${IL?'':`<td class="c-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
@@ -1197,6 +1200,7 @@ $('#main').addEventListener('change',e=>{
     t.value=it.name;r.tr.querySelector('.cat-tag').innerHTML=catTagHtml(it);
     {const b=$('#main [data-ti-plan]');if(b)b.hidden=!planTiIds(p).length}
     {const q=r.tr.querySelector('[data-k="qty"]'),lk=qtyOne(it);q.disabled=lk;q.title=lk?'此項目數量固定為 1 單位':''}
+    {const c=r.tr.querySelector('.c-qty');c.querySelector('.qty-u')?.remove();if(PER_UNIT[it.name])c.insertAdjacentHTML('beforeend',`<div class="hint qty-u">${PER_UNIT[it.name].replace(/^每一/,'')}數</div>`)} // 以其他單位計價時，數量欄下方註明單位
     r.tr.querySelector('[data-k="unit"]').textContent=roAmt(unitOf(it));r.tr.querySelector('[data-k="qty"]').value=it.qty;r.tr.querySelector('[data-k="orig"]').textContent=roAmt(it.orig);syncAmtRow(r.tr,it);
     {const c=r.tr.querySelector('.c-teeth');c.innerHTML=teethCell(it,'',jawLock(it.name));alignTeeth(c.querySelector('.teeth-cell'))} // 上顎／下顎鎖定跟著項目變
     refreshTotals();touch();
@@ -1997,7 +2001,7 @@ function itemCommRows(){
 function priceRows(){
   const P=settings.prices,ed=canPrice();
   return CATS.map(([cat,list])=>`<div class="price-cat">${esc(cat)}${!isBaseCat(cat)?' <span class="new-tag">新增</span>':''}</div>`+list.map(n=>{const x=isExtraItem(cat,n);
-      return `<div class="price-row"><span>${esc(n)}${PER_TOOTH.has(n)?' <span class="hint">／顆</span>':''}${x?' <span class="new-tag">新增</span>':''}</span><span class="price-in"><input class="num" type="number" min="0" step="1" inputmode="numeric" data-price="${esc(pk(cat,n))}" value="${P[pk(cat,n)]||''}" placeholder="0" style="text-align:right" ${ed?'':'disabled'}>${ed&&x?`<button class="btn-sm btn-ghost btn-danger btn-x" data-delitem="${esc(cat)}" data-n="${esc(n)}" title="刪除這個新增的項目">✕</button>`:''}</span></div>`}).join('')
+      return `<div class="price-row"><span>${esc(n)}${PER_TOOTH.has(n)?' <span class="hint">／顆</span>':PER_UNIT[n]?` <span class="hint">／${PER_UNIT[n]}</span>`:''}${x?' <span class="new-tag">新增</span>':''}</span><span class="price-in"><input class="num" type="number" min="0" step="1" inputmode="numeric" data-price="${esc(pk(cat,n))}" value="${P[pk(cat,n)]||''}" placeholder="0" style="text-align:right" ${ed?'':'disabled'}>${ed&&x?`<button class="btn-sm btn-ghost btn-danger btn-x" data-delitem="${esc(cat)}" data-n="${esc(n)}" title="刪除這個新增的項目">✕</button>`:''}</span></div>`}).join('')
     +(ed?`<div class="add-row"><input data-newitem="${esc(cat)}" placeholder="新增「${esc(cat)}」的項目名稱"><button class="btn-sm" data-additem="${esc(cat)}">＋ 新增項目</button></div>`:'')).join('')
     +(ed?`<div class="price-cat">新增治療種類</div><div class="add-row"><input data-newcat placeholder="種類名稱"><input data-newcatitem placeholder="第一個項目名稱"><button class="btn-sm btn-primary" data-addcat>＋ 新增種類</button></div>`:'');
 }
