@@ -311,7 +311,7 @@ function tiEsc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'
 const TI_STRENGTH=[
   {key:'enamel',name:'人類天然牙齒（琺瑯質）',mpa:'約 200 MPa',use:'天然保護層'},
   {key:'gc',name:'GC 玻璃陶瓷（二矽酸鋰）',mpa:'約 408～508 MPa',use:'美白貼片、前牙及小臼齒單顆假牙、3D 齒雕（強調免燒結、快速完工）'},
-  {key:'emax',name:'E.max 玻璃陶瓷（二矽酸鋰）',mpa:'約 360～450 MPa',use:'前牙及小臼齒單顆假牙（業界金標準、文獻最多）'},
+  {key:'emax',name:'E.max 玻璃陶瓷（二矽酸鋰）',mpa:'約 360～450 MPa',use:'美白貼片、前牙及小臼齒單顆假牙（業界金標準、文獻最多）'},
   {key:'zr',name:'二氧化鋯（全鋯冠）',mpa:'約 900～1200+ MPa',use:'需要遮色的牙位，後牙、牙橋等需要承受極大咬合力的區域'},
 ];
 function tiStrengthHtml(cur){
