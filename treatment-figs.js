@@ -242,5 +242,6 @@ const F={
 };
 F['veneer-emax']=F.veneer; // E.max 美學貼片與 GC 美學貼片同一張圖
 F['crown-gc']=F['crown-cercon']; // GC 全瓷冠與其他牙冠同一張圖
+F['implant-hiossen']=F['implant-blc']=F['implant-blx']=F.implant; // 三種植體共用人工植牙示意圖
 return F;
 })();
