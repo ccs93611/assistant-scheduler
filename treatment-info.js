@@ -263,7 +263,7 @@ const TREATMENT_INFO=[
  steps:['與醫師討論可選擇的矯正器','於黏矯正器時一併使用'],
  time:'與矯正療程相同。',
  care:['陶瓷矯正器避免長期大量接觸咖啡、茶、咖哩等深色食物，以免橡皮圈染色']},
-{id:'invisalign',cat:'矯正',title:'Invisalign 隱適美隱形矯正',items:['Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正'],
+{id:'invisalign',cat:'矯正',title:'Invisalign 隱適美隱形矯正',items:['Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-Comprehensive全方位方案','Invisalign隱適美-Moderate中度方案','Invisalign隱適美-Lite輕度方案','Invisalign隱適美-Express快速方案','Invisalign隱適美-First兒童早期矯正'],old:['Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正'],
  what:'以一系列透明牙套取代傳統矯正器，每副配戴約 1～2 週後換下一副，逐步把牙齒移到預定位置。治療前用口內掃描在電腦上模擬整個移動過程，可以先看到預期結果。牙套透明不明顯、可以取下吃飯刷牙。',
  who:['在意外觀、不想戴傳統矯正器的人','能自律每天配戴牙套 20～22 小時的人','成年人與青少年；兒童早期矯正適合仍在換牙期的孩子'],
  steps:['數位治療計劃分析：口內掃描、照相、X 光，在電腦上模擬牙齒移動','確認計畫後訂製牙套','黏上隱形附件（小小的牙色凸點）幫助牙齒移動','定期換新牙套，約每 6～10 週回診追蹤','結束後配戴維持器'],
