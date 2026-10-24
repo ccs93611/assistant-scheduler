@@ -227,14 +227,24 @@ async function printIds(ids){
   const was=ds.map(d=>d.open);ds.forEach(d=>{d.open=true;d.classList.add('pr')});
   document.body.classList.add('pm');
   await Promise.all(ds.flatMap(d=>[...d.querySelectorAll('img')].map(i=>(i.loading='eager',i.decode().catch(()=>{})))));
+  // 有比較表的項目（例如隱適美各方案比較）：比較表拆到第二頁，兩頁各自縮放填滿一頁；印完放回原位
+  const pages=[],moved=[];
+  ds.forEach(d=>{pages.push(d);const t=d.querySelector('.ti-body>.ti-tbl');if(!t)return;
+    const ph=document.createComment('ti-tbl'),p2=document.createElement('details');t.before(ph);
+    p2.className='ti pr pm-p2';p2.open=true;
+    p2.innerHTML='<summary><span class="t"></span></summary><div class="ti-in"><div class="ti-body"></div></div>';
+    p2.querySelector('.t').textContent=(d.querySelector('summary .t')?.textContent||'').trim()+'（'+(t.querySelector('h4')?.textContent||'續')+'）';
+    p2.querySelector('.ti-in').dataset.disc=d.querySelector('.ti-in')?.dataset.disc||'';
+    p2.querySelector('.ti-body').appendChild(t);d.after(p2);pages.push(p2);moved.push([ph,t,p2])});
   const PAGE=1050; // A4 高 297mm，扣掉上 14mm、下 16mm 留白 = 267mm ≈ 1009px；加上上方留白 14mm 後上限約 281mm ≈ 1062px，留一點空間
   // 每項找出最大的縮放比例 z，讓高度剛好填滿一頁：版面寬度設為 210mm÷z 再放大 z 倍，印出來剛好 A4 寬（字和圖跟著變大）；超過一頁時 z<1 會縮小
   // 頁面四周留白（上 14mm、左右 14mm）放在項目自己的 padding，跟著縮放比例換算，印出來剛好 14mm
   const fit=(d,z)=>{const m=(14/z).toFixed(2)+'mm';d.style.width=(210/z).toFixed(2)+'mm';d.style.padding=m+' '+m+' 0';d.style.zoom=z;return d.getBoundingClientRect().height<=PAGE};
-  ds.forEach((d,i)=>{d.style.breakBefore=i?'page':'';let lo=.5,hi=1.8; // 最多放大 1.8 倍，避免字太大
+  pages.forEach((d,i)=>{d.style.breakBefore=i?'page':'';let lo=.5,hi=1.8; // 最多放大 1.8 倍，避免字太大
     if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
     fit(d,lo)});
-  const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr');d.style.zoom='';d.style.width='';d.style.padding='';d.style.breakBefore=''});document.body.classList.remove('pm');removeEventListener('afterprint',done)};
+  const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr');d.style.zoom='';d.style.width='';d.style.padding='';d.style.breakBefore=''});
+    moved.forEach(([ph,t,p2])=>{ph.replaceWith(t);p2.remove()});document.body.classList.remove('pm');removeEventListener('afterprint',done)};
   addEventListener('afterprint',done);window.print();
 }
 const shown=()=>[...document.querySelectorAll('details.ti:not([hidden])')].map(d=>d.dataset.id);
