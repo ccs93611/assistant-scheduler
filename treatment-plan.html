@@ -586,7 +586,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 <div id="gate" class="gate" hidden><div class="gate-box"><h2>新海美學牙醫・治療計劃單</h2><p id="gateMsg">連線中…</p><div id="gateActs"></div></div></div>
 <input type="file" id="importInput" accept="application/json,.json" hidden>
 
-<script src="treatment-info.js?v=33"></script>
+<script src="treatment-info.js?v=34"></script>
 <script src="treatment-figs.js?v=9"></script>
 <script>
 'use strict';
@@ -595,7 +595,7 @@ const BASE_CATS=[
  ['固定式贗復',['DSD數位微笑設計','MTA活髓保存','日本GC Initial LiSi Block齒雕','日本GC Initial LiSi Block美學貼片','列支敦斯登E.max美學貼片','義大利Over Post玻璃纖維釘','Temp臨時假牙','德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙','日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙','列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙','馬里蘭牙橋']],
  ['活動式贗復',['CD全口活動假牙-上顎','CD全口活動假牙-下顎','RPD部分活動假牙-上顎','RPD部分活動假牙-下顎','彈性床活動假牙','活動假牙維修','活動假牙加牙']],
  ['植牙式贗復',['APR齒槽骨保存術','GBR少量補骨','GBR水平骨增量','GBR垂直骨增高','Sinus Lift頂竇','Sinus Lift開窗','植牙手術導版','美國Hiossen植體-前牙','美國Hiossen植體-後牙','瑞士Straumann BLC植體-前牙','瑞士Straumann BLC植體-後牙','瑞士Straumann BLX植體-前牙','瑞士Straumann BLX植體-後牙','德國Cercon全鋯植牙冠-前牙','德國Cercon全鋯植牙冠-後牙']],
- ['全口重建',['Over Denture植牙固位式活動假牙','Locator 連接頭','Locator 扣環','All-on-x植牙導版','All-on-8','All-on-7','All-on-6','All-on-5','All-on-4','All-on-x臨時牙','All-on-x正式氧化鋯牙','All-on-x輕量化合金牙架']],
+ ['全口重建',['Over Denture植牙固位式活動假牙(2植體)','Over Denture植牙固位式活動假牙(4植體)','Locator 連接頭','Locator 扣環','All-on-x植牙導版','All-on-8','All-on-7','All-on-6','All-on-5','All-on-4','All-on-x臨時牙','All-on-x正式氧化鋯牙','All-on-x輕量化合金牙架']],
  ['顯微治療',['顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補']],
  ['牙周手術',['CLP牙冠增長術','FGG角化牙齦移植','CTG結締組織移植','GTR引導組織再生術']],
  ['矯正',['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','矯正器升級','Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正','活動維持器','透明維持器','固定式維持器']],
@@ -613,10 +613,10 @@ const pk=(cat,name)=>cat+'|'+name;
 // 改過名稱的項目：[種類, 舊名, 新名]。舊單的項目、價目表單價與抽成設定都自動換成新名稱
 const RENAMED=[['植牙式贗復','植牙全鋯冠-前牙','德國Cercon全鋯植牙冠-前牙'],['植牙式贗復','植牙全鋯冠-後牙','德國Cercon全鋯植牙冠-後牙'],['固定式贗復','Post玻璃纖維釘','義大利Over Post玻璃纖維釘'],['固定式贗復','BPR齒雕','日本GC Initial LiSi Block齒雕'],['牙齒美白','居家美白','客製化居家美白'],['固定式贗復','Veneer美學貼片','日本GC Initial LiSi Block美學貼片'],['固定式贗復','GC Initial LiSi Block美學貼片','日本GC Initial LiSi Block美學貼片'],['固定式贗復','Crown全瓷-前牙','列支敦斯登E.max全瓷冠-前牙'],['固定式贗復','Crown全瓷-後牙','列支敦斯登E.max全瓷冠-後牙'],['固定式贗復','Crown氧化鋯-前牙','德國Cercon全鋯冠-前牙'],['固定式贗復','Crown氧化鋯-後牙','德國Cercon全鋯冠-後牙'],['固定式贗復','德國 Cercon全鋯冠-前牙','德國Cercon全鋯冠-前牙'],['固定式贗復','德國 Cercon全鋯冠-後牙','德國Cercon全鋯冠-後牙']];
 function renameItems(p){for(const it of p.items||[])if(!it.custom)for(const [c,o,n] of RENAMED)if(it.cat===c&&it.name===o)it.name=n;return p}
-// 拆成前牙／後牙的項目：[種類, 舊名]
-const SPLIT=[['植牙式贗復','美國Hiossen植體'],['植牙式贗復','瑞士Straumann BLC植體'],['植牙式贗復','瑞士Straumann BLX植體']];
+// 拆成兩個以上的項目：[種類, 舊名, 新名稱（省略時為「舊名-前牙」「舊名-後牙」）]；價目表單價與抽成設定複製到每個新名稱
+const SPLIT=[['植牙式贗復','美國Hiossen植體'],['植牙式贗復','瑞士Straumann BLC植體'],['植牙式贗復','瑞士Straumann BLX植體'],['全口重建','Over Denture植牙固位式活動假牙',['Over Denture植牙固位式活動假牙(2植體)','Over Denture植牙固位式活動假牙(4植體)']]];
 function renameSettings(){let ch=false;
-  for(const [c,o] of SPLIT)for(const n of [o+'-前牙',o+'-後牙']){const P=settings.prices||{},ok=pk(c,o),nk=pk(c,n);
+  for(const [c,o,ns] of SPLIT)for(const n of ns||[o+'-前牙',o+'-後牙']){const P=settings.prices||{},ok=pk(c,o),nk=pk(c,n);
     if(ok in P&&!(nk in P)){P[nk]=P[ok];ch=true}
     const ic=settings.itemComm||{};if(o in ic&&!(n in ic)){ic[n]=ic[o];ch=true}}
   for(const [c,o,n] of RENAMED){const P=settings.prices||{},ok=pk(c,o),nk=pk(c,n);
