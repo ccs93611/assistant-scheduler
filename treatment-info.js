@@ -264,6 +264,7 @@ const TREATMENT_INFO=[
  time:'與矯正療程相同。',
  care:['陶瓷矯正器避免長期大量接觸咖啡、茶、咖哩等深色食物，以免橡皮圈染色']},
 {id:'invisalign',cat:'矯正',title:'Invisalign 隱適美隱形矯正',items:['Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-Comprehensive全方位方案','Invisalign隱適美-Moderate中度方案','Invisalign隱適美-Lite輕度方案','Invisalign隱適美-Express快速方案','Invisalign隱適美-First兒童早期矯正'],old:['Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正'],
+ photo:{src:'media/invisalign.jpg',alt:'Invisalign 隱適美透明牙套'},
  table:{title:'各方案比較',head:['方案名稱','牙套副數限制','適合對象與齒列狀況'],rows:[
   ['Express\n快速方案','固定的 7 副','關閉微小牙縫、個別牙齒極輕微歪斜、矯正後微移位的二次矯正。'],
   ['Lite\n輕度方案','首次 14 副（2 年內可微調 1 次）','前牙輕度雜亂、小幅度牙齒排列與微笑曲線調整。'],
