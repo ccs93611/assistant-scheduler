@@ -518,11 +518,11 @@ tfoot td{font-weight:700;background:var(--soft)}
   .tooth-row .gap{width:6px}
 }
 @media print{
-  @page{size:A4;margin:12mm}
+  @page{size:A4;margin:0} /* 邊界設 0：瀏覽器就不會印日期、網頁標題、網址、頁碼等頁首頁尾；頁面留白改由 main 的 padding */
   body{background:#fff;color:#000;font-size:12px}
   aside,.no-print,.close-bar,.add-photo,.btn-x{display:none!important}
   .app{display:block}
-  main{padding:0}
+  main,.app main,.side-hidden .app main{padding:12mm!important}
   .card{border:1px solid #999;break-inside:avoid;padding:10px}
   input,select{border:0;padding:0;background:none!important;appearance:none;-webkit-appearance:none}
   .print-only{display:block}
@@ -882,7 +882,6 @@ function renderEditor(){
   const prev=p.prevId&&plans.get(p.prevId),next=p.nextId&&plans.get(p.nextId);
   m.innerHTML=`<div class="sheet">
   ${datalists()}
-  <div class="print-only" style="text-align:center"><h2 style="margin:0">新海美學牙醫診所　治療計劃單</h2></div>
   <div class="topbar">
     <span class="tp-brand no-print"><img src="icon-tp.svg?v=2" alt=""><span><span class="title">治療計劃單</span><span class="sub">新海美學牙醫診所</span></span></span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${stOf(p)}">${STATUS[stOf(p)]}</span>
     <span class="sp"></span><span class="save-ind no-print" id="saveInd"></span>
@@ -944,7 +943,7 @@ function renderEditor(){
     </div>
   </section>
 
-  <section class="card">
+  <section class="card no-print"> <!-- 列印時不印：治療紀錄 -->
     <h2>治療紀錄<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addTrt">＋ 新增治療紀錄</button>'}</h2>
     <div class="tbl-wrap trt-wrap"><table class="trt-tbl">
       <thead><tr><th style="width:126px">日期</th><th style="min-width:120px">項目</th><th class="t-teeth-h">牙位</th><th class="t-note-h">治療內容</th><th style="min-width:58px">備註</th>${L?'':'<th class="no-print" style="width:50px"></th>'}</tr></thead>
@@ -952,7 +951,7 @@ function renderEditor(){
     </table></div>
   </section>
 
-  <section class="card">
+  <section class="card no-print"> <!-- 列印時不印：繳費紀錄 -->
     <h2>繳費紀錄<span class="sp"></span>${L?'':'<button class="btn-sm no-print" data-act="addPay">＋ 新增繳費</button>'}</h2>
     <div class="tbl-wrap pay-wrap"><table class="pay-tbl">
       <thead><tr><th style="width:150px">日期</th><th style="min-width:180px">項目</th><th style="min-width:300px">牙位</th><th>備註</th><th class="num" style="width:120px">金額</th><th style="width:120px">經手助理</th><th style="width:130px">患者簽名</th>${L?'':'<th class="no-print" style="width:36px"></th>'}</tr></thead>
@@ -969,7 +968,7 @@ function renderEditor(){
     </div>`}
   </section>
 
-  <section class="card">
+  <section class="card no-print"> <!-- 列印時不印：收據開立紀錄 -->
     <h2>收據開立紀錄<span class="sp"></span><button class="btn-sm no-print" data-act="addRcpt">＋ 新增收據紀錄</button></h2>
     <div class="tbl-wrap rcpt-wrap"><table class="rcpt-tbl">
       <thead><tr><th style="width:150px">開立日期</th><th class="num" style="width:130px">本次開立收據金額</th><th style="width:100px">患者已領收據</th><th>備註</th><th style="min-width:170px">照相紀錄</th><th style="width:120px">經手助理</th><th style="width:130px">患者簽名</th><th class="no-print" style="width:36px"></th></tr></thead>
