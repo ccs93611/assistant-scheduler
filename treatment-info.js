@@ -1,6 +1,6 @@
 /* 新海美學牙醫・治療項目介紹（給病人看的說明）
    treatments.html（介紹頁、列印衛教單）與 treatment-plan.html（項目旁的 ⓘ）共用這份資料。
-   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
+   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖，可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
    what（這是什麼）、who（適合誰）、steps（治療流程）、time（療程時間）、care（注意事項，可省略）、note（補充，可省略）。
    內容僅為一般說明，實際療程依醫師診斷為準；修改內容時只要改這個檔案。 */
 'use strict';
@@ -264,9 +264,15 @@ const TREATMENT_INFO=[
  time:'與矯正療程相同。',
  care:['陶瓷矯正器避免長期大量接觸咖啡、茶、咖哩等深色食物，以免橡皮圈染色']},
 {id:'invisalign',cat:'矯正',title:'Invisalign 隱適美隱形矯正',items:['Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-Comprehensive全方位方案','Invisalign隱適美-Moderate中度方案','Invisalign隱適美-Lite輕度方案','Invisalign隱適美-Express快速方案','Invisalign隱適美-First兒童早期矯正'],old:['Invisalign隱適美-全方位方案','Invisalign隱適美-中度方案','Invisalign隱適美-輕度方案','Invisalign隱適美-快速方案','Invisalign隱適美-兒童早期矯正'],
+ table:{title:'各方案比較',head:['方案名稱','牙套副數限制','適合對象與齒列狀況'],rows:[
+  ['Express\n快速方案','固定的 7 副','關閉微小牙縫、個別牙齒極輕微歪斜、矯正後微移位的二次矯正。'],
+  ['Lite\n輕度方案','首次 14 副（2 年內可微調 1 次）','前牙輕度雜亂、小幅度牙齒排列與微笑曲線調整。'],
+  ['Moderate\n中度方案','首次 26 副（3 年內可微調 2 次）','中度雜亂、輕微咬合偏差，需要多顆牙齒移動但不用大幅拔牙的案例。'],
+  ['Comprehensive\n全方位方案','不限副數（5 年內不限次數微調）','複雜案例、嚴重暴牙、深咬、戽斗、需要拔牙或搭配骨釘的大範圍全口改造。'],
+  ['First\n兒童早期矯正','依孩童混合齒齡客製（18 個月內不限次數微調）','6～12 歲混合齒顎發育期的兒童，擴張牙弓與顎骨引導。']]},
  what:'以一系列透明牙套取代傳統矯正器，每副配戴約 1～2 週後換下一副，逐步把牙齒移到預定位置。治療前用口內掃描在電腦上模擬整個移動過程，可以先看到預期結果。牙套透明不明顯、可以取下吃飯刷牙。',
  who:['在意外觀、不想戴傳統矯正器的人','能自律每天配戴牙套 20～22 小時的人','成年人與青少年；兒童早期矯正適合仍在換牙期的孩子'],
- steps:['數位治療計劃分析：口內掃描、照相、X 光，在電腦上模擬牙齒移動','確認計畫後訂製牙套','黏上隱形附件（小小的牙色凸點）幫助牙齒移動','定期換新牙套，約每 6～10 週回診追蹤','結束後配戴維持器'],
+ steps:['數位治療計劃分析：口內掃描、照相、X 光，在電腦上模擬牙齒移動','確認計畫後訂製牙套','黏上隱形附件（小小的牙色凸點）幫助牙齒移動','定期換新牙套，建議每月回診追蹤，若有需求也可以數個月再回診','結束後配戴維持器'],
  time:'依方案與困難度約數個月至 2 年以上。',
  care:['每天配戴 20～22 小時，只有吃東西與刷牙時取下','吃東西後先刷牙再戴回去，戴牙套時只喝白開水','牙套用冷水與軟毛牙刷清潔，不可用熱水燙','牙套遺失或破裂請聯絡診所'],
  note:'全方位、中度、輕度、快速方案主要依牙齒移動的複雜度與牙套數量區分，醫師會在分析後建議適合的方案。兒童早期矯正：針對約 6～10 歲換牙期孩子，引導顎骨與牙齒發育。'},
@@ -365,12 +371,18 @@ function tiStepsHtml(p){
   const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   return `<div class="ti-steps">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}<figcaption>${capHtml(r.cap)}</figcaption></figure>`).join('')}</div>`).join('')}</div>`;
 }
+/* 比較表（例如隱適美各方案）：格子裡的 \n 換行（第二行起小字），第一欄第一行粗體 */
+function tiTableHtml(t){
+  const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${tiEsc(a)}</b>`:tiEsc(a))+m.map(x=>'<br><small>'+tiEsc(x)+'</small>').join('')};
+  return `<div class="ti-sec ti-tbl"><h4>${tiEsc(t.title)}</h4><div class="ti-tbl-wrap"><table><thead><tr>${t.head.map(h=>'<th>'+tiEsc(h)+'</th>').join('')}</tr></thead><tbody>${
+    t.rows.map(r=>'<tr>'+r.map((c,k)=>'<td>'+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table></div></div>`}
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
   const sb=e.strength?`<button type="button" class="ti-str-btn" onclick="const s=this.closest('.ti-body').querySelector('.ti-str');s.hidden=!s.hidden;this.classList.toggle('on',!s.hidden)">📊 強度比較</button>`:'';
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}${e.pics?tiStepsHtml(e.pics):e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
+    ${e.table?tiTableHtml(e.table):''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
     <div class="ti-sec"><h4>療程時間</h4><p>${tiEsc(e.time)}</p></div>
@@ -403,6 +415,11 @@ const TI_CSS=`
 .ti-str-btn{margin-left:6px;padding:1px 9px;font-size:12px;line-height:1.6;border-radius:999px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;vertical-align:1px;white-space:nowrap}
 .ti-str-btn:hover,.ti-str-btn.on{background:var(--accent);color:var(--accent-ink)}
 .ti-str{margin:-4px 0 12px;overflow-x:auto}
+.ti-tbl-wrap{overflow-x:auto}
+.ti-tbl table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
+.ti-tbl th,.ti-tbl td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+.ti-tbl th{color:var(--muted);font-weight:600;white-space:nowrap}
+.ti-tbl td:first-child{white-space:nowrap}.ti-tbl td small{color:var(--muted);font-size:.9em}
 .ti-str table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.5}
 .ti-str th,.ti-str td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 .ti-str th{color:var(--muted);font-weight:600;white-space:nowrap}
