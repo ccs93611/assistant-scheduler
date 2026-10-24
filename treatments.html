@@ -240,7 +240,7 @@ async function printIds(ids){
   // 每項找出最大的縮放比例 z，讓高度剛好填滿一頁：版面寬度設為 210mm÷z 再放大 z 倍，印出來剛好 A4 寬（字和圖跟著變大）；超過一頁時 z<1 會縮小
   // 頁面四周留白（上 14mm、左右 14mm）放在項目自己的 padding，跟著縮放比例換算，印出來剛好 14mm
   const fit=(d,z)=>{const m=(14/z).toFixed(2)+'mm';d.style.width=(210/z).toFixed(2)+'mm';d.style.padding=m+' '+m+' 0';d.style.zoom=z;return d.getBoundingClientRect().height<=PAGE};
-  pages.forEach((d,i)=>{d.style.breakBefore=i?'page':'';let lo=.5,hi=1.8; // 最多放大 1.8 倍，避免字太大
+  pages.forEach((d,i)=>{d.style.breakBefore=i?'page':'';let lo=.5,hi=1.5; // 最多放大 1.5 倍，避免字太大
     if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
     fit(d,lo)});
   const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr');d.style.zoom='';d.style.width='';d.style.padding='';d.style.breakBefore=''});
