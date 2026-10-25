@@ -394,9 +394,12 @@ function firebaseSource(){
             if(!s.exists){hwD=null;try{await hr.set({approved:false,at:Date.now(),platform:HW.platform||'',model:String(HW.model||'').slice(0,80)});}catch(e){console.warn('hw',e);}}
             else hwD=s.data();
             evalState();
-          },e=>console.warn('hw',e));
+          },e=>{
+            // 剛建立裝置紀錄時，雲端可能還沒收到 devices/{uid}，安全規則會暫時拒絕讀取裝置編號；過幾秒重試，否則會一直停在「尚未核准」
+            console.warn('hw',e);if(hwSub)hwSub();hwSub=null;setTimeout(watchHw,3000);
+          });
         };
-        ref.onSnapshot(async s=>{
+        ref.onSnapshot({includeMetadataChanges:true},async s=>{ // 含寫入完成的通知，才知道裝置紀錄已存到雲端
           if(!s.exists){
             if(created)return;created=true;
             const body={name:'',approved:false,at:Date.now(),ua:navigator.userAgent.slice(0,200)};
@@ -409,7 +412,7 @@ function firebaseSource(){
           // 舊版登記的裝置還沒有裝置編號：補上（之後就能用裝置編號核准）
           // 補上後會再收到一次快照；補不上（例如權限）就照代碼核准的方式繼續
           if(HW&&devD.hwId!==HW.id&&!hwTried){hwTried=true;try{await ref.update({hwId:HW.id,model:String(HW.model||'').slice(0,80)});return;}catch(e){console.warn(e);}}
-          if(devD.hwId===HW?.id)watchHw();
+          if(devD.hwId===HW?.id&&!s.metadata.hasPendingWrites)watchHw(); // 等裝置紀錄真正寫進雲端後再讀裝置編號
           evalState();
         },e=>{console.error(e);showGate('error','無法讀取裝置狀態：'+(e.code||e.message));});
       });
