@@ -183,8 +183,8 @@ const F={
   [()=>base()+implant(70)+abut(70)+nb(),'植體與骨頭結合，\n裝上支台'],
   [()=>base()+implant(70)+abut(70)+path(crownM(70),C.zr,C.zrS,1.6)+nb(),'鎖上全鋯冠']]),
 'overdenture':()=>fig('植牙固位式活動假牙（牙床剖面）',[
-  [()=>ridge()+implant(70,88,150)+locator(70)+denture(-18,1)+down(70,66,80),'植體裝上\nLocator 連接頭'],
-  [()=>ridge()+implant(70,88,150)+locator(70)+denture(0,1),'假牙內的扣環\n扣住連接頭']],1),
+  [()=>ridge()+implant(70,88,150)+locator(70)+denture(-18,1)+down(70,66,80),'植體裝上\nLocator 定位支台'],
+  [()=>ridge()+implant(70,88,150)+locator(70)+denture(0,1),'假牙內的固持嵌件\n扣住定位支台']],1),
 'all-on-x':()=>{const jaw=()=>path('M8,84Q70,76 132,84V104Q70,98 8,104Z',C.gum,C.gumS,1.2)+path('M8,96Q70,88 132,96V150Q70,160 8,150Z',C.bone,C.boneS,1.2);
   const imps=()=>`<g transform="rotate(-28 26 92)">${implant(26,92,136)}</g>`+implant(54,90,138)+implant(86,90,138)+`<g transform="rotate(28 114 92)">${implant(114,92,136)}</g>`;
   let t='';for(let i=0;i<9;i++){const x=16+i*12.4,y=40+Math.abs(i-4)*1.6;t+=path(`M${x},${y+30}V${y+5}Q${x},${y} ${x+5},${y}H${x+6.4}Q${x+11.4},${y} ${x+11.4},${y+5}V${y+30}Z`,C.tooth,C.toothS,1.1)}
