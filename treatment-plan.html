@@ -517,7 +517,12 @@ tfoot td{font-weight:700;background:var(--soft)}
 /* 列印治療計劃單＋項目介紹：#tiPrint 只在列印時出現；計算縮放時暫時加 .measure 放到畫面外 */
 #tiPrint{display:none}
 #tiPrint.measure{display:block;position:absolute;left:-9999px;top:0}
-.tip-page{width:210mm;background:#fff;color:#111}
+.tip-page{width:210mm;background:#fff;color:#111;position:relative;z-index:0;overflow:hidden}
+/* 項目介紹浮水印：診所 Logo（淺藍色）在每頁正中央、內容後面（同 treatments.html：上方牙齒圖案放大一倍、下方診所名稱原大小） */
+.tip-wm{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:-1;display:flex;flex-direction:column;align-items:center;gap:6mm;opacity:.22;filter:url(#tip-wm-blue);pointer-events:none}
+.tip-wm>div{overflow:hidden}.tip-wm img{display:block;max-width:none}
+.tip-wm .wm-icon{width:115.6mm;height:95.6mm}.tip-wm .wm-icon img{width:260.2mm;margin:-7.2mm 0 0 -71.5mm}
+.tip-wm .wm-text{width:120.3mm;height:13.7mm}.tip-wm .wm-text img{width:130mm;margin:-57.8mm 0 0 -4mm}
 .tip-page>h3{margin:0 0 6px;padding-bottom:4px;border-bottom:1.5px solid #0f7c80;font-size:19px;color:#0f7c80}
 .tip-page .ti-body{font-size:12.5px;line-height:1.5;display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
 .tip-page .ti-body>.ti-what,.tip-page .ti-body>.ti-tbl,.tip-page .ti-body>.ti-str,.tip-page .ti-body>.ti-steps,.tip-page .ti-body>.ti-fig,.tip-page .ti-body>.ti-photo,.tip-page .ti-body>.ti-note{grid-column:1/-1}
@@ -1452,6 +1457,11 @@ async function printWithInfo(ids){
   box.querySelectorAll('.tip-page').forEach(d=>{let lo=.5,hi=1.5; // 最多放大 1.5 倍
     if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
     fit(d,lo)});
+  // 項目介紹每一頁加診所 Logo 浮水印（跟 treatments.html 相同），治療計劃單不加：頁面高度設成一頁，浮水印放在頁面正中央，縮放比例抵銷掉維持原大小
+  box.insertAdjacentHTML('afterbegin','<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="tip-wm-blue"><feFlood flood-color="#6fb3e8"/><feComposite in2="SourceAlpha" operator="in"/></filter></svg>');
+  const wm='<div class="tip-wm" aria-hidden="true"><div class="wm-icon"><img src="tp-watermark.png?v=3" alt=""></div><div class="wm-text"><img src="tp-watermark.png?v=3" alt=""></div></div>';
+  box.querySelectorAll('.tip-page').forEach(d=>{const z=+d.style.zoom||1;d.style.height=(290/z).toFixed(2)+'mm';d.insertAdjacentHTML('afterbegin',wm);d.firstElementChild.style.zoom=1/z});
+  await Promise.all([...box.querySelectorAll('.tip-wm img')].map(i=>i.decode().catch(()=>{})));
   box.className='';
   const done=()=>{box.remove();removeEventListener('afterprint',done)};
   addEventListener('afterprint',done);window.print();
