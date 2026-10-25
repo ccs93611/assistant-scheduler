@@ -1650,6 +1650,14 @@ function alignTeeth(cell){
 }
 window.addEventListener('resize',()=>alignTeeth());
 if(document.fonts)document.fonts.ready.then(()=>alignTeeth());
+// 列印時欄寬與字體跟畫面不同，牙位對齊與項目後面的單位是依畫面量的位置：列印前先在畫面上套用列印樣式（A4 寬）重新計算，印完恢復
+let printSim=null;
+addEventListener('beforeprint',()=>{if(printSim)return;
+  const css=[...document.styleSheets].flatMap(s=>{try{return [...s.cssRules]}catch(e){return []}})
+    .filter(r=>r.media&&[...r.media].includes('print')).map(r=>[...r.cssRules].filter(x=>!(x instanceof CSSPageRule)).map(x=>x.cssText).join('\n')).join('\n');
+  printSim=document.createElement('style');printSim.textContent=css+'\nbody{width:210mm}';document.head.appendChild(printSim);
+  alignTeeth();growNotes()});
+addEventListener('afterprint',()=>{if(!printSim)return;printSim.remove();printSim=null;alignTeeth();growNotes()});
 
 /* 治療項目下拉目錄：分層顯示（先選治療種類，展開後選項目）；輸入文字時改為搜尋結果；清單外的文字可當自訂項目 */
 const combo={el:null,inp:null,opts:[],hi:-1,openCats:new Set(),q:''};
