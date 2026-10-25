@@ -35,7 +35,7 @@ header.top .sp{flex:1}
 .tools{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 8px;display:grid;gap:8px}
 .tools input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
 .tools input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
-.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.chips{display:flex;flex-wrap:wrap;gap:6px} /* 分類按鈕全部顯示，放不下就換行 */
 .chips button{flex:0 0 auto;border-radius:999px;padding:4px 12px;font-size:14px}
 .chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .sel-bar{background:var(--accent-soft);border-radius:10px;padding:8px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
@@ -44,7 +44,7 @@ section.cat{margin-top:22px}
 section.cat>h2{font-size:19px;margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 section.cat>h2 .sp{flex:1}
 section.cat>.desc{color:var(--muted);font-size:14px;margin:2px 0 10px}
-details.ti{background:var(--panel);border:1.5px solid var(--card-line);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin:8px 0;overflow:hidden;scroll-margin-top:150px} /* 捲到項目時不被上方搜尋列蓋住 */
+details.ti{background:var(--panel);border:1.5px solid var(--card-line);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin:8px 0;overflow:hidden;scroll-margin-top:calc(var(--tools-h,150px) + 12px)} /* 捲到項目時不被上方搜尋列蓋住 */
 details.ti>summary{list-style:none;cursor:pointer;padding:12px 16px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:start}
 details.ti>summary::-webkit-details-marker{display:none}
 details.ti>summary .t{font-weight:800;font-size:18px;line-height:1.35;letter-spacing:.3px;display:flex;align-items:center;gap:8px}
@@ -207,6 +207,8 @@ $('#list').innerHTML=TI_CATS.map(c=>{const es=TREATMENT_INFO.filter(e=>e.cat===c
   </section>`}).join('')+'<div class="empty" id="empty" hidden>找不到符合的治療項目</div>';
 
 $('#chips').innerHTML=['全部',...TI_CATS].map(c=>`<button data-cat="${tiEsc(c)}">${tiEsc(c)}</button>`).join('');
+// 上方搜尋列＋分類的高度（分類換行後會變高），捲到項目時用來避開，不被蓋住
+const toolsH=()=>document.documentElement.style.setProperty('--tools-h',$('.tools').offsetHeight+'px');toolsH();if(window.ResizeObserver)new ResizeObserver(toolsH).observe($('.tools'));
 
 const norm=s=>String(s).toLowerCase().replace(/[\s\-－_]/g,'');
 function hay(e){return norm([e.title,e.cat,e.what,...e.items,e.note||''].join(' '))}
