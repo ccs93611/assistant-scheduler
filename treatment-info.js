@@ -1,6 +1,6 @@
 /* 新海美學牙醫・治療項目介紹（給病人看的說明）
    treatments.html（介紹頁、列印衛教單）與 treatment-plan.html（項目旁的 ⓘ）共用這份資料。
-   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖，可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
+   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
    what（這是什麼）、who（適合誰）、steps（治療流程）、time（療程時間）、care（注意事項，可省略）、note（補充，可省略）。
    內容僅為一般說明，實際療程依醫師診斷為準；修改內容時只要改這個檔案。 */
 'use strict';
@@ -200,6 +200,7 @@ const TREATMENT_INFO=[
  care:['每天取下假牙清潔，並刷洗口內的定位支台周圍','固持嵌件是耗材，使用一段時間會變鬆，可以更換新的固持嵌件','睡覺時建議取下，讓牙床休息','每 12～18 個月須更換 Locator 固持嵌件'],
  note:'Locator 定位支台、固持嵌件、金屬外殼基座的說明請見「Locator 零件」。'},
 {id:'locator',cat:'全口重建',title:'Locator 零件',items:['Locator 定位支台','Locator 固持嵌件','Locator 金屬外殼基座'],old:['Locator 連接頭','Locator 扣環'],
+ photo:[{src:'media/locator-1.webp',w:1001,h:828,alt:'Locator 植牙固位式活動假牙：假牙內側的固持嵌件扣住植體上的定位支台'},{src:'media/locator-2.webp',w:844,h:828,alt:'Locator 扣式結構：金屬外殼基座（固定於活動假牙內側）、固持嵌件（提供彈性與緩衝）、定位支台（固定於植體上）'}],
  what:'Over Denture 植牙固位式活動假牙靠 Locator 零件把假牙「扣」在植體上：定位支台鎖在植體上，假牙內側裝金屬外殼基座，基座裡放固持嵌件，戴上時嵌件扣住定位支台，假牙就不容易鬆脫。',
  who:['裝 Over Denture 植牙固位式活動假牙的人','原本的 Locator 零件磨損、假牙變鬆，需要更換的人'],
  steps:['在植體上鎖上 Locator 定位支台','在假牙內側固定 Locator 金屬外殼基座','在基座內裝上 Locator 固持嵌件','試戴與調整，確認扣合鬆緊度'],
@@ -421,7 +422,7 @@ function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
   const sb=e.strength?`<button type="button" class="ti-str-btn" onclick="const s=this.closest('.ti-body').querySelector('.ti-str');s.hidden=!s.hidden;this.classList.toggle('on',!s.hidden)">📊 強度比較</button>`:'';
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}${e.pics?tiStepsHtml(e.pics):e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
+    <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="flex-grow:${(p.w/p.h).toFixed(3)}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${e.table?tiTableHtml(e.table):''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
@@ -443,6 +444,8 @@ const TI_CSS=`
 .ti-row figcaption{margin-top:6px;text-align:center;font-size:13px;line-height:1.45}
 .ti-arr{flex:0 0 12px;width:12px;height:20px;align-self:center;margin-top:-1.6em}
 @media print{.ti-steps{break-inside:avoid}}
+.ti-photos{display:flex;gap:10px;margin:0 auto 14px;max-width:760px}.ti-photos img{flex:1 1 0;min-width:0;width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#fff}
+@media print{.ti-photos{break-inside:avoid}}
 .ti-photo{margin:0 0 14px}.ti-photo img{display:block;margin:0 auto;width:auto;max-width:100%;max-height:380px;height:auto;border-radius:12px;border:1px solid var(--line)}
 @media print{.ti-fig,.ti-photo{break-inside:avoid}}
 .ti-sec{margin-top:12px}
