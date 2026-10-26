@@ -548,7 +548,10 @@ tfoot td{font-weight:700;background:var(--soft)}
   body{background:#fff;color:#000;font-size:12px}
   aside,.no-print,.close-bar,.add-photo,.btn-x{display:none!important}
   .app{display:block}
-  main,.app main,.side-hidden .app main{padding:12mm!important}
+  /* 治療計劃單用 plan 頁面：上下留白由頁面邊界提供，下方印頁碼（項目介紹頁不用，維持邊界 0、沒有頁碼）；第二頁以後的頁首在列印前加上（beforeprint） */
+  @page plan{margin:14mm 0 12mm;@bottom-center{content:"第 " counter(page) " 頁";font-size:10px;color:#5f6f76;vertical-align:middle}}
+  .app{page:plan}
+  main,.app main,.side-hidden .app main{padding:0 12mm!important}
   input,select{border:0;padding:0;background:none!important;appearance:none;-webkit-appearance:none}
   .print-only{display:block}
   #tiPrint{display:block}.tip-page{break-before:page;page-break-before:always}
@@ -565,6 +568,8 @@ tfoot td{font-weight:700;background:var(--soft)}
   .banner{display:none!important}
   /* 區塊：細框、圓角，標題前面加主色直條 */
   .card{border:1px solid var(--line)!important;border-radius:8px;box-shadow:none!important;break-inside:avoid;padding:10px 14px 12px;margin-bottom:10px;background:#fff}
+  .card:has(.items-tbl){break-inside:auto} /* 治療項目多時可以跨頁（不整塊擠到下一頁），每一列不拆開；表頭每頁重複 */
+  .items-tbl tr{break-inside:avoid}.items-tbl thead{display:table-header-group}
   .card h2{font-size:15px;color:var(--accent);margin:0 0 8px;padding-left:8px;border-left:4px solid var(--accent);line-height:1.2}
   label{font-size:11px;color:var(--muted)}
   label input,label .pp-wrap input{font-size:14px;color:var(--ink);font-weight:600}
@@ -1665,7 +1670,10 @@ let printSim=null;
 addEventListener('beforeprint',()=>{if(printSim)return;
   const css=[...document.styleSheets].flatMap(s=>{try{return [...s.cssRules]}catch(e){return []}})
     .filter(r=>r.media&&[...r.media].includes('print')).map(r=>[...r.cssRules].filter(x=>!(x instanceof CSSPageRule)).map(x=>x.cssText).join('\n')).join('\n');
-  printSim=document.createElement('style');printSim.textContent=css+'\nbody{width:210mm}';document.head.appendChild(printSim);
+  // 治療計劃單第二頁以後的頁首：「治療計劃單　單號 …」（第一頁上方已有標題，不重複）
+  const p=cur(),q=s=>'"'+String(s).replace(/[\\"]/g,'\\$&')+'"';
+  const head=p?`@page plan{@top-left{content:${q('治療計劃單　單號 '+p.no)};padding:0 0 3mm 12mm;vertical-align:bottom;font-size:12px;font-weight:700;color:#0f7c80}}@page plan:first{@top-left{content:none}}`:'';
+  printSim=document.createElement('style');printSim.textContent=css+'\nbody{width:210mm}\n'+head;document.head.appendChild(printSim);
   alignTeeth();growNotes()});
 addEventListener('afterprint',()=>{if(!printSim)return;printSim.remove();printSim=null;alignTeeth();growNotes()});
 
