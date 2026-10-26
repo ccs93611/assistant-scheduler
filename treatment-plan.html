@@ -557,7 +557,9 @@ tfoot td{font-weight:700;background:var(--soft)}
   main,.app main,.side-hidden .app main{padding:0 12mm!important}
   input,select{border:0;padding:0;background:none!important;appearance:none;-webkit-appearance:none}
   .print-only{display:block}
-  /* 項目介紹從新的一頁開始，每項一頁（分頁設在 #tiPrint 與後面的頁，前面不能有其他東西，否則會多一張空白頁） */
+  /* 項目介紹從新的一頁開始，每項一頁（分頁設在 #tiPrint 與後面的頁，前面不能有其他東西，否則會多一張空白頁）；
+     body 底下其他元素（下拉選單、彈出視窗等）列印時一律不印，避免在計劃單與項目介紹之間多出空白頁 */
+  body:not(.print-modal)>:not(.app):not(#tiPrint){display:none!important}
   #tiPrint{display:block;break-before:page;page-break-before:always}.tip-page+.tip-page{break-before:page;page-break-before:always}
   /* ---- 列印美化 ---- */
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -1456,7 +1458,7 @@ async function printWithInfo(ids){
   const box=document.createElement('div');box.id='tiPrint';box.className='measure';
   const page=(title,body)=>`<div class="tip-page"><h3>${esc(title)}</h3>${body}<div class="tip-disc">${esc(TI_DISCLAIMER)}</div></div>`;
   box.innerHTML=ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('');
-  document.body.appendChild(box);
+  (document.querySelector('.app')||document.body.lastChild).after(box); // 緊接在計劃單後面
   box.querySelectorAll('.tip-page').forEach(d=>{const t=d.querySelector('.ti-body>.ti-tbl');if(!t)return;
     const p2=document.createElement('div');p2.innerHTML=page(d.querySelector('h3').textContent+'（'+(t.querySelector('h4')?.textContent||'續')+'）','<div class="ti-body"></div>');
     const pg=p2.firstElementChild;pg.querySelector('.ti-body').appendChild(t);d.after(pg)});
