@@ -552,7 +552,7 @@ tfoot td{font-weight:700;background:var(--soft)}
   .pt-wrap>*>tr>.pt-cell{border:0;padding:0;vertical-align:top;background:none}
   .pt-wrap>tbody .pt-cell>.topbar{display:none}
   /* 其他五個頁邊框放空白內容：瀏覽器勾了「頁首及頁尾」也不會印日期、網頁標題、網址 */
-  @page plan{margin:14mm 0 12mm;@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-right{content:""}@bottom-center{content:"第 " counter(page) " 頁";font-size:10px;color:#5f6f76;vertical-align:middle}}
+  @page plan{margin:14mm 0 12mm;@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-right{content:""}@bottom-center{content:counter(page);font-size:10px;color:#5f6f76;vertical-align:middle}}
   .app{page:plan}
   main,.app main,.side-hidden .app main{padding:0 12mm!important}
   input,select{border:0;padding:0;background:none!important;appearance:none;-webkit-appearance:none}
@@ -1676,7 +1676,9 @@ addEventListener('beforeprint',()=>{if(printSim)return;
     .filter(r=>r.media&&[...r.media].includes('print')).map(r=>[...r.cssRules].filter(x=>!(x instanceof CSSPageRule)).map(x=>x.cssText).join('\n')).join('\n');
   printSim=document.createElement('style');printSim.textContent=css+'\nbody{width:210mm}';document.head.appendChild(printSim);
   wrapForPrint();
-  alignTeeth();growNotes()});
+  alignTeeth();growNotes();
+  // 頁碼「1 / 2」：總頁數只算治療計劃單（後面的項目介紹不算），所以先自己算出計劃單有幾頁
+  const n=planPageCount();if(n)printSim.textContent+=`\n@page plan{@bottom-center{content:counter(page) " / ${n}"}}`});
 addEventListener('afterprint',()=>{if(!printSim)return;printSim.remove();printSim=null;unwrapForPrint();alignTeeth();growNotes()});
 // 治療計劃單每一頁上方都印標題列（「治療計劃單」＋單號，跟第一頁一樣）：列印時把內容包進表格，標題列放在 thead，瀏覽器會在每頁重複
 // （要用真的 <table>，Chrome 不會重複 display:table 的 div；外層儲存格加 .pt-cell，不套用表格儲存格的樣式）
@@ -1686,6 +1688,26 @@ function wrapForPrint(){
   const w=document.createElement('table');w.className='pt-wrap';w.innerHTML='<thead><tr><td class="pt-cell"></td></tr></thead><tbody><tr><td class="pt-cell"></td></tr></tbody>';
   const h=top.cloneNode(true);h.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));w.tHead.rows[0].cells[0].appendChild(h);
   const body=w.tBodies[0].rows[0].cells[0],kids=[...m.childNodes];kids.forEach(n=>body.appendChild(n));m.appendChild(w);printWrap={w,kids};
+}
+// 計劃單印出來有幾頁：用列印版面（beforeprint 已套用列印樣式、A4 寬）量出各區塊高度，照瀏覽器的分頁規則模擬：
+// 每頁可用高度＝A4 扣掉上下邊界（271mm）再扣掉每頁重複的標題列；卡片整塊不拆開（放不下就換頁）；
+// 治療項目卡片可以跨頁、每列不拆開，換頁後的頁面上方會再印一次項目表頭
+function planPageCount(){
+  if(!printWrap)return 0;
+  const R=e=>e.getBoundingClientRect(),H=271*96/25.4-R(printWrap.w.tHead).height;
+  let pages=1,y=0,prevBottom=null;
+  const put=(top,bottom,headH)=>{const g=prevBottom==null?0:Math.max(0,top-prevBottom),h=bottom-top;
+    if(y>0&&y+g+h>H){pages++;y=headH+h}else y+=g+h;prevBottom=bottom};
+  for(const el of printWrap.w.tBodies[0].rows[0].cells[0].children){
+    if(getComputedStyle(el).display==='none'||!R(el).height)continue;
+    const tb=el.querySelector('.items-tbl'),rows=tb?[...tb.tBodies[0].rows].filter(r=>R(r).height):[];
+    if(!rows.length){put(R(el).top,R(el).bottom,0);continue}
+    const th=R(tb.tHead).height;
+    put(R(el).top,R(rows[0]).top,0); // 卡片標題＋項目表頭
+    rows.forEach(r=>put(R(r).top,R(r).bottom,th));
+    put(R(rows.at(-1)).bottom,R(el).bottom,0); // 總金額、備註
+  }
+  return pages;
 }
 function unwrapForPrint(){if(!printWrap)return;const m=printWrap.w.parentNode;printWrap.kids.forEach(n=>m.insertBefore(n,printWrap.w));printWrap.w.remove();printWrap=null}
 
