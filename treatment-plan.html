@@ -158,10 +158,10 @@ main{padding:20px;min-width:0}
 table{border-collapse:collapse;width:100%}
 th,td{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:middle}
 th{font-size:14px;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--soft)}
-td input,td select{width:100%}
+td:not(.pt-cell) input,td:not(.pt-cell) select{width:100%}
 td.num,th.num{text-align:right}
-td input.num{text-align:right;min-width:96px}
-td input[data-k="qty"]{min-width:52px}
+td:not(.pt-cell) input.num{text-align:right;min-width:96px}
+td:not(.pt-cell) input[data-k="qty"]{min-width:52px}
 td.drag-handle{cursor:grab;user-select:none;touch-action:none;white-space:nowrap}
 .drag-handle i{font-style:normal;color:var(--muted);font-size:12px;letter-spacing:-2px}
 tr.dragging td{opacity:.45}
@@ -548,7 +548,9 @@ tfoot td{font-weight:700;background:var(--soft)}
   body{background:#fff;color:#000;font-size:12px}
   aside,.no-print,.close-bar,.add-photo,.btn-x{display:none!important}
   .app{display:block}
-  /* 治療計劃單用 plan 頁面：上下留白由頁面邊界提供，下方印頁碼（項目介紹頁不用，維持邊界 0、沒有頁碼）；第二頁以後的頁首在列印前加上（beforeprint） */
+  /* 治療計劃單用 plan 頁面：上下留白由頁面邊界提供，下方印頁碼（項目介紹頁不用，維持邊界 0、沒有頁碼）；每頁上方的標題列見 wrapForPrint */
+  .pt-wrap>*>tr>.pt-cell{border:0;padding:0;vertical-align:top;background:none}
+  .pt-wrap>tbody .pt-cell>.topbar{display:none}
   @page plan{margin:14mm 0 12mm;@bottom-center{content:"第 " counter(page) " 頁";font-size:10px;color:#5f6f76;vertical-align:middle}}
   .app{page:plan}
   main,.app main,.side-hidden .app main{padding:0 12mm!important}
@@ -1670,12 +1672,20 @@ let printSim=null;
 addEventListener('beforeprint',()=>{if(printSim)return;
   const css=[...document.styleSheets].flatMap(s=>{try{return [...s.cssRules]}catch(e){return []}})
     .filter(r=>r.media&&[...r.media].includes('print')).map(r=>[...r.cssRules].filter(x=>!(x instanceof CSSPageRule)).map(x=>x.cssText).join('\n')).join('\n');
-  // 治療計劃單第二頁以後的頁首：「治療計劃單　單號 …」（第一頁上方已有標題，不重複）
-  const p=cur(),q=s=>'"'+String(s).replace(/[\\"]/g,'\\$&')+'"';
-  const head=p?`@page plan{@top-left{content:${q('治療計劃單　單號 '+p.no)};padding:0 0 3mm 12mm;vertical-align:bottom;font-size:12px;font-weight:700;color:#0f7c80}}@page plan:first{@top-left{content:none}}`:'';
-  printSim=document.createElement('style');printSim.textContent=css+'\nbody{width:210mm}\n'+head;document.head.appendChild(printSim);
+  printSim=document.createElement('style');printSim.textContent=css+'\nbody{width:210mm}';document.head.appendChild(printSim);
+  wrapForPrint();
   alignTeeth();growNotes()});
-addEventListener('afterprint',()=>{if(!printSim)return;printSim.remove();printSim=null;alignTeeth();growNotes()});
+addEventListener('afterprint',()=>{if(!printSim)return;printSim.remove();printSim=null;unwrapForPrint();alignTeeth();growNotes()});
+// 治療計劃單每一頁上方都印標題列（「治療計劃單」＋單號，跟第一頁一樣）：列印時把內容包進表格，標題列放在 thead，瀏覽器會在每頁重複
+// （要用真的 <table>，Chrome 不會重複 display:table 的 div；外層儲存格加 .pt-cell，不套用表格儲存格的樣式）
+let printWrap=null;
+function wrapForPrint(){
+  const m=$('#main .sheet'),top=m&&m.querySelector(':scope>.topbar');if(!top||printWrap)return;
+  const w=document.createElement('table');w.className='pt-wrap';w.innerHTML='<thead><tr><td class="pt-cell"></td></tr></thead><tbody><tr><td class="pt-cell"></td></tr></tbody>';
+  const h=top.cloneNode(true);h.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));w.tHead.rows[0].cells[0].appendChild(h);
+  const body=w.tBodies[0].rows[0].cells[0],kids=[...m.childNodes];kids.forEach(n=>body.appendChild(n));m.appendChild(w);printWrap={w,kids};
+}
+function unwrapForPrint(){if(!printWrap)return;const m=printWrap.w.parentNode;printWrap.kids.forEach(n=>m.insertBefore(n,printWrap.w));printWrap.w.remove();printWrap=null}
 
 /* 治療項目下拉目錄：分層顯示（先選治療種類，展開後選項目）；輸入文字時改為搜尋結果；清單外的文字可當自訂項目 */
 const combo={el:null,inp:null,opts:[],hi:-1,openCats:new Set(),q:''};
