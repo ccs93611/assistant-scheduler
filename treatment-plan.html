@@ -551,12 +551,14 @@ tfoot td{font-weight:700;background:var(--soft)}
   /* 治療計劃單用 plan 頁面：上下留白由頁面邊界提供，下方印頁碼（項目介紹頁不用，維持邊界 0、沒有頁碼）；每頁上方的標題列見 wrapForPrint */
   .pt-wrap>*>tr>.pt-cell{border:0;padding:0;vertical-align:top;background:none}
   .pt-wrap>tbody .pt-cell>.topbar{display:none}
-  @page plan{margin:14mm 0 12mm;@bottom-center{content:"第 " counter(page) " 頁";font-size:10px;color:#5f6f76;vertical-align:middle}}
+  /* 其他五個頁邊框放空白內容：瀏覽器勾了「頁首及頁尾」也不會印日期、網頁標題、網址 */
+  @page plan{margin:14mm 0 12mm;@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-right{content:""}@bottom-center{content:"第 " counter(page) " 頁";font-size:10px;color:#5f6f76;vertical-align:middle}}
   .app{page:plan}
   main,.app main,.side-hidden .app main{padding:0 12mm!important}
   input,select{border:0;padding:0;background:none!important;appearance:none;-webkit-appearance:none}
   .print-only{display:block}
-  #tiPrint{display:block}.tip-page{break-before:page;page-break-before:always}
+  /* 項目介紹從新的一頁開始，每項一頁（分頁設在 #tiPrint 與後面的頁，前面不能有其他東西，否則會多一張空白頁） */
+  #tiPrint{display:block;break-before:page;page-break-before:always}.tip-page+.tip-page{break-before:page;page-break-before:always}
   /* ---- 列印美化 ---- */
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   :root{--accent:#0f7c80;--ink:#1d2a30;--muted:#5f6f76;--line:#d5dee3}
@@ -1465,7 +1467,7 @@ async function printWithInfo(ids){
     if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
     fit(d,lo)});
   // 項目介紹每一頁加診所 Logo 浮水印（跟 treatments.html 相同），治療計劃單不加：頁面高度設成一頁，浮水印放在頁面正中央，縮放比例抵銷掉維持原大小
-  box.insertAdjacentHTML('afterbegin','<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="tip-wm-blue"><feFlood flood-color="#6fb3e8"/><feComposite in2="SourceAlpha" operator="in"/></filter></svg>');
+  box.querySelector('.tip-page').insertAdjacentHTML('beforeend','<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="tip-wm-blue"><feFlood flood-color="#6fb3e8"/><feComposite in2="SourceAlpha" operator="in"/></filter></svg>');
   const wm='<div class="tip-wm" aria-hidden="true"><div class="wm-icon"><img src="tp-watermark.png?v=3" alt=""></div><div class="wm-text"><img src="tp-watermark.png?v=3" alt=""></div></div>';
   box.querySelectorAll('.tip-page').forEach(d=>{const z=+d.style.zoom||1;d.style.height=(290/z).toFixed(2)+'mm';d.insertAdjacentHTML('afterbegin',wm);d.firstElementChild.style.zoom=1/z});
   await Promise.all([...box.querySelectorAll('.tip-wm img')].map(i=>i.decode().catch(()=>{})));
