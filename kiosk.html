@@ -375,13 +375,13 @@ function firebaseSource(){
       auth.onAuthStateChanged(async u=>{
         if(!u){try{await auth.signInAnonymously();}catch(e){console.error(e);showGate('error',e.code==='auth/operation-not-allowed'?'Firebase 尚未啟用「匿名」登入方式，請管理者到 Firebase 主控台 → Authentication → 登入方式 啟用「匿名」。':'無法連線：'+(e.code||e.message));}return;}
         me=u;
-        $('devSub').textContent='裝置代碼 '+devCode(u.uid)+(HW?'・裝置編號 '+hwCode(HW.id):'');
+        $('devSub').textContent=HW?'裝置編號 '+hwCode(HW.id):'裝置代碼 '+devCode(u.uid); // 有裝置編號（App）就只顯示裝置編號
         // 雙軌核准：devices/{uid}.approved（代碼）或 hw/{裝置編號}.approved（App 才有裝置編號），任一成立即可打卡
         const ref=db.doc('devices/'+u.uid);
         let created=false,devD=null,hwD=null,hwSub=null,hwTried=false;
         const evalState=()=>{
           if(!devD)return;
-          const ok=devD.approved===true||hwD?.approved===true;
+          const ok=HW?hwD?.approved===true:devD.approved===true; // 有裝置編號就只看裝置編號是否核准，不看裝置代碼
           device=Object.assign({},devD,{name:devD.name||hwD?.name||''});
           $('devName').textContent=device.name||'新海美學牙醫診所';
           if(!ok){stopAll();paused=true;showGate('pair',{uid:u.uid,hw:HW?.id});return;}
@@ -465,7 +465,8 @@ function localSource(){
 function showGate(kind,arg){
   const g=$('gate'),b=$('gateBox');g.hidden=false;
   if(kind==='loading'){b.innerHTML=`<h2>${esc(arg||'載入中…')}</h2><p>第一次開啟需要下載辨識模型（約 10 MB），請稍候。</p>`;return;}
-  if(kind==='pair'){b.innerHTML=`<h2>這台裝置尚未核准</h2><p>請管理者登入排班系統 → 「出勤」分頁 → 「打卡裝置」，核准下面這台裝置。核准後這個畫面會自動進入打卡模式。</p><div class="code">${esc(devCode(arg.uid))}</div><p style="text-align:center;margin:0">裝置代碼</p>${arg.hw?`<div class="code" style="font-size:1.5rem;margin-top:14px">${esc(hwCode(arg.hw))}</div><p style="text-align:center;margin:0">裝置編號（核准時選「綁定裝置編號」，之後代碼變了也不用重新核准）</p>`:''}`;return;}
+  // 有裝置編號（App）只顯示裝置編號；瀏覽器開啟的才顯示裝置代碼
+  if(kind==='pair'){b.innerHTML=`<h2>這台裝置尚未核准</h2><p>請管理者登入排班系統 → 「出勤」分頁 → 「打卡裝置」，核准下面這台裝置。核准後這個畫面會自動進入打卡模式。</p>`+(arg.hw?`<div class="code">${esc(hwCode(arg.hw))}</div><p style="text-align:center;margin:0">裝置編號</p>`:`<div class="code">${esc(devCode(arg.uid))}</div><p style="text-align:center;margin:0">裝置代碼</p>`);return;}
   if(kind==='revoked'){b.innerHTML=`<h2>這台裝置已停用</h2><p>請管理者到排班系統 → 「出勤」→ 「打卡裝置」重新核准。</p><div class="row"><button class="primary" onclick="location.reload()">重新整理</button></div>`;return;}
   if(kind==='camera'){b.innerHTML=`<h2>無法使用相機</h2><p>${esc(arg)}</p><div class="row"><button class="primary" onclick="location.reload()">重試</button></div>`;return;}
   b.innerHTML=`<h2>發生問題</h2><p>${esc(arg)}</p><div class="row"><button class="primary" onclick="location.reload()">重新整理</button></div>`;

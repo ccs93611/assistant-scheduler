@@ -992,7 +992,7 @@ body.gated .shell{display:none;}
         </div>
         <div class="card" id="devCard">
           <div class="lv-title-row"><h2 style="margin:0">打卡裝置</h2><span style="flex:1"></span><a class="small btn-link" href="devices.html" onclick="openDevicesModal();return false" id="devPageLink" hidden title="打卡裝置、治療計劃單與耗材的設備認證（只有超級管理員）">🔐 設備認證頁</a> <a class="small btn-link" href="app.html" target="_blank" rel="noopener">下載打卡 App（最新版）</a></div>
-          <p class="desc">在診所的平板開啟「新海打卡」App（或 <code id="kioskUrl"></code>），畫面會顯示裝置代碼，在這裡核准後才能打卡。臉部登錄在打卡裝置上進行（右上角 ⚙，需要下面的管理密碼）。</p>
+          <p class="desc">在診所的平板開啟「新海打卡」App（或 <code id="kioskUrl"></code>），畫面會顯示裝置編號（App）或裝置代碼（用瀏覽器開啟時），在這裡核准後才能打卡；App 一律以裝置編號核准，裝置代碼變了也不用重新核准。臉部登錄在打卡裝置上進行（右上角 ⚙，需要下面的管理密碼）。</p>
           <div class="scroll-x"><table class="list" id="devTable"></table></div>
           <form class="form-row" id="kioskPinForm" style="margin-top:12px">
             <div class="field"><label for="kioskPin">裝置管理密碼（4–8 位數字）</label><input type="password" id="kioskPin" inputmode="numeric" pattern="\d{4,8}" autocomplete="new-password"></div>
@@ -5082,20 +5082,22 @@ function renderAtt(mi){
       num('otAsk','詢問加班（分鐘）','下班晚於結束超過這個分鐘數，詢問是否申請加班；0＝不詢問')+
       num('revokeDays','撤銷核准期限（天）','核准後幾天內可以撤銷核准；0＝不限制'));}
   // 裝置
-  // 雙軌：以裝置代碼核准（devices.approved）或以裝置編號核准（hw.approved，App 才有）；同一台平板的舊代碼淡化顯示
+  // 有裝置編號（App）的平板一律以裝置編號為準、不看裝置代碼：同一台平板只列一列，核准／停用都綁裝置編號
+  // 沒有裝置編號（瀏覽器開啟）的才用裝置代碼核准
   const devs=Object.entries(devices).sort((a,b)=>(a[1].hwId||'~'+a[0]).localeCompare(b[1].hwId||'~'+b[0])||(b[1].at||0)-(a[1].at||0));
-  const newest={};devs.forEach(([id,d])=>{if(d.hwId&&!(d.hwId in newest))newest[d.hwId]=id;});
+  const seenHw=new Set(),rows=[];
+  devs.forEach(([id,d])=>{if(d.hwId){if(seenHw.has(d.hwId))return;seenHw.add(d.hwId);}rows.push([id,d]);});
   const B=(attr,id,label,cls='')=>`<button class="small${cls}" ${attr}="${esc(id)}"${canWrite?'':' disabled'}>${label}</button>`;
-  $('devTable').innerHTML=`<thead><tr><th>裝置代碼</th><th>裝置編號</th><th>名稱</th><th>狀態</th><th>登記時間</th><th></th></tr></thead><tbody>`+
-    (devs.length?devs.map(([id,d])=>{
-      const h=d.hwId?hwDevs[d.hwId]:null,via=devVia(id),old=d.hwId&&newest[d.hwId]!==id;
-      const st=via==='hw'?'<span class="att-ok">已核准（裝置編號）</span>':via==='code'?'<span class="att-ok">已核准（代碼）</span>':'<span class="att-bad">等待核准</span>';
-      return `<tr${old?' class="att-mute"':''}><td><b>${esc(devShort(id))}</b>${old?'<br><small>同一台平板的舊代碼</small>':''}</td>
-        <td>${d.hwId?`<b>${esc(hwShort(d.hwId))}</b>${d.model?`<br><small class="att-mute">${esc(d.model)}</small>`:''}`:'<span class="att-mute">—（瀏覽器開啟）</span>'}</td>
-        <td>${esc(d.name||h?.name||'（未命名）')}</td><td>${st}</td><td>${d.at?fmtAt(d.at):''}</td>
+  $('devTable').innerHTML=`<thead><tr><th>裝置</th><th>名稱</th><th>狀態</th><th>登記時間</th><th></th></tr></thead><tbody>`+
+    (rows.length?rows.map(([id,d])=>{
+      const h=d.hwId?hwDevs[d.hwId]:null,via=devVia(id);
+      const st=via?'<span class="att-ok">已核准</span>':'<span class="att-bad">等待核准</span>';
+      const dev=d.hwId?`<b>${esc(hwShort(d.hwId))}</b>${d.model||h?.model?`<br><small class="att-mute">${esc(d.model||h.model)}</small>`:''}`
+        :`<b>${esc(devShort(id))}</b><br><small class="att-mute">瀏覽器開啟（裝置代碼）</small>`;
+      return `<tr><td>${dev}</td><td>${esc(h?.name||d.name||'（未命名）')}</td><td>${st}</td><td>${d.at?fmtAt(d.at):''}</td>
         <td style="white-space:nowrap">${via?B('data-devoff',id,'停用'):B('data-devok',id,'核准',' primary')} ${B('data-devname',id,'改名稱')} ${B('data-devdel',id,'刪除',' danger')}</td></tr>`;
     }).join('')
-      :'<tr><td colspan="6" class="att-mute">還沒有裝置。在平板開啟打卡 App 後，這裡會出現等待核准的裝置。</td></tr>')+'</tbody>';
+      :'<tr><td colspan="5" class="att-mute">還沒有裝置。在平板開啟打卡 App 後，這裡會出現等待核准的裝置。</td></tr>')+'</tbody>';
   $('kioskPinInfo').textContent=C.pinHash?'已設定密碼，輸入新密碼可以更換。':'尚未設定密碼：設定前無法在打卡裝置上登錄臉部。';
 }
 async function kioskPinHash(pin){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('xinhai-kiosk:'+pin));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
@@ -5123,28 +5125,31 @@ $('kioskPinForm').addEventListener('submit',async e=>{
 const devShort=id=>id.slice(0,6).toUpperCase();
 const hwShort=h=>(h.slice(0,3)+'-'+h.slice(4,10)).toUpperCase();
 // 這個代碼目前以什麼方式核准：'hw'（裝置編號）、'code'（代碼）或 null
-function devVia(id){const d=devices[id];if(!d)return null;if(d.hwId&&hwDevs[d.hwId]?.approved)return 'hw';return d.approved?'code':null;}
+function devVia(id){const d=devices[id];if(!d)return null;if(d.hwId)return hwDevs[d.hwId]?.approved?'hw':null; /* 有裝置編號就只看裝置編號 */return d.approved?'code':null;}
 $('devTable').addEventListener('click',e=>{
   const ok=e.target.closest('[data-devok]'),off=e.target.closest('[data-devoff]'),nm=e.target.closest('[data-devname]'),dl=e.target.closest('[data-devdel]');
   if(ok){const id=ok.dataset.devok,d=devices[id];if(!d)return;const h=d.hwId?hwDevs[d.hwId]:null;
-    dialog(`<h3>核准打卡裝置</h3><p>裝置代碼 <b>${esc(devShort(id))}</b>${d.hwId?`、裝置編號 <b>${esc(hwShort(d.hwId))}</b>${d.model?`（${esc(d.model)}）`:''}`:''}。請確認和平板上顯示的一樣。</p>
-      <div class="field"><label>裝置名稱</label><input id="devNm" value="${esc(d.name||h?.name||'')}" placeholder="例如：櫃台平板"></div>
-      ${d.hwId?`<div class="field" style="margin-top:10px"><label style="display:flex;gap:6px;align-items:flex-start"><input type="radio" name="devHow" value="hw" checked style="width:auto;margin-top:3px"> <span><b>綁定裝置編號（建議）</b><br><small class="att-mute">這台平板之後代碼變了（清除資料、重裝 App）也自動沿用，不用再核准</small></span></label>
-        <label style="display:flex;gap:6px;align-items:flex-start;margin-top:6px"><input type="radio" name="devHow" value="code" style="width:auto;margin-top:3px"> <span>只核准這個代碼<br><small class="att-mute">代碼變了要重新核准</small></span></label></div>`:'<p class="hint">這台裝置是用瀏覽器開啟，沒有裝置編號，只能以代碼核准。</p>'}`,ov=>{
-      const name=ov.querySelector('#devNm').value.trim()||'打卡裝置',how=ov.querySelector('[name=devHow]:checked')?.value||'code',by={approvedBy:myId||'',approvedAt:Date.now()};
-      if(how==='hw'){store.hw(d.hwId,Object.assign({at:Date.now()},h||{},{approved:true,name,model:d.model||h?.model||''},by));store.device(id,Object.assign({},d,{name}));}
+    // 有裝置編號：直接以裝置編號核准（不看裝置代碼）；瀏覽器開啟的才以代碼核准
+    dialog(`<h3>核准打卡裝置</h3><p>${d.hwId?`裝置編號 <b>${esc(hwShort(d.hwId))}</b>${d.model?`（${esc(d.model)}）`:''}`:`裝置代碼 <b>${esc(devShort(id))}</b>`}。請確認和平板上顯示的一樣。</p>
+      <div class="field"><label>裝置名稱</label><input id="devNm" value="${esc(h?.name||d.name||'')}" placeholder="例如：櫃台平板"></div>
+      ${d.hwId?'<p class="hint">之後這台平板清除資料、重裝 App 也會自動沿用，不用再核准。</p>':'<p class="hint">這台裝置是用瀏覽器開啟，沒有裝置編號，只能以代碼核准；代碼變了要重新核准。</p>'}`,ov=>{
+      const name=ov.querySelector('#devNm').value.trim()||'打卡裝置',by={approvedBy:myId||'',approvedAt:Date.now()};
+      if(d.hwId){store.hw(d.hwId,Object.assign({at:Date.now()},h||{},{approved:true,name,model:d.model||h?.model||''},by));store.device(id,Object.assign({},d,{name}));}
       else store.device(id,Object.assign({},d,{approved:true,name},by));
       toast('已核准，裝置會自動進入打卡模式。');
     },'核准');return;}
-  if(off){const id=off.dataset.devoff,d=devices[id],via=devVia(id);if(!d)return;
-    if(via==='hw'){const codes=Object.values(devices).filter(x=>x.hwId===d.hwId).length;
-      dialog(`<h3>停用裝置</h3><p>這台平板是以裝置編號 <b>${esc(hwShort(d.hwId))}</b> 核准的。停用後，這台平板${codes>1?`（共 ${codes} 個代碼）`:''}都不能打卡，直到重新核准。</p>`,()=>{
+  if(off){const id=off.dataset.devoff,d=devices[id];if(!d)return;
+    if(d.hwId){
+      dialog(`<h3>停用裝置</h3><p>停用裝置編號 <b>${esc(hwShort(d.hwId))}</b>。停用後這台平板不能打卡，直到重新核准。</p>`,()=>{
         store.hw(d.hwId,Object.assign({},hwDevs[d.hwId],{approved:false}));Object.entries(devices).forEach(([k,x])=>{if(x.hwId===d.hwId&&x.approved)store.device(k,Object.assign({},x,{approved:false}));});toast('已停用這台裝置。');},'停用',true);}
     else{store.device(id,Object.assign({},d,{approved:false}));toast('已停用這台裝置。');}
     return;}
-  if(nm){const id=nm.dataset.devname,d=devices[id],h=d.hwId?hwDevs[d.hwId]:null;dialog(`<h3>裝置名稱</h3><div class="field"><input id="devNm" value="${esc(d.name||h?.name||'')}"></div>`,ov=>{const name=ov.querySelector('#devNm').value.trim();store.device(id,Object.assign({},d,{name}));if(h)store.hw(d.hwId,Object.assign({},h,{name}));},'儲存');return;}
-  if(dl){const id=dl.dataset.devdel,d=devices[id];
-    dialog(`<h3>刪除裝置代碼</h3><p>刪除代碼 <b>${esc(devShort(id))}</b>。${devVia(id)==='hw'?'這台平板已綁定裝置編號，重新開啟 App 會自動以新代碼恢復；要讓它不能打卡請改按「停用」。':'刪除後這個代碼無法打卡；之後重新開啟 App 會再出現在等待核准的清單。'}</p>`,()=>{store.device(id,null);},'刪除',true);}
+  if(nm){const id=nm.dataset.devname,d=devices[id],h=d.hwId?hwDevs[d.hwId]:null;dialog(`<h3>裝置名稱</h3><div class="field"><input id="devNm" value="${esc(h?.name||d.name||'')}"></div>`,ov=>{const name=ov.querySelector('#devNm').value.trim();store.device(id,Object.assign({},d,{name}));if(h)store.hw(d.hwId,Object.assign({},h,{name}));},'儲存');return;}
+  if(dl){const id=dl.dataset.devdel,d=devices[id];if(!d)return;
+    if(d.hwId){
+      dialog(`<h3>刪除裝置</h3><p>刪除裝置編號 <b>${esc(hwShort(d.hwId))}</b>（${esc(hwDevs[d.hwId]?.name||d.name||'未命名')}）。刪除後這台平板不能打卡；之後重新開啟 App 會再出現在等待核准的清單。</p>`,()=>{
+        Object.entries(devices).forEach(([k,x])=>{if(x.hwId===d.hwId)store.device(k,null);});store.hw(d.hwId,null);toast('已刪除這台裝置。');},'刪除',true);}
+    else dialog(`<h3>刪除裝置代碼</h3><p>刪除代碼 <b>${esc(devShort(id))}</b>。刪除後這個代碼無法打卡；之後重新開啟會再出現在等待核准的清單。</p>`,()=>{store.device(id,null);},'刪除',true);}
 });
 $('tab-att').addEventListener('click',e=>{
   const row=e.target.closest('[data-attsid]');
