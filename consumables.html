@@ -708,33 +708,54 @@ async function deviceApply(){
   try{await firebase.auth().signInAnonymously()}
   catch(e){showGate('error',e.code==='auth/operation-not-allowed'?'Firebase 尚未啟用「匿名」登入方式，請管理者到 Firebase 主控台 → Authentication → 登入方式 啟用「匿名」。':'無法連線：'+(e.code||e.message))}
 }
-async function handleDevice(u){
-  const ref=fs.doc('tpDevices/'+u.uid);let d=null;
-  try{const s=await ref.get();d=s.exists?s.data():null}catch(e){console.error(e)}
+// 「新海耗材」App 會在 window.APP_HW 放裝置編號 {id, platform, model}。超級管理員在設備認證頁「綁定裝置編號」核准後（tpHw/{裝置編號}），
+// 這台平板的代碼變了（清除資料、重裝 App）也自動沿用，不用再核准。用瀏覽器開啟則沒有裝置編號，只能以代碼核准（tpDevices/{uid}）。
+const HW=window.APP_HW&&window.APP_HW.id?window.APP_HW:null;
+const hwShort=h=>(h.slice(0,3)+'-'+h.slice(4,10)).toUpperCase();
+function handleDevice(u){
+  const ref=fs.doc('tpDevices/'+u.uid);
   const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
-  if(!d){
-    msg.innerHTML=`申請把這台設備設為「認證設備」。<br>核准後開啟本頁不需要 Google 登入，可以登記耗材。<br>設備代碼：<span class="who">${devCode(u.uid)}</span>`;
-    acts.innerHTML=`<input id="devName" placeholder="設備名稱，例如：診間平板" style="width:100%;margin:6px 0"><br><button class="btn-primary" id="devSend">送出申請</button> <button id="devCancel">改用 Google 登入</button>`;
-    $('#devCancel').onclick=signOut;
-    $('#devSend').onclick=async()=>{
-      const name=$('#devName').value.trim();if(!name){alert('請輸入設備名稱');return}
-      $('#devSend').disabled=true;
-      try{await ref.set({name,code:devCode(u.uid),approved:false,from:'cs',reqAt:Date.now(),ua:navigator.userAgent.slice(0,200)});handleDevice(u)}
-      catch(e){alert('申請失敗：'+(e.code||e.message));$('#devSend').disabled=false}
-    };
-    return;
-  }
-  // 耗材與治療計劃單分開開通：approved＋cs 不是 false 才能登記耗材（舊設備沒有 cs 欄位，視為已開通）
-  if(!d.approved||d.cs===false){
-    msg.innerHTML=d.approved?`這台設備（<span class="who">${esc(d.name)}</span>）已認證，但還沒開通耗材登記。<br>請超級管理員到「設備認證」頁開通，設備代碼：<span class="who">${devCode(u.uid)}</span><br>開通後本頁會自動開啟。`
-      :`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請超級管理員到「設備認證」頁核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
-    acts.innerHTML='<button id="devCancel">改用 Google 登入</button>';$('#devCancel').onclick=signOut;
-    ref.onSnapshot(s=>{const x=s.exists&&s.data();if(x&&x.approved&&x.cs!==false)location.reload()},()=>{});
-    return;
-  }
-  PERM='device';me='設備：'+d.name;
-  ref.onSnapshot(s=>{const x=s.exists&&s.data();if(!x||!x.approved||x.cs===false)location.reload()},()=>location.reload());
-  startCloud();
+  let d=null,hw=null,hwSub=null,started=false,created=false,hwTried=false,shown='';
+  // 耗材與治療計劃單分開開通：已認證＋cs 不是 false 才能登記耗材（舊設備沒有 cs 欄位，視為已開通）
+  const viaCode=()=>!!d&&d.approved&&d.cs!==false,viaHw=()=>!!hw&&hw.approved&&hw.cs!==false;
+  const codes=()=>`設備代碼：<span class="who">${devCode(u.uid)}</span>${d?.hwId?`<br>裝置編號：<span class="who">${hwShort(d.hwId)}</span>`:''}`;
+  const show=(key,html,actsHtml)=>{if(shown===key)return;shown=key;msg.innerHTML=html;acts.innerHTML=actsHtml;const c=$('#devCancel');if(c)c.onclick=signOut};
+  const nameForm=onSend=>{
+    show('name',`申請把這台設備設為「認證設備」。<br>核准後開啟本頁不需要 Google 登入，可以登記耗材。<br>${codes()}`,
+      '<input id="devName" placeholder="設備名稱，例如：診間平板" style="width:100%;margin:6px 0"><br><button class="btn-primary" id="devSend">送出申請</button> <button id="devCancel">改用 Google 登入</button>');
+    $('#devSend').onclick=async()=>{const name=$('#devName').value.trim();if(!name){alert('請輸入設備名稱');return}
+      $('#devSend').disabled=true;try{await onSend(name)}catch(e){alert('申請失敗：'+(e.code||e.message));$('#devSend').disabled=false}};
+  };
+  const render=()=>{
+    const ok=viaCode()||viaHw();
+    if(started){if(!ok)location.reload();return} // 被停用、關閉耗材或刪除時立刻停用
+    if(ok){started=true;PERM='device';me='設備：'+(d?.name||hw?.name||'');startCloud();return}
+    if(!d)return;
+    if(!d.name&&!(hw&&hw.approved))return nameForm(name=>ref.update({name}));
+    const on=(d.approved&&!viaCode())||(hw&&hw.approved&&!viaHw());
+    show(on?'off':'wait',on?`這台設備（<span class="who">${esc(d.name||hw?.name||'')}</span>）已認證，但還沒開通耗材登記。<br>請超級管理員到「設備認證」頁開通。<br>${codes()}<br>開通後本頁會自動開啟。`
+      :`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請超級管理員到「設備認證」頁核准。<br>${codes()}<br>核准後本頁會自動開啟。`,
+      '<button id="devCancel">改用 Google 登入</button>');
+  };
+  const watchHw=()=>{
+    if(hwSub||!d?.hwId)return;
+    // 剛寫入裝置編號時，雲端可能還沒收到，安全規則會暫時拒絕讀取；過幾秒重試
+    hwSub=fs.doc('tpHw/'+d.hwId).onSnapshot(x=>{hw=x.exists?x.data():null;render()},e=>{console.warn('tpHw',e);if(hwSub)hwSub();hwSub=null;setTimeout(watchHw,3000)});
+  };
+  ref.onSnapshot({includeMetadataChanges:true},async x=>{ // 含寫入完成的通知，才知道裝置紀錄已存到雲端
+    if(!x.exists){
+      if(started){location.reload();return}
+      d=null;const base={code:devCode(u.uid),approved:false,from:'cs',reqAt:Date.now(),ua:navigator.userAgent.slice(0,200)};
+      // App：先自動登記（帶裝置編號），若這個裝置編號已經核准就直接進入；否則再請輸入名稱
+      if(HW){if(created)return;created=true;try{await ref.set({...base,name:'',hwId:HW.id,model:String(HW.model||'').slice(0,80)})}catch(e){console.error(e);showGate('error','無法登記設備：'+(e.code||e.message))}return}
+      nameForm(name=>ref.set({...base,name}));return;
+    }
+    d=x.data();
+    // 舊的申請還沒有裝置編號：補上（之後就能用裝置編號核准）；補不上就照代碼核准的方式繼續
+    if(HW&&d.hwId!==HW.id&&!hwTried){hwTried=true;try{await ref.update({hwId:HW.id,model:String(HW.model||'').slice(0,80)});return}catch(e){console.warn(e)}}
+    if(d.hwId&&!x.metadata.hasPendingWrites)watchHw();
+    render();
+  },e=>{console.error(e);showGate('error','無法讀取設備狀態：'+(e.code||e.message))});
 }
 function bootCloud(){
   if(!window.firebase){showGate('error','無法載入登入元件，請確認網路連線後重新整理。');return}
@@ -744,7 +765,8 @@ function bootCloud(){
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
   showGate('loading');
   firebase.auth().onAuthStateChanged(async u=>{
-    if(!u){showGate('signin');return}
+    // 在「新海耗材」App 裡（有裝置編號）：Google 不允許在 App 內嵌網頁登入，直接以認證設備登記
+    if(!u){if(HW){showGate('loading');deviceApply();return}showGate('signin');return}
     if(u.isAnonymous){handleDevice(u);return}
     me=(u.email||'').toLowerCase();
     const owner=(window.OWNER_EMAILS||[]).some(x=>x.toLowerCase()===me);

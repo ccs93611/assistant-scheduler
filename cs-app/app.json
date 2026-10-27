@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "新海耗材",
+    "slug": "xinhai-consumables",
+    "owner": "shinyhi",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#D2DEEF",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "tw.xinhai.consumables",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "tw.xinhai.consumables",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "81da58a7-efe4-4ed1-ae03-8169991be131"
+      }
+    }
+  }
+}

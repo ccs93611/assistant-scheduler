@@ -101,7 +101,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
   <section class="card">
     <h2>認證設備<span class="sp"></span><span class="sub" id="devCount"></span></h2>
     <p class="hint">打卡：在平板開啟「新海打卡」App（或打卡網頁）。治療計劃單／耗材登記：在平板開啟該頁面，按「這台設備申請認證」。申請後會出現在這裡，畫面上的代碼要和平板顯示的一樣。<br>
-      勾選就是核准並開通該系統，取消勾選就是停用；同一台設備可以分別開通。認證設備在治療計劃單算「編輯」、在耗材算「登記」。打卡也可以在排班系統「出勤 → 打卡裝置」核准。</p>
+      勾選就是核准並開通該系統，取消勾選就是停用；同一台設備可以分別開通。認證設備在治療計劃單算「編輯」、在耗材算「登記」。打卡也可以在排班系統「出勤 → 打卡裝置」核准。<br>App 下載：<a href="app.html" target="_blank" rel="noopener">新海打卡</a>、<a href="app-cs.html" target="_blank" rel="noopener">新海耗材</a>（App 會帶裝置編號，建議「綁定裝置編號」核准，重裝 App 也不用重新認證）。</p>
     <div class="scroll-x"><table id="devTable"></table></div>
   </section>
 </main>
@@ -115,7 +115,8 @@ const fmtAt=t=>t?new Date(t).toLocaleString('zh-TW',{hour12:false,year:'numeric'
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
 const permErr=e=>e&&e.code==='permission-denied'?'沒有權限（請確認安全規則已更新）':(e&&e.message||String(e));
 let fs=null,me='';
-let tpDevs={},kDevs={},hwDevs={}; // tpDevices（治療計劃單／耗材）、devices（打卡代碼）、hw（打卡裝置編號）
+let tpDevs={},kDevs={},hwDevs={},tpHws={}; // tpDevices（治療計劃單／耗材）、devices（打卡代碼）、hw（打卡裝置編號）、tpHw（耗材 App 裝置編號）
+const TPHW_KEY='xinhai_tphw_local_v1';
 
 /* ====== 資料存取：雲端或本機（本機測試：打卡裝置與 index.html?local=1 共用） ====== */
 const KIOSK_KEY='clinic_kiosk_local_v1',TPDEV_KEY='xinhai_tpdev_local_v1';
@@ -125,6 +126,10 @@ const DB={
   async tp(uid,obj){ // obj=null 刪除
     if(fs)return obj?fs.doc('tpDevices/'+uid).set(obj):fs.doc('tpDevices/'+uid).delete();
     const d=ld(TPDEV_KEY);if(obj)d[uid]=obj;else delete d[uid];sv(TPDEV_KEY,d);loadLocal();
+  },
+  async tpHw(id,obj){
+    if(fs)return obj?fs.doc('tpHw/'+id).set(obj):fs.doc('tpHw/'+id).delete();
+    const d=ld(TPHW_KEY);if(obj)d[id]=obj;else delete d[id];sv(TPHW_KEY,d);loadLocal();
   },
   async dev(id,obj){
     if(fs)return obj?fs.doc('devices/'+id).set(obj):fs.doc('devices/'+id).delete();
@@ -148,13 +153,17 @@ const onTp=d=>!!d&&d.approved&&d.tp!==false,onCs=d=>!!d&&d.approved&&d.cs!==fals
 function devVia(id){const d=kDevs[id];if(!d)return null;if(d.hwId&&hwDevs[d.hwId]?.approved)return 'hw';return d.approved?'code':null}
 const SYS={k:'打卡',tp:'治療計劃單',cs:'耗材登記'};
 function rows(){
-  const newest={};Object.entries(kDevs).sort((a,b)=>(b[1].at||0)-(a[1].at||0)).forEach(([id,d])=>{if(d.hwId&&!(d.hwId in newest))newest[d.hwId]=id});
+  const newest={},newestT={};Object.entries(kDevs).sort((a,b)=>(b[1].at||0)-(a[1].at||0)).forEach(([id,d])=>{if(d.hwId&&!(d.hwId in newest))newest[d.hwId]=id});
+  Object.entries(tpDevs).sort((a,b)=>(b[1].reqAt||0)-(a[1].reqAt||0)).forEach(([id,d])=>{if(d.hwId&&!(d.hwId in newestT))newestT[d.hwId]=id});
   return [...new Set([...Object.keys(tpDevs),...Object.keys(kDevs)])].map(uid=>{
-    const t=tpDevs[uid]||null,k=kDevs[uid]||null,h=k?.hwId?hwDevs[k.hwId]:null;
-    const on={k:k?!!devVia(uid):null,tp:t?onTp(t):null,cs:t?onCs(t):null};
+    const t=tpDevs[uid]||null,k=kDevs[uid]||null,h=k?.hwId?hwDevs[k.hwId]:null,th=t?.hwId?tpHws[t.hwId]||null:null;
+    // 治療計劃單／耗材：以裝置編號（tpHw）核准時看 tpHw 的 tp／cs，否則看 tpDevices
+    const tpVia=th?.approved?'hw':t?.approved?'code':null,src=tpVia==='hw'?th:t;
+    const on={k:k?!!devVia(uid):null,tp:t?(tpVia?src.tp!==false:false):null,cs:t?(tpVia?src.cs!==false:false):null};
     // 等待核准：從來沒核准過的（停用過的不算）
-    const wait=(t&&!t.approved&&!t.approvedAt)||(k&&!on.k&&!k.approvedAt&&!h?.approvedAt);
-    return {uid,t,k,h,on,wait,old:!!(k?.hwId&&newest[k.hwId]!==uid),at:Math.max(t?.reqAt||0,k?.at||0),name:t?.name||k?.name||h?.name||''};
+    const wait=(t&&!tpVia&&!t.approvedAt&&!th?.approvedAt)||(k&&!on.k&&!k.approvedAt&&!h?.approvedAt);
+    const old=!!(k?.hwId&&newest[k.hwId]!==uid)||!!(t?.hwId&&newestT[t.hwId]!==uid);
+    return {uid,t,k,h,th,tpVia,on,wait,old,at:Math.max(t?.reqAt||0,k?.at||0),name:t?.name||th?.name||k?.name||h?.name||''};
   }).sort((a,b)=>(b.wait-a.wait)||(a.old-b.old)||(b.at-a.at));
 }
 function renderDev(){
@@ -170,9 +179,9 @@ function renderDev(){
       const via=r.k?devVia(r.uid):null;
       return `<tr data-uid="${esc(r.uid)}"${r.old?' class="old"':''}>
         <td><b>${esc(r.name||'（未命名）')}</b>${r.k?.model?`<div class="sub">${esc(r.k.model)}</div>`:r.t?.ua?`<div class="sub" title="${esc(r.t.ua)}">${esc(r.t.ua.slice(0,28))}…</div>`:''}${r.old?'<div class="sub">同一台平板的舊代碼</div>':''}</td>
-        <td class="nw"><b>${esc(r.t?.code||(r.k?devShort(r.uid):devCode(r.uid)))}</b>${r.k?.hwId?`<div class="sub">裝置編號 ${esc(hwShort(r.k.hwId))}</div>`:''}</td>
+        <td class="nw"><b>${esc(r.t?.code||(r.k?devShort(r.uid):devCode(r.uid)))}</b>${(r.k?.hwId||r.t?.hwId)?`<div class="sub">裝置編號 ${esc(hwShort(r.k?.hwId||r.t.hwId))}</div>`:''}</td>
         <td>${esc(fmtAt(r.at))}${r.t?.from?`<div class="sub">從${esc(from[r.t.from]||r.t.from)}申請</div>`:r.k&&!r.t?'<div class="sub">打卡裝置</div>':''}</td>
-        <td>${st}${via==='hw'?'<div class="sub">打卡：綁定裝置編號</div>':via==='code'?'<div class="sub">打卡：核准代碼</div>':''}${any&&by?`<div class="sub">${esc(by)} ${esc(fmtAt(byAt))}</div>`:''}</td>
+        <td>${st}${via==='hw'?'<div class="sub">打卡：綁定裝置編號</div>':via==='code'?'<div class="sub">打卡：核准代碼</div>':''}${r.tpVia==='hw'?'<div class="sub">計劃單／耗材：綁定裝置編號</div>':''}${any&&by?`<div class="sub">${esc(by)} ${esc(fmtAt(byAt))}</div>`:''}</td>
         <td class="c">${box(r,'k')}</td><td class="c">${box(r,'tp')}</td><td class="c">${box(r,'cs')}</td>
         <td><div class="row-acts"><button class="btn-sm" data-x="name">改名稱</button><button class="btn-sm btn-danger" data-x="del">刪除</button></div></td></tr>`;
     }).join(''):'<tr><td colspan="8" class="empty">目前沒有設備。</td></tr>')+'</tbody>';
@@ -198,12 +207,22 @@ $('#devTable').addEventListener('change',e=>{
     else modal(`<h3>停用打卡：${esc(nm)}？</h3><p>停用後這個代碼不能打卡，之後可以重新勾選核准。</p>`,()=>{run(DB.dev(r.uid,{...d,approved:false}),'已停用打卡');},'停用',true);
     return;
   }
-  const t=r.t,label=SYS[k];
+  const t=r.t,th=r.th,label=SYS[k],by={approvedBy:me,approvedAt:Date.now()};
+  // 已用裝置編號核准：改 tpHw 的開通狀態（這台平板的所有代碼一起生效）
+  if(r.tpVia==='hw'){const v=!r.on[k];
+    modal(`<h3>${v?'開通':'關閉'}${label}：${esc(nm)}${v?'':'？'}</h3><p>這台平板是以裝置編號 <b>${esc(hwShort(t.hwId))}</b> 核准的，${v?`開通後不用登入即可使用${label}`:`關閉後會立刻無法使用${label}，之後可以重新勾選`}。</p>`,
+      ()=>{run(DB.tpHw(t.hwId,{...th,[k]:v}),`已${v?'開通':'關閉'}${label}`);},v?'開通':'關閉',!v);return;}
   if(!r.on[k]){
-    // 開通：還沒認證的設備一併核准；第一次核准時只開通勾選的那一個系統
-    const next=t.approved?{...t,[k]:true}:{...t,approved:true,tp:k==='tp',cs:k==='cs',approvedBy:me,approvedAt:Date.now()};
-    modal(`<h3>開通${label}：${esc(nm)}</h3><p>設備代碼 <b>${esc(t.code||devCode(r.uid))}</b>，請確認和平板上顯示的一樣。開通後這台設備不用登入即可使用${label}。</p>`,
-      ()=>{run(DB.tp(r.uid,next),`已開通${label}`);},'開通');
+    // 開通：還沒認證的設備一併核准；第一次核准時只開通勾選的那一個系統；從 App 申請（有裝置編號）可以綁定裝置編號
+    const next=t.approved?{...t,[k]:true}:{...t,approved:true,tp:k==='tp',cs:k==='cs',...by};
+    const first=!t.approved&&t.hwId;
+    modal(`<h3>開通${label}：${esc(nm)}</h3><p>設備代碼 <b>${esc(t.code||devCode(r.uid))}</b>${t.hwId?`、裝置編號 <b>${esc(hwShort(t.hwId))}</b>${t.model?`（${esc(t.model)}）`:''}`:''}，請確認和平板上顯示的一樣。開通後這台設備不用登入即可使用${label}。</p>
+      ${first?`<p><input id="mNm" style="width:100%" value="${esc(r.name)}" placeholder="設備名稱，例如：診間平板"></p>
+        <label class="opt"><input type="radio" name="mHow" value="hw" checked><span><b>綁定裝置編號（建議）</b><br><span class="sub">這台平板之後代碼變了（清除資料、重裝 App）也自動沿用，不用再核准</span></span></label>
+        <label class="opt"><input type="radio" name="mHow" value="code"><span><b>只核准這個代碼</b><br><span class="sub">代碼變了要重新核准</span></span></label>`:''}`,
+      m=>{const how=m.querySelector('[name=mHow]:checked')?.value||'code',name=m.querySelector('#mNm')?.value.trim()||t.name||'';
+        if(how==='hw')run(Promise.all([DB.tpHw(t.hwId,{...(th||{}),approved:true,tp:k==='tp',cs:k==='cs',name,model:t.model||th?.model||'',...by}),...(name!==t.name?[DB.tp(r.uid,{...t,name})]:[])]),`已開通${label}（綁定裝置編號）`);
+        else run(DB.tp(r.uid,{...next,name}),`已開通${label}`);},'開通');
   }else modal(`<h3>關閉${label}：${esc(nm)}？</h3><p>這台設備會立刻無法使用${label}，之後可以重新勾選。</p>`,
       ()=>{run(DB.tp(r.uid,{...t,[k]:false}),`已關閉${label}`);},'關閉',true);
 });
@@ -211,9 +230,9 @@ $('#devTable').addEventListener('click',e=>{
   const b=e.target.closest('[data-x]');if(!b)return;
   const r=findRow(b.closest('tr').dataset.uid);if(!r)return;const nm=r.name||devCode(r.uid);
   if(b.dataset.x==='name')modal(`<h3>設備名稱</h3><input id="mNm" style="width:100%" value="${esc(r.name)}">`,m=>{const name=m.querySelector('#mNm').value.trim();if(!name)return false;
-    run(Promise.all([...(r.t?[DB.tp(r.uid,{...r.t,name})]:[]),...(r.k?[DB.dev(r.uid,{...r.k,name})]:[]),...(r.h?[DB.hw(r.k.hwId,{...r.h,name})]:[])]),'已改名稱');},'儲存');
+    run(Promise.all([...(r.t?[DB.tp(r.uid,{...r.t,name})]:[]),...(r.th?[DB.tpHw(r.t.hwId,{...r.th,name})]:[]),...(r.k?[DB.dev(r.uid,{...r.k,name})]:[]),...(r.h?[DB.hw(r.k.hwId,{...r.h,name})]:[])]),'已改名稱');},'儲存');
   if(b.dataset.x==='del'){
-    const hwNote=r.k&&devVia(r.uid)==='hw'?'<br>這台平板的打卡已綁定裝置編號，重新開啟 App 會自動以新代碼恢復；要讓它不能打卡請先取消「打卡」勾選。':'';
+    const hwNote=(r.k&&devVia(r.uid)==='hw'?'<br>這台平板的打卡已綁定裝置編號，重新開啟 App 會自動以新代碼恢復；要讓它不能打卡請先取消「打卡」勾選。':'')+(r.tpVia==='hw'?'<br>這台平板的計劃單／耗材已綁定裝置編號，重新開啟耗材 App 會自動以新代碼恢復；要讓它不能使用請先取消勾選。':'');
     modal(`<h3>刪除設備「${esc(nm)}」？</h3><p>刪除後這台設備需要重新申請認證（${[r.k&&'打卡',r.t&&'治療計劃單／耗材'].filter(Boolean).join('、')}）。${hwNote}</p>`,
       ()=>{run(Promise.all([...(r.t?[DB.tp(r.uid,null)]:[]),...(r.k?[DB.dev(r.uid,null)]:[])]),'已刪除');},'刪除',true);
   }
@@ -263,15 +282,16 @@ function bootCloud(){
     fs.collection('tpDevices').onSnapshot(s=>{tpDevs=to(s);renderDev()},err);
     fs.collection('devices').onSnapshot(s=>{kDevs=to(s);renderDev()},err);
     fs.collection('hw').onSnapshot(s=>{hwDevs=to(s);renderDev()},err);
+    fs.collection('tpHw').onSnapshot(s=>{tpHws=to(s);renderDev()},err);
   });
 }
 // 本機模式：沒有資料時放兩筆示範用的設備申請
-function loadLocal(){const k=ld(KIOSK_KEY);tpDevs=ld(TPDEV_KEY);kDevs=k.devices||{};hwDevs=k.hw||{};renderDev()}
+function loadLocal(){const k=ld(KIOSK_KEY);tpDevs=ld(TPDEV_KEY);tpHws=ld(TPHW_KEY);kDevs=k.devices||{};hwDevs=k.hw||{};renderDev()}
 function bootLocal(){
   me='本機測試';
   if(!localStorage.getItem(TPDEV_KEY))sv(TPDEV_KEY,{'demoUidAAAAAA':{name:'診間平板',code:'AAAAAA',approved:false,from:'cs',reqAt:Date.now()-3600e3},'demoUidBBBBBB':{name:'櫃台平板',code:'BBBBBB',approved:true,reqAt:Date.now()-86400e3,approvedBy:'本機測試',approvedAt:Date.now()-80000e3}});
   const k=ld(KIOSK_KEY);if(!k.devices){k.devices={'kioskcode01':{name:'',approved:false,at:Date.now(),hwId:'abc12345678x',model:'iPad (示範)'}};sv(KIOSK_KEY,k)}
-  afterLogin();loadLocal();addEventListener('storage',e=>{if(e.key===KIOSK_KEY||e.key===TPDEV_KEY)loadLocal()});
+  afterLogin();loadLocal();addEventListener('storage',e=>{if(e.key===KIOSK_KEY||e.key===TPDEV_KEY||e.key===TPHW_KEY)loadLocal()});
 }
 if(window.FIREBASE_CONFIG)bootCloud();else bootLocal();
 </script>

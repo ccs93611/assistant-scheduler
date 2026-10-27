@@ -316,7 +316,16 @@ npx eas-cli build -p ios --profile preview       # 需 Apple Developer 帳號，
 
 - 治療計劃單／耗材登記的認證設備（`tpDevices/{uid}`）：核准時勾選要開通的系統（預設勾申請時的那個系統，記在 `from`）；核准後可以隨時勾選、取消，停用、改名稱、刪除。設備端被關閉後會立刻回到等待畫面。
 - 打卡裝置（`devices`＋`hw`）：與「出勤 → 打卡裝置」相同，可以綁定裝置編號或只核准代碼、停用、改名稱、刪除；排班管理仍可在出勤分頁核准。
+- 治療計劃單／耗材也能綁定裝置編號（`tpHw/{裝置編號}`，有 `approved`、`tp`、`cs`）：「新海耗材」App 把裝置編號放在 `window.APP_HW`，耗材登記頁自動登記帶 `hwId` 的申請；勾選開通時選「綁定裝置編號」，之後同一台平板清除資料、重裝 App 換了代碼也自動沿用。
 - 本機測試：`devices.html?local=1`（打卡裝置與 `index.html?local=1` 共用瀏覽器資料）。
+
+
+## 新海耗材 App（`cs-app/`）
+
+Expo（React Native）外殼，用 WebView 開啟正式網址的 `consumables.html`；只負責全螢幕、斷線自動重試，以及把裝置編號（Android ID／iOS identifierForVendor，與打卡 App 相同算法）交給網頁。App 裡不能用 Google 登入，打開後直接以認證設備申請。
+
+- 下載頁：`app-cs.html`（讀 `app-latest.json` 的 `cs` 欄位）。
+- 建置：在 `cs-app` 執行 `npx eas-cli build -p android --profile preview`，完成後 `node set-latest.js "更新說明"` 更新 `app-latest.json`，再 commit／push。
 
 ## 耗材審核
 

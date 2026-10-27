@@ -270,9 +270,19 @@ service cloud.firestore {
     //            治療計劃單與耗材分開開通（tp、cs 欄位；舊設備沒有這兩個欄位視為都開通）
     //            治療計劃單：權限同編輯（可看、可開單編輯、只能刪除未定案的單、不能改價目表）；耗材：權限同「登記」
     function tpDevPath() { return /databases/$(database)/documents/tpDevices/$(request.auth.uid); }
-    function isDevice() { return request.auth != null && exists(tpDevPath()) && get(tpDevPath()).data.approved == true; }
-    function isTpDevice() { return isDevice() && get(tpDevPath()).data.get('tp', true) == true; }
-    function isCsDevice() { return isDevice() && get(tpDevPath()).data.get('cs', true) == true; }
+    // 雙軌核准，任一成立即可：1) tpDevices/{uid}.approved（以代碼核准）
+    //   2) tpDevices/{uid}.hwId 指向的 tpHw/{裝置編號}.approved（「新海耗材」App 才有裝置編號；代碼變了也沿用）；tp／cs 看核准的那一筆
+    function hasTpDev() { return request.auth != null && exists(tpDevPath()); }
+    function myTpHwId() { return hasTpDev() && ('hwId' in get(tpDevPath()).data) ? get(tpDevPath()).data.hwId : ''; }
+    function tpHwPath(id) { return /databases/$(database)/documents/tpHw/$(id); }
+    function codeOk() { return hasTpDev() && get(tpDevPath()).data.approved == true; }
+    function hwOk() { return myTpHwId() != '' && exists(tpHwPath(myTpHwId())) && get(tpHwPath(myTpHwId())).data.approved == true; }
+    function isDevice() { return codeOk() || hwOk(); }
+    function devOn(k) {
+      return (codeOk() && get(tpDevPath()).data.get(k, true) == true) || (hwOk() && get(tpHwPath(myTpHwId())).data.get(k, true) == true);
+    }
+    function isTpDevice() { return devOn('tp'); }
+    function isCsDevice() { return devOn('cs'); }
     function canViewTp() { return tpLv() in ['view', 'edit', 'admin'] || isTpDevice(); }
     function canEditTp() { return tpLv() in ['edit', 'admin'] || isTpDevice(); }
     function isTpAdmin() { return tpLv() == 'admin'; }
@@ -288,7 +298,15 @@ service cloud.firestore {
     match /tpDevices/{uid} {
       allow read: if isSuper() || (request.auth != null && request.auth.uid == uid);
       allow create: if request.auth != null && request.auth.uid == uid && request.resource.data.approved == false;
-      allow update, delete: if isSuper();
+      // 設備自己只能補上名稱、裝置編號與型號（App 自動登記後填名稱、舊申請補裝置編號），核准與開通由超級管理員處理
+      allow update: if isSuper() || (request.auth != null && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'hwId', 'model']));
+      allow delete: if isSuper();
+    }
+    // 裝置編號 tpHw/{裝置編號}：超級管理員在設備認證頁以「綁定裝置編號」核准；設備可以讀自己的那一筆
+    match /tpHw/{hid} {
+      allow read: if isSuper() || myTpHwId() == hid;
+      allow write: if isSuper();
     }
 
     // 耗材審核，權限看 csLv()：
