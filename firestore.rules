@@ -77,7 +77,7 @@ service cloud.firestore {
     match /presence/{uid}  { allow read: if canView(); allow write: if signedIn() && request.auth.uid == uid && canManage(); allow delete: if signedIn() && request.auth.uid == uid; }
     // 原始班表（定案時的當月班表）：所有已開通的人可看，排班管理以上可定案
     match /baselines/{ym}  { allow read: if canView(); allow write: if canManage(); }
-    match /staff/{id}      { allow read: if canView() || isKiosk() || isTpDevice() || tpLv() != 'none' || csLv() != 'none'; allow write: if canManage(); }
+    match /staff/{id}      { allow read: if canView() || isKiosk() || isDevice() || tpLv() != 'none' || csLv() != 'none'; allow write: if canManage(); }
 
     // ---- 出勤打卡 ----
     // 打卡裝置：裝置自己建立「等待核准」的紀錄；核准、改名、停用、刪除由排班管理以上處理
@@ -266,10 +266,13 @@ service cloud.firestore {
     //            管理可刪除任何計劃單，其他人只能刪除還沒定案、還沒結單的（看文件上的 finalized、status 欄位）
     //   tpFiles  收據照片：同上
     //   tpConfig 價目表等設定：只有管理可以修改
-    //   tpDevices 認證設備（不用 Google 登入的平板等）：匿名登入後自己申請，管理核准；
-    //            核准後權限同編輯（可看、可開單編輯、只能刪除未定案的單、不能改價目表）；耗材登記也算「登記」
+    //   tpDevices 認證設備（不用 Google 登入的平板等）：匿名登入後自己申請，只有超級管理員在設備認證頁（devices.html）核准；
+    //            治療計劃單與耗材分開開通（tp、cs 欄位；舊設備沒有這兩個欄位視為都開通）
+    //            治療計劃單：權限同編輯（可看、可開單編輯、只能刪除未定案的單、不能改價目表）；耗材：權限同「登記」
     function tpDevPath() { return /databases/$(database)/documents/tpDevices/$(request.auth.uid); }
-    function isTpDevice() { return request.auth != null && exists(tpDevPath()) && get(tpDevPath()).data.approved == true; }
+    function isDevice() { return request.auth != null && exists(tpDevPath()) && get(tpDevPath()).data.approved == true; }
+    function isTpDevice() { return isDevice() && get(tpDevPath()).data.get('tp', true) == true; }
+    function isCsDevice() { return isDevice() && get(tpDevPath()).data.get('cs', true) == true; }
     function canViewTp() { return tpLv() in ['view', 'edit', 'admin'] || isTpDevice(); }
     function canEditTp() { return tpLv() in ['edit', 'admin'] || isTpDevice(); }
     function isTpAdmin() { return tpLv() == 'admin'; }
@@ -281,11 +284,11 @@ service cloud.firestore {
     match /tpFiles/{id}  { allow read: if canViewTp(); allow create, update, delete: if canEditTp(); }
     match /tpConfig/{id} { allow read: if canViewTp() || csLv() != 'none'; allow write: if isTpAdmin(); }
     // tpUsage 每日雲端讀取筆數（估計）：各設備自己加總上去，只有超級管理員與治療計劃單管理看得到
-    match /tpUsage/{day} { allow read: if isSuper() || isTpAdmin(); allow create, update: if canView() || isTpDevice() || isKiosk() || tpLv() != 'none' || csLv() != 'none'; }
+    match /tpUsage/{day} { allow read: if isSuper() || isTpAdmin(); allow create, update: if canView() || isDevice() || isKiosk() || tpLv() != 'none' || csLv() != 'none'; }
     match /tpDevices/{uid} {
-      allow read: if isTpAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow read: if isSuper() || (request.auth != null && request.auth.uid == uid);
       allow create: if request.auth != null && request.auth.uid == uid && request.resource.data.approved == false;
-      allow update, delete: if isTpAdmin();
+      allow update, delete: if isSuper();
     }
 
     // 耗材審核，權限看 csLv()：
@@ -293,11 +296,11 @@ service cloud.firestore {
     //            醫師在排班系統「耗材確認」分頁確認或退回，只能處理指定給自己（doctorId）的待確認紀錄，且只能改審核相關欄位（停權的不行）；
     //            登記的人可以修改或刪除還沒確認的紀錄（修改後一律改回待確認）；已確認的只有管理可以改或刪
     //   csConfig 耗材種類：只有管理可以修改
-    function canEditCs() { return csLv() in ['edit', 'admin'] || isTpDevice(); }
+    function canEditCs() { return csLv() in ['edit', 'admin'] || isCsDevice(); }
     function isCsAdmin() { return csLv() == 'admin'; }
     function isMyDoc(d) { return signedIn() && mySid() != '' && perm() != 'suspended' && d.doctorId == mySid(); }
     match /csItems/{id} {
-      allow read: if csLv() in ['view', 'edit', 'admin'] || isTpDevice() || isMyDoc(resource.data);
+      allow read: if csLv() in ['view', 'edit', 'admin'] || isCsDevice() || isMyDoc(resource.data);
       allow create: if canEditCs() && request.resource.data.status == 'pending';
       allow update: if isCsAdmin()
         || (canEditCs() && resource.data.status != 'confirmed' && request.resource.data.status == 'pending')
@@ -307,6 +310,6 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'review', 'reason', 'updatedAt', 'hist']));
       allow delete: if isCsAdmin() || (canEditCs() && resource.data.status != 'confirmed');
     }
-    match /csConfig/{id} { allow read: if csLv() != 'none' || isTpDevice() || canView(); allow write: if isCsAdmin(); }
+    match /csConfig/{id} { allow read: if csLv() != 'none' || isCsDevice() || canView(); allow write: if isCsAdmin(); }
   }
 }

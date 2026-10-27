@@ -990,7 +990,7 @@ body.gated .shell{display:none;}
           <div id="attRules"></div>
         </div>
         <div class="card" id="devCard">
-          <div class="lv-title-row"><h2 style="margin:0">打卡裝置</h2><span style="flex:1"></span><a class="small btn-link" href="app.html" target="_blank" rel="noopener">下載打卡 App（最新版）</a></div>
+          <div class="lv-title-row"><h2 style="margin:0">打卡裝置</h2><span style="flex:1"></span><a class="small btn-link" href="devices.html" target="_blank" rel="noopener" id="devPageLink" hidden title="打卡裝置、治療計劃單與耗材的設備認證（只有超級管理員）">🔐 設備認證頁</a> <a class="small btn-link" href="app.html" target="_blank" rel="noopener">下載打卡 App（最新版）</a></div>
           <p class="desc">在診所的平板開啟「新海打卡」App（或 <code id="kioskUrl"></code>），畫面會顯示裝置代碼，在這裡核准後才能打卡。臉部登錄在打卡裝置上進行（右上角 ⚙，需要下面的管理密碼）。</p>
           <div class="scroll-x"><table class="list" id="devTable"></table></div>
           <form class="form-row" id="kioskPinForm" style="margin-top:12px">
@@ -2286,7 +2286,7 @@ function renderAll(){
   {const n=swapReqs.filter(r=>r.status==='pending'&&r.to===myStaffId()).length,tb=document.querySelector('nav.tabs button[data-tab="schedule"]');if(tb)tb.textContent=n?`排班表（${n}）`:'排班表';}
   {const ok=canSelfExtra();if(!ok)selfExtraMode=false;const b=$('selfExtraBtn');b.hidden=!ok;b.setAttribute('aria-pressed',String(selfExtraMode));b.textContent=selfExtraMode?'結束加診模式':'我要加診';
    document.body.classList.toggle('self-extra-on',selfExtraMode&&prefs.tab==='schedule'&&schedViewOf()==='live');markSelfExtra();}
-  $('payTabBtn').hidden=!canSeePay();
+  $('payTabBtn').hidden=!canSeePay();$('devPageLink').hidden=!superOK(); // 設備認證頁只有超級管理員能用
   // 排班相關按鈕（含上個月／本月／下個月）只在「排班表」分頁顯示；其他分頁各自有月份或年份切換
   $('curMonth').textContent=monthInfo().label; // 上個月／下個月之間顯示目前班表的年月
   ['prevMonth','curMonth','thisMonth','nextMonth','undoBtn','tplBtn','autoBtn','clearMonthBtn','clearDocBtn','exportBtn'].forEach(id=>$(id).style.display=prefs.tab==='schedule'&&(canWrite||!['undoBtn','tplBtn','autoBtn','clearMonthBtn','clearDocBtn'].includes(id))?'':'none'); // 沒有排班權限時排班用的按鈕直接隱藏

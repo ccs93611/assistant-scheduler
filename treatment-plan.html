@@ -2179,7 +2179,7 @@ function addExtra(cat,name){
 function openSettings(tab){
   const P=settings.prices;
   modal(`<button class="modal-x" data-x="close" title="關閉">✕</button><h3>設定</h3>
-    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button>${canSeeIncome()?'<button data-tab="comm">抽成比例</button>':''}${fs&&PERM==='admin'?'<button data-tab="sync">雲端讀取</button>':''}${PERM==='admin'?'<button data-tab="backup">資料備份</button>':''}${fs&&PERM==='admin'?'<button data-tab="device">設備認證</button>':''}</div>
+    <div class="tabs-m"><button data-tab="price">價目表</button><button data-tab="staff">醫師／助理名單</button>${canSeeIncome()?'<button data-tab="comm">抽成比例</button>':''}${fs&&PERM==='admin'?'<button data-tab="sync">雲端讀取</button>':''}${PERM==='admin'?'<button data-tab="backup">資料備份</button>':''}${fs&&SCHED_SUPER?'<button data-tab="device">設備認證</button>':''}</div>
     <div data-pane="price">
       <div class="hint">輸入每個項目的單價（新台幣）。開單選項目時自動帶入「單價 × 數量」為金額；已開立的計劃單不受影響。</div>
       ${canPrice()?'':'<div class="ro-note">只有治療計劃單「管理」權限可以修改價目表，你目前只能查看。</div>'}
@@ -2196,7 +2196,7 @@ function openSettings(tab){
       </div>
       <div class="hint" style="margin-top:6px">本機模式：輸入欄位時會出現這些名字供選擇，也可以直接打字。</div>`}
     </div>
-    ${fs&&PERM==='admin'?`<div data-pane="device">${devicePane()}</div>`:''}
+    ${fs&&SCHED_SUPER?`<div data-pane="device">${devicePane()}</div>`:''}
     ${canSeeIncome()?`<div data-pane="comm">
       <div class="hint">用於「📊 統計 → 醫師支出助理獎金(月)」。</div>
       ${canPrice()?'':'<div class="ro-note">只有治療計劃單「管理」權限可以修改抽成比例。</div>'}
@@ -2269,7 +2269,7 @@ function openSettings(tab){
           const cl=box.querySelector('#itemCommList');if(cl)cl.innerHTML=itemCommRows();
           if(focus){const i=[...box.querySelectorAll('[data-newitem]')].find(x=>x.dataset.newitem===focus);if(i)i.focus()}}
         return}
-      if(b.dataset.devx)deviceAction(b.closest('[data-dev]').dataset.dev,b.dataset.devx);
+
       if(b.dataset.x==='close'){close();renderEditor()}
       if(b.dataset.x==='export')exportBackup();
       if(b.dataset.x==='userefresh'){const u=box.querySelector('#usageBox');u.innerHTML='<p class="hint">讀取中…</p>';usageHtml().then(h=>u.innerHTML=h)}
@@ -2315,49 +2315,39 @@ async function handleDevice(u){
     $('#devSend').onclick=async()=>{
       const name=$('#devName').value.trim();if(!name){alert('請輸入設備名稱');return}
       $('#devSend').disabled=true;
-      try{await ref.set({name,code:devCode(u.uid),approved:false,reqAt:Date.now(),ua:navigator.userAgent.slice(0,200)});handleDevice(u)}
+      try{await ref.set({name,code:devCode(u.uid),approved:false,from:'tp',reqAt:Date.now(),ua:navigator.userAgent.slice(0,200)});handleDevice(u)}
       catch(e){alert('申請失敗：'+(e.code||e.message));$('#devSend').disabled=false}
     };
     return;
   }
-  if(!d.approved){
-    msg.innerHTML=`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請治療計劃單管理者到「⚙ → 設備認證」核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
+  // 治療計劃單與耗材分開開通：approved＋tp 不是 false 才能用治療計劃單（舊設備沒有 tp 欄位，視為已開通）
+  if(!d.approved||d.tp===false){
+    msg.innerHTML=d.approved?`這台設備（<span class="who">${esc(d.name)}</span>）已認證，但還沒開通治療計劃單。<br>請超級管理員到「設備認證」頁開通，設備代碼：<span class="who">${devCode(u.uid)}</span><br>開通後本頁會自動開啟。`
+      :`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請超級管理員到「設備認證」頁核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
     acts.innerHTML='<button id="devCancel">改用 Google 登入</button>';$('#devCancel').onclick=signOut;
-    ref.onSnapshot(s=>{if(s.exists&&s.data().approved)location.reload()},()=>{});
+    ref.onSnapshot(s=>{const x=s.exists&&s.data();if(x&&x.approved&&x.tp!==false)location.reload()},()=>{});
     return;
   }
   PERM='device';me='設備：'+d.name;
-  // 被撤銷或刪除時立刻停用
-  ref.onSnapshot(s=>{if(!s.exists||!s.data().approved)location.reload()},()=>location.reload());
+  // 被撤銷、關閉治療計劃單或刪除時立刻停用
+  ref.onSnapshot(s=>{const x=s.exists&&s.data();if(!x||!x.approved||x.tp===false)location.reload()},()=>location.reload());
   startCloud();
 }
+// 設備認證（打卡、治療計劃單、耗材）統一在 devices.html，只有排班超級管理員能核准；這裡只顯示待核准數量與連結
+let SCHED_SUPER=false;
 function watchDevices(){
-  if(PERM!=='admin')return;
+  if(!SCHED_SUPER)return;
   fs.collection('tpDevices').onSnapshot(snap=>{
-    tpDevices=snap.docs.map(d=>({uid:d.id,...d.data()})).sort((a,b)=>(a.approved-b.approved)||(b.reqAt||0)-(a.reqAt||0));
+    tpDevices=snap.docs.map(d=>({uid:d.id,...d.data()}));
     const pane=document.querySelector('.modal [data-pane="device"]');if(pane)pane.innerHTML=devicePane();
-    const btn=$('#settingsBtn');const n=tpDevices.filter(x=>!x.approved).length;btn.textContent='⚙ 價目表／人員／備份'+(n?`（設備待核准 ${n}）`:'');
+    const btn=$('#settingsBtn');const n=tpDevices.filter(x=>!x.approved).length;btn.textContent=(PERM==='admin'?'⚙ 價目表／人員／備份':'⚙ 價目表／人員')+(n?`（設備待核准 ${n}）`:'');
   },e=>console.warn(e));
 }
 function devicePane(){
-  const fmt=t=>t?new Date(t).toLocaleString('zh-TW',{hour12:false}):'';
-  return `<p class="hint">認證設備開啟本頁不需要 Google 登入，可以看所有計劃單、開單與編輯（含繳費、收據），只能刪除未定案的單，不能修改價目表。設備在登入畫面按「這台設備申請認證」後會出現在這裡。</p>
-  ${tpDevices.length?`<table><thead><tr><th>設備名稱</th><th>代碼</th><th>申請時間</th><th>狀態</th><th></th></tr></thead><tbody>${tpDevices.map(d=>`<tr data-dev="${esc(d.uid)}">
-    <td>${esc(d.name)}</td><td>${esc(d.code||devCode(d.uid))}</td><td>${esc(fmt(d.reqAt))}</td>
-    <td>${d.approved?`<span class="chip paid">已核准</span><div class="hint">${esc(d.approvedBy||'')} ${esc(fmt(d.approvedAt))}</div>`:'<span class="chip open">待核准</span>'}</td>
-    <td style="white-space:nowrap">${d.approved?'<button class="btn-sm" data-devx="revoke">撤銷</button>':'<button class="btn-sm btn-primary" data-devx="ok">核准</button>'} <button class="btn-sm btn-danger" data-devx="del">刪除</button></td>
-  </tr>`).join('')}</tbody></table>`:'<p class="hint">目前沒有設備申請。</p>'}`;
-}
-async function deviceAction(uid,act){
-  const d=tpDevices.find(x=>x.uid===uid);if(!d)return;
-  try{
-    if(act==='ok'){if(!confirm(`核准設備「${d.name}」（代碼 ${d.code||devCode(uid)}）？\n核准後這台設備不需登入即可查看、開立與編輯治療計劃單。`))return;
-      await fs.doc('tpDevices/'+uid).update({approved:true,approvedBy:me,approvedAt:Date.now()})}
-    if(act==='revoke'){if(!confirm(`撤銷設備「${d.name}」的認證？撤銷後該設備會立刻無法使用，需重新核准。`))return;
-      await fs.doc('tpDevices/'+uid).update({approved:false,revokedBy:me,revokedAt:Date.now()})}
-    if(act==='del'){if(!confirm(`刪除設備「${d.name}」？該設備需要重新申請認證。`))return;
-      await fs.doc('tpDevices/'+uid).delete()}
-  }catch(e){alert('操作失敗：'+(e.code==='permission-denied'?'沒有權限（請確認安全規則已更新）':e.message))}
+  const n=tpDevices.filter(x=>!x.approved).length;
+  return `<p class="hint">打卡裝置、治療計劃單與耗材的設備認證，統一在「設備認證」頁核准（只有超級管理員）。同一台平板可以分別開通治療計劃單與耗材。</p>
+  <p>${n?`目前有 <b>${n}</b> 台設備等待核准。`:'目前沒有等待核准的設備。'}</p>
+  <p><a class="btn-primary" style="display:inline-block;padding:8px 14px;border-radius:6px;text-decoration:none" href="devices.html" target="_blank" rel="noopener">開啟設備認證頁 ↗</a></p>`;
 }
 
 /* ====== 啟動：Google 登入 → 權限（沿用排班系統）→ 雲端即時同步 ====== */
@@ -2422,7 +2412,7 @@ function bootCloud(){
     let acc=null;try{const s=await fs.doc('access/'+me).get();acc=s.exists?s.data():null}catch(e){console.error(e)}
     if(!owner&&!acc){showGate('pending',me);fs.doc('access/'+me).onSnapshot(s=>{if(s.exists)location.reload()},()=>{});return}
     if(!owner&&acc.perm==='suspended'){showGate('suspended',me);return}
-    PERM=owner?'admin':appLv(acc,'tp');
+    PERM=owner?'admin':appLv(acc,'tp');SCHED_SUPER=owner||acc.perm==='super'; // 排班超級管理員才看得到設備認證的連結與待核准數量
     if(PERM==='none'){showGate('error','你的帳號沒有治療計劃單的權限。如需使用，請洽診所管理者在排班系統「人員名單 → 權限」開通。');return}
     startCloud();
   });

@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新海設備認證</title>
+<style>
+:root{
+  --bg:#d2deef;--panel:#fff;--ink:#1d2a30;--muted:#66767d;--line:#d3e0ec;--soft:#eef3f4;--card-line:#8fb0c4;
+  --accent:#0f7c80;--accent-ink:#fff;--accent-soft:#e1f1f1;
+  --danger:#c0392b;--danger-soft:#fbe9e7;--ok:#1e8449;--ok-soft:#e5f4ea;--warn:#b9770e;--warn-soft:#fdf2e0;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1823;--panel:#1a2226;--ink:#e3eaec;--muted:#93a3a9;--line:#2c383d;--soft:#212b30;--card-line:#4a6572;
+  --accent:#3fb6b9;--accent-ink:#0b1416;--accent-soft:#16383a;
+  --danger:#ef7a6c;--danger-soft:#3a1f1c;--ok:#5cc98a;--ok-soft:#173023;--warn:#e7b25a;--warn-soft:#352a16;
+}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+/* 背景與治療計劃單、耗材登記相同：淡藍底＋置中的診所 Logo 浮水印 */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url(tp-watermark.png?v=3) center/min(85vmin,720px) auto no-repeat;opacity:.14}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) body::before{opacity:.06}}
+button,input{font:inherit;color:inherit}
+input{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 12px}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn-danger{color:var(--danger)}
+.btn-ghost{border-color:transparent;background:transparent}
+.btn-sm{padding:3px 8px;font-size:13px}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{grid-column:2;font-size:28px;margin:0;text-align:center;letter-spacing:.04em}
+.head-r{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+@media (max-width:760px){header{grid-template-columns:1fr}header h1{grid-column:1;font-size:22px}.head-r{grid-column:1;justify-content:center}}
+main{max-width:1200px;margin:0 auto;padding:16px;display:grid;gap:16px}
+main>*{min-width:0} /* 表格太寬時只在卡片內左右捲動，整頁不會跟著變寬 */
+.card{background:var(--panel);border:2px solid var(--card-line);border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(15,60,80,.12)}
+.card>h2{font-size:18px;margin:0 0 6px;padding-bottom:10px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card>h2 .sp{flex:1}
+.hint{font-size:13px;color:var(--muted);margin:8px 0}
+.scroll-x{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:middle}
+th{background:var(--soft);font-weight:700;white-space:nowrap;font-size:15px}
+td.c,th.c{text-align:center}
+tr.old td{opacity:.55}
+.nw{white-space:nowrap}
+.sub{font-size:12px;color:var(--muted)}
+.chip{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.wait{background:var(--warn-soft);color:var(--warn)}
+.chip.off{background:var(--soft);color:var(--muted)}
+.sw{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600}
+.sw input{width:20px;height:20px;accent-color:var(--accent)}
+.empty{color:var(--muted);padding:12px 4px}
+.gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:80;padding:16px}
+.gate-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px;max-width:440px;width:100%;text-align:center}
+.gate-box h2{margin:0 0 12px;font-size:24px}
+.gate-box p{color:var(--muted);line-height:1.7}
+.gate-box .who{color:var(--ink);font-weight:600}
+.gate-box button{margin-top:8px;padding:10px 18px;font-size:15px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
+.modal{background:var(--panel);border-radius:12px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow:auto}
+.modal h3{margin:0 0 10px}
+.modal label.opt{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:6px 0;cursor:pointer}
+.modal label.opt input{margin-top:4px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 18px;border-radius:8px;z-index:90;max-width:90vw;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// 與排班系統（index.html）共用同一個 Firebase 專案、Google 登入與權限（access/{Gmail}.perm）
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDVLHhcdtHGhcP3MpZZooCsx12faOZGkr4",
+  authDomain: "assistant-schedular.firebaseapp.com",
+  projectId: "assistant-schedular",
+  storageBucket: "assistant-schedular.firebasestorage.app",
+  messagingSenderId: "325806157772",
+  appId: "1:325806157772:web:9c8912c3659c31b2823769"
+};
+if (location.hostname === 'assistant-scheduler-five.vercel.app') window.FIREBASE_CONFIG.authDomain = location.hostname;
+// 開發用：本機網址加上 ?local=1 改用這台電腦的瀏覽器資料（與 index.html?local=1 的打卡裝置共用）
+if (location.hostname === 'localhost' && /[?&]local=[\w-]+/.test(location.search)) window.FIREBASE_CONFIG = null;
+window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.rules 一致
+</script>
+<script src="read-counter.js"></script>
+</head>
+<body>
+<header>
+  <h1>新海美學牙醫・設備認證</h1>
+  <div class="head-r" id="me" hidden><span id="meEmail"></span><button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
+</header>
+<main>
+  <section class="card">
+    <h2>治療計劃單／耗材登記的認證設備<span class="sp"></span><span class="sub" id="tpCount"></span></h2>
+    <p class="hint">在平板開啟治療計劃單或耗材登記頁，按「這台設備申請認證」後會出現在這裡。同一台平板可以分別開通治療計劃單與耗材；勾選後立即生效，兩個都不勾就等於停用。<br>認證設備在治療計劃單算「編輯」（可開單、編輯，只能刪除未定案的單），在耗材算「登記」。</p>
+    <div class="scroll-x"><table id="tpTable"></table></div>
+  </section>
+  <section class="card">
+    <h2>打卡裝置<span class="sp"></span><span class="sub" id="kioskCount"></span></h2>
+    <p class="hint">在診所平板開啟「新海打卡」App（或打卡網頁），畫面會顯示裝置代碼，在這裡核准後才能打卡。也可以在排班系統「出勤 → 打卡裝置」核准。</p>
+    <div class="scroll-x"><table id="kioskTable"></table></div>
+  </section>
+</main>
+<div id="gate" class="gate" hidden><div class="gate-box"><h2>新海美學牙醫・設備認證</h2><p id="gateMsg">連線中…</p><div id="gateActs"></div></div></div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtAt=t=>t?new Date(t).toLocaleString('zh-TW',{hour12:false,year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+const permErr=e=>e&&e.code==='permission-denied'?'沒有權限（請確認安全規則已更新）':(e&&e.message||String(e));
+let fs=null,me='';
+let tpDevs={},kDevs={},hwDevs={}; // tpDevices（治療計劃單／耗材）、devices（打卡代碼）、hw（打卡裝置編號）
+
+/* ====== 資料存取：雲端或本機（本機測試：打卡裝置與 index.html?local=1 共用） ====== */
+const KIOSK_KEY='clinic_kiosk_local_v1',TPDEV_KEY='xinhai_tpdev_local_v1';
+const ld=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')||{}}catch(e){return {}}};
+const sv=(k,d)=>{try{localStorage.setItem(k,JSON.stringify(d))}catch(e){}};
+const DB={
+  async tp(uid,obj){ // obj=null 刪除
+    if(fs)return obj?fs.doc('tpDevices/'+uid).set(obj):fs.doc('tpDevices/'+uid).delete();
+    const d=ld(TPDEV_KEY);if(obj)d[uid]=obj;else delete d[uid];sv(TPDEV_KEY,d);loadLocal();
+  },
+  async dev(id,obj){
+    if(fs)return obj?fs.doc('devices/'+id).set(obj):fs.doc('devices/'+id).delete();
+    const d=ld(KIOSK_KEY);d.devices=d.devices||{};if(obj)d.devices[id]=obj;else delete d.devices[id];sv(KIOSK_KEY,d);loadLocal();
+  },
+  async hw(id,obj){
+    if(fs)return obj?fs.doc('hw/'+id).set(obj):fs.doc('hw/'+id).delete();
+    const d=ld(KIOSK_KEY);d.hw=d.hw||{};if(obj)d.hw[id]=obj;else delete d.hw[id];sv(KIOSK_KEY,d);loadLocal();
+  },
+};
+const run=async(p,ok)=>{try{await p;if(ok)toast(ok)}catch(e){console.error(e);alert('操作失敗：'+permErr(e))}};
+
+/* ====== 治療計劃單／耗材的認證設備（tpDevices）======
+   approved：已認證；tp／cs：分別開通治療計劃單、耗材（舊設備沒有這兩個欄位，視為都開通）；from：從哪個頁面申請 */
+const devCode=uid=>uid.slice(-6).toUpperCase();
+const onTp=d=>d.approved&&d.tp!==false,onCs=d=>d.approved&&d.cs!==false;
+function renderTp(){
+  const list=Object.entries(tpDevs).map(([uid,d])=>({uid,...d})).sort((a,b)=>(!!a.approved-!!b.approved)||(b.reqAt||0)-(a.reqAt||0));
+  const wait=list.filter(d=>!d.approved).length;
+  $('#tpCount').textContent=`共 ${list.length} 台${wait?`，等待核准 ${wait} 台`:''}`;
+  const from={tp:'治療計劃單',cs:'耗材登記'};
+  $('#tpTable').innerHTML='<thead><tr><th>設備名稱</th><th>代碼</th><th>申請</th><th>狀態</th><th class="c">治療計劃單</th><th class="c">耗材</th><th></th></tr></thead><tbody>'+
+    (list.length?list.map(d=>{
+      const st=!d.approved?'<span class="chip wait">等待核准</span>':(onTp(d)||onCs(d))?'<span class="chip ok">已認證</span>':'<span class="chip off">已停用</span>';
+      const box=(k,on)=>d.approved?`<label class="sw"><input type="checkbox" data-tpsw="${k}" ${on?'checked':''}></label>`:'<span class="sub">—</span>';
+      return `<tr data-uid="${esc(d.uid)}">
+        <td><b>${esc(d.name||'（未命名）')}</b>${d.ua?`<div class="sub" title="${esc(d.ua)}">${esc(d.ua.slice(0,40))}…</div>`:''}</td>
+        <td class="nw"><b>${esc(d.code||devCode(d.uid))}</b></td>
+        <td class="nw">${esc(fmtAt(d.reqAt))}${d.from?`<div class="sub">從${esc(from[d.from]||d.from)}</div>`:''}</td>
+        <td class="nw">${st}${d.approved&&d.approvedBy?`<div class="sub">${esc(d.approvedBy)} ${esc(fmtAt(d.approvedAt))}</div>`:''}</td>
+        <td class="c">${box('tp',onTp(d))}</td><td class="c">${box('cs',onCs(d))}</td>
+        <td class="nw">${d.approved?'<button class="btn-sm" data-tpx="off">停用</button>':'<button class="btn-sm btn-primary" data-tpx="ok">核准</button>'} <button class="btn-sm" data-tpx="name">改名稱</button> <button class="btn-sm btn-danger" data-tpx="del">刪除</button></td></tr>`;
+    }).join(''):'<tr><td colspan="7" class="empty">目前沒有設備申請。</td></tr>')+'</tbody>';
+}
+$('#tpTable').addEventListener('click',e=>{
+  const b=e.target.closest('[data-tpx]');if(!b)return;
+  const uid=b.closest('tr').dataset.uid,d=tpDevs[uid];if(!d)return;const x=b.dataset.tpx,nm=d.name||devCode(uid);
+  if(x==='ok'){
+    // 預設勾選申請的那個系統；舊申請沒有來源就兩個都勾
+    const dt=!d.from||d.from==='tp',dc=!d.from||d.from==='cs';
+    modal(`<h3>核准設備「${esc(nm)}」</h3><p>設備代碼 <b>${esc(d.code||devCode(uid))}</b>，請確認和平板上顯示的一樣。</p>
+      <label class="opt"><input type="checkbox" id="mTp" ${dt?'checked':''}><span><b>治療計劃單</b><br><span class="sub">不用登入即可查看、開單與編輯計劃單</span></span></label>
+      <label class="opt"><input type="checkbox" id="mCs" ${dc?'checked':''}><span><b>耗材登記</b><br><span class="sub">不用登入即可登記耗材</span></span></label>`,
+      m=>{const tp=m.querySelector('#mTp').checked,cs=m.querySelector('#mCs').checked;if(!tp&&!cs){alert('請至少開通一個系統');return false}
+        run(DB.tp(uid,{...d,approved:true,tp,cs,approvedBy:me,approvedAt:Date.now()}),'已核准，設備會自動進入');},'核准');
+  }
+  if(x==='off')modal(`<h3>停用設備「${esc(nm)}」？</h3><p>停用後這台設備會立刻無法使用治療計劃單與耗材登記，之後可以重新核准。</p>`,
+    ()=>{run(DB.tp(uid,{...d,approved:false,revokedBy:me,revokedAt:Date.now()}),'已停用');},'停用',true);
+  if(x==='name')modal(`<h3>設備名稱</h3><input id="mNm" style="width:100%" value="${esc(d.name||'')}">`,m=>{const name=m.querySelector('#mNm').value.trim();if(!name)return false;run(DB.tp(uid,{...d,name}),'已改名稱');},'儲存');
+  if(x==='del')modal(`<h3>刪除設備「${esc(nm)}」？</h3><p>刪除後這台設備需要重新申請認證。</p>`,()=>{run(DB.tp(uid,null),'已刪除');},'刪除',true);
+});
+$('#tpTable').addEventListener('change',e=>{
+  const c=e.target.closest('[data-tpsw]');if(!c)return;
+  const uid=c.closest('tr').dataset.uid,d=tpDevs[uid];if(!d)return;const k=c.dataset.tpsw,label=k==='tp'?'治療計劃單':'耗材登記';
+  if(!c.checked&&!confirm(`關閉「${d.name||devCode(uid)}」的${label}？這台設備會立刻無法使用${label}。`)){c.checked=true;return}
+  run(DB.tp(uid,{...d,[k]:c.checked}),c.checked?`已開通${label}`:`已關閉${label}`);
+});
+
+/* ====== 打卡裝置（devices＋hw，與排班系統「出勤 → 打卡裝置」相同）======
+   雙軌核准：以裝置代碼（devices.approved）或以裝置編號（hw.approved，App 才有；代碼變了也沿用）；同一台平板的舊代碼淡化 */
+const devShort=id=>id.slice(0,6).toUpperCase();
+const hwShort=h=>(h.slice(0,3)+'-'+h.slice(4,10)).toUpperCase();
+function devVia(id){const d=kDevs[id];if(!d)return null;if(d.hwId&&hwDevs[d.hwId]?.approved)return 'hw';return d.approved?'code':null}
+function renderKiosk(){
+  const devs=Object.entries(kDevs).sort((a,b)=>(a[1].hwId||'~'+a[0]).localeCompare(b[1].hwId||'~'+b[0])||(b[1].at||0)-(a[1].at||0));
+  const newest={};devs.forEach(([id,d])=>{if(d.hwId&&!(d.hwId in newest))newest[d.hwId]=id});
+  const wait=devs.filter(([id])=>!devVia(id)).length;
+  $('#kioskCount').textContent=`共 ${devs.length} 個代碼${wait?`，等待核准 ${wait} 個`:''}`;
+  $('#kioskTable').innerHTML='<thead><tr><th>裝置代碼</th><th>裝置編號</th><th>名稱</th><th>狀態</th><th>登記時間</th><th></th></tr></thead><tbody>'+
+    (devs.length?devs.map(([id,d])=>{
+      const h=d.hwId?hwDevs[d.hwId]:null,via=devVia(id),old=d.hwId&&newest[d.hwId]!==id;
+      const st=via==='hw'?'<span class="chip ok">已核准（裝置編號）</span>':via==='code'?'<span class="chip ok">已核准（代碼）</span>':'<span class="chip wait">等待核准</span>';
+      return `<tr data-id="${esc(id)}"${old?' class="old"':''}><td class="nw"><b>${esc(devShort(id))}</b>${old?'<div class="sub">同一台平板的舊代碼</div>':''}</td>
+        <td class="nw">${d.hwId?`<b>${esc(hwShort(d.hwId))}</b>${d.model?`<div class="sub">${esc(d.model)}</div>`:''}`:'<span class="sub">—（瀏覽器開啟）</span>'}</td>
+        <td>${esc(d.name||h?.name||'（未命名）')}</td><td class="nw">${st}</td><td class="nw">${esc(fmtAt(d.at))}</td>
+        <td class="nw">${via?'<button class="btn-sm" data-kx="off">停用</button>':'<button class="btn-sm btn-primary" data-kx="ok">核准</button>'} <button class="btn-sm" data-kx="name">改名稱</button> <button class="btn-sm btn-danger" data-kx="del">刪除</button></td></tr>`;
+    }).join(''):'<tr><td colspan="6" class="empty">還沒有打卡裝置。在平板開啟打卡 App 後，這裡會出現等待核准的裝置。</td></tr>')+'</tbody>';
+}
+$('#kioskTable').addEventListener('click',e=>{
+  const b=e.target.closest('[data-kx]');if(!b)return;
+  const id=b.closest('tr').dataset.id,d=kDevs[id];if(!d)return;const h=d.hwId?hwDevs[d.hwId]:null,x=b.dataset.kx;
+  if(x==='ok')modal(`<h3>核准打卡裝置</h3><p>裝置代碼 <b>${esc(devShort(id))}</b>${d.hwId?`、裝置編號 <b>${esc(hwShort(d.hwId))}</b>${d.model?`（${esc(d.model)}）`:''}`:''}。請確認和平板上顯示的一樣。</p>
+      <p><input id="mNm" style="width:100%" value="${esc(d.name||h?.name||'')}" placeholder="裝置名稱，例如：櫃台平板"></p>
+      ${d.hwId?`<label class="opt"><input type="radio" name="mHow" value="hw" checked><span><b>綁定裝置編號（建議）</b><br><span class="sub">這台平板之後代碼變了（清除資料、重裝 App）也自動沿用，不用再核准</span></span></label>
+        <label class="opt"><input type="radio" name="mHow" value="code"><span><b>只核准這個代碼</b><br><span class="sub">代碼變了要重新核准</span></span></label>`:'<p class="hint">這台裝置是用瀏覽器開啟，沒有裝置編號，只能以代碼核准。</p>'}`,
+    m=>{const name=m.querySelector('#mNm').value.trim()||'打卡裝置',how=m.querySelector('[name=mHow]:checked')?.value||'code',by={approvedBy:me,approvedAt:Date.now()};
+      if(how==='hw')run(Promise.all([DB.hw(d.hwId,{at:Date.now(),...(h||{}),approved:true,name,model:d.model||h?.model||'',...by}),DB.dev(id,{...d,name})]),'已核准，裝置會自動進入打卡模式');
+      else run(DB.dev(id,{...d,approved:true,name,...by}),'已核准，裝置會自動進入打卡模式');},'核准');
+  if(x==='off'){const via=devVia(id);
+    if(via==='hw'){const codes=Object.entries(kDevs).filter(([,y])=>y.hwId===d.hwId);
+      modal(`<h3>停用打卡裝置</h3><p>這台平板是以裝置編號 <b>${esc(hwShort(d.hwId))}</b> 核准的。停用後，這台平板${codes.length>1?`（共 ${codes.length} 個代碼）`:''}都不能打卡，直到重新核准。</p>`,
+        ()=>{run(Promise.all([DB.hw(d.hwId,{...hwDevs[d.hwId],approved:false}),...codes.filter(([,y])=>y.approved).map(([k,y])=>DB.dev(k,{...y,approved:false}))]),'已停用這台裝置');},'停用',true);}
+    else run(DB.dev(id,{...d,approved:false}),'已停用這台裝置');}
+  if(x==='name')modal(`<h3>裝置名稱</h3><input id="mNm" style="width:100%" value="${esc(d.name||h?.name||'')}">`,
+    m=>{const name=m.querySelector('#mNm').value.trim();run(Promise.all([DB.dev(id,{...d,name}),...(h?[DB.hw(d.hwId,{...h,name})]:[])]),'已改名稱');},'儲存');
+  if(x==='del')modal(`<h3>刪除裝置代碼</h3><p>刪除代碼 <b>${esc(devShort(id))}</b>。${devVia(id)==='hw'?'這台平板已綁定裝置編號，重新開啟 App 會自動以新代碼恢復；要讓它不能打卡請改按「停用」。':'刪除後這個代碼無法打卡；之後重新開啟 App 會再出現在等待核准的清單。'}</p>`,
+    ()=>{run(DB.dev(id,null),'已刪除');},'刪除',true);
+});
+
+/* ====== 對話框 ====== */
+function modal(html,onOk,okLabel='確定',danger=false){
+  const bg=document.createElement('div');bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal">${html}<div class="acts"><button type="button" data-x="cancel">取消</button><button type="button" class="${danger?'btn-danger':'btn-primary'}" data-x="ok">${esc(okLabel)}</button></div></div>`;
+  document.body.appendChild(bg);bg.querySelector('input')?.focus();
+  bg.addEventListener('click',e=>{if(e.target===bg||e.target.closest('[data-x="cancel"]'))bg.remove();if(e.target.closest('[data-x="ok"]')&&onOk(bg.querySelector('.modal'))!==false)bg.remove()});
+}
+
+/* ====== 登入：只有排班超級管理員（OWNER_EMAILS 或 access/{Gmail}.perm == 'super'） ====== */
+function showGate(kind,email){
+  const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
+  if(kind==='loading'){msg.textContent='連線中…';acts.innerHTML='';return}
+  if(kind==='signin'){msg.textContent='請用 Google 帳號登入（與排班系統相同的帳號）。';acts.innerHTML='<button class="btn-primary" id="gSignIn">使用 Google 登入</button>';$('#gSignIn').onclick=signIn;return}
+  if(kind==='error'){msg.textContent=email;acts.innerHTML='<button id="gReload">重新整理</button>';$('#gReload').onclick=()=>location.reload();return}
+  msg.innerHTML=`你的帳號 <span class="who">${esc(email)}</span> 不是超級管理員，不能使用設備認證。<br>如需核准設備，請洽診所的超級管理員。`;
+  acts.innerHTML='<button id="gOther">改用其他帳號登入</button>';$('#gOther').onclick=signOut;
+}
+async function signIn(){
+  const pr=new firebase.auth.GoogleAuthProvider();pr.setCustomParameters({prompt:'select_account'});
+  try{await firebase.auth().signInWithPopup(pr)}
+  catch(e){if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-environment')return firebase.auth().signInWithRedirect(pr);
+    if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')alert('登入失敗：'+e.message)}
+}
+async function signOut(){if(window.firebase&&firebase.apps.length)await firebase.auth().signOut();location.reload()}
+$('#signOutBtn').addEventListener('click',signOut);
+function afterLogin(){$('#gate').hidden=true;$('#me').hidden=false;$('#meEmail').textContent=me;renderTp();renderKiosk()}
+function bootCloud(){
+  if(!window.firebase){showGate('error','無法載入登入元件，請確認網路連線後重新整理。');return}
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});
+  if(window.ReadCounter)ReadCounter.install(fs,()=>me,'設備認證');
+  showGate('loading');
+  firebase.auth().onAuthStateChanged(async u=>{
+    if(!u||u.isAnonymous){if(u)await firebase.auth().signOut();showGate('signin');return}
+    me=(u.email||'').toLowerCase();
+    const owner=(window.OWNER_EMAILS||[]).some(x=>x.toLowerCase()===me);
+    let acc=null;try{const s=await fs.doc('access/'+me).get();acc=s.exists?s.data():null}catch(e){console.error(e)}
+    if(!owner&&acc?.perm!=='super'){showGate('nosuper',me);return}
+    afterLogin();
+    const err=e=>{console.warn(e);toast('讀取失敗：'+permErr(e))};
+    const to=snap=>{const m={};snap.docs.forEach(d=>m[d.id]=d.data());return m};
+    fs.collection('tpDevices').onSnapshot(s=>{tpDevs=to(s);renderTp()},err);
+    fs.collection('devices').onSnapshot(s=>{kDevs=to(s);renderKiosk()},err);
+    fs.collection('hw').onSnapshot(s=>{hwDevs=to(s);renderKiosk()},err);
+  });
+}
+// 本機模式：沒有資料時放兩筆示範用的設備申請
+function loadLocal(){const k=ld(KIOSK_KEY);tpDevs=ld(TPDEV_KEY);kDevs=k.devices||{};hwDevs=k.hw||{};renderTp();renderKiosk()}
+function bootLocal(){
+  me='本機測試';
+  if(!localStorage.getItem(TPDEV_KEY))sv(TPDEV_KEY,{'demoUidAAAAAA':{name:'診間平板',code:'AAAAAA',approved:false,from:'cs',reqAt:Date.now()-3600e3},'demoUidBBBBBB':{name:'櫃台平板',code:'BBBBBB',approved:true,reqAt:Date.now()-86400e3,approvedBy:'本機測試',approvedAt:Date.now()-80000e3}});
+  const k=ld(KIOSK_KEY);if(!k.devices){k.devices={'kioskcode01':{name:'',approved:false,at:Date.now(),hwId:'abc12345678x',model:'iPad (示範)'}};sv(KIOSK_KEY,k)}
+  afterLogin();loadLocal();addEventListener('storage',e=>{if(e.key===KIOSK_KEY||e.key===TPDEV_KEY)loadLocal()});
+}
+if(window.FIREBASE_CONFIG)bootCloud();else bootLocal();
+</script>
+</body>
+</html>

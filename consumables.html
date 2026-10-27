@@ -148,6 +148,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
   <h1>新海美學牙醫・耗材登記</h1>
   <div class="head-r">
     <button id="cfgBtn" hidden>⚙ 耗材種類</button>
+    <button id="devBtn" hidden title="打卡裝置、治療計劃單與耗材的設備認證（只有超級管理員）">🔐 設備認證</button>
     <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip perm" id="mePerm"></span> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
   </div>
 </header>
@@ -229,6 +230,7 @@ const ST={pending:'待醫師確認',rejected:'醫師退回',confirmed:'已確認
 const LEGACY_LV={view:'view',self:'edit',manage:'edit',super:'admin'},LEGACY_VIEW={tp:'view',cs:'none'};
 const appLv=(acc,k)=>!acc||acc.perm==='suspended'?'none':(acc[k]||(acc.perm==='view'?LEGACY_VIEW[k]:LEGACY_LV[acc.perm])||'none');
 let fs=null,me='',mySid='',PERM='admin';
+let SCHED_SUPER=false; // 排班超級管理員：顯示「設備認證」按鈕（devices.html）
 const canEdit=()=>['edit','admin','device'].includes(PERM); // 可以登記、修改、刪除未確認的耗材
 const canCfg=()=>PERM==='admin';                            // 耗材管理：設定耗材種類、刪除已確認的紀錄
 let staff=[];           // 排班系統的人員名單 {id,role,code,name,active}
@@ -401,7 +403,7 @@ function startCloud(){
   subscribeMonth();
 }
 function bootLocal(){
-  const m=location.search.match(/[?&]perm=(view|edit|admin|device|self|manage|super)/);PERM=m?(LEGACY_LV[m[1]]||m[1]):'admin';me='本機測試';
+  const m=location.search.match(/[?&]perm=(view|edit|admin|device|self|manage|super)/);PERM=m?(LEGACY_LV[m[1]]||m[1]):'admin';me='本機測試';SCHED_SUPER=PERM==='admin';
   const as=location.search.match(/[?&]as=([\w-]+)/);mySid=as?as[1]:'';
   const loadAll=()=>{
     let r=null;try{r=JSON.parse(localStorage.getItem(ROSTER_KEY)||'null')}catch(e){}
@@ -441,7 +443,7 @@ function afterLogin(){
   $('#meEmail').textContent=PERM==='device'?me:myName();
   $('#mePerm').textContent={view:'檢視',edit:'登記',admin:'管理',device:'認證設備'}[PERM]||PERM;
   $('#signOutBtn').textContent=PERM==='device'?'退出設備模式':'登出';
-  $('#form').hidden=!canEdit();$('#cfgBtn').hidden=!canCfg();
+  $('#form').hidden=!canEdit();$('#cfgBtn').hidden=!canCfg();$('#devBtn').hidden=!SCHED_SUPER;
   if(!$('#fDate').value)$('#fDate').value=today();
   $('#vMonth').value=view.month;
   render();
@@ -589,6 +591,7 @@ function exportExcel(sortBy){
   const tag=[view.item,view.doc&&byId(view.doc)?.name,view.st!=='all'&&$('#vSt').selectedOptions[0].text.replace(/（.*）/,'')].filter(Boolean).join('_');
   XLSX.writeFile(wb,`耗材登記_${view.month}${tag?'_'+tag:''}.xlsx`.replace(/[\\/:*?"<>|]/g,'-'));
 }
+$('#devBtn').addEventListener('click',()=>window.open('devices.html','_blank'));
 $('#vSt').addEventListener('change',e=>{view.st=e.target.value;render()});
 function setMonth(ym){view.month=ym;subscribeMonth();render()}
 $('#vMonth').addEventListener('change',e=>{if(!e.target.value){e.target.value=view.month;return}setMonth(e.target.value)});
@@ -710,25 +713,27 @@ async function handleDevice(u){
   try{const s=await ref.get();d=s.exists?s.data():null}catch(e){console.error(e)}
   const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
   if(!d){
-    msg.innerHTML=`申請把這台設備設為「認證設備」（與治療計劃單共用）。<br>核准後開啟本頁不需要 Google 登入，可以登記耗材。<br>設備代碼：<span class="who">${devCode(u.uid)}</span>`;
+    msg.innerHTML=`申請把這台設備設為「認證設備」。<br>核准後開啟本頁不需要 Google 登入，可以登記耗材。<br>設備代碼：<span class="who">${devCode(u.uid)}</span>`;
     acts.innerHTML=`<input id="devName" placeholder="設備名稱，例如：診間平板" style="width:100%;margin:6px 0"><br><button class="btn-primary" id="devSend">送出申請</button> <button id="devCancel">改用 Google 登入</button>`;
     $('#devCancel').onclick=signOut;
     $('#devSend').onclick=async()=>{
       const name=$('#devName').value.trim();if(!name){alert('請輸入設備名稱');return}
       $('#devSend').disabled=true;
-      try{await ref.set({name,code:devCode(u.uid),approved:false,reqAt:Date.now(),ua:navigator.userAgent.slice(0,200)});handleDevice(u)}
+      try{await ref.set({name,code:devCode(u.uid),approved:false,from:'cs',reqAt:Date.now(),ua:navigator.userAgent.slice(0,200)});handleDevice(u)}
       catch(e){alert('申請失敗：'+(e.code||e.message));$('#devSend').disabled=false}
     };
     return;
   }
-  if(!d.approved){
-    msg.innerHTML=`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請治療計劃單管理者到「治療計劃單 → ⚙ → 設備認證」核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
+  // 耗材與治療計劃單分開開通：approved＋cs 不是 false 才能登記耗材（舊設備沒有 cs 欄位，視為已開通）
+  if(!d.approved||d.cs===false){
+    msg.innerHTML=d.approved?`這台設備（<span class="who">${esc(d.name)}</span>）已認證，但還沒開通耗材登記。<br>請超級管理員到「設備認證」頁開通，設備代碼：<span class="who">${devCode(u.uid)}</span><br>開通後本頁會自動開啟。`
+      :`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請超級管理員到「設備認證」頁核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
     acts.innerHTML='<button id="devCancel">改用 Google 登入</button>';$('#devCancel').onclick=signOut;
-    ref.onSnapshot(s=>{if(s.exists&&s.data().approved)location.reload()},()=>{});
+    ref.onSnapshot(s=>{const x=s.exists&&s.data();if(x&&x.approved&&x.cs!==false)location.reload()},()=>{});
     return;
   }
   PERM='device';me='設備：'+d.name;
-  ref.onSnapshot(s=>{if(!s.exists||!s.data().approved)location.reload()},()=>location.reload());
+  ref.onSnapshot(s=>{const x=s.exists&&s.data();if(!x||!x.approved||x.cs===false)location.reload()},()=>location.reload());
   startCloud();
 }
 function bootCloud(){
@@ -746,7 +751,7 @@ function bootCloud(){
     let acc=null;try{const s=await fs.doc('access/'+me).get();acc=s.exists?s.data():null}catch(e){console.error(e)}
     if(!owner&&!acc){showGate('pending',me);fs.doc('access/'+me).onSnapshot(s=>{if(s.exists)location.reload()},()=>{});return}
     if(!owner&&acc.perm==='suspended'){showGate('suspended',me);return}
-    PERM=owner?'admin':appLv(acc,'cs');mySid=acc?.staffId||'';
+    PERM=owner?'admin':appLv(acc,'cs');mySid=acc?.staffId||'';SCHED_SUPER=owner||acc.perm==='super';
     if(PERM==='none'){showGate('error',`你的帳號沒有耗材系統的權限。醫師確認自己的耗材請到排班系統的「耗材確認」分頁；其他需求請洽診所管理者在排班系統「人員名單 → 權限」開通。`);return}
     startCloud();
   });
