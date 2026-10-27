@@ -19,6 +19,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="read-counter.js"></script>
+<script src="device-modal.js"></script>
 <script>
 // Firebase 專案設定（Firebase 主控台 → 專案設定 → 你的應用程式）。設為 null 時改用本機 localStorage 模式。
 window.FIREBASE_CONFIG = {
@@ -990,7 +991,7 @@ body.gated .shell{display:none;}
           <div id="attRules"></div>
         </div>
         <div class="card" id="devCard">
-          <div class="lv-title-row"><h2 style="margin:0">打卡裝置</h2><span style="flex:1"></span><a class="small btn-link" href="devices.html" target="_blank" rel="noopener" id="devPageLink" hidden title="打卡裝置、治療計劃單與耗材的設備認證（只有超級管理員）">🔐 設備認證頁</a> <a class="small btn-link" href="app.html" target="_blank" rel="noopener">下載打卡 App（最新版）</a></div>
+          <div class="lv-title-row"><h2 style="margin:0">打卡裝置</h2><span style="flex:1"></span><a class="small btn-link" href="devices.html" onclick="openDevicesModal();return false" id="devPageLink" hidden title="打卡裝置、治療計劃單與耗材的設備認證（只有超級管理員）">🔐 設備認證頁</a> <a class="small btn-link" href="app.html" target="_blank" rel="noopener">下載打卡 App（最新版）</a></div>
           <p class="desc">在診所的平板開啟「新海打卡」App（或 <code id="kioskUrl"></code>），畫面會顯示裝置代碼，在這裡核准後才能打卡。臉部登錄在打卡裝置上進行（右上角 ⚙，需要下面的管理密碼）。</p>
           <div class="scroll-x"><table class="list" id="devTable"></table></div>
           <form class="form-row" id="kioskPinForm" style="margin-top:12px">

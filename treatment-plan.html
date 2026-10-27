@@ -603,6 +603,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="read-counter.js"></script>
+<script src="device-modal.js"></script>
 <script>
 // 與排班系統（index.html）共用同一個 Firebase 專案、Google 登入與權限（access/{Gmail}.perm）
 window.FIREBASE_CONFIG = {
@@ -2365,7 +2366,7 @@ function devicePane(){
   const n=tpDevices.filter(x=>!x.approved).length;
   return `<p class="hint">打卡裝置、治療計劃單與耗材的設備認證，統一在「設備認證」頁核准（只有超級管理員）。同一台平板可以分別開通治療計劃單與耗材。</p>
   <p>${n?`目前有 <b>${n}</b> 台設備等待核准。`:'目前沒有等待核准的設備。'}</p>
-  <p><a class="btn-primary" style="display:inline-block;padding:8px 14px;border-radius:6px;text-decoration:none" href="devices.html" target="_blank" rel="noopener">開啟設備認證頁 ↗</a></p>`;
+  <p><a class="btn-primary" style="display:inline-block;padding:8px 14px;border-radius:6px;text-decoration:none" href="devices.html" onclick="openDevicesModal();return false">開啟設備認證</a></p>`;
 }
 
 /* ====== 啟動：Google 登入 → 權限（沿用排班系統）→ 雲端即時同步 ====== */

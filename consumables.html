@@ -127,6 +127,7 @@ tr.editing td{background:var(--accent-soft)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="read-counter.js"></script>
+<script src="device-modal.js"></script>
 <script>
 // 與排班系統（index.html）共用同一個 Firebase 專案、Google 登入與權限（access/{Gmail}.perm）
 window.FIREBASE_CONFIG = {
@@ -591,7 +592,7 @@ function exportExcel(sortBy){
   const tag=[view.item,view.doc&&byId(view.doc)?.name,view.st!=='all'&&$('#vSt').selectedOptions[0].text.replace(/（.*）/,'')].filter(Boolean).join('_');
   XLSX.writeFile(wb,`耗材登記_${view.month}${tag?'_'+tag:''}.xlsx`.replace(/[\\/:*?"<>|]/g,'-'));
 }
-$('#devBtn').addEventListener('click',()=>window.open('devices.html','_blank'));
+$('#devBtn').addEventListener('click',()=>openDevicesModal()); // 設備認證用彈窗開啟（device-modal.js），不另開分頁
 $('#vSt').addEventListener('change',e=>{view.st=e.target.value;render()});
 function setMonth(ym){view.month=ym;subscribeMonth();render()}
 $('#vMonth').addEventListener('change',e=>{if(!e.target.value){e.target.value=view.month;return}setMonth(e.target.value)});
