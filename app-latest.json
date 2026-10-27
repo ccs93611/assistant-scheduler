@@ -1,10 +1,24 @@
 {
   "android": {
     "version": "1.0.0",
-    "build": 3,
-    "builtAt": "2026-10-23T08:52:02.667Z",
-    "url": "https://expo.dev/artifacts/eas/oXpH_wJX70zbQfJHaCSgxEhs3rzbHPr9XdgQd1qGrFg.apk",
-    "notes": "改用新網址 shinyhi-dental.vercel.app"
+    "build": 4,
+    "builtAt": "2026-10-27T16:47:25.896Z",
+    "url": "https://expo.dev/artifacts/eas/-2ET6VVRagUDf2CvHR1w9Vco19GqjyuOjcc7mGhHrdM.apk",
+    "notes": "App 圖示改為黑色系"
   },
-  "ios": null
+  "ios": null,
+  "cs": {
+    "version": "1.0.0",
+    "build": 3,
+    "builtAt": "2026-10-27T16:50:56.551Z",
+    "url": "https://expo.dev/artifacts/eas/t-Ljcp2lw3B7cM9ZhcfigUr-8MvjjFi1CxzyjhteMa4.apk",
+    "notes": "第一版：耗材登記 App，讀取裝置編號（與打卡 App 同一台平板編號相同）"
+  },
+  "tp": {
+    "version": "1.0.0",
+    "build": 4,
+    "builtAt": "2026-10-27T17:35:06.058Z",
+    "url": "https://expo.dev/artifacts/eas/Z1JHUh3svGIQviD36b9AHgnf2i3Or6Uw_bJXiKNUfLg.apk",
+    "notes": "改用與打卡 App 相同的簽章金鑰（同一台平板裝置編號相同）；舊版請先移除再安裝"
+  }
 }
