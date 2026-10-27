@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "新海治療計劃單",
+    "slug": "xinhai-treatment-plan",
+    "owner": "shinyhi",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F4F7F8",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "tw.xinhai.tp",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "拍攝收據照片時需要使用相機。",
+        "NSPhotoLibraryUsageDescription": "上傳收據照片時需要讀取相簿。",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "tw.xinhai.tp",
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#C7D3EA"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1b76b036-8936-492f-8b23-56eb58130368"
+      }
+    }
+  }
+}

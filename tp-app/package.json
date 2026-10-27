@@ -1,0 +1,22 @@
+{
+  "name": "xinhai-treatment-plan",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "build:apk": "eas build -p android --profile preview",
+    "build:ios": "eas build -p ios --profile preview"
+  },
+  "dependencies": {
+    "expo": "^57.0.26",
+    "expo-application": "~57.0.3",
+    "expo-device": "~57.0.2",
+    "expo-print": "~57.0.2",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-webview": "13.16.1"
+  }
+}

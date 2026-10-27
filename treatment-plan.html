@@ -2304,33 +2304,51 @@ async function deviceApply(){
   try{await firebase.auth().signInAnonymously()} // 之後由 onAuthStateChanged 接手（顯示申請表）
   catch(e){showGate('error',e.code==='auth/operation-not-allowed'?'Firebase 尚未啟用「匿名」登入方式，請管理者到 Firebase 主控台 → Authentication → 登入方式 啟用「匿名」。':'無法連線：'+(e.code||e.message))}
 }
+// 「新海治療計劃單」App 交給網頁的裝置編號（window.APP_HW＝{id, platform, model}，與「新海耗材」App 相同；用瀏覽器開啟時沒有）。
+// 雙軌核准，任一成立即可：tpDevices/{uid} 核准（設備代碼）或 tpHw/{裝置編號} 核准（綁定裝置編號；清除資料、重裝 App 代碼變了也沿用）
+const TP_HW=window.APP_HW&&window.APP_HW.id?window.APP_HW:null;
+const hwShort=h=>(h.slice(0,3)+'-'+h.slice(4,10)).toUpperCase();
+const tpOn=x=>!!x&&x.approved&&x.tp!==false; // 治療計劃單與耗材分開開通：approved＋tp 不是 false（舊設備沒有 tp 欄位，視為已開通）
 async function handleDevice(u){
-  const ref=fs.doc('tpDevices/'+u.uid);let d=null;
+  const ref=fs.doc('tpDevices/'+u.uid);let d=null,h=null;
   try{const s=await ref.get();d=s.exists?s.data():null}catch(e){console.error(e)}
+  // App：先把裝置編號登記在設備紀錄上（還沒有紀錄就先建一筆待核准、沒有名稱的），之後才讀得到這台平板是否已用裝置編號核准
+  if(TP_HW&&(!d||d.hwId!==TP_HW.id)){
+    try{
+      if(!d){d={name:'',code:devCode(u.uid),approved:false,from:'tp',reqAt:Date.now(),ua:navigator.userAgent.slice(0,200),hwId:TP_HW.id,model:TP_HW.model||''};await ref.set(d)}
+      else{await ref.update({hwId:TP_HW.id,model:TP_HW.model||''});d={...d,hwId:TP_HW.id,model:TP_HW.model||''}}
+    }catch(e){console.error(e)}
+  }
+  const hwRef=d&&d.hwId?fs.doc('tpHw/'+d.hwId):null;
+  if(hwRef){try{const s=await hwRef.get();h=s.exists?s.data():null}catch(e){console.warn(e)}}
+  const ids=`設備代碼：<span class="who">${devCode(u.uid)}</span>${d&&d.hwId?`<br>裝置編號：<span class="who">${hwShort(d.hwId)}</span>`:''}`;
+  const back=TP_HW?'':' <button id="devCancel">改用 Google 登入</button>'; // App 裡不能用 Google 登入
   const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
-  if(!d){
-    msg.innerHTML=`申請把這台設備設為「認證設備」。<br>核准後開啟本頁不需要 Google 登入，可以開單、編輯，只能刪除未定案的單。<br>設備代碼：<span class="who">${devCode(u.uid)}</span>`;
-    acts.innerHTML=`<input id="devName" placeholder="設備名稱，例如：櫃台平板" style="width:100%;margin:6px 0"><br><button class="btn-primary" id="devSend">送出申請</button> <button id="devCancel">改用 Google 登入</button>`;
-    $('#devCancel').onclick=signOut;
+  if(!tpOn(d)&&!tpOn(h)&&(!d||!d.name)){
+    msg.innerHTML=`申請把這台設備設為「認證設備」。<br>核准後開啟本頁不需要 Google 登入，可以開單、編輯，只能刪除未定案的單。<br>${ids}`;
+    acts.innerHTML=`<input id="devName" placeholder="設備名稱，例如：櫃台平板" style="width:100%;margin:6px 0"><br><button class="btn-primary" id="devSend">送出申請</button>${back}`;
+    if(!TP_HW)$('#devCancel').onclick=signOut;
     $('#devSend').onclick=async()=>{
       const name=$('#devName').value.trim();if(!name){alert('請輸入設備名稱');return}
       $('#devSend').disabled=true;
-      try{await ref.set({name,code:devCode(u.uid),approved:false,from:'tp',reqAt:Date.now(),ua:navigator.userAgent.slice(0,200)});handleDevice(u)}
+      try{if(d)await ref.update({name});else await ref.set({name,code:devCode(u.uid),approved:false,from:'tp',reqAt:Date.now(),ua:navigator.userAgent.slice(0,200)});handleDevice(u)}
       catch(e){alert('申請失敗：'+(e.code||e.message));$('#devSend').disabled=false}
     };
     return;
   }
-  // 治療計劃單與耗材分開開通：approved＋tp 不是 false 才能用治療計劃單（舊設備沒有 tp 欄位，視為已開通）
-  if(!d.approved||d.tp===false){
-    msg.innerHTML=d.approved?`這台設備（<span class="who">${esc(d.name)}</span>）已認證，但還沒開通治療計劃單。<br>請超級管理員到「設備認證」頁開通，設備代碼：<span class="who">${devCode(u.uid)}</span><br>開通後本頁會自動開啟。`
-      :`已送出設備認證申請（<span class="who">${esc(d.name)}</span>）。<br>請超級管理員到「設備認證」頁核准，設備代碼：<span class="who">${devCode(u.uid)}</span><br>核准後本頁會自動開啟。`;
-    acts.innerHTML='<button id="devCancel">改用 Google 登入</button>';$('#devCancel').onclick=signOut;
-    ref.onSnapshot(s=>{const x=s.exists&&s.data();if(x&&x.approved&&x.tp!==false)location.reload()},()=>{});
-    return;
+  // 狀態有變（核准、關閉、撤銷、刪除）就重新整理
+  const watch=on=>{let a=tpOn(d),b=tpOn(h);const chk=()=>{if((a||b)!==on)location.reload()};
+    ref.onSnapshot(s=>{a=tpOn(s.exists&&s.data());chk()},()=>{if(on)location.reload()});
+    if(hwRef)hwRef.onSnapshot(s=>{b=tpOn(s.exists&&s.data());chk()},()=>{})};
+  if(!tpOn(d)&&!tpOn(h)){
+    const nm=esc(d.name||h?.name||'');
+    msg.innerHTML=(d.approved||h?.approved)?`這台設備（<span class="who">${nm}</span>）已認證，但還沒開通治療計劃單。<br>請超級管理員到「設備認證」頁開通，${ids}<br>開通後本頁會自動開啟。`
+      :`已送出設備認證申請（<span class="who">${nm}</span>）。<br>請超級管理員到「設備認證」頁核准，${ids}<br>核准後本頁會自動開啟。`;
+    acts.innerHTML=back;if(!TP_HW)$('#devCancel').onclick=signOut;
+    watch(false);return;
   }
-  PERM='device';me='設備：'+d.name;
-  // 被撤銷、關閉治療計劃單或刪除時立刻停用
-  ref.onSnapshot(s=>{const x=s.exists&&s.data();if(!x||!x.approved||x.tp===false)location.reload()},()=>location.reload());
+  PERM='device';me='設備：'+(d.name||h?.name||devCode(u.uid));
+  watch(true); // 被撤銷、關閉治療計劃單或刪除時立刻停用
   startCloud();
 }
 // 設備認證（打卡、治療計劃單、耗材）統一在 devices.html，只有排班超級管理員能核准；這裡只顯示待核准數量與連結
@@ -2358,6 +2376,7 @@ function showGate(kind,email){
   const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
   if(kind==='loading'){msg.textContent='連線中…';acts.innerHTML='';return}
   if(kind==='signin'){
+    if(TP_HW){deviceApply();return} // App 裡不能用 Google 登入，直接以認證設備（匿名）開啟
     msg.textContent=/FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent)?'App 內建的瀏覽器無法使用 Google 登入，請點右上角「⋯」選擇用 Safari 或 Chrome 開啟。':'請用 Google 帳號登入（與排班系統相同的帳號）。';
     acts.innerHTML='<button class="btn-primary" id="gSignIn">使用 Google 登入</button><div style="margin-top:14px"><button class="btn-sm btn-ghost" id="gDevice">這台設備申請認證（免登入）</button></div>';$('#gSignIn').onclick=signIn;$('#gDevice').onclick=deviceApply;return;
   }
