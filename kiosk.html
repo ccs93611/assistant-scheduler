@@ -670,7 +670,7 @@ function faceQuality(f,video){
   const w=f.box?.[2]||0,vw=video.videoWidth||1;
   if((f.faceScore??f.score??0)<0.75)return 'weak';
   if(w<vw*0.18)return 'far';
-  if(settings.noScreen&&w>vw*0.6)return 'near'; // 太近時看不到手機邊框，請退後一點
+  if(settings.noScreen&&w>vw*0.7)return 'near'; // 臉寬超過畫面 70% 才請退後（原本 60% 要站太遠）；太近時看不到手機邊框
   const a=f.rotation?.angle||{};
   if(Math.abs(a.yaw||0)>0.4||Math.abs(a.pitch||0)>0.4)return 'turn';
   if(!f.embedding||!f.embedding.length)return 'weak';
