@@ -2366,7 +2366,8 @@ function devicePane(){
   const n=tpDevices.filter(x=>!x.approved).length;
   return `<p class="hint">打卡裝置、治療計劃單與耗材的設備認證，統一在「設備認證」頁核准（只有超級管理員）。同一台平板可以分別開通治療計劃單與耗材。</p>
   <p>${n?`目前有 <b>${n}</b> 台設備等待核准。`:'目前沒有等待核准的設備。'}</p>
-  <p><a class="btn-primary" style="display:inline-block;padding:8px 14px;border-radius:6px;text-decoration:none" href="devices.html" onclick="openDevicesModal();return false">開啟設備認證</a></p>`;
+  <p><a class="btn-primary" style="display:inline-block;padding:8px 14px;border-radius:6px;text-decoration:none" href="devices.html" onclick="openDevicesModal();return false">開啟設備認證</a></p>
+  <p class="hint">平板可以安裝「新海治療計劃單」App（會讀取裝置編號，核准一次之後清除資料、重裝 App 都不用重新認證）：<a href="app-tp.html" target="_blank" rel="noopener">下載 App（最新版）</a></p>`;
 }
 
 /* ====== 啟動：Google 登入 → 權限（沿用排班系統）→ 雲端即時同步 ====== */
