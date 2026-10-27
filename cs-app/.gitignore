@@ -5,3 +5,7 @@ ios/
 *.apk
 *.aab
 *.ipa
+
+# 共用打卡 App 的 Android 簽章金鑰（不能上傳到 GitHub）
+credentials.json
+credentials/

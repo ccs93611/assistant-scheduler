@@ -325,6 +325,7 @@ npx eas-cli build -p ios --profile preview       # 需 Apple Developer 帳號，
 Expo（React Native）外殼，用 WebView 開啟正式網址的 `consumables.html`；只負責全螢幕、斷線自動重試，以及把裝置編號（Android ID／iOS identifierForVendor，與打卡 App 相同算法）交給網頁。App 裡不能用 Google 登入，打開後直接以認證設備申請。
 
 - 下載頁：`app-cs.html`（讀 `app-latest.json` 的 `cs` 欄位）。
+- 簽章金鑰：打卡、耗材、治療計劃單三個 App 共用打卡 App 的 Android 金鑰（Android 的裝置編號會隨金鑰不同而不同，共用後同一台平板在三個 App 讀到的裝置編號相同，設備認證頁只有一列）。耗材、治療計劃單 App 的 `eas.json` 設 `credentialsSource: "local"`，金鑰檔不上傳 GitHub；換電腦時在專案根目錄執行 `node cs-app/get-keystore.js cs-app tp-app` 從 Expo 帳號重新取得。
 - 建置：在 `cs-app` 執行 `npx eas-cli build -p android --profile preview`，完成後 `node set-latest.js "更新說明"` 更新 `app-latest.json`，再 commit／push。
 
 ## 耗材審核

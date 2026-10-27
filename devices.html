@@ -100,8 +100,9 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 <main>
   <section class="card">
     <h2>認證設備<span class="sp"></span><span class="sub" id="devCount"></span></h2>
-    <p class="hint">打卡：在平板開啟「新海打卡」App（或打卡網頁）。治療計劃單／耗材登記：在平板開啟該頁面，按「這台設備申請認證」。申請後會出現在這裡，畫面上的代碼要和平板顯示的一樣。<br>
-      勾選就是核准並開通該系統，取消勾選就是停用；同一台設備可以分別開通。認證設備在治療計劃單算「編輯」、在耗材算「登記」。打卡也可以在排班系統「出勤 → 打卡裝置」核准。<br>App 下載：<a href="app.html" target="_blank" rel="noopener">新海打卡</a>、<a href="app-cs.html" target="_blank" rel="noopener">新海耗材</a>（App 會帶裝置編號，建議「綁定裝置編號」核准，重裝 App 也不用重新認證）。</p>
+    <p class="hint">在平板開啟「新海打卡」或「新海耗材」App（或用瀏覽器開啟打卡、治療計劃單、耗材登記頁按「這台設備申請認證」），申請後會出現在這裡。<br>
+      App 會帶「裝置編號」，以裝置編號為一列，打卡、治療計劃單、耗材都能直接勾選開通，重裝 App 換了代碼也自動沿用；用瀏覽器開啟的設備沒有裝置編號，以代碼為一列。<br>
+      勾選就是核准並開通該系統，取消勾選就是停用。認證設備在治療計劃單算「編輯」、在耗材算「登記」。打卡也可以在排班系統「出勤 → 打卡裝置」核准。<br>App 下載：<a href="app.html" target="_blank" rel="noopener">新海打卡</a>、<a href="app-cs.html" target="_blank" rel="noopener">新海耗材</a>。</p>
     <div class="scroll-x"><table id="devTable"></table></div>
   </section>
 </main>
@@ -142,100 +143,91 @@ const DB={
 };
 const run=async(p,ok)=>{try{await p;if(ok)toast(ok)}catch(e){console.error(e);alert('操作失敗：'+permErr(e))}};
 
-/* ====== 認證設備：打卡（devices＋hw）與治療計劃單／耗材（tpDevices）合在同一張表 ======
-   tpDevices：approved 已認證；tp／cs 分別開通治療計劃單、耗材（舊設備沒有這兩個欄位，視為都開通）；from 從哪個頁面申請
-   打卡：雙軌核准，以裝置代碼（devices.approved）或以裝置編號（hw.approved，App 才有；代碼變了也沿用）；同一台平板的舊代碼淡化
-   兩邊都是匿名登入的 uid，同一個 uid 出現在兩邊時合成一列 */
+/* ====== 認證設備（打卡、治療計劃單、耗材合在同一張表）======
+   有裝置編號（App 才有）的設備以「裝置編號」為一列，不看代碼：打卡寫 hw/{裝置編號}、治療計劃單／耗材寫 tpHw/{裝置編號}（tp、cs），
+   這台平板的所有代碼（清除資料、重裝 App 後會換新代碼）都自動沿用；三種都能直接開通，不用等該 App 先申請。
+   沒有裝置編號（用瀏覽器開啟）的設備才以代碼為一列：打卡寫 devices/{uid}.approved、治療計劃單／耗材寫 tpDevices/{uid}（approved、tp、cs）。
+   舊設備沒有 tp／cs 欄位，視為都開通。 */
 const devCode=uid=>uid.slice(-6).toUpperCase();
 const devShort=id=>id.slice(0,6).toUpperCase();
 const hwShort=h=>(h.slice(0,3)+'-'+h.slice(4,10)).toUpperCase();
-const onTp=d=>!!d&&d.approved&&d.tp!==false,onCs=d=>!!d&&d.approved&&d.cs!==false;
-function devVia(id){const d=kDevs[id];if(!d)return null;if(d.hwId&&hwDevs[d.hwId]?.approved)return 'hw';return d.approved?'code':null}
 const SYS={k:'打卡',tp:'治療計劃單',cs:'耗材登記'};
+const APPS={k:'打卡 App',tp:'治療計劃單',cs:'耗材登記'};
 function rows(){
-  const newest={},newestT={};Object.entries(kDevs).sort((a,b)=>(b[1].at||0)-(a[1].at||0)).forEach(([id,d])=>{if(d.hwId&&!(d.hwId in newest))newest[d.hwId]=id});
-  Object.entries(tpDevs).sort((a,b)=>(b[1].reqAt||0)-(a[1].reqAt||0)).forEach(([id,d])=>{if(d.hwId&&!(d.hwId in newestT))newestT[d.hwId]=id});
-  return [...new Set([...Object.keys(tpDevs),...Object.keys(kDevs)])].map(uid=>{
-    const t=tpDevs[uid]||null,k=kDevs[uid]||null,h=k?.hwId?hwDevs[k.hwId]:null,th=t?.hwId?tpHws[t.hwId]||null:null;
-    // 治療計劃單／耗材：以裝置編號（tpHw）核准時看 tpHw 的 tp／cs，否則看 tpDevices
-    const tpVia=th?.approved?'hw':t?.approved?'code':null,src=tpVia==='hw'?th:t;
-    const on={k:k?!!devVia(uid):null,tp:t?(tpVia?src.tp!==false:false):null,cs:t?(tpVia?src.cs!==false:false):null};
-    // 等待核准：從來沒核准過的（停用過的不算）
-    const wait=(t&&!tpVia&&!t.approvedAt&&!th?.approvedAt)||(k&&!on.k&&!k.approvedAt&&!h?.approvedAt);
-    const old=!!(k?.hwId&&newest[k.hwId]!==uid)||!!(t?.hwId&&newestT[t.hwId]!==uid);
-    return {uid,t,k,h,th,tpVia,on,wait,old,at:Math.max(t?.reqAt||0,k?.at||0),name:t?.name||th?.name||k?.name||h?.name||''};
-  }).sort((a,b)=>(b.wait-a.wait)||(a.old-b.old)||(b.at-a.at));
+  const g=new Map(),get=key=>{if(!g.has(key))g.set(key,{key,kIds:[],tIds:[]});return g.get(key)};
+  Object.entries(kDevs).forEach(([id,d])=>get(d.hwId?'hw:'+d.hwId:'k:'+id).kIds.push(id));
+  Object.entries(tpDevs).forEach(([id,d])=>get(d.hwId?'hw:'+d.hwId:'t:'+id).tIds.push(id));
+  Object.keys(hwDevs).forEach(h=>get('hw:'+h));Object.keys(tpHws).forEach(h=>get('hw:'+h));
+  return [...g.values()].map(r=>{
+    const hid=r.key.startsWith('hw:')?r.key.slice(3):null;
+    const ks=r.kIds.map(id=>kDevs[id]),ts=r.tIds.map(id=>tpDevs[id]);
+    const h=hid?hwDevs[hid]||null:null,th=hid?tpHws[hid]||null:null,k=ks[0]||null,t=ts[0]||null;
+    let on;
+    if(hid)on={k:!!h?.approved||ks.some(x=>x.approved),tp:!!th?.approved&&th.tp!==false||ts.some(x=>x.approved&&x.tp!==false),cs:!!th?.approved&&th.cs!==false||ts.some(x=>x.approved&&x.cs!==false)};
+    else on={k:k?!!k.approved:null,tp:t?!!t.approved&&t.tp!==false:null,cs:t?!!t.approved&&t.cs!==false:null};
+    const everOk=[h,th,...ks,...ts].some(x=>x&&(x.approved||x.approvedAt));
+    const at=Math.max(0,...ks.map(x=>x.at||0),...ts.map(x=>x.reqAt||0),h?.at||0);
+    const model=k?.model||t?.model||h?.model||th?.model||'';
+    const name=th?.name||h?.name||t?.name||k?.name||'';
+    const from=[...(ks.length?['k']:[]),...new Set(ts.map(x=>x.from||'tp'))];
+    const by=[th,h,...ts,...ks].find(x=>x&&x.approved&&x.approvedBy);
+    return {...r,hid,h,th,k,t,ks,ts,on,wait:(ks.length||ts.length)&&!everOk,at,model,name,from,by};
+  }).sort((x,y)=>(y.wait-x.wait)||(y.at-x.at));
 }
 function renderDev(){
   const list=rows(),wait=list.filter(r=>r.wait).length;
   $('#devCount').textContent=`共 ${list.length} 台${wait?`，等待核准 ${wait} 台`:''}`;
-  const from={tp:'治療計劃單',cs:'耗材登記'};
   const box=(r,k)=>r.on[k]===null?'<span class="sub">—</span>':`<label class="sw" title="${r.on[k]?'取消勾選＝停用':'勾選＝核准'}${SYS[k]}"><input type="checkbox" data-sw="${k}" ${r.on[k]?'checked':''}></label>`;
-  $('#devTable').innerHTML='<thead><tr><th>設備</th><th>代碼</th><th>申請時間</th><th>狀態</th><th class="c">打卡</th><th class="c">治療<br>計劃單</th><th class="c">耗材</th><th></th></tr></thead><tbody>'+
+  $('#devTable').innerHTML='<thead><tr><th>設備</th><th>裝置編號／代碼</th><th>申請時間</th><th>狀態</th><th class="c">打卡</th><th class="c">治療<br>計劃單</th><th class="c">耗材</th><th></th></tr></thead><tbody>'+
     (list.length?list.map(r=>{
       const any=r.on.k||r.on.tp||r.on.cs;
-      const st=r.wait&&!any?'<span class="chip wait">等待核准</span>':any?`<span class="chip ok">已認證</span>${r.wait?'<div><span class="chip wait">另有系統待核准</span></div>':''}`:'<span class="chip off">已停用</span>';
-      const by=r.t?.approvedBy||r.k?.approvedBy||r.h?.approvedBy,byAt=r.t?.approvedAt||r.k?.approvedAt||r.h?.approvedAt;
-      const via=r.k?devVia(r.uid):null;
-      return `<tr data-uid="${esc(r.uid)}"${r.old?' class="old"':''}>
-        <td><b>${esc(r.name||'（未命名）')}</b>${r.k?.model?`<div class="sub">${esc(r.k.model)}</div>`:r.t?.ua?`<div class="sub" title="${esc(r.t.ua)}">${esc(r.t.ua.slice(0,28))}…</div>`:''}${r.old?'<div class="sub">同一台平板的舊代碼</div>':''}</td>
-        <td class="nw"><b>${esc(r.t?.code||(r.k?devShort(r.uid):devCode(r.uid)))}</b>${(r.k?.hwId||r.t?.hwId)?`<div class="sub">裝置編號 ${esc(hwShort(r.k?.hwId||r.t.hwId))}</div>`:''}</td>
-        <td>${esc(fmtAt(r.at))}${r.t?.from?`<div class="sub">從${esc(from[r.t.from]||r.t.from)}申請</div>`:r.k&&!r.t?'<div class="sub">打卡裝置</div>':''}</td>
-        <td>${st}${via==='hw'?'<div class="sub">打卡：綁定裝置編號</div>':via==='code'?'<div class="sub">打卡：核准代碼</div>':''}${r.tpVia==='hw'?'<div class="sub">計劃單／耗材：綁定裝置編號</div>':''}${any&&by?`<div class="sub">${esc(by)} ${esc(fmtAt(byAt))}</div>`:''}</td>
+      const st=r.wait?'<span class="chip wait">等待核准</span>':any?'<span class="chip ok">已認證</span>':'<span class="chip off">未開通</span>';
+      const n=r.ks.length+r.ts.length;
+      return `<tr data-key="${esc(r.key)}">
+        <td><b>${esc(r.name||'（未命名）')}</b>${r.model?`<div class="sub">${esc(r.model)}</div>`:''}</td>
+        <td class="nw">${r.hid?`<b>${esc(hwShort(r.hid))}</b><div class="sub">裝置編號</div>`:`<b>${esc(r.t?.code||(r.k?devShort(r.kIds[0]):devCode(r.tIds[0])))}</b><div class="sub">代碼（瀏覽器開啟）</div>`}</td>
+        <td>${r.at?esc(fmtAt(r.at)):'<span class="sub">—</span>'}${r.from.length?`<div class="sub">從${r.from.map(x=>APPS[x]||x).join('、')}申請</div>`:''}${r.hid&&n>1?`<div class="sub">有 ${n} 筆申請（重裝 App 會換代碼，都自動沿用）</div>`:''}</td>
+        <td>${st}${any&&r.by?`<div class="sub">${esc(r.by.approvedBy)} ${esc(fmtAt(r.by.approvedAt))}</div>`:''}</td>
         <td class="c">${box(r,'k')}</td><td class="c">${box(r,'tp')}</td><td class="c">${box(r,'cs')}</td>
         <td><div class="row-acts"><button class="btn-sm" data-x="name">改名稱</button><button class="btn-sm btn-danger" data-x="del">刪除</button></div></td></tr>`;
     }).join(''):'<tr><td colspan="8" class="empty">目前沒有設備。</td></tr>')+'</tbody>';
 }
-const findRow=uid=>rows().find(r=>r.uid===uid);
+const findRow=key=>rows().find(r=>r.key===key);
 // 勾選＝核准／開通；取消＝停用
 $('#devTable').addEventListener('change',e=>{
   const c=e.target.closest('[data-sw]');if(!c)return;
-  const r=findRow(c.closest('tr').dataset.uid);if(!r)return;const k=c.dataset.sw,nm=r.name||devCode(r.uid);
+  const r=findRow(c.closest('tr').dataset.key);if(!r)return;const k=c.dataset.sw,v=!r.on[k],label=SYS[k],nm=r.name||'這台設備';
   c.checked=!c.checked; // 先還原，確認後由資料更新畫面
-  if(k==='k'){
-    const d=r.k,h=r.h;
-    if(!r.on.k)modal(`<h3>核准打卡：${esc(nm)}</h3><p>裝置代碼 <b>${esc(devShort(r.uid))}</b>${d.hwId?`、裝置編號 <b>${esc(hwShort(d.hwId))}</b>${d.model?`（${esc(d.model)}）`:''}`:''}。請確認和平板上顯示的一樣。</p>
-        <p><input id="mNm" style="width:100%" value="${esc(r.name)}" placeholder="裝置名稱，例如：櫃台平板"></p>
-        ${d.hwId?`<label class="opt"><input type="radio" name="mHow" value="hw" checked><span><b>綁定裝置編號（建議）</b><br><span class="sub">這台平板之後代碼變了（清除資料、重裝 App）也自動沿用，不用再核准</span></span></label>
-          <label class="opt"><input type="radio" name="mHow" value="code"><span><b>只核准這個代碼</b><br><span class="sub">代碼變了要重新核准</span></span></label>`:'<p class="hint">這台裝置是用瀏覽器開啟，沒有裝置編號，只能以代碼核准。</p>'}`,
-      m=>{const name=m.querySelector('#mNm').value.trim()||'打卡裝置',how=m.querySelector('[name=mHow]:checked')?.value||'code',by={approvedBy:me,approvedAt:Date.now()};
-        if(how==='hw')run(Promise.all([DB.hw(d.hwId,{at:Date.now(),...(h||{}),approved:true,name,model:d.model||h?.model||'',...by}),DB.dev(r.uid,{...d,name})]),'已核准打卡');
-        else run(DB.dev(r.uid,{...d,approved:true,name,...by}),'已核准打卡');},'核准');
-    else if(devVia(r.uid)==='hw'){const codes=Object.entries(kDevs).filter(([,y])=>y.hwId===d.hwId);
-      modal(`<h3>停用打卡：${esc(nm)}</h3><p>這台平板是以裝置編號 <b>${esc(hwShort(d.hwId))}</b> 核准的。停用後，這台平板${codes.length>1?`（共 ${codes.length} 個代碼）`:''}都不能打卡，直到重新核准。</p>`,
-        ()=>{run(Promise.all([DB.hw(d.hwId,{...h,approved:false}),...codes.filter(([,y])=>y.approved).map(([id,y])=>DB.dev(id,{...y,approved:false}))]),'已停用打卡');},'停用',true);}
-    else modal(`<h3>停用打卡：${esc(nm)}？</h3><p>停用後這個代碼不能打卡，之後可以重新勾選核准。</p>`,()=>{run(DB.dev(r.uid,{...d,approved:false}),'已停用打卡');},'停用',true);
-    return;
-  }
-  const t=r.t,th=r.th,label=SYS[k],by={approvedBy:me,approvedAt:Date.now()};
-  // 已用裝置編號核准：改 tpHw 的開通狀態（這台平板的所有代碼一起生效）
-  if(r.tpVia==='hw'){const v=!r.on[k];
-    modal(`<h3>${v?'開通':'關閉'}${label}：${esc(nm)}${v?'':'？'}</h3><p>這台平板是以裝置編號 <b>${esc(hwShort(t.hwId))}</b> 核准的，${v?`開通後不用登入即可使用${label}`:`關閉後會立刻無法使用${label}，之後可以重新勾選`}。</p>`,
-      ()=>{run(DB.tpHw(t.hwId,{...th,[k]:v}),`已${v?'開通':'關閉'}${label}`);},v?'開通':'關閉',!v);return;}
-  if(!r.on[k]){
-    // 開通：還沒認證的設備一併核准；第一次核准時只開通勾選的那一個系統；從 App 申請（有裝置編號）可以綁定裝置編號
-    const next=t.approved?{...t,[k]:true}:{...t,approved:true,tp:k==='tp',cs:k==='cs',...by};
-    const first=!t.approved&&t.hwId;
-    modal(`<h3>開通${label}：${esc(nm)}</h3><p>設備代碼 <b>${esc(t.code||devCode(r.uid))}</b>${t.hwId?`、裝置編號 <b>${esc(hwShort(t.hwId))}</b>${t.model?`（${esc(t.model)}）`:''}`:''}，請確認和平板上顯示的一樣。開通後這台設備不用登入即可使用${label}。</p>
-      ${first?`<p><input id="mNm" style="width:100%" value="${esc(r.name)}" placeholder="設備名稱，例如：診間平板"></p>
-        <label class="opt"><input type="radio" name="mHow" value="hw" checked><span><b>綁定裝置編號（建議）</b><br><span class="sub">這台平板之後代碼變了（清除資料、重裝 App）也自動沿用，不用再核准</span></span></label>
-        <label class="opt"><input type="radio" name="mHow" value="code"><span><b>只核准這個代碼</b><br><span class="sub">代碼變了要重新核准</span></span></label>`:''}`,
-      m=>{const how=m.querySelector('[name=mHow]:checked')?.value||'code',name=m.querySelector('#mNm')?.value.trim()||t.name||'';
-        if(how==='hw')run(Promise.all([DB.tpHw(t.hwId,{...(th||{}),approved:true,tp:k==='tp',cs:k==='cs',name,model:t.model||th?.model||'',...by}),...(name!==t.name?[DB.tp(r.uid,{...t,name})]:[])]),`已開通${label}（綁定裝置編號）`);
-        else run(DB.tp(r.uid,{...next,name}),`已開通${label}`);},'開通');
-  }else modal(`<h3>關閉${label}：${esc(nm)}？</h3><p>這台設備會立刻無法使用${label}，之後可以重新勾選。</p>`,
-      ()=>{run(DB.tp(r.uid,{...t,[k]:false}),`已關閉${label}`);},'關閉',true);
+  const by={approvedBy:me,approvedAt:Date.now()},needName=v&&!r.name;
+  const nameInput=needName?`<p><input id="mNm" style="width:100%" placeholder="設備名稱，例如：診間平板"></p>`:'';
+  const idText=r.hid?`裝置編號 <b>${esc(hwShort(r.hid))}</b>${r.model?`（${esc(r.model)}）`:''}`:`代碼 <b>${esc(r.t?.code||(r.k?devShort(r.kIds[0]):devCode(r.tIds[0])))}</b>`;
+  const body=v?`<p>${idText}，請確認和平板上顯示的一樣。開通後這台設備不用登入即可使用${label}${r.hid?'，重裝 App 換了代碼也自動沿用':''}。</p>${nameInput}`
+    :`<p>${idText}。關閉後這台設備會立刻無法使用${label}，之後可以重新勾選。</p>`;
+  modal(`<h3>${v?'開通':'關閉'}${label}：${esc(nm)}${v?'':'？'}</h3>${body}`,m=>{
+    const name=(needName&&m.querySelector('#mNm').value.trim())||r.name||'';if(needName&&!name){alert('請輸入設備名稱');return false}
+    const ops=[];
+    if(r.hid){
+      if(k==='k'){
+        ops.push(DB.hw(r.hid,{at:Date.now(),...(r.h||{}),approved:v,name,model:r.model,...(v?by:{})}));
+        if(!v)r.kIds.forEach(id=>{if(kDevs[id].approved)ops.push(DB.dev(id,{...kDevs[id],approved:false}))}); // 關閉時連舊的代碼核准一起關掉
+      }else{
+        // 第一次開通：只開這一個系統；之前以代碼開通過的沿用原本的狀態
+        const base=r.th?{...r.th}:{approved:true,tp:r.on.tp,cs:r.on.cs,...by};
+        ops.push(DB.tpHw(r.hid,{...base,approved:true,[k]:v,name,model:r.model,...(v&&!r.th?.approvedAt?by:{})}));
+        if(!v)r.tIds.forEach(id=>{const x=tpDevs[id];if(x.approved&&x[k]!==false)ops.push(DB.tp(id,{...x,[k]:false}))});
+      }
+    }else if(k==='k')ops.push(DB.dev(r.kIds[0],{...r.k,approved:v,...(name?{name}:{}),...(v?by:{})}));
+    else{const t=r.t,next=t.approved?{...t,[k]:v}:{...t,approved:true,tp:k==='tp',cs:k==='cs',...by};ops.push(DB.tp(r.tIds[0],{...next,...(name?{name}:{})}))}
+    run(Promise.all(ops),`已${v?'開通':'關閉'}${label}`);
+  },v?'開通':'關閉',!v);
 });
 $('#devTable').addEventListener('click',e=>{
   const b=e.target.closest('[data-x]');if(!b)return;
-  const r=findRow(b.closest('tr').dataset.uid);if(!r)return;const nm=r.name||devCode(r.uid);
+  const r=findRow(b.closest('tr').dataset.key);if(!r)return;const nm=r.name||'這台設備';
   if(b.dataset.x==='name')modal(`<h3>設備名稱</h3><input id="mNm" style="width:100%" value="${esc(r.name)}">`,m=>{const name=m.querySelector('#mNm').value.trim();if(!name)return false;
-    run(Promise.all([...(r.t?[DB.tp(r.uid,{...r.t,name})]:[]),...(r.th?[DB.tpHw(r.t.hwId,{...r.th,name})]:[]),...(r.k?[DB.dev(r.uid,{...r.k,name})]:[]),...(r.h?[DB.hw(r.k.hwId,{...r.h,name})]:[])]),'已改名稱');},'儲存');
-  if(b.dataset.x==='del'){
-    const hwNote=(r.k&&devVia(r.uid)==='hw'?'<br>這台平板的打卡已綁定裝置編號，重新開啟 App 會自動以新代碼恢復；要讓它不能打卡請先取消「打卡」勾選。':'')+(r.tpVia==='hw'?'<br>這台平板的計劃單／耗材已綁定裝置編號，重新開啟耗材 App 會自動以新代碼恢復；要讓它不能使用請先取消勾選。':'');
-    modal(`<h3>刪除設備「${esc(nm)}」？</h3><p>刪除後這台設備需要重新申請認證（${[r.k&&'打卡',r.t&&'治療計劃單／耗材'].filter(Boolean).join('、')}）。${hwNote}</p>`,
-      ()=>{run(Promise.all([...(r.t?[DB.tp(r.uid,null)]:[]),...(r.k?[DB.dev(r.uid,null)]:[])]),'已刪除');},'刪除',true);
-  }
+    run(Promise.all([...(r.h?[DB.hw(r.hid,{...r.h,name})]:[]),...(r.th?[DB.tpHw(r.hid,{...r.th,name})]:[]),...r.kIds.map(id=>DB.dev(id,{...kDevs[id],name})),...r.tIds.map(id=>DB.tp(id,{...tpDevs[id],name}))]),'已改名稱');},'儲存');
+  if(b.dataset.x==='del')modal(`<h3>刪除設備「${esc(nm)}」？</h3><p>刪除這台設備的所有認證${r.hid?'（含裝置編號與它申請過的代碼）':''}。之後這台設備要重新申請、重新核准。</p>`,
+    ()=>{run(Promise.all([...(r.hid&&r.h?[DB.hw(r.hid,null)]:[]),...(r.hid&&r.th?[DB.tpHw(r.hid,null)]:[]),...r.kIds.map(id=>DB.dev(id,null)),...r.tIds.map(id=>DB.tp(id,null))]),'已刪除');},'刪除',true);
 });
 
 /* ====== 對話框 ====== */

@@ -719,7 +719,8 @@ function handleDevice(u){
   let d=null,hw=null,hwSub=null,started=false,created=false,hwTried=false,shown='';
   // 耗材與治療計劃單分開開通：已認證＋cs 不是 false 才能登記耗材（舊設備沒有 cs 欄位，視為已開通）
   const viaCode=()=>!!d&&d.approved&&d.cs!==false,viaHw=()=>!!hw&&hw.approved&&hw.cs!==false;
-  const codes=()=>`設備代碼：<span class="who">${devCode(u.uid)}</span>${d?.hwId?`<br>裝置編號：<span class="who">${hwShort(d.hwId)}</span>`:''}`;
+  // 有裝置編號（App）只顯示裝置編號，設備認證頁也以裝置編號核准；瀏覽器開啟才顯示代碼
+  const codes=()=>{const h=d?.hwId||HW?.id;return h?`裝置編號：<span class="who">${hwShort(h)}</span>`:`設備代碼：<span class="who">${devCode(u.uid)}</span>`};
   const show=(key,html,actsHtml)=>{if(shown===key)return;shown=key;msg.innerHTML=html;acts.innerHTML=actsHtml;const c=$('#devCancel');if(c)c.onclick=signOut};
   const nameForm=onSend=>{
     show('name',`申請把這台設備設為「認證設備」。<br>核准後開啟本頁不需要 Google 登入，可以登記耗材。<br>${codes()}`,
