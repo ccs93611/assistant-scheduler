@@ -660,7 +660,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 <div id="gate" class="gate" hidden><div class="gate-box"><h2>新海美學牙醫・治療計劃單</h2><p id="gateMsg">連線中…</p><div id="gateActs"></div></div></div>
 <input type="file" id="importInput" accept="application/json,.json" hidden>
 
-<script src="treatment-info.js?v=50"></script>
+<script src="treatment-info.js?v=51"></script>
 <script src="treatment-figs.js?v=13"></script>
 <script>
 'use strict';
@@ -672,7 +672,7 @@ const BASE_CATS=[
  ['全口重建',['Over Denture植牙固位式活動假牙(2植體)','Over Denture植牙固位式活動假牙(4植體)','Locator 定位支台','Locator 固持嵌件','Locator 金屬外殼基座','All-on-x植牙導版','All-on-8','All-on-7','All-on-6','All-on-5','All-on-4','All-on-x臨時牙','All-on-x正式氧化鋯牙','All-on-x輕量化合金牙架']],
  ['顯微治療',['顯微根管-單根','顯微根管-多根','顯微根管重新治療-單根','顯微根管重新治療-多根','MTA牙根修補','顯微根尖切除術','顯微根尖逆封填','顯微齲齒填補']],
  ['牙周手術',['CLP牙冠增長術','FGG角化牙齦移植','CTG結締組織移植','GTR引導組織再生術']],
- ['矯正',['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','矯正器升級','Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-Comprehensive全方位方案','Invisalign隱適美-Moderate中度方案','Invisalign隱適美-Lite輕度方案','Invisalign隱適美-Express快速方案','Invisalign隱適美-First兒童早期矯正','活動維持器','透明維持器','固定式維持器']],
+ ['矯正',['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部','矯正器升級','Invisalign隱適美-數位治療計劃分析','Invisalign隱適美-Comprehensive全方位方案','Invisalign隱適美-Moderate中度方案','Invisalign隱適美-Lite輕度方案','Invisalign隱適美-Express快速方案','Invisalign隱適美-First兒童早期矯正','MRC兒童肌功能矯正器','活動維持器','透明維持器','固定式維持器']],
  ['兒童牙科',['SSC金屬乳牙套','Strip crown樹酯乳牙套','空間維持器']],
  ['舒眠麻醉',['舒眠麻醉-基本2hr','舒眠麻醉-追加1hr']],
  ['牙齒美白',['客製化居家美白','噴砂美白-全口','噴砂美白-前牙']],
@@ -685,7 +685,7 @@ const PER_TOOTH=new Set(['MTA活髓保存','日本GC Initial LiSi Block齒雕','
  'SSC金屬乳牙套','Strip crown樹酯乳牙套']);
 const pk=(cat,name)=>cat+'|'+name;
 // 以其他單位計價的項目：價目表顯示「／單位」，治療項目的數量欄下方註明（數量自己填，不會依牙位自動算）
-const PER_UNIT={'All-on-x輕量化合金牙架':'每一植體'};
+const PER_UNIT={'All-on-x輕量化合金牙架':'每一植體','MRC兒童肌功能矯正器':'副'};
 // 項目的計價單位：以顆計價→「顆」；其他單位→PER_UNIT（例如「每一植體」）；其餘沒有特別單位
 const unitName=n=>PER_TOOTH.has(n)?'顆':PER_UNIT[n]||'';
 const unitTag=n=>unitName(n)?`<span class="u-lbl">／${unitName(n)}</span>`:'';
