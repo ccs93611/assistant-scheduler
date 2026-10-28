@@ -329,6 +329,13 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 .ti-btn{border:0;background:none;padding:0 2px;margin-left:4px;color:var(--accent);font-size:13px;line-height:1;vertical-align:baseline}
 .ti-btn:hover{filter:brightness(1.2);text-decoration:underline}
 @media print{.ti-btn{display:none}}
+/* 保固說明（視窗與列印共用） */
+.wty-doc h2{margin:0 0 10px;font-size:20px;text-align:center}
+.wty{margin:0;padding-left:2.2em;list-style:cjk-ideographic;line-height:1.7;font-size:14.5px}
+.wty>li{margin-bottom:8px}.wty>li::marker{font-weight:700}
+.wty h4{display:inline;margin:0;font-size:15px;color:var(--accent)}.wty h4::after{content:"："}
+.wty p{margin:2px 0}.wty ul{margin:2px 0;padding-left:1.3em;list-style:disc}
+@media print{body.print-modal .wty-doc{padding:14mm 16mm;color:#111}body.print-modal .wty{font-size:14px;line-height:1.75}body.print-modal .wty-doc h2{font-size:22px;margin-bottom:14px}body.print-modal .modal .acts{display:none}}
 .combo-wrap{position:relative}
 .combo-wrap::after{content:"▾";position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:12px}
 .combo-wrap input{padding-right:24px}
@@ -1313,6 +1320,7 @@ $('#main').addEventListener('click',async e=>{
     if(k&&k!=='photo'){if(k==='sig'){const r=rowOf(p,e.target);if(r&&r.row.sig)showImage(r.row.sig,'患者簽名')}return}
   }
   const ti=e.target.closest('[data-ti]');if(ti){e.preventDefault();openTreatmentInfo(ti.dataset.ti);return}
+  if(e.target.closest('[data-wty]')){e.preventDefault();openWarranty();return}
   if(e.target.closest('[data-ti-plan]')){window.open('treatments.html?ids='+planTiIds(p).join(','),'_blank','noopener');return}
   const op=e.target.closest('[data-open-plan]');if(op){openPlan(op.dataset.openPlan);return}
   const a=e.target.closest('[data-act]');
@@ -1433,7 +1441,35 @@ function modal(html,onMount,sticky){
 document.head.insertAdjacentHTML('beforeend',`<style>${TI_CSS}</style>`);
 const tiOf=it=>it&&it.name&&!it.custom?tiFind(it.name):null;
 function catTagHtml(it){if(!it.name)return '&nbsp;';const e=tiOf(it);
-  return esc(it.custom?'自訂項目':it.cat)+(e?`<button type="button" class="ti-btn" data-ti="${e.id}" title="治療介紹（可給病人看、列印）">ⓘ 介紹</button>`:'')}
+  return esc(it.custom?'自訂項目':it.cat)+(e?`<button type="button" class="ti-btn" data-ti="${e.id}" title="治療介紹（可給病人看、列印）">ⓘ 介紹</button>`:'')
+    +(!it.custom&&WARRANTY_ITEMS.has(it.name)?'<button type="button" class="ti-btn" data-wty title="齒雕、美學貼片、牙冠保固說明（可給病人看、列印）">🛡 保固</button>':'')}
+/* ====== 保固說明：齒雕、美學貼片、牙冠（項目旁的「🛡 保固」） ====== */
+const WARRANTY_ITEMS=new Set(['日本GC Initial LiSi Block齒雕','日本GC Initial LiSi Block美學貼片','列支敦斯登E.max美學貼片',
+  '德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙','日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙','列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙']);
+const WARRANTY_HTML=`<div class="wty-doc"><h2>「齒雕、美學貼片、牙冠」保固說明</h2><ol class="wty">
+  <li><h4>保固期限</h4><p><b>齒雕、美學貼片、牙冠</b>，黏著裝戴於口內始計算<b>一年</b>，並由本院<b>原施術醫師</b>提供保固治療。</p></li>
+  <li><h4>保固範圍</h4><ul>
+    <li>破損－保固內「自然使用」下發生破損<b>免費修補或重新製作</b>，外傷導致破損則視為新療程。且重新製作時將依照原型態、顏色製作。</li>
+    <li>脫落－保固內假牙脫落未損傷、未遺失，<b>免費重新黏著</b>。損傷視損壞狀況另外報價、<b>遺失則酌收 1/3 總價</b>。</li>
+    <li>重作－保固內如想再次更改型態、顏色，<b>重作需自付 80% 費用</b>。</li></ul></li>
+  <li><h4>術前須知</h4><p>施術醫師向病患確認顏色及型態、病患同意並永久黏著後，無法進行顏色及型態調整；若需修正顏色及型態，需自付八成重新製作費用。</p></li>
+  <li><h4>善意保固</h4>
+    <p>1. <b>MTA 活髓保存</b>療程後的<b>齒雕、美學貼片、牙冠</b>製作，旨在盡量救治牙齒活性，術後仍有病變可能，需病患一同細心照護，若發生病變需根管治療：</p>
+    <ul><li><b>180 天內</b>即發生病變，治療後<b>免費製作全瓷冠</b></li><li><b>180 天－360 天</b>則<b>補差價製作全瓷冠</b></li><li><b>一年以上全瓷冠八折</b></li></ul>
+    <p>2. 在本診所製作的<b>齒雕、美學貼片、牙冠</b>，自然使用下（不含外傷／不含 MTA 活髓保存術後病變），該牙需拔除（<b>限定該牙齒在本院所拔除</b>）：</p>
+    <ul><li><b>一年內</b>拔除該齒，當時費用可<b>全額扣抵</b>在後續的牙橋或植牙費用</li><li><b>一至兩年</b>拔除該齒，當時費用可<b>一半扣抵</b>在後續的牙橋或植牙費用</li></ul></li>
+  <li><h4>免責條款</h4><p>若於<b>其他診所完成之根管治療</b>後至本診所製作牙冠，後續出現病變需拆除假牙重新治療。因依據文獻研究<b>牙冠製作不會影響根管治療</b>。依此準則，後續療程將視為本診所新療程。</p></li>
+  <li><h4>牙科美容條款</h4><p>3D 齒雕、美學貼片無法暫時性黏著，需直接永久固定。前牙美學貼片的顏色型態，是主觀的且會隨時間及親友回饋而不同，在施術當天經<b>雙方合意後完成即永久固定</b>，主觀的美學調整不在保固範圍內；但未來如想更換顏色或型態則一律<b>八折價優惠</b>。</p></li>
+  <li><h4>臨時牙冠折抵說明</h4><p>臨時假牙之費用，於正式假牙配戴時即進行折抵，如後續未在本院完成假牙療程，則臨時假牙並無退費；本院因故轉診而無法完成，則不再此限。超過三個月無回診，期間破損、遺失需重做，<b>另計收費、且無法折抵正式假牙費用</b>。</p></li>
+  <li><h4>病患須知</h4><p>口內贗復品長期皆有損耗的機率，細心照護可增加使用年限、但並非終生不會損壞，故依消保法保固一年應已足以驗證品質。為維護良好的醫病關係及責任歸屬，唯恐口說無憑特立此說明。</p></li>
+</ol></div>`;
+function openWarranty(){
+  modal(`${WARRANTY_HTML}<div class="acts"><button data-x="print">🖨 列印給病人</button><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
+  (box,close)=>box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;
+    if(x==='print'){ // 只印這個視窗；印完（afterprint）才移除，App 的系統列印是非同步的
+      document.body.classList.add('print-modal');const done=()=>{document.body.classList.remove('print-modal');removeEventListener('afterprint',done)};
+      addEventListener('afterprint',done);window.print()}
+    else close()}))}
 const planTiIds=p=>[...new Set((p.items||[]).map(tiOf).filter(Boolean).map(e=>e.id))];
 function openTreatmentInfo(id){const e=TI_BY_ID[id];if(!e)return;
   modal(`<h3>${esc(e.title)}<span class="hint" style="margin-left:8px">${esc(e.cat)}</span></h3>${tiBodyHtml(e)}<div class="ti-disclaimer">${esc(TI_DISCLAIMER)}</div>
@@ -1443,12 +1479,12 @@ function openTreatmentInfo(id){const e=TI_BY_ID[id];if(!e)return;
     else if(x==='print')window.open('treatments.html?ids='+id+'&print=1','_blank','noopener');
     else close()}))}
 
-/* 列印：這張單有項目說明時，先選「僅列印治療計劃單」或「列印治療計劃單＋項目介紹」 */
+/* 列印：先選「僅列印治療計劃單」或「列印治療計劃單＋項目介紹」（這張單的項目都沒有介紹時，第二個選項不能選並說明原因） */
 function printPlan(p){
-  const ids=planTiIds(p);if(!ids.length){window.print();return}
+  const ids=planTiIds(p);
   modal(`<h3>列印</h3><div class="pp-opts">
       <button data-x="plan">🖨 僅列印治療計劃單</button>
-      <button data-x="info">🖨 列印治療計劃單＋項目介紹<span class="hint">將列印的項目介紹（接在治療計劃單後面）：</span><span class="pp-list">${ids.map(id=>`<span>${esc(TI_BY_ID[id].title)}</span>`).join('')}</span></button></div>
+      <button data-x="info" ${ids.length?'':'disabled'}>🖨 列印治療計劃單＋項目介紹${ids.length?`<span class="hint">將列印的項目介紹（接在治療計劃單後面）：</span><span class="pp-list">${ids.map(id=>`<span>${esc(TI_BY_ID[id].title)}</span>`).join('')}</span>`:'<span class="hint">這張單的治療項目都沒有項目介紹（例如自訂項目），只能列印治療計劃單</span>'}</button></div>
     <div class="acts"><span class="sp"></span><button data-x="close">取消</button></div>`,
   (box,close)=>box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;close();
     if(x==='plan')setTimeout(()=>window.print(),50);else if(x==='info')printWithInfo(ids)}))}
