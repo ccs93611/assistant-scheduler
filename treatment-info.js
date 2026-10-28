@@ -292,7 +292,7 @@ const TREATMENT_INFO=[
 /* ---------- 矯正 ---------- */
 {id:'lh',cat:'矯正',title:'LH 日式矯正',items:['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部'],
  photo:{src:'media/lh.webp',alt:'LH 矯正線三大特性：超彈性＋形狀記憶、力量更恆定、吸震特性'},
- table:{title:'與其他矯正方式比較',head:['比較項目','LH 矯正','戴蒙矯正','一般傳統矯正'],rows:[
+ table:{title:'與其他矯正方式比較',hl:1,head:['比較項目','LH 矯正','戴蒙矯正','一般傳統矯正'],rows:[
   ['核心技術','使用日本研發的「低遲滯鎳鈦合金線」，講求輕力哲學與形狀記憶。','矯正器自帶滑蓋鎖扣，取代橡皮圈，大幅降低鋼線與托槽間的摩擦力。','鋼線靠「橡皮圈」或「細鐵絲（結紮線）」綁死在托槽上。'],
   ['初期疼痛感','**最低**。力量溫和恆定且具吸震效果，剛換線的痠痛感不明顯。','**較低**。因摩擦力低，牙齒均勻受力，大幅減輕傳統的拉扯痛。','**明顯**。每次回診拉緊或換線後，前 3～7 天常有明顯齒軟、疼痛感。'],
   ['牙根控制力','**極佳（早期控制）**。治療初期就能同時移動牙冠與牙根。','**中等至佳**。依療程中後期更換的線材形狀與材質而定。','**後期控制**。初期多只移動牙冠，療程後期才換粗線調整牙根角度。'],
@@ -302,7 +302,7 @@ const TREATMENT_INFO=[
   ['清潔難易度','**容易**。零件較少，不易卡食物殘渣。','**容易**。少了橡皮圈與結紮線的死角，較不易堆積牙垢。','**困難**。橡皮圈及細鐵絲極易卡菜渣，需花費大量時間清潔。']]},
  what:'日本 LH 矯正（Low Hysteresis 低遲滯矯正）是一種源自日本東京醫科齒科大學研發的牙齒矯正技術，核心特色是採用特殊的低遲滯鎳鈦合金矯正線。LH 矯正不是用力把牙齒扳過去，而是用更生理的力量把牙齒「誘導」過去，可以改善牙齒不整齊、暴牙、戽斗、深咬、開咬等問題。',
  who:['牙齒擁擠、歪斜、暴牙、有縫隙的人','上下咬合不正的人','需要配合假牙或植牙先調整牙齒位置的人'],
- steps:['矯正分析：拍照、X 光（側顱、全口）、口內掃描或取模','醫師說明診斷與治療計畫','黏上矯正器開始矯正','每 4～6 週回診調整','拆除矯正器，配戴維持器'],
+ steps:['矯正分析：拍照、X 光（側顱、全口）、口內掃描建模','醫師說明診斷與治療計畫','黏上矯正器開始矯正','每 4～8 週回診調整','拆除矯正器，配戴維持器'],
  time:'全口約 1.5～3 年；半口或局部依情況約數個月至 1 年多。',
  care:['剛黏上或調整後的幾天會痠痛，屬正常','避免咬硬、黏的食物，水果切小塊','矯正器周圍容易卡食物，要使用矯正牙刷、牙間刷仔細清潔','矯正器脫落或線刺到嘴巴，請聯絡診所'],
  note:'全口：上下顎同時矯正。半口：只矯正上顎或下顎。局部：只調整少數幾顆牙。'},
@@ -434,12 +434,12 @@ function tiStepsHtml(p){
   const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   return `<div class="ti-steps">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}<figcaption>${capHtml(r.cap)}</figcaption></figure>`).join('')}</div>`).join('')}</div>`;
 }
-/* 比較表（例如隱適美各方案）：預設收起來，點「📊 標題」按鈕才展開（跟強度比較一樣，列印時只印展開的）；格子裡的 \n 換行（第二行起小字）、**文字** 粗體，第一欄第一行粗體 */
+/* 比較表（例如隱適美各方案）：hl＝要強調的欄（該欄的粗體字用紅色）；預設收起來，點「📊 標題」按鈕才展開（跟強度比較一樣，列印時只印展開的）；格子裡的 \n 換行（第二行起小字）、**文字** 粗體，第一欄第一行粗體 */
 function tiTableHtml(t){
   const em=t=>tiEsc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
   return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+tiEsc(h)+'</th>').join('')}</tr></thead><tbody>${
-    t.rows.map(r=>'<tr>'+r.map((c,k)=>'<td>'+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table></div></div>`}
+    t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table></div></div>`}
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
@@ -486,7 +486,8 @@ const TI_CSS=`
 .ti-tbl table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
 .ti-tbl th,.ti-tbl td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
 .ti-tbl th{color:var(--muted);font-weight:600;white-space:nowrap}
-.ti-tbl td:first-child{white-space:nowrap}.ti-tbl td small{color:var(--muted);font-size:.9em}
+.ti-tbl td:first-child{white-space:nowrap}.ti-tbl td.hl b{color:#e5484d}
+@media print{.ti-tbl td.hl b{color:#c62828}}.ti-tbl td small{color:var(--muted);font-size:.9em}
 .ti-str table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.5}
 .ti-str th,.ti-str td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 .ti-str th{color:var(--muted);font-weight:600;white-space:nowrap}
