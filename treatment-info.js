@@ -291,6 +291,14 @@ const TREATMENT_INFO=[
  care:['手術部位避免咀嚼與刷牙，依醫囑使用漱口水','戒菸、控制血糖可提高成功率','每 3 個月回診做牙周維護，避免牙周病復發']},
 /* ---------- 矯正 ---------- */
 {id:'lh',cat:'矯正',title:'LH 日式矯正',items:['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部'],
+ table:{title:'與其他矯正方式比較',head:['比較項目','LH 矯正','戴蒙矯正','一般傳統矯正'],rows:[
+  ['核心技術','使用日本研發的「低遲滯鎳鈦合金線」，講求輕力哲學與形狀記憶。','矯正器自帶滑蓋鎖扣，取代橡皮圈，大幅降低鋼線與托槽間的摩擦力。','鋼線靠「橡皮圈」或「細鐵絲（結紮線）」綁死在托槽上。'],
+  ['初期疼痛感','**最低**。力量溫和恆定且具吸震效果，剛換線的痠痛感不明顯。','**較低**。因摩擦力低，牙齒均勻受力，大幅減輕傳統的拉扯痛。','**明顯**。每次回診拉緊或換線後，前 3～7 天常有明顯齒軟、疼痛感。'],
+  ['牙根控制力','**極佳（早期控制）**。治療初期就能同時移動牙冠與牙根。','**中等至佳**。依療程中後期更換的線材形狀與材質而定。','**後期控制**。初期多只移動牙冠，療程後期才換粗線調整牙根角度。'],
+  ['回診頻率','約 **4～8 週**。線材壽命與持續力長，可減少回診次數。','約 **4～6 週**。滑蓋設計不需頻繁更換橡皮圈。','約 **2～4 週**。橡皮圈易老化鬆弛，需頻繁回診更換。'],
+  ['不拔牙機率','**邊緣案例機會較高**。利用溫和力道生理性擴弓，有機會爭取空間。','**中等**。低摩擦力有助於齒列自然排開，但嚴重擁擠仍需拔牙。','**依診斷而定**。空間嚴重不足時，多數需直接配合拔牙。'],
+  ['口腔刮傷機率','**低**。構造較簡化，沒有結紮線刺出的問題。','**低**。沒有鐵絲線頭，托槽邊緣通常較圓滑。','**高**。結紮線頭易刺出，或鋼線尾端易滑出刮傷嘴皮。'],
+  ['清潔難易度','**容易**。零件較少，不易卡食物殘渣。','**容易**。少了橡皮圈與結紮線的死角，較不易堆積牙垢。','**困難**。橡皮圈及細鐵絲極易卡菜渣，需花費大量時間清潔。']]},
  what:'日本 LH 矯正（Low Hysteresis 低遲滯矯正）是一種源自日本東京醫科齒科大學研發的牙齒矯正技術，核心特色是採用特殊的低遲滯鎳鈦合金矯正線。以固定在牙齒上的矯正器與矯正線，持續施以輕柔的力量移動牙齒，改善牙齒不整齊、暴牙、戽斗、深咬、開咬等問題。治療前先做完整的矯正分析，訂出專屬的治療計畫。',
  who:['牙齒擁擠、歪斜、暴牙、有縫隙的人','上下咬合不正的人','需要配合假牙或植牙先調整牙齒位置的人'],
  steps:['矯正分析：拍照、X 光（側顱、全口）、口內掃描或取模','醫師說明診斷與治療計畫','黏上矯正器開始矯正','每 4～6 週回診調整','拆除矯正器，配戴維持器'],
@@ -425,10 +433,11 @@ function tiStepsHtml(p){
   const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   return `<div class="ti-steps">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}<figcaption>${capHtml(r.cap)}</figcaption></figure>`).join('')}</div>`).join('')}</div>`;
 }
-/* 比較表（例如隱適美各方案）：格子裡的 \n 換行（第二行起小字），第一欄第一行粗體 */
+/* 比較表（例如隱適美各方案）：預設收起來，點「📊 標題」按鈕才展開（跟強度比較一樣，列印時只印展開的）；格子裡的 \n 換行（第二行起小字）、**文字** 粗體，第一欄第一行粗體 */
 function tiTableHtml(t){
-  const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${tiEsc(a)}</b>`:tiEsc(a))+m.map(x=>'<br><small>'+tiEsc(x)+'</small>').join('')};
-  return `<div class="ti-sec ti-tbl"><h4>${tiEsc(t.title)}</h4><div class="ti-tbl-wrap"><table><thead><tr>${t.head.map(h=>'<th>'+tiEsc(h)+'</th>').join('')}</tr></thead><tbody>${
+  const em=t=>tiEsc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
+  return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+tiEsc(h)+'</th>').join('')}</tr></thead><tbody>${
     t.rows.map(r=>'<tr>'+r.map((c,k)=>'<td>'+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table></div></div>`}
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
@@ -471,7 +480,8 @@ const TI_CSS=`
 .ti-str-btn{margin-left:6px;padding:1px 9px;font-size:12px;line-height:1.6;border-radius:999px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;vertical-align:1px;white-space:nowrap}
 .ti-str-btn:hover,.ti-str-btn.on{background:var(--accent);color:var(--accent-ink)}
 .ti-str{margin:-4px 0 12px;overflow-x:auto}
-.ti-tbl-wrap{overflow-x:auto}
+.ti-tbl-btn{margin-left:0;font-size:.9em;padding:3px 12px}.ti-tbl-wrap{overflow-x:auto;margin-top:8px}
+@media screen and (max-width:599px){.ti-tbl table{min-width:600px}} /* 手機上欄位太擠：表格保持一定寬度，左右滑動看 */
 .ti-tbl table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
 .ti-tbl th,.ti-tbl td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
 .ti-tbl th{color:var(--muted);font-weight:600;white-space:nowrap}
