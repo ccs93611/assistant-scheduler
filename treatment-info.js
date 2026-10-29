@@ -340,6 +340,12 @@ const TREATMENT_INFO=[
  care:['每天固定配戴，效果才會穩定','配戴時嘴唇閉起來、用鼻子呼吸，並配合醫師教的肌功能訓練','取下後用清水與軟毛牙刷清潔，不可用熱水燙','放進專用盒子保存，避免被寵物咬或包在衛生紙裡被丟掉','矯正器破損、變形或戴起來不舒服請回診'],
  note:'肌功能矯正的效果跟孩子每天配戴與練習的時間很有關係，需要家長一起提醒與協助；部分孩子之後仍可能需要搭配其他矯正方式。'},
 {id:'retainer',cat:'矯正',title:'維持器',items:['活動維持器','透明維持器','固定式維持器'],
+ table:{title:'三大維持器比較',head:['比較項目','活動式維持器（傳統 Hawley）','透明維持器（Clear Retainer）','固定式維持器（舌側維持絲）'],rows:[
+  ['外觀美觀度','★★（前牙有金屬線外露）','★★★★★（近乎隱形，像隱形牙套）','★★★★★（黏在牙齒內側，完全看不到）'],
+  ['是否需自律配戴','是（需靠自己按時拆戴）','是（需靠自己按時拆戴）','否（固定黏在牙齒上，無法自行取下）'],
+  ['耐用度','高（金屬線搭配壓克力基板，十分堅固）','中等（約 0.5～1 年需定期更換，易磨損裂開）','高（不鏽鋼線黏著，但有脫膠或斷線風險）'],
+  ['清潔難易度','容易（可取下清潔）','容易（可取下刷洗與浸泡清潔錠）','較費工（需配合牙線、特殊牙刷清除牙菌斑）'],
+  ['咬合調整空間','可由醫師微調金屬線','無法微調','無法微調']]},
  what:'矯正完成後，牙齒有回到原來位置的傾向，需要配戴維持器把牙齒穩定在新的位置。這是矯正成果能不能保持的關鍵。',
  who:['完成矯正（固定式或隱形矯正）的人','維持器遺失、破損需要重做的人'],
  steps:['拆除矯正器或完成隱形矯正後取模、掃描','製作並配戴','定期回診檢查'],
@@ -485,7 +491,7 @@ const TI_CSS=`
 @media screen and (max-width:599px){.ti-tbl table{min-width:600px}} /* 手機上欄位太擠：表格保持一定寬度，左右滑動看 */
 .ti-tbl table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
 .ti-tbl th,.ti-tbl td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
-.ti-tbl th{color:var(--muted);font-weight:600;white-space:nowrap}
+.ti-tbl th{color:var(--muted);font-weight:600}
 .ti-tbl td:first-child{white-space:nowrap}.ti-tbl td.hl b{color:#e5484d}
 @media print{.ti-tbl td.hl b{color:#c62828}}.ti-tbl td small{color:var(--muted);font-size:.9em}
 .ti-str table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.5}
