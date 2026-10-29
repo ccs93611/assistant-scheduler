@@ -9,16 +9,16 @@
   "ios": null,
   "cs": {
     "version": "1.0.0",
-    "build": 3,
-    "builtAt": "2026-10-27T16:50:56.551Z",
-    "url": "https://expo.dev/artifacts/eas/t-Ljcp2lw3B7cM9ZhcfigUr-8MvjjFi1CxzyjhteMa4.apk",
-    "notes": "第一版：耗材登記 App，讀取裝置編號（與打卡 App 同一台平板編號相同）"
+    "build": 4,
+    "builtAt": "2026-10-29T16:48:49.716Z",
+    "url": "https://expo.dev/artifacts/eas/sCSD8KzsULMCn1PvYsIlydGT1SixLo7fN8yJqpSDYfE.apk",
+    "notes": "新增「登入」：認證設備可用平板瀏覽器登入個人帳號；與打卡 App 共用金鑰"
   },
   "tp": {
     "version": "1.0.0",
-    "build": 4,
-    "builtAt": "2026-10-27T17:35:06.058Z",
-    "url": "https://expo.dev/artifacts/eas/Z1JHUh3svGIQviD36b9AHgnf2i3Or6Uw_bJXiKNUfLg.apk",
-    "notes": "改用與打卡 App 相同的簽章金鑰（同一台平板裝置編號相同）；舊版請先移除再安裝"
+    "build": 5,
+    "builtAt": "2026-10-29T16:58:43.903Z",
+    "url": "https://expo.dev/artifacts/eas/wYyfKdraO3ArWnUFScKNMUNplQEwY_YlJfCyxHibaXY.apk",
+    "notes": "與打卡、耗材 App 共用金鑰（同一台平板裝置編號相同）；新增「登入」用平板瀏覽器登入個人帳號。舊版需先移除再安裝"
   }
 }
