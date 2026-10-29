@@ -2,7 +2,7 @@
 // 開單、編輯、資料同步都在網頁裡；App 只負責：把「裝置編號」交給網頁（window.APP_HW，設備認證可以綁定這台平板，
 // 清除資料、重裝 App 也不用重新核准）、列印（App 裡的網頁不能直接 window.print，改由系統列印）、斷線重試、返回上一頁。
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Linking, Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
@@ -97,6 +97,11 @@ export default function App() {
         injectedJavaScript={PRINT_BRIDGE}
         onMessage={onMessage}
         onNavigationStateChange={n => { canBack.current = n.canGoBack; }}
+        // 網頁上的「登入」（個人模式）：Google 不允許在 App 內嵌網頁登入，帶 xinhai_external 的網址改用平板的瀏覽器開啟
+        onShouldStartLoadWithRequest={req => {
+          if (/[?&]xinhai_external=1/.test(req.url)) { Linking.openURL(req.url.replace(/[?&]xinhai_external=1/, '')); return false; }
+          return true;
+        }}
         style={s.root}
         javaScriptEnabled
         domStorageEnabled
