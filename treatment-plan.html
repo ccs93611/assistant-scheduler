@@ -334,7 +334,7 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 .wty{margin:0;padding-left:2.2em;list-style:cjk-ideographic;line-height:1.7;font-size:14.5px}
 .wty>li{margin-bottom:8px}.wty>li::marker{font-weight:700}
 .wty h4{display:inline;margin:0;font-size:15px;color:var(--accent)}.wty h4::after{content:"："}
-.wty p{margin:2px 0}.wty ul{margin:2px 0;padding-left:1.3em;list-style:disc}
+.wty p{margin:2px 0}.wty ul{margin:2px 0;padding-left:1.3em;list-style:disc}.wty ul.wty-dash{list-style:"－ ";padding-left:1.6em}
 /* 保固說明列印：診所 Logo 浮水印放在頁面正中央（同項目介紹），內容在浮水印上面；畫面上不顯示 */
 .tip-wm.wty-wm{display:none}
 @media print{body.print-modal .tip-wm.wty-wm{display:flex;position:fixed;z-index:0;filter:url(#wty-wm-blue)}body.print-modal .wty-doc{position:relative;z-index:1}
@@ -1323,7 +1323,7 @@ $('#main').addEventListener('click',async e=>{
     if(k&&k!=='photo'){if(k==='sig'){const r=rowOf(p,e.target);if(r&&r.row.sig)showImage(r.row.sig,'患者簽名')}return}
   }
   const ti=e.target.closest('[data-ti]');if(ti){e.preventDefault();openTreatmentInfo(ti.dataset.ti);return}
-  if(e.target.closest('[data-wty]')){e.preventDefault();openWarranty();return}
+  {const w=e.target.closest('[data-wty]');if(w){e.preventDefault();openWarranty(w.dataset.wty);return}}
   if(e.target.closest('[data-ti-plan]')){window.open('treatments.html?ids='+planTiIds(p).join(','),'_blank','noopener');return}
   const op=e.target.closest('[data-open-plan]');if(op){openPlan(op.dataset.openPlan);return}
   const a=e.target.closest('[data-act]');
@@ -1445,12 +1445,15 @@ document.head.insertAdjacentHTML('beforeend',`<style>${TI_CSS}</style>`);
 const tiOf=it=>it&&it.name&&!it.custom?tiFind(it.name):null;
 function catTagHtml(it){if(!it.name)return '&nbsp;';const e=tiOf(it);
   return esc(it.custom?'自訂項目':it.cat)+(e?`<button type="button" class="ti-btn" data-ti="${e.id}" title="治療介紹（可給病人看、列印）">ⓘ 介紹</button>`:'')
-    +(!it.custom&&WARRANTY_ITEMS.has(it.name)?'<button type="button" class="ti-btn" data-wty title="齒雕、美學貼片、牙冠保固說明（可給病人看、列印）">🛡 保固</button>':'')}
-/* ====== 保固說明：齒雕、美學貼片、牙冠（項目旁的「🛡 保固」） ====== */
-const WARRANTY_ITEMS=new Set(['日本GC Initial LiSi Block齒雕','日本GC Initial LiSi Block美學貼片','列支敦斯登E.max美學貼片',
-  '德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙','日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙','列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙']);
+    +((w=>w?`<button type="button" class="ti-btn" data-wty="${w.id}" title="${esc(w.title)}（可給病人看、列印）">🛡 保固</button>`:'')(wtyOf(it)))}
+/* ====== 保固說明（項目旁的「🛡 保固」）：齒雕、美學貼片、牙冠／植體、植牙冠、植牙贗復體 ====== */
+const WARRANTY_ITEMS={
+  crown:['日本GC Initial LiSi Block齒雕','日本GC Initial LiSi Block美學貼片','列支敦斯登E.max美學貼片',
+    '德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙','日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙','列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙'],
+  implant:['美國Hiossen植體-前牙','美國Hiossen植體-後牙','瑞士Straumann BLC植體-前牙','瑞士Straumann BLC植體-後牙','瑞士Straumann BLX植體-前牙','瑞士Straumann BLX植體-後牙',
+    '德國Cercon全鋯植牙冠-前牙','德國Cercon全鋯植牙冠-後牙','Over Denture植牙固位式活動假牙(2植體)','Over Denture植牙固位式活動假牙(4植體)','All-on-x臨時牙','All-on-x正式氧化鋯牙','All-on-x輕量化合金牙架']};
 const WARRANTY_WM=`<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wty-wm-blue"><feFlood flood-color="#6fb3e8"/><feComposite in2="SourceAlpha" operator="in"/></filter></svg><div class="tip-wm wty-wm" aria-hidden="true"><div class="wm-icon"><img src="tp-watermark.png?v=3" alt=""></div><div class="wm-text"><img src="tp-watermark.png?v=3" alt=""></div></div>`;
-const WARRANTY_DOC=`<div class="wty-doc"><h2>「齒雕、美學貼片、牙冠」保固及說明</h2><ol class="wty">
+const WARRANTY_CROWN=`<div class="wty-doc"><h2>「齒雕、美學貼片、牙冠」保固及說明</h2><ol class="wty">
   <li><h4>保固期限</h4><p><b>齒雕、美學貼片、牙冠</b>，黏著裝戴於口內始計算<b>一年</b>，並由本院<b>原施術醫師</b>提供保固治療。</p></li>
   <li><h4>保固範圍</h4><ul>
     <li>破損－保固內「自然使用」下發生破損<b>免費修補或重新製作</b>，外傷或不當使用導致破損則視為新療程。且重新製作時將依照原型態、顏色製作。</li>
@@ -1467,9 +1470,36 @@ const WARRANTY_DOC=`<div class="wty-doc"><h2>「齒雕、美學貼片、牙冠�
   <li><h4>臨時牙冠折抵說明</h4><p>臨時假牙之費用，於正式假牙配戴時即進行折抵，如後續未在本院完成假牙療程，則臨時假牙並無退費；本院因故轉診而無法完成，則不再此限。超過三個月無回診，期間破損、遺失需重做，<b>另計收費、且無法折抵正式假牙費用</b>。</p></li>
   <li><h4>病患須知</h4><p>口內贗復品長期皆有損耗的機率，細心照護可增加使用年限、但並非終生不會損壞。為維護良好的醫病關係及責任歸屬，特立此說明。</p></li>
 </ol></div>`;
-const WARRANTY_HTML=WARRANTY_WM+WARRANTY_DOC;
-function openWarranty(){
-  modal(`${WARRANTY_HTML}<div class="acts"><button data-x="print">🖨 列印給病人</button><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
+const WARRANTY_IMPLANT=`<div class="wty-doc"><h2>「植體、植牙冠、植牙贗復體」保固及說明</h2><ol class="wty">
+  <li><h4>保固期限</h4><ul>
+    <li><b>美國 Hiossen 植體</b>：植入口內始計算<b>三年</b></li>
+    <li><b>瑞士 Straumann 植體</b>：植入口內始計算<b>五年</b></li>
+    <li><b>植牙冠、植牙贗復體</b>：裝戴於口內始計算<b>一年</b></li>
+    <li>臨時牙或植牙臨時贗復體：僅供過渡期間使用，不在保固內</li>
+    <li>Locator 零件：為正常消耗品，需定期更換，不在保固內</li></ul>
+    <p>上述由本院<b>原施術醫師</b>提供保固治療。</p></li>
+  <li><h4>保固範圍</h4>
+    <p>1. <b>植體</b></p><ul>
+    <li>早期骨整合失敗－保固內發生早期骨整合失敗提供<b>免費更換植體</b>。</li>
+    <li>斷裂－保固內「自然使用」下發生斷裂提供<b>免費更換植體</b>，外傷或不當使用導致破損則視為新療程。植牙冠及植牙贗復體破損則視是否為保固內，若植牙冠並非保固內破損則視為新療程。</li>
+    <li>植體周圍炎－植牙仍然需要「正常清潔」及「定期回診」，保固內若發生植體周圍炎，視嚴重程度提供非手術性治療或手術性治療，甚至免費更換植體。但以下情況除外：<ul class="wty-dash">
+      <li>口腔衛生不良</li><li>無依照時間定期回診追蹤</li><li>醫師植牙時建議施行游離牙齦移植術（FGG），但患者不接受導致角化牙齦不足</li></ul></li></ul>
+    <p>2. <b>植牙冠及植牙贗復體</b></p><ul>
+    <li>破損－保固內「自然使用」下發生破損<b>免費修補或重新製作</b>，外傷或不當使用導致破損則視為新療程。且重新製作時將依照原型態、顏色製作。</li>
+    <li>脫落－保固內假牙脫落未損傷、未遺失，<b>免費重新黏著</b>，若因<b>損傷或遺失</b>至需要重新製作則<b>酌收 1/3 總價</b>。</li>
+    <li>重作－保固內如想再次更改型態、顏色，<b>重作需自付 80% 費用</b>。</li></ul></li>
+  <li><h4>術前須知</h4><p><b>植牙導版可提供植牙精準度</b>，若無製做植牙導版可能導致植體角度或位置不佳，或植牙冠及植牙贗復體型態受限，此為不可抗力，無法為此究責。</p>
+    <p><b>植牙冠及植牙贗復體</b>：施術醫師向病患確認顏色及型態，病患同意並安裝後，無法進行顏色及型態調整；若需修正顏色及型態，需自付八成重新製作費用。</p></li>
+  <li><h4>免責條款</h4><p>若於<b>其他診所植入之植體</b>，後至本診所製作植牙冠或植牙贗復體，後續若<b>因植體問題</b>需拆除植牙冠、植牙贗復體或植體。因植體本身不為本診所產品，植體本身品質無法控制，因此後續療程將視為本診所新療程。</p></li>
+  <li><h4>臨時牙折抵說明</h4><p>植牙期間之臨時牙或植牙臨時贗復體<b>僅供過渡期間使用</b>，若未於預計之正式假牙製作時間回診，導致臨時牙或植牙臨時贗復體使用時間過長而損壞而需要重新製作，則視為新療程，<b>另計收費、且無法折抵療程費用</b>。</p></li>
+  <li><h4>病患須知</h4><p>口內贗復品長期皆有損耗的機率，細心照護可增加使用年限、但並非終生不會損壞。為維護良好的醫病關係及責任歸屬，特立此說明。</p></li>
+</ol></div>`;
+const WARRANTIES=[{id:'crown',title:'「齒雕、美學貼片、牙冠」保固及說明',items:new Set(WARRANTY_ITEMS.crown),doc:WARRANTY_CROWN},
+  {id:'implant',title:'「植體、植牙冠、植牙贗復體」保固及說明',items:new Set(WARRANTY_ITEMS.implant),doc:WARRANTY_IMPLANT}];
+const wtyOf=it=>it&&!it.custom&&it.name?WARRANTIES.find(w=>w.items.has(it.name))||null:null;
+const planWtys=p=>WARRANTIES.filter(w=>(p.items||[]).some(it=>wtyOf(it)===w)); // 這張單用到的保固說明（每種一份）
+function openWarranty(id){const w=WARRANTIES.find(x=>x.id===id)||WARRANTIES[0];
+  modal(`${WARRANTY_WM+w.doc}<div class="acts"><button data-x="print">🖨 列印給病人</button><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
   (box,close)=>box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;
     if(x==='print'){ // 只印這個視窗；印完（afterprint）才移除，App 的系統列印是非同步的
       document.body.classList.add('print-modal');const done=()=>{document.body.classList.remove('print-modal');removeEventListener('afterprint',done)};
@@ -1485,29 +1515,29 @@ function openTreatmentInfo(id){const e=TI_BY_ID[id];if(!e)return;
     else close()}))}
 
 /* 列印：僅治療計劃單／＋項目介紹／＋保固說明／＋項目介紹＋保固說明
-   這張單沒有項目介紹或沒有保固項目時，相關選項不能選並說明原因；保固說明不論有幾個保固項目都只印一次 */
-const planHasWty=p=>(p.items||[]).some(it=>!it.custom&&WARRANTY_ITEMS.has(it.name));
+   這張單沒有項目介紹或沒有保固項目時，相關選項不能選並說明原因；保固說明每一種只印一次（例如好幾顆牙冠也只印一份牙冠的保固說明） */
 function printPlan(p){
-  const ids=planTiIds(p),wty=planHasWty(p);
-  const noInfo='這張單的治療項目都沒有項目介紹（例如自訂項目）',noWty='這張單沒有齒雕、美學貼片、牙冠項目，沒有保固說明';
+  const ids=planTiIds(p),wt=planWtys(p),wty=wt.length;
+  const noInfo='這張單的治療項目都沒有項目介紹（例如自訂項目）',noWty='這張單沒有需要保固說明的項目（齒雕、美學貼片、牙冠、植體、植牙冠、植牙贗復體）';
   const list=ids.length?`<span class="pp-list">${ids.map(id=>`<span>${esc(TI_BY_ID[id].title)}</span>`).join('')}</span>`:'';
+  const wlist=`<span class="pp-list">${wt.map(w=>`<span>${esc(w.title)}</span>`).join('')}</span>`;
   const opt=(x,label,ok,why,more='')=>`<button data-x="${x}" ${ok?'':'disabled'}>🖨 ${label}${ok?more:`<span class="hint">${why}</span>`}</button>`;
   modal(`<h3>列印</h3><div class="pp-opts">
       <button data-x="plan">🖨 僅列印治療計劃單</button>
       ${opt('info','列印治療計劃單＋項目介紹',ids.length,noInfo,`<span class="hint">將列印的項目介紹（接在治療計劃單後面）：</span>${list}`)}
-      ${opt('wty','列印治療計劃單＋保固說明',wty,noWty,'<span class="hint">保固說明接在治療計劃單後面（印一次）</span>')}
-      ${opt('both','列印治療計劃單＋項目介紹＋保固說明',ids.length&&wty,!ids.length?noInfo:noWty,`<span class="hint">依序印：治療計劃單 → 項目介紹 → 保固說明（印一次）</span>${list}`)}</div>
+      ${opt('wty','列印治療計劃單＋保固說明',wty,noWty,`<span class="hint">保固說明接在治療計劃單後面（每種印一次）：</span>${wlist}`)}
+      ${opt('both','列印治療計劃單＋項目介紹＋保固說明',ids.length&&wty,!ids.length?noInfo:noWty,`<span class="hint">依序印：治療計劃單 → 項目介紹 → 保固說明（每種印一次）</span>${list}${wlist}`)}</div>
     <div class="acts"><span class="sp"></span><button data-x="close">取消</button></div>`,
   (box,close)=>box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;close();
     if(x==='plan')setTimeout(()=>window.print(),50);else if(x==='info')printWithInfo(ids);
-    else if(x==='wty')printWithInfo([],true);else if(x==='both')printWithInfo(ids,true)}))}
+    else if(x==='wty')printWithInfo([],wt);else if(x==='both')printWithInfo(ids,wt)}))}
 // 治療計劃單後面接著印項目介紹（與保固說明）：每項一張 A4，跟 treatments.html 的 printIds 一樣自動縮放到剛好填滿一頁；
 // 有比較表的項目把比較表拆到第二頁；保固說明放最後一頁；不印診所 Logo 與名稱（浮水印除外）；印完移除
-async function printWithInfo(ids,withWty){
+async function printWithInfo(ids,wtys=[]){
   document.getElementById('tiPrint')?.remove();
   const box=document.createElement('div');box.id='tiPrint';box.className='measure';
   const page=(title,body)=>`<div class="tip-page"><h3>${esc(title)}</h3>${body}<div class="tip-disc">${esc(TI_DISCLAIMER)}</div></div>`;
-  box.innerHTML=ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+(withWty?`<div class="tip-page tip-wty">${WARRANTY_DOC}</div>`:'');
+  box.innerHTML=ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
   (document.querySelector('.app')||document.body.lastChild).after(box); // 緊接在計劃單後面
   box.querySelectorAll('.tip-page').forEach(d=>{const t=d.querySelector('.ti-body>.ti-tbl');if(!t)return;
     const p2=document.createElement('div');p2.innerHTML=page(d.querySelector('h3').textContent+'（'+(t.querySelector('h4')?.textContent||'續')+'）','<div class="ti-body"></div>');
