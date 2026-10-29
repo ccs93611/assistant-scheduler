@@ -335,7 +335,10 @@ textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:
 .wty>li{margin-bottom:8px}.wty>li::marker{font-weight:700}
 .wty h4{display:inline;margin:0;font-size:15px;color:var(--accent)}.wty h4::after{content:"："}
 .wty p{margin:2px 0}.wty ul{margin:2px 0;padding-left:1.3em;list-style:disc}
-@media print{body.print-modal .wty-doc{padding:14mm 16mm;color:#111}body.print-modal .wty{font-size:14px;line-height:1.75}body.print-modal .wty-doc h2{font-size:22px;margin-bottom:14px}body.print-modal .modal .acts{display:none}}
+/* 保固說明列印：診所 Logo 浮水印放在頁面正中央（同項目介紹），內容在浮水印上面；畫面上不顯示 */
+.tip-wm.wty-wm{display:none}
+@media print{body.print-modal .tip-wm.wty-wm{display:flex;position:fixed;z-index:0;filter:url(#wty-wm-blue)}body.print-modal .wty-doc{position:relative;z-index:1}
+body.print-modal .wty-doc{padding:14mm 16mm;color:#111}body.print-modal .wty{font-size:14px;line-height:1.75}body.print-modal .wty-doc h2{font-size:22px;margin-bottom:14px}body.print-modal .modal .acts{display:none}}
 .combo-wrap{position:relative}
 .combo-wrap::after{content:"▾";position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:12px}
 .combo-wrap input{padding-right:24px}
@@ -1446,7 +1449,7 @@ function catTagHtml(it){if(!it.name)return '&nbsp;';const e=tiOf(it);
 /* ====== 保固說明：齒雕、美學貼片、牙冠（項目旁的「🛡 保固」） ====== */
 const WARRANTY_ITEMS=new Set(['日本GC Initial LiSi Block齒雕','日本GC Initial LiSi Block美學貼片','列支敦斯登E.max美學貼片',
   '德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙','日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙','列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙']);
-const WARRANTY_HTML=`<div class="wty-doc"><h2>「齒雕、美學貼片、牙冠」保固說明</h2><ol class="wty">
+const WARRANTY_HTML=`<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wty-wm-blue"><feFlood flood-color="#6fb3e8"/><feComposite in2="SourceAlpha" operator="in"/></filter></svg><div class="tip-wm wty-wm" aria-hidden="true"><div class="wm-icon"><img src="tp-watermark.png?v=3" alt=""></div><div class="wm-text"><img src="tp-watermark.png?v=3" alt=""></div></div><div class="wty-doc"><h2>「齒雕、美學貼片、牙冠」保固說明</h2><ol class="wty">
   <li><h4>保固期限</h4><p><b>齒雕、美學貼片、牙冠</b>，黏著裝戴於口內始計算<b>一年</b>，並由本院<b>原施術醫師</b>提供保固治療。</p></li>
   <li><h4>保固範圍</h4><ul>
     <li>破損－保固內「自然使用」下發生破損<b>免費修補或重新製作</b>，外傷導致破損則視為新療程。且重新製作時將依照原型態、顏色製作。</li>
