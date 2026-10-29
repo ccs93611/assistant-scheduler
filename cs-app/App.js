@@ -2,7 +2,7 @@
 // 登記、資料同步都在網頁裡；App 只負責：全螢幕、斷線重試，以及把「裝置編號」交給網頁（window.APP_HW），
 // 讓超級管理員在設備認證頁綁定這台平板（清除資料、重裝 App 後代碼變了也不用重新核准）。
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Linking, Platform, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
@@ -73,6 +73,11 @@ export default function App() {
         setSupportMultipleWindows={false}
         originWhitelist={['https://*']}
         onNavigationStateChange={st => { canBack.current = st.canGoBack; }}
+        // 網頁上的「登入」（個人模式）：Google 不允許在 App 內嵌網頁登入，帶 xinhai_external 的網址改用平板的瀏覽器開啟
+        onShouldStartLoadWithRequest={req => {
+          if (/[?&]xinhai_external=1/.test(req.url)) { Linking.openURL(req.url.replace(/[?&]xinhai_external=1/, '')); return false; }
+          return true;
+        }}
         onError={onFail}
         onHttpError={e => { if (e.nativeEvent.statusCode >= 500) onFail(); }}
         onContentProcessDidTerminate={reload}

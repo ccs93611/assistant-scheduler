@@ -150,7 +150,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
   <div class="head-r">
     <button id="cfgBtn" hidden>⚙ 耗材種類</button>
     <button id="devBtn" hidden title="打卡裝置、治療計劃單與耗材的設備認證（只有超級管理員）">🔐 設備認證</button>
-    <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip perm" id="mePerm"></span> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
+    <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip perm" id="mePerm"></span> <button class="btn-sm" id="personalBtn" hidden title="改用自己的 Google 帳號登入（個人模式）；登出後回到設備模式">登入</button> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
   </div>
 </header>
 <main>
@@ -231,7 +231,9 @@ const ST={pending:'待醫師確認',rejected:'醫師退回',confirmed:'已確認
 const LEGACY_LV={view:'view',self:'edit',manage:'edit',super:'admin'},LEGACY_VIEW={tp:'view',cs:'none'};
 const appLv=(acc,k)=>!acc||acc.perm==='suspended'?'none':(acc[k]||(acc.perm==='view'?LEGACY_VIEW[k]:LEGACY_LV[acc.perm])||'none');
 let fs=null,me='',mySid='',PERM='admin';
-let SCHED_SUPER=false; // 排班超級管理員：顯示「設備認證」按鈕（devices.html）
+let SCHED_SUPER=false;
+let AUTH=null; // 目前使用的 Firebase 登入（設備模式＝預設執行個體；個人模式＝personal）
+const PERSONAL=(()=>{const q=/[?&]personal=1/.test(location.search);try{if(q)sessionStorage.setItem('cs_personal','1');return q||sessionStorage.getItem('cs_personal')==='1'}catch(e){return q}})(); // 排班超級管理員：顯示「設備認證」按鈕（devices.html）
 const canEdit=()=>['edit','admin','device'].includes(PERM); // 可以登記、修改、刪除未確認的耗材
 const canCfg=()=>PERM==='admin';                            // 耗材管理：設定耗材種類、刪除已確認的紀錄
 let staff=[];           // 排班系統的人員名單 {id,role,code,name,active}
@@ -443,7 +445,8 @@ function afterLogin(){
   $('#gate').hidden=true;$('#me').hidden=false;
   $('#meEmail').textContent=PERM==='device'?me:myName();
   $('#mePerm').textContent={view:'檢視',edit:'登記',admin:'管理',device:'認證設備'}[PERM]||PERM;
-  $('#signOutBtn').textContent=PERM==='device'?'退出設備模式':'登出';
+  $('#signOutBtn').textContent=PERM==='device'?'退出設備模式':PERSONAL?'登出（回到設備模式）':'登出';
+  $('#personalBtn').hidden=PERM!=='device';
   $('#form').hidden=!canEdit();$('#cfgBtn').hidden=!canCfg();$('#devBtn').hidden=!SCHED_SUPER;
   if(!$('#fDate').value)$('#fDate').value=today();
   $('#vMonth').value=view.month;
@@ -687,7 +690,12 @@ function showGate(kind,email){
   if(kind==='loading'){msg.textContent='連線中…';acts.innerHTML='';return}
   if(kind==='signin'){
     msg.textContent=/FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent)?'App 內建的瀏覽器無法使用 Google 登入，請點右上角「⋯」選擇用 Safari 或 Chrome 開啟。':'請用 Google 帳號登入（與排班系統相同的帳號）。';
-    acts.innerHTML='<button class="btn-primary" id="gSignIn">使用 Google 登入</button><div style="margin-top:14px"><button class="btn-sm btn-ghost" id="gDevice">這台設備申請認證（免登入）</button></div>';$('#gSignIn').onclick=signIn;$('#gDevice').onclick=deviceApply;return;
+    // 舊版 App 不會改用瀏覽器開啟，留在 App 裡就無法用 Google 登入
+    if(HW&&PERSONAL){msg.textContent='App 裡無法使用 Google 登入，請更新「新海耗材」App（新版按「登入」會用平板的瀏覽器開啟），或直接用瀏覽器開啟耗材登記頁登入。';
+      acts.innerHTML='<button class="btn-primary" id="gBack">返回設備模式</button>';$('#gBack').onclick=leavePersonal;return}
+    // 個人模式（從認證設備按「登入」進來）：可以返回設備模式，不顯示申請認證
+    acts.innerHTML='<button class="btn-primary" id="gSignIn">使用 Google 登入</button>'+(PERSONAL?'<div style="margin-top:14px"><button class="btn-sm btn-ghost" id="gBack">返回設備模式</button></div>':'<div style="margin-top:14px"><button class="btn-sm btn-ghost" id="gDevice">這台設備申請認證（免登入）</button></div>');
+    $('#gSignIn').onclick=signIn;if(PERSONAL)$('#gBack').onclick=leavePersonal;else $('#gDevice').onclick=deviceApply;return;
   }
   if(kind==='error'){msg.textContent=email;acts.innerHTML='<button id="gReload">重新整理</button>';$('#gReload').onclick=()=>location.reload();return}
   msg.innerHTML=kind==='suspended'?`你的帳號 <span class="who">${esc(email)}</span> 已被停權，無法使用本系統。`
@@ -696,17 +704,28 @@ function showGate(kind,email){
 }
 async function signIn(){
   const pr=new firebase.auth.GoogleAuthProvider();pr.setCustomParameters({prompt:'select_account'});
-  try{await firebase.auth().signInWithPopup(pr)}
+  try{await AUTH.signInWithPopup(pr)}
   catch(e){
-    if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-environment')return firebase.auth().signInWithRedirect(pr);
+    if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-environment')return AUTH.signInWithRedirect(pr);
     if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')alert('登入失敗：'+e.message);
   }
 }
-async function signOut(){if(PERM==='device'&&!confirm('退出設備模式？\n退出後這台設備需要重新申請認證、由超級管理員核准。'))return;if(window.firebase&&firebase.apps.length)await firebase.auth().signOut();location.reload()}
+async function signOut(){
+  if(PERSONAL)return leavePersonal(); // 個人模式登出：回到設備模式（設備的認證不受影響）
+  if(PERM==='device'&&!confirm('退出設備模式？\n退出後這台設備需要重新申請認證、由超級管理員核准。'))return;
+  if(AUTH)await AUTH.signOut();location.reload();
+}
 $('#signOutBtn').addEventListener('click',signOut);
+// 個人模式：認證設備上按「登入」，用另一個 Firebase 執行個體（personal）登入自己的 Google 帳號，設備的匿名身分與認證保留不動；
+// 只在這個分頁有效（sessionStorage），關掉分頁或登出就回到設備模式。在 App 裡 Google 不允許內嵌網頁登入，改用平板的瀏覽器開啟
+async function leavePersonal(){try{sessionStorage.removeItem('cs_personal')}catch(e){}if(AUTH)await AUTH.signOut().catch(()=>{});location.replace(location.pathname)}
+$('#personalBtn').addEventListener('click',()=>{
+  if(HW){location.href=location.origin+location.pathname+'?personal=1&xinhai_external=1';return} // App 攔截 xinhai_external 改用瀏覽器開啟
+  try{sessionStorage.setItem('cs_personal','1')}catch(e){}location.reload();
+});
 const devCode=uid=>uid.slice(-6).toUpperCase();
 async function deviceApply(){
-  try{await firebase.auth().signInAnonymously()}
+  try{await AUTH.signInAnonymously()}
   catch(e){showGate('error',e.code==='auth/operation-not-allowed'?'Firebase 尚未啟用「匿名」登入方式，請管理者到 Firebase 主控台 → Authentication → 登入方式 啟用「匿名」。':'無法連線：'+(e.code||e.message))}
 }
 // 「新海耗材」App 會在 window.APP_HW 放裝置編號 {id, platform, model}。超級管理員在設備認證頁「綁定裝置編號」核准後（tpHw/{裝置編號}），
@@ -762,14 +781,15 @@ function handleDevice(u){
 function bootCloud(){
   if(!window.firebase){showGate('error','無法載入登入元件，請確認網路連線後重新整理。');return}
   firebase.initializeApp(window.FIREBASE_CONFIG);
-  fs=firebase.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});
+  const app=PERSONAL?firebase.initializeApp(window.FIREBASE_CONFIG,'personal'):firebase.app(); // 個人模式用另一個執行個體，登入狀態分開保存
+  fs=app.firestore();fs.settings({ignoreUndefinedProperties:true,merge:true});AUTH=app.auth();
   if(window.ReadCounter)ReadCounter.install(fs,()=>me,'耗材登記'); // 雲端讀取筆數（估計），與排班系統、治療計劃單合計
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
   showGate('loading');
-  firebase.auth().onAuthStateChanged(async u=>{
+  AUTH.onAuthStateChanged(async u=>{
     // 在「新海耗材」App 裡（有裝置編號）：Google 不允許在 App 內嵌網頁登入，直接以認證設備登記
-    if(!u){if(HW){showGate('loading');deviceApply();return}showGate('signin');return}
-    if(u.isAnonymous){handleDevice(u);return}
+    if(!u){if(HW&&!PERSONAL){showGate('loading');deviceApply();return}showGate('signin');return}
+    if(u.isAnonymous){if(PERSONAL){AUTH.signOut();return}handleDevice(u);return}
     me=(u.email||'').toLowerCase();
     const owner=(window.OWNER_EMAILS||[]).some(x=>x.toLowerCase()===me);
     let acc=null;try{const s=await fs.doc('access/'+me).get();acc=s.exists?s.data():null}catch(e){console.error(e)}
