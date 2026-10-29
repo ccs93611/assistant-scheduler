@@ -20,7 +20,7 @@
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
 /* 背景與治療計劃單、耗材登記相同：淡藍底＋置中的診所 Logo 浮水印 */
-body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url(tp-watermark.png?v=3) center/min(85vmin,720px) auto no-repeat;opacity:.14}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url(icons/tp-watermark.png?v=3) center/min(85vmin,720px) auto no-repeat;opacity:.14}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) body::before{opacity:.06}}
 button,input{font:inherit;color:inherit}
 input{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0}
@@ -90,7 +90,7 @@ if (location.hostname === 'assistant-scheduler-five.vercel.app') window.FIREBASE
 if (location.hostname === 'localhost' && /[?&]local=[\w-]+/.test(location.search)) window.FIREBASE_CONFIG = null;
 window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.rules 一致
 </script>
-<script src="read-counter.js"></script>
+<script src="js/read-counter.js"></script>
 </head>
 <body>
 <header>

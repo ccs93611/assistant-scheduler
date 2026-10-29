@@ -16,6 +16,16 @@
 
 上方工具列：切換月份、**回復上一動作**（Ctrl+Z，最多 50 步，只記本次開啟後的排班變更；定案或刪除人員後清空）、**帶入醫師班表**、**自動排班**（可復原）、**匯出班表**：JPG 或 PDF（A4 橫式，整個月放在同一頁，整體等比例縮小），或 Excel（班表、工時統計、請假、薪資等工作表）。
 
+## 資料夾
+
+| 位置 | 內容 |
+|---|---|
+| 根目錄 | 各系統網頁（`index.html`、`treatment-plan.html`、`consumables.html`、`kiosk.html`、`devices.html`、`treatments.html`、App 下載頁 `app*.html`）、`firestore.rules`、`app-latest.json`。網頁留在根目錄，App、書籤、QR code 都用這些網址 |
+| `js/` | 共用程式：`read-counter.js`（雲端讀取筆數）、`device-modal.js`（設備認證彈窗）、`treatment-info.js`、`treatment-figs.js`（治療介紹） |
+| `icons/` | 網頁圖示、主畫面圖示、分享預覽圖（`og-image*`）、浮水印 `tp-watermark.png` |
+| `media/` | 治療介紹用的圖片 |
+| `apps/` | 三個 App 專案：`kiosk-app`（新海打卡）、`cs-app`（新海耗材）、`tp-app`（新海治療計劃單） |
+
 ## 程式結構（都在 `index.html` 的 `<script>` 內）
 
 ```
@@ -241,7 +251,7 @@ HTML（7 個 <section id="tab-*">）
 |---|---|---|
 | 打卡頁 | `kiosk.html` | 放在診所平板上的打卡機。用 [Human](https://github.com/vladmandic/human) 在裝置上做臉部偵測、特徵比對與活體／防翻拍檢查（相片、螢幕翻拍會被擋），只把打卡時間寫到 Firestore |
 | 出勤分頁 | `index.html` 的「出勤」 | 排班管理以上可見。比對打卡與班表、補登／作廢打卡、把遲到分鐘帶入薪資、出勤規則、核准打卡裝置、設定裝置管理密碼 |
-| App | `kiosk-app/` | Expo（React Native）外殼，用 WebView 開啟正式網址的 `kiosk.html`；處理相機權限、全螢幕、螢幕常亮、斷線自動重試 |
+| App | `apps/kiosk-app/` | Expo（React Native）外殼，用 WebView 開啟正式網址的 `kiosk.html`；處理相機權限、全螢幕、螢幕常亮、斷線自動重試 |
 
 **流程**：平板開 App → 第一次開啟會匿名登入並顯示「裝置代碼」→ 管理者在「出勤 → 打卡裝置」核准 → 設定裝置管理密碼 → 在平板右上角 ⚙ 輸入密碼 →「登錄臉部」逐一為人員登錄（本人勾選同意，擷取 5 個角度）→ 之後打卡時先點選「班別＋上班卡／下班卡」（6 個按鈕，依現在時間建議最可能的一個），再站到鏡頭前掃臉；辨識成功後顯示姓名與遲到／早退提示，2.5 秒內可按「不是我」取消。選的班別當天沒有排班時會警告，需要本人按「確認打卡」。30 秒內沒辨識到或打完卡會回到選擇畫面。
 
@@ -282,7 +292,7 @@ HTML（7 個 <section id="tab-*">）
 
 **建置 App**（需要 Node.js LTS 與免費的 [Expo](https://expo.dev) 帳號；iOS 另需 Apple Developer Program）：
 ```
-cd kiosk-app
+cd apps/kiosk-app
 npm install
 npx expo install --fix
 npx eas-cli login
@@ -291,7 +301,7 @@ npx eas-cli build -p ios --profile preview       # 需 Apple Developer 帳號，
 ```
 平板建議開「螢幕固定」（Android）／「引導使用模式」（iPad），避免被切到其他 App。
 
-**下載頁**：`app.html`（正式網址 `/app.html`，排班系統「出勤 → 打卡裝置」右上角也有連結）提供最新版 APK 的下載按鈕、QR code（指向下載頁本身，換版本不用重印）、版本與安裝步驟，內容讀 `app-latest.json`。每次建置完成後，在 `kiosk-app` 執行 `node set-latest.js "這一版的更新說明"` 更新 `app-latest.json`，再 commit／push。`eas.json` 的 preview 設定 `autoIncrement`，每次建置版本號（第 N 版）自動加 1。
+**下載頁**：`app.html`（正式網址 `/app.html`，排班系統「出勤 → 打卡裝置」右上角也有連結）提供最新版 APK 的下載按鈕、QR code（指向下載頁本身，換版本不用重印）、版本與安裝步驟，內容讀 `app-latest.json`。每次建置完成後，在 `apps/kiosk-app` 執行 `node set-latest.js "這一版的更新說明"` 更新 `app-latest.json`，再 commit／push。`eas.json` 的 preview 設定 `autoIncrement`，每次建置版本號（第 N 版）自動加 1。
 
 **本機測試**：`index.html?local=名稱` 與 `kiosk.html?local=名稱` 共用 localStorage（打卡資料存在 `clinic_kiosk_local_v1_名稱`）；沒有相機時可在主控台用 `__kiosk.simulate('人員id')` 模擬辨識成功。
 
@@ -320,13 +330,13 @@ npx eas-cli build -p ios --profile preview       # 需 Apple Developer 帳號，
 - 本機測試：`devices.html?local=1`（打卡裝置與 `index.html?local=1` 共用瀏覽器資料）。
 
 
-## 新海耗材 App（`cs-app/`）
+## 新海耗材 App（`apps/cs-app/`）
 
 Expo（React Native）外殼，用 WebView 開啟正式網址的 `consumables.html`；只負責全螢幕、斷線自動重試，以及把裝置編號（Android ID／iOS identifierForVendor，與打卡 App 相同算法）交給網頁。App 裡不能用 Google 登入，打開後直接以認證設備申請。
 
 - 下載頁：`app-cs.html`（讀 `app-latest.json` 的 `cs` 欄位）。
-- 簽章金鑰：打卡、耗材、治療計劃單三個 App 共用打卡 App 的 Android 金鑰（Android 的裝置編號會隨金鑰不同而不同，共用後同一台平板在三個 App 讀到的裝置編號相同，設備認證頁只有一列）。耗材、治療計劃單 App 的 `eas.json` 設 `credentialsSource: "local"`，金鑰檔不上傳 GitHub；換電腦時在專案根目錄執行 `node cs-app/get-keystore.js cs-app tp-app` 從 Expo 帳號重新取得。
-- 建置：在 `cs-app` 執行 `npx eas-cli build -p android --profile preview`，完成後 `node set-latest.js "更新說明"` 更新 `app-latest.json`，再 commit／push。
+- 簽章金鑰：打卡、耗材、治療計劃單三個 App 共用打卡 App 的 Android 金鑰（Android 的裝置編號會隨金鑰不同而不同，共用後同一台平板在三個 App 讀到的裝置編號相同，設備認證頁只有一列）。耗材、治療計劃單 App 的 `eas.json` 設 `credentialsSource: "local"`，金鑰檔不上傳 GitHub；換電腦時在專案根目錄執行 `node apps/cs-app/get-keystore.js apps/cs-app apps/tp-app` 從 Expo 帳號重新取得。
+- 建置：在 `apps/cs-app` 執行 `npx eas-cli build -p android --profile preview`，完成後 `node set-latest.js "更新說明"` 更新 `app-latest.json`，再 commit／push。
 
 ## 耗材審核
 

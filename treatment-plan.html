@@ -29,7 +29,7 @@
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
 /* 背景浮水印：診所 Logo（去背），固定在右側內容區中央、淡淡的不影響閱讀 */
-body::before{content:"";position:fixed;top:0;bottom:0;right:0;left:var(--side-w);z-index:-1;pointer-events:none;background:url(tp-watermark.png?v=3) center/min(85vmin,720px) auto no-repeat;opacity:.14} /* 圖已去背（只留深藍 Logo），不會有底色色差 */
+body::before{content:"";position:fixed;top:0;bottom:0;right:0;left:var(--side-w);z-index:-1;pointer-events:none;background:url(icons/tp-watermark.png?v=3) center/min(85vmin,720px) auto no-repeat;opacity:.14} /* 圖已去背（只留深藍 Logo），不會有底色色差 */
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) body::before{opacity:.06}}
 @media print{body::before{display:none}}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -613,8 +613,8 @@ tfoot td{font-weight:700;background:var(--soft)}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="read-counter.js"></script>
-<script src="device-modal.js"></script>
+<script src="js/read-counter.js"></script>
+<script src="js/device-modal.js"></script>
 <script>
 // 與排班系統（index.html）共用同一個 Firebase 專案、Google 登入與權限（access/{Gmail}.perm）
 window.FIREBASE_CONFIG = {
@@ -671,8 +671,8 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 <div id="gate" class="gate" hidden><div class="gate-box"><h2>新海美學牙醫・治療計劃單</h2><p id="gateMsg">連線中…</p><div id="gateActs"></div></div></div>
 <input type="file" id="importInput" accept="application/json,.json" hidden>
 
-<script src="treatment-info.js?v=69"></script>
-<script src="treatment-figs.js?v=13"></script>
+<script src="js/treatment-info.js?v=69"></script>
+<script src="js/treatment-figs.js?v=13"></script>
 <script>
 'use strict';
 /* ====== 治療項目 ====== */
@@ -1455,7 +1455,7 @@ const WARRANTY_ITEMS={
     '德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙','日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙','列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙'],
   implant:['美國Hiossen植體-前牙','美國Hiossen植體-後牙','瑞士Straumann BLC植體-前牙','瑞士Straumann BLC植體-後牙','瑞士Straumann BLX植體-前牙','瑞士Straumann BLX植體-後牙',
     '德國Cercon全鋯植牙冠-前牙','德國Cercon全鋯植牙冠-後牙','Over Denture植牙固位式活動假牙(2植體)','Over Denture植牙固位式活動假牙(4植體)','All-on-x臨時牙','All-on-x正式氧化鋯牙','All-on-x輕量化合金牙架']};
-const WARRANTY_WM=`<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wty-wm-blue"><feFlood flood-color="#6fb3e8"/><feComposite in2="SourceAlpha" operator="in"/></filter></svg><div class="tip-wm wty-wm" aria-hidden="true"><div class="wm-icon"><img src="tp-watermark.png?v=3" alt=""></div><div class="wm-text"><img src="tp-watermark.png?v=3" alt=""></div></div>`;
+const WARRANTY_WM=`<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wty-wm-blue"><feFlood flood-color="#6fb3e8"/><feComposite in2="SourceAlpha" operator="in"/></filter></svg><div class="tip-wm wty-wm" aria-hidden="true"><div class="wm-icon"><img src="icons/tp-watermark.png?v=3" alt=""></div><div class="wm-text"><img src="icons/tp-watermark.png?v=3" alt=""></div></div>`;
 const WARRANTY_CROWN=`<div class="wty-doc"><h2>「齒雕、美學貼片、牙冠」保固及說明</h2><ol class="wty">
   <li><h4>保固期限</h4><p><b>齒雕、美學貼片、牙冠</b>，黏著裝戴於口內始計算<b>一年</b>，並由本院<b>原施術醫師</b>提供保固治療。</p></li>
   <li><h4>保固範圍</h4><ul>
@@ -1553,7 +1553,7 @@ async function printWithInfo(ids,wtys=[]){
     fit(d,lo)});
   // 項目介紹每一頁加診所 Logo 浮水印（跟 treatments.html 相同），治療計劃單不加：頁面高度設成一頁，浮水印放在頁面正中央，縮放比例抵銷掉維持原大小
   box.querySelector('.tip-page').insertAdjacentHTML('beforeend','<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="tip-wm-blue"><feFlood flood-color="#6fb3e8"/><feComposite in2="SourceAlpha" operator="in"/></filter></svg>');
-  const wm='<div class="tip-wm" aria-hidden="true"><div class="wm-icon"><img src="tp-watermark.png?v=3" alt=""></div><div class="wm-text"><img src="tp-watermark.png?v=3" alt=""></div></div>';
+  const wm='<div class="tip-wm" aria-hidden="true"><div class="wm-icon"><img src="icons/tp-watermark.png?v=3" alt=""></div><div class="wm-text"><img src="icons/tp-watermark.png?v=3" alt=""></div></div>';
   box.querySelectorAll('.tip-page').forEach(d=>{const z=+d.style.zoom||1;d.style.height=(290/z).toFixed(2)+'mm';d.insertAdjacentHTML('afterbegin',wm);d.firstElementChild.style.zoom=1/z});
   await Promise.all([...box.querySelectorAll('.tip-wm img')].map(i=>i.decode().catch(()=>{})));
   box.className='';

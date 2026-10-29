@@ -1,5 +1,5 @@
-// 把最新一次完成的 Android 建置寫進 ../app-latest.json（下載頁 app.html 讀這個檔）。
-// 用法（在 kiosk-app 資料夾）：node set-latest.js "這一版的更新說明"
+// 把最新一次完成的 Android 建置寫進 ../../app-latest.json（下載頁 app.html 讀這個檔）。
+// 用法（在 apps/kiosk-app 資料夾）：node set-latest.js "這一版的更新說明"
 // 之後 commit／push，網站上的下載頁就會指向最新版。
 const { execSync } = require('child_process');
 const fs = require('fs');
@@ -10,7 +10,7 @@ const out = execSync('npx eas-cli build:list --platform android --status finishe
 const b = JSON.parse(out)[0];
 if (!b || !b.artifacts || !b.artifacts.buildUrl) { console.error('找不到已完成的 Android 建置'); process.exit(1); }
 
-const file = path.join(__dirname, '..', 'app-latest.json');
+const file = path.join(__dirname, '..', '..', 'app-latest.json');
 const cur = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
 cur.android = {
   version: b.appVersion,

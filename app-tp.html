@@ -88,7 +88,7 @@ code{background:var(--accent-soft);padding:1px 6px;border-radius:5px;font-size:.
   try{new QRCode($('qr'),{text:pageUrl,width:160,height:160,correctLevel:QRCode.CorrectLevel.M});}catch(e){$('qr').textContent='';}
   const fmt=iso=>{const d=new Date(iso);return isNaN(d)?'':`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;};
   fetch('app-latest.json?t='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(d=>{
-    const a=d.tp; // 治療計劃單 App 的最新版（tp-app/set-latest.js 寫入）
+    const a=d.tp; // 治療計劃單 App 的最新版（apps/tp-app/set-latest.js 寫入）
     if(!a||!a.url){$('meta').textContent='目前沒有可下載的版本。';return;}
     $('dlBtn').href=a.url;$('dlBtn').removeAttribute('aria-disabled');
     $('meta').innerHTML=`版本 <b>${a.version}</b>（第 ${a.build} 版）・建置於 ${fmt(a.builtAt)}`;

@@ -1,6 +1,6 @@
 // 從 Expo 帳號取出打卡 App（@shinyhi/xinhai-kiosk）的 Android 簽章金鑰，存成 credentials.json＋keystore.jks 給其他 App 共用。
 // 用這台電腦 eas-cli 已登入的 session；不在畫面印出金鑰內容。
-// 用法（在專案根目錄）：node cs-app/get-keystore.js cs-app tp-app　→ 產生各資料夾的 credentials.json＋credentials/keystore.jks（已列入 .gitignore，不能上傳）
+// 用法（在專案根目錄）：node apps/cs-app/get-keystore.js apps/cs-app apps/tp-app　→ 產生各資料夾的 credentials.json＋credentials/keystore.jks（已列入 .gitignore，不能上傳）
 const fs=require('fs'),path=require('path'),os=require('os');
 const st=JSON.parse(fs.readFileSync(path.join(os.homedir(),'.expo','state.json'),'utf8'));
 const secret=st.auth&&st.auth.sessionSecret;if(!secret){console.error('找不到 Expo 登入資訊');process.exit(1)}
