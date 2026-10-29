@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>新海治療計劃單</title>
-<link rel="icon" href="icon-tp.svg?v=2" type="image/svg+xml">
-<link rel="icon" href="icon-tp-512.png?v=2" type="image/png" sizes="512x512">
-<link rel="apple-touch-icon" href="apple-touch-icon-tp.png?v=2">
+<link rel="icon" href="icons/icon-tp.svg?v=2" type="image/svg+xml">
+<link rel="icon" href="icons/icon-tp-512.png?v=2" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-tp.png?v=2">
 <meta property="og:title" content="新海治療計劃單">
 <meta property="og:description" content="新海美學牙醫診所員工系統">
-<meta property="og:image" content="https://shinyhi-dental.vercel.app/og-image-tp.png?v=2">
+<meta property="og:image" content="https://shinyhi-dental.vercel.app/icons/og-image-tp.png?v=2">
 <meta property="og:type" content="website">
 <style>
 :root{
@@ -966,7 +966,7 @@ function renderEditor(){
   m.innerHTML=`<div class="sheet">
   ${datalists()}
   <div class="topbar">
-    <span class="tp-brand"><img src="icon-tp.svg?v=2" alt=""><span><span class="title">治療計劃單</span><span class="sub">新海美學牙醫診所</span></span></span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${stOf(p)}">${STATUS[stOf(p)]}</span>
+    <span class="tp-brand"><img src="icons/icon-tp.svg?v=2" alt=""><span><span class="title">治療計劃單</span><span class="sub">新海美學牙醫診所</span></span></span><span class="no">單號 ${esc(p.no)}</span><span class="chip ${stOf(p)}">${STATUS[stOf(p)]}</span>
     <span class="sp"></span><span class="save-ind no-print" id="saveInd"></span>
     <button class="no-print" data-act="print">🖨 列印</button>
     <button class="no-print" data-ti-plan title="開啟這張單所有項目的治療說明，可列印給病人" ${planTiIds(p).length?'':'hidden'}>📄 治療說明</button>
