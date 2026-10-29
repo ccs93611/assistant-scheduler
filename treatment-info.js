@@ -1,6 +1,6 @@
 /* 新海美學牙醫・治療項目介紹（給病人看的說明）
    treatments.html（介紹頁、列印衛教單）與 treatment-plan.html（項目旁的 ⓘ）共用這份資料。
-   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
+   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片；arrows:false 不加箭頭，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
    what（這是什麼）、who（適合誰）、steps（治療流程）、time（療程時間，文字或條列陣列）、care（注意事項，可省略）、note（補充，可省略）。
    內容僅為一般說明，實際療程依醫師診斷為準；修改內容時只要改這個檔案。 */
 'use strict';
@@ -340,6 +340,8 @@ const TREATMENT_INFO=[
  care:['每天固定配戴，效果才會穩定','配戴時嘴唇閉起來、用鼻子呼吸，並配合醫師教的肌功能訓練','取下後用清水與軟毛牙刷清潔，不可用熱水燙','放進專用盒子保存，避免被寵物咬或包在衛生紙裡被丟掉','矯正器破損、變形或戴起來不舒服請回診'],
  note:'肌功能矯正的效果跟孩子每天配戴與練習的時間很有關係，需要家長一起提醒與協助；部分孩子之後仍可能需要搭配其他矯正方式。'},
 {id:'retainer',cat:'矯正',title:'維持器',items:['活動維持器','透明維持器','固定式維持器'],
+ pics:{src:'media/retainer-source.webp',w:2000,h:667,arrows:false,rows:[
+  [{x:12,y:12,w:647,h:503,cap:'傳統活動維持器'},{x:676,y:12,w:648,h:503,cap:'透明活動維持器'},{x:1341,y:12,w:647,h:503,cap:'固定維持器'}]]},
  table:{title:'三大維持器比較',head:['比較項目','活動式維持器（傳統 Hawley）','透明維持器（Clear Retainer）','固定式維持器（舌側維持絲）'],rows:[
   ['外觀美觀度','★★（前牙有金屬線外露）','★★★（近乎隱形，像隱形牙套）','★★★（黏在牙齒內側，完全看不到）'],
   ['是否需自律配戴','是（需靠自己按時拆戴）','是（需靠自己按時拆戴）','否（固定黏在牙齒上，無法自行取下）'],
@@ -438,7 +440,7 @@ function tiStepsHtml(p){
     `background-size:${(p.w/r.w*100).toFixed(3)}% auto;background-position:${(r.x/(p.w-r.w)*100).toFixed(3)}% ${(r.y/(p.h-r.h)*100).toFixed(3)}%"></div>`;
   const capHtml=c=>{const[t,...m]=c.split('\n');return m.length?`<b>${tiEsc(t)}</b><br>${m.map(tiEsc).join('<br>')}`:tiEsc(t)}; // 有換行時第一行當小標題
   const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  return `<div class="ti-steps">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}<figcaption>${capHtml(r.cap)}</figcaption></figure>`).join('')}</div>`).join('')}</div>`;
+  return `<div class="ti-steps">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}<figcaption>${capHtml(r.cap)}</figcaption></figure>`).join('')}</div>`).join('')}</div>`;
 }
 /* 比較表（例如隱適美各方案）：hl＝要強調的欄（該欄的粗體字用紅色）；預設收起來，點「📊 標題」按鈕才展開（跟強度比較一樣，列印時只印展開的）；格子裡的 \n 換行（第二行起小字）、**文字** 粗體，第一欄第一行粗體 */
 function tiTableHtml(t){
