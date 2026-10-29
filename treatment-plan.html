@@ -1514,25 +1514,25 @@ function openTreatmentInfo(id){const e=TI_BY_ID[id];if(!e)return;
     else if(x==='print')window.open('treatments.html?ids='+id+'&print=1','_blank','noopener');
     else close()}))}
 
-/* 列印：僅治療計劃單／＋項目介紹／＋保固說明／＋項目介紹＋保固說明
-   這張單沒有項目介紹或沒有保固項目時，相關選項不能選並說明原因；保固說明每一種只印一次（例如好幾顆牙冠也只印一份牙冠的保固說明） */
+/* 列印：僅治療計劃單／＋項目介紹／＋保固與說明／＋項目介紹＋保固與說明
+   這張單沒有項目介紹或沒有保固項目時，相關選項不能選並說明原因；保固與說明每一種只印一次（例如好幾顆牙冠也只印一份牙冠的），每份縮放成一張 A4 */
 function printPlan(p){
   const ids=planTiIds(p),wt=planWtys(p),wty=wt.length;
-  const noInfo='這張單的治療項目都沒有項目介紹（例如自訂項目）',noWty='這張單沒有需要保固說明的項目（齒雕、美學貼片、牙冠、植體、植牙冠、植牙贗復體）';
+  const noInfo='這張單的治療項目都沒有項目介紹（例如自訂項目）',noWty='這張單沒有需要保固與說明的項目（齒雕、美學貼片、牙冠、植體、植牙冠、植牙贗復體）';
   const list=ids.length?`<span class="pp-list">${ids.map(id=>`<span>${esc(TI_BY_ID[id].title)}</span>`).join('')}</span>`:'';
   const wlist=`<span class="pp-list">${wt.map(w=>`<span>${esc(w.title)}</span>`).join('')}</span>`;
   const opt=(x,label,ok,why,more='')=>`<button data-x="${x}" ${ok?'':'disabled'}>🖨 ${label}${ok?more:`<span class="hint">${why}</span>`}</button>`;
   modal(`<h3>列印</h3><div class="pp-opts">
       <button data-x="plan">🖨 僅列印治療計劃單</button>
       ${opt('info','列印治療計劃單＋項目介紹',ids.length,noInfo,`<span class="hint">將列印的項目介紹（接在治療計劃單後面）：</span>${list}`)}
-      ${opt('wty','列印治療計劃單＋保固說明',wty,noWty,`<span class="hint">保固說明接在治療計劃單後面（每種印一次）：</span>${wlist}`)}
-      ${opt('both','列印治療計劃單＋項目介紹＋保固說明',ids.length&&wty,!ids.length?noInfo:noWty,`<span class="hint">依序印：治療計劃單 → 項目介紹 → 保固說明（每種印一次）</span>${list}${wlist}`)}</div>
+      ${opt('wty','列印治療計劃單＋保固與說明',wty,noWty,`<span class="hint">保固與說明接在治療計劃單後面（每份一張 A4）：</span>${wlist}`)}
+      ${opt('both','列印治療計劃單＋項目介紹＋保固與說明',ids.length&&wty,!ids.length?noInfo:noWty,`<span class="hint">依序印：治療計劃單 → 項目介紹 → 保固與說明（每份一張 A4）</span>${list}${wlist}`)}</div>
     <div class="acts"><span class="sp"></span><button data-x="close">取消</button></div>`,
   (box,close)=>box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;close();
     if(x==='plan')setTimeout(()=>window.print(),50);else if(x==='info')printWithInfo(ids);
     else if(x==='wty')printWithInfo([],wt);else if(x==='both')printWithInfo(ids,wt)}))}
 // 治療計劃單後面接著印項目介紹（與保固說明）：每項一張 A4，跟 treatments.html 的 printIds 一樣自動縮放到剛好填滿一頁；
-// 有比較表的項目把比較表拆到第二頁；保固說明放最後一頁；不印診所 Logo 與名稱（浮水印除外）；印完移除
+// 有比較表的項目把比較表拆到第二頁；保固與說明放最後，每份一張 A4；不印診所 Logo 與名稱（浮水印除外）；印完移除
 async function printWithInfo(ids,wtys=[]){
   document.getElementById('tiPrint')?.remove();
   const box=document.createElement('div');box.id='tiPrint';box.className='measure';
@@ -1545,7 +1545,7 @@ async function printWithInfo(ids,wtys=[]){
   await Promise.all([...box.querySelectorAll('img')].map(i=>(i.loading='eager',i.decode().catch(()=>{}))));
   const PAGE=1050; // A4 可用高度（同 treatments.html）
   const fit=(d,z)=>{const m=(14/z).toFixed(2)+'mm';d.style.width=(210/z).toFixed(2)+'mm';d.style.padding=m+' '+m+' 0';d.style.zoom=z;return d.getBoundingClientRect().height<=PAGE};
-  box.querySelectorAll('.tip-page').forEach(d=>{let lo=.5,hi=1.5; // 最多放大 1.5 倍
+  box.querySelectorAll('.tip-page').forEach(d=>{let lo=d.classList.contains('tip-wty')?.3:.5,hi=1.5; // 最多放大 1.5 倍；保固與說明一定縮成一張
     if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
     fit(d,lo)});
   // 項目介紹每一頁加診所 Logo 浮水印（跟 treatments.html 相同），治療計劃單不加：頁面高度設成一頁，浮水印放在頁面正中央，縮放比例抵銷掉維持原大小
