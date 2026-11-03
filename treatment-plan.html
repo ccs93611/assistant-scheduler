@@ -671,7 +671,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 <div id="gate" class="gate" hidden><div class="gate-box"><h2>新海美學牙醫・治療計劃單</h2><p id="gateMsg">連線中…</p><div id="gateActs"></div></div></div>
 <input type="file" id="importInput" accept="application/json,.json" hidden>
 
-<script src="js/treatment-info.js?v=69"></script>
+<script src="js/treatment-info.js?v=70"></script>
 <script src="js/treatment-figs.js?v=13"></script>
 <script>
 'use strict';
@@ -688,6 +688,7 @@ const BASE_CATS=[
  ['舒眠麻醉',['舒眠麻醉-基本2hr','舒眠麻醉-追加1hr']],
  ['牙齒美白',['客製化居家美白','噴砂美白-全口','噴砂美白-前牙']],
  ['自費醫材',['膠原蛋白栓','可吸收再生膜','不可吸收再生膜','FDBA骨粉']],
+ ['其他',['軟式咬合板']],
 ];
 // 以「顆」計價的項目：選牙位時數量自動等於顆數
 const PER_TOOTH=new Set(['MTA活髓保存','日本GC Initial LiSi Block齒雕','日本GC Initial LiSi Block美學貼片','列支敦斯登E.max美學貼片','義大利Over Post玻璃纖維釘','Temp臨時假牙','日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙','列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙','德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙','馬里蘭牙橋',
