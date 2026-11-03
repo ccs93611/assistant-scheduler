@@ -94,9 +94,15 @@ tr.editing td{background:var(--accent-soft)}
 .sg-r{display:flex;flex-direction:column;justify-content:center;font-weight:700;padding-right:6px;font-size:13px;line-height:1.2}
 .sg-r small{font-weight:400;color:var(--muted);font-size:11px}
 .sg-sep{grid-column:1/-1;height:6px}
-.pr-list{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+.pr-list{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px;display:grid;gap:6px;background:var(--soft)}
+.pr-grp{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px 10px}
+.pr-grp.open{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.pr-grp .pr-row{border-bottom:0}
+.pr-name .pr-tg{display:block;border:0;background:none;padding:2px 0 0;color:var(--accent);font-size:13px;cursor:pointer;text-align:left}
+.pr-specs{border-top:1px dashed var(--line);margin:2px 0 6px;padding:6px 0 0 14px;border-left:3px solid var(--accent-soft)}
+.pr-specs>.sub{margin-bottom:2px}
 .pr-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--soft)}
-.pr-row.sub-row{padding-left:16px}.pr-row.sub-row .pr-name{color:var(--muted);font-size:14px}
+.pr-row.sub-row{padding:3px 0}.pr-row.sub-row .pr-name{color:var(--muted);font-size:14px}
 .pr-name{flex:1;min-width:0}.pr-in{width:110px;text-align:right}.pr-acts{display:inline-flex;gap:4px}.pr-gap{display:inline-block;width:30px}.pr-spec summary{cursor:pointer;color:var(--accent);font-size:13px;padding:4px 0}
 .sg-g{grid-column:1/-1;font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;border-bottom:1px dashed var(--line)}
 .sg-x{border-radius:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--soft) 6px 8px)}
@@ -627,14 +633,15 @@ $('#vQ').addEventListener('input',e=>{view.q=e.target.value;render()});
 $('#cfgBtn').addEventListener('click',()=>{
   const edCat=canCfg(),edPrice=SCHED_SUPER;if(!edCat&&!edPrice)return;
   let L=[...itemList()],removed=[...(cfg.removed||[])];const P={...PRICES};
-  const bg=document.createElement('div');bg.className='modal-bg';
+  const bg=document.createElement('div');bg.className='modal-bg';const openSpec=new Set();
   // 重畫前先把輸入中的價格存進草稿
   const grab=()=>bg.querySelectorAll('[data-pk]').forEach(i=>{const v=i.value.trim();if(v==='')delete P[i.dataset.pk];else P[i.dataset.pk]=Number(v)});
   const inp=(k,ph)=>`<input type="number" min="0" step="1" inputmode="numeric" data-pk="${esc(k)}" value="${Number.isFinite(P[k])?P[k]:''}" placeholder="${esc(ph)}" class="pr-in">`;
   const draw=()=>{
-    const open=new Set([...bg.querySelectorAll('details[open]')].map(d=>d.dataset.n));
     const rows=L.map((n,i)=>{const sp=edPrice?ITEM_SPECS[n]?.opts||[]:[];const setN=sp.filter(v=>Number.isFinite(P[n+'|'+v])).length;
-      return `<div class="pr-row"><span class="pr-name">${esc(n)}</span>${edPrice?inp(n,'單價'):''}${edCat?`<span class="pr-acts">${i?`<button type="button" class="btn-sm" data-up="${i}" title="往前移">↑</button>`:'<span class="pr-gap"></span>'}${i<L.length-1?`<button type="button" class="btn-sm" data-down="${i}" title="往後移">↓</button>`:'<span class="pr-gap"></span>'}<button type="button" class="btn-sm btn-danger" data-rm="${i}" title="刪除">×</button></span>`:''}</div>${sp.length?`<details class="pr-spec" data-n="${esc(n)}"${open.has(n)?' open':''}><summary>${esc(ITEM_SPECS[n].label)}另設價格（${sp.length} 種，留空＝用上面的單價）${setN?'・已設 '+setN+' 種':''}</summary>${sp.map(v=>`<div class="pr-row sub-row"><span class="pr-name">${esc(v)}</span>${inp(n+'|'+v,'同上')}</div>`).join('')}</details>`:''}`}).join('');
+      const on=openSpec.has(n);
+      // 每種耗材一個框：耗材那一列＋（有規格時）名稱下方的「另設價格」開關，展開的規格價格縮排在同一個框裡
+      return `<div class="pr-grp${on?' open':''}"><div class="pr-row"><span class="pr-name">${esc(n)}${sp.length?`<button type="button" class="pr-tg" data-tg="${esc(n)}" aria-expanded="${on}">${on?'▾':'▸'} 依${esc(ITEM_SPECS[n].label)}另設價格（${sp.length} 種${setN?`，已設 ${setN} 種`:''}）</button>`:''}</span>${edPrice?inp(n,'單價'):''}${edCat?`<span class="pr-acts">${i?`<button type="button" class="btn-sm" data-up="${i}" title="往前移">↑</button>`:'<span class="pr-gap"></span>'}${i<L.length-1?`<button type="button" class="btn-sm" data-down="${i}" title="往後移">↓</button>`:'<span class="pr-gap"></span>'}<button type="button" class="btn-sm btn-danger" data-rm="${i}" title="刪除">×</button></span>`:''}</div>${sp.length&&on?`<div class="pr-specs"><div class="sub">${esc(n)} 的${esc(ITEM_SPECS[n].label)}價格，留空＝用上面的單價</div>${sp.map(v=>`<div class="pr-row sub-row"><span class="pr-name">${esc(v)}</span>${inp(n+'|'+v,'同上')}</div>`).join('')}</div>`:''}</div>`}).join('');
     bg.innerHTML=`<div class="modal" style="max-width:600px"><h3>${edPrice?'耗材種類與價格':'耗材種類'}</h3>
       <p class="hint">${edCat?'登記時從這份清單選擇，順序就是選單的順序（按 ↑ 往前移、↓ 往後移）。刪除種類不影響已登記的紀錄。':''}${edPrice?'價格只有超級管理員看得到（登記紀錄、統計、匯出 Excel 的金額）；金額＝數量 × 目前的單價。':''}改完按「儲存」才會生效。</p>
       <div class="pr-list">${rows||'<p class="hint">尚未設定</p>'}</div>
@@ -645,6 +652,7 @@ $('#cfgBtn').addEventListener('click',()=>{
   draw();document.body.appendChild(bg);
   bg.addEventListener('click',async e=>{
     if(e.target===bg||e.target.closest('[data-close]')){bg.remove();return}
+    const tg=e.target.closest('[data-tg]');if(tg){grab();const n=tg.dataset.tg;openSpec.has(n)?openSpec.delete(n):openSpec.add(n);draw();bg.querySelector(`[data-tg="${CSS.escape(n)}"]`)?.closest('.pr-grp')?.scrollIntoView({block:'nearest'});return}
     if(e.target.closest('[data-add]')){grab();const box=bg.querySelector('#newItem'),n=box.value.trim();if(!n)return;if(L.includes(n)){alert('已經有這個種類');return}
       L.push(n);removed=removed.filter(x=>x!==n);draw();const row=[...bg.querySelectorAll('.pr-row:not(.sub-row)')].pop();row?.scrollIntoView({block:'nearest'});bg.querySelector('#newItem')?.focus();return}
     const rm=e.target.closest('[data-rm]');if(rm){grab();const i=Number(rm.dataset.rm),n=L[i];if(!confirm(`刪除耗材種類「${n}」？（按「儲存」後生效）`))return;
