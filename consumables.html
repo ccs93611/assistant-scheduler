@@ -634,9 +634,9 @@ $('#cfgBtn').addEventListener('click',()=>{
   const draw=()=>{
     const open=new Set([...bg.querySelectorAll('details[open]')].map(d=>d.dataset.n));
     const rows=L.map((n,i)=>{const sp=edPrice?ITEM_SPECS[n]?.opts||[]:[];const setN=sp.filter(v=>Number.isFinite(P[n+'|'+v])).length;
-      return `<div class="pr-row"><span class="pr-name">${esc(n)}</span>${edPrice?inp(n,'單價'):''}${edCat?`<span class="pr-acts">${i?`<button type="button" class="btn-sm" data-up="${i}" title="往前移">↑</button>`:'<span class="pr-gap"></span>'}<button type="button" class="btn-sm btn-danger" data-rm="${i}" title="刪除">×</button></span>`:''}</div>${sp.length?`<details class="pr-spec" data-n="${esc(n)}"${open.has(n)?' open':''}><summary>${esc(ITEM_SPECS[n].label)}另設價格（${sp.length} 種，留空＝用上面的單價）${setN?'・已設 '+setN+' 種':''}</summary>${sp.map(v=>`<div class="pr-row sub-row"><span class="pr-name">${esc(v)}</span>${inp(n+'|'+v,'同上')}</div>`).join('')}</details>`:''}`}).join('');
+      return `<div class="pr-row"><span class="pr-name">${esc(n)}</span>${edPrice?inp(n,'單價'):''}${edCat?`<span class="pr-acts">${i?`<button type="button" class="btn-sm" data-up="${i}" title="往前移">↑</button>`:'<span class="pr-gap"></span>'}${i<L.length-1?`<button type="button" class="btn-sm" data-down="${i}" title="往後移">↓</button>`:'<span class="pr-gap"></span>'}<button type="button" class="btn-sm btn-danger" data-rm="${i}" title="刪除">×</button></span>`:''}</div>${sp.length?`<details class="pr-spec" data-n="${esc(n)}"${open.has(n)?' open':''}><summary>${esc(ITEM_SPECS[n].label)}另設價格（${sp.length} 種，留空＝用上面的單價）${setN?'・已設 '+setN+' 種':''}</summary>${sp.map(v=>`<div class="pr-row sub-row"><span class="pr-name">${esc(v)}</span>${inp(n+'|'+v,'同上')}</div>`).join('')}</details>`:''}`}).join('');
     bg.innerHTML=`<div class="modal" style="max-width:600px"><h3>${edPrice?'耗材種類與價格':'耗材種類'}</h3>
-      <p class="hint">${edCat?'登記時從這份清單選擇，順序就是選單的順序（按 ↑ 往前移）。刪除種類不影響已登記的紀錄。':''}${edPrice?'價格只有超級管理員看得到（登記紀錄、統計、匯出 Excel 的金額）；金額＝數量 × 目前的單價。':''}改完按「儲存」才會生效。</p>
+      <p class="hint">${edCat?'登記時從這份清單選擇，順序就是選單的順序（按 ↑ 往前移、↓ 往後移）。刪除種類不影響已登記的紀錄。':''}${edPrice?'價格只有超級管理員看得到（登記紀錄、統計、匯出 Excel 的金額）；金額＝數量 × 目前的單價。':''}改完按「儲存」才會生效。</p>
       <div class="pr-list">${rows||'<p class="hint">尚未設定</p>'}</div>
       ${edCat?'<div style="display:flex;gap:8px;margin-top:10px"><input id="newItem" placeholder="新增耗材種類" style="flex:1"><button type="button" class="btn-sm" data-add>新增</button></div>':''}
       <div class="acts" style="justify-content:flex-end"><button type="button" data-close>取消</button><button type="button" class="btn-primary" data-save>儲存</button></div></div>`;
@@ -650,6 +650,7 @@ $('#cfgBtn').addEventListener('click',()=>{
     const rm=e.target.closest('[data-rm]');if(rm){grab();const i=Number(rm.dataset.rm),n=L[i];if(!confirm(`刪除耗材種類「${n}」？（按「儲存」後生效）`))return;
       L.splice(i,1);if(LATER_ITEMS.some(([x])=>x===n))removed=[...new Set([...removed,n])];draw();return}
     const up=e.target.closest('[data-up]');if(up){grab();const i=Number(up.dataset.up);[L[i-1],L[i]]=[L[i],L[i-1]];draw();return}
+    const dn=e.target.closest('[data-down]');if(dn){grab();const i=Number(dn.dataset.down);[L[i],L[i+1]]=[L[i+1],L[i]];draw();return}
     if(!e.target.closest('[data-save]'))return;
     grab();for(const [k,v] of Object.entries(P))if(!(v>=0)){alert('價格要是 0 以上的數字');return}
     const btn=e.target.closest('[data-save]');btn.disabled=true;
