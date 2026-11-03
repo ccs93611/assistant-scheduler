@@ -97,7 +97,7 @@ tr.editing td{background:var(--accent-soft)}
 .pr-list{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
 .pr-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--soft)}
 .pr-row.sub-row{padding-left:16px}.pr-row.sub-row .pr-name{color:var(--muted);font-size:14px}
-.pr-name{flex:1;min-width:0}.pr-spec summary{cursor:pointer;color:var(--accent);font-size:13px;padding:4px 0}
+.pr-name{flex:1;min-width:0}.pr-in{width:110px;text-align:right}.pr-acts{display:inline-flex;gap:4px}.pr-gap{display:inline-block;width:30px}.pr-spec summary{cursor:pointer;color:var(--accent);font-size:13px;padding:4px 0}
 .sg-g{grid-column:1/-1;font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;border-bottom:1px dashed var(--line)}
 .sg-x{border-radius:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--soft) 6px 8px)}
 .sg-corner{font-weight:400;font-size:11px;align-self:end;padding-right:6px;border-bottom:0}
@@ -153,7 +153,6 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
   <h1>新海美學牙醫・耗材登記</h1>
   <div class="head-r">
     <button id="cfgBtn" hidden>⚙ 耗材種類</button>
-    <button id="priceBtn" hidden title="設定耗材單價（只有超級管理員看得到價格與金額）">💲 價格</button>
     <button id="devBtn" hidden title="打卡裝置、治療計劃單與耗材的設備認證（只有超級管理員）">🔐 設備認證</button>
     <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip perm" id="mePerm"></span> <button class="btn-sm" id="personalBtn" hidden title="改用自己的 Google 帳號登入（個人模式）；登出後回到設備模式">登入</button> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
   </div>
@@ -462,7 +461,7 @@ function afterLogin(){
   $('#mePerm').textContent={view:'檢視',edit:'登記',admin:'管理',device:'認證設備'}[PERM]||PERM;
   $('#signOutBtn').textContent=PERM==='device'?'退出設備模式':PERSONAL?'登出（回到設備模式）':'登出';
   $('#personalBtn').hidden=PERM!=='device';
-  $('#form').hidden=!canEdit();$('#cfgBtn').hidden=!canCfg();$('#devBtn').hidden=!SCHED_SUPER;$('#priceBtn').hidden=!SCHED_SUPER;
+  $('#form').hidden=!canEdit();$('#cfgBtn').hidden=!canCfg()&&!SCHED_SUPER;$('#cfgBtn').textContent=SCHED_SUPER?'⚙ 耗材種類／價格':'⚙ 耗材種類';$('#devBtn').hidden=!SCHED_SUPER;
   if(!$('#fDate').value)$('#fDate').value=today();
   $('#vMonth').value=view.month;
   render();
@@ -622,47 +621,48 @@ $('#vDoc').addEventListener('change',e=>{view.doc=e.target.value;render()});
 $('#vItem').addEventListener('change',e=>{view.item=e.target.value;render()});
 $('#vQ').addEventListener('input',e=>{view.q=e.target.value;render()});
 
-/* ====== 耗材價格（只有超級管理員）：每種耗材一個單價；有規格的可以展開，個別規格另設價格（留空＝用耗材種類的單價） ====== */
-$('#priceBtn').addEventListener('click',()=>{
-  if(!SCHED_SUPER)return;
-  const bg=document.createElement('div');bg.className='modal-bg';
-  const inp=(k,ph)=>`<input type="number" min="0" step="1" inputmode="numeric" data-pk="${esc(k)}" value="${Number.isFinite(PRICES[k])?PRICES[k]:''}" placeholder="${esc(ph)}" style="width:110px;text-align:right">`;
-  const rowsHtml=itemList().map(n=>{const sp=ITEM_SPECS[n]?.opts||[];
-    return `<div class="pr-row"><span class="pr-name">${esc(n)}</span>${inp(n,'單價')}</div>${sp.length?`<details class="pr-spec"><summary>${esc(ITEM_SPECS[n].label)}另設價格（${sp.length} 種，留空＝用上面的單價）${sp.some(v=>Number.isFinite(PRICES[n+'|'+v]))?'・已設 '+sp.filter(v=>Number.isFinite(PRICES[n+'|'+v])).length+' 種':''}</summary>${sp.map(v=>`<div class="pr-row sub-row"><span class="pr-name">${esc(v)}</span>${inp(n+'|'+v,'同上')}</div>`).join('')}</details>`:''}`}).join('');
-  bg.innerHTML=`<div class="modal" style="max-width:560px"><h3>耗材價格</h3><p class="hint">只有超級管理員看得到價格與金額（登記紀錄、統計、匯出 Excel）。金額＝數量 × 目前的單價，改價格後過去的紀錄也會照新價格計算。</p>
-    <div class="pr-list">${rowsHtml}</div><div class="acts" style="justify-content:flex-end"><button type="button" data-close>取消</button><button type="button" class="btn-primary" data-save>儲存</button></div></div>`;
-  document.body.appendChild(bg);
-  bg.addEventListener('click',async e=>{
-    if(e.target===bg||e.target.closest('[data-close]')){bg.remove();return}
-    if(!e.target.closest('[data-save]'))return;
-    const p={};for(const i of bg.querySelectorAll('[data-pk]')){const v=i.value.trim();if(v==='')continue;const n=Number(v);if(!(n>=0)){alert('價格要是 0 以上的數字');i.focus();return}p[i.dataset.pk]=n}
-    try{
-      if(fs)await fs.doc('csPrice/settings').set({p,updatedAt:Date.now(),updatedBy:me});
-      else{try{localStorage.setItem(PRICE_KEY,JSON.stringify(p))}catch(err){}PRICES=p}
-      bg.remove();render();renderStats();toast('已儲存價格');
-    }catch(err){alert('儲存失敗：'+(err.code==='permission-denied'?'沒有權限（只有超級管理員可以設定價格，或安全規則尚未更新）':err.message))}
-  });
-});
-
-/* ====== 耗材種類設定（超級管理員） ====== */
+/* ====== 耗材種類與價格（同一個視窗）======
+   耗材種類：耗材「管理」可以新增、刪除、調整順序（cfg.items）；價格：只有超級管理員看得到、改得到（csPrice/settings）。
+   每種耗材一個單價，有規格的可以展開，個別規格另設價格（留空＝用耗材種類的單價）。先在視窗裡改，按「儲存」才一起存。 */
 $('#cfgBtn').addEventListener('click',()=>{
+  const edCat=canCfg(),edPrice=SCHED_SUPER;if(!edCat&&!edPrice)return;
+  let L=[...itemList()],removed=[...(cfg.removed||[])];const P={...PRICES};
   const bg=document.createElement('div');bg.className='modal-bg';
-  const draw=()=>{bg.innerHTML=`<div class="modal"><h3>耗材種類</h3>
-    <p class="hint">登記時從這份清單選擇，順序就是選單的順序（按 ↑ 往前移）。刪除種類不影響已登記的紀錄。</p>
-    <div class="item-list">${itemList().map((n,i)=>`<span>${esc(n)}${i?`<button type="button" data-up="${i}" title="往前移" style="color:var(--muted)">↑</button>`:''}<button type="button" data-rm="${i}" title="刪除">×</button></span>`).join('')||'<span class="hint">尚未設定</span>'}</div>
-    <div style="display:flex;gap:8px"><input id="newItem" placeholder="新增耗材種類" style="flex:1"><button type="button" class="btn-primary" data-add>新增</button></div>
-    <div class="acts" style="justify-content:flex-end"><button type="button" data-close>關閉</button></div></div>`;
-    bg.querySelector('#newItem').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();bg.querySelector('[data-add]').click()}});};
-  draw();document.body.appendChild(bg);bg.querySelector('#newItem').focus();
+  // 重畫前先把輸入中的價格存進草稿
+  const grab=()=>bg.querySelectorAll('[data-pk]').forEach(i=>{const v=i.value.trim();if(v==='')delete P[i.dataset.pk];else P[i.dataset.pk]=Number(v)});
+  const inp=(k,ph)=>`<input type="number" min="0" step="1" inputmode="numeric" data-pk="${esc(k)}" value="${Number.isFinite(P[k])?P[k]:''}" placeholder="${esc(ph)}" class="pr-in">`;
+  const draw=()=>{
+    const open=new Set([...bg.querySelectorAll('details[open]')].map(d=>d.dataset.n));
+    const rows=L.map((n,i)=>{const sp=edPrice?ITEM_SPECS[n]?.opts||[]:[];const setN=sp.filter(v=>Number.isFinite(P[n+'|'+v])).length;
+      return `<div class="pr-row"><span class="pr-name">${esc(n)}</span>${edPrice?inp(n,'單價'):''}${edCat?`<span class="pr-acts">${i?`<button type="button" class="btn-sm" data-up="${i}" title="往前移">↑</button>`:'<span class="pr-gap"></span>'}<button type="button" class="btn-sm btn-danger" data-rm="${i}" title="刪除">×</button></span>`:''}</div>${sp.length?`<details class="pr-spec" data-n="${esc(n)}"${open.has(n)?' open':''}><summary>${esc(ITEM_SPECS[n].label)}另設價格（${sp.length} 種，留空＝用上面的單價）${setN?'・已設 '+setN+' 種':''}</summary>${sp.map(v=>`<div class="pr-row sub-row"><span class="pr-name">${esc(v)}</span>${inp(n+'|'+v,'同上')}</div>`).join('')}</details>`:''}`}).join('');
+    bg.innerHTML=`<div class="modal" style="max-width:600px"><h3>${edPrice?'耗材種類與價格':'耗材種類'}</h3>
+      <p class="hint">${edCat?'登記時從這份清單選擇，順序就是選單的順序（按 ↑ 往前移）。刪除種類不影響已登記的紀錄。':''}${edPrice?'價格只有超級管理員看得到（登記紀錄、統計、匯出 Excel 的金額）；金額＝數量 × 目前的單價。':''}改完按「儲存」才會生效。</p>
+      <div class="pr-list">${rows||'<p class="hint">尚未設定</p>'}</div>
+      ${edCat?'<div style="display:flex;gap:8px;margin-top:10px"><input id="newItem" placeholder="新增耗材種類" style="flex:1"><button type="button" class="btn-sm" data-add>新增</button></div>':''}
+      <div class="acts" style="justify-content:flex-end"><button type="button" data-close>取消</button><button type="button" class="btn-primary" data-save>儲存</button></div></div>`;
+    bg.querySelector('#newItem')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();bg.querySelector('[data-add]').click()}});
+  };
+  draw();document.body.appendChild(bg);
   bg.addEventListener('click',async e=>{
     if(e.target===bg||e.target.closest('[data-close]')){bg.remove();return}
-    let ch=false;
-    const L=[...itemList()];
-    if(e.target.closest('[data-add]')){const n=bg.querySelector('#newItem').value.trim();if(!n)return;if(L.includes(n)){alert('已經有這個種類');return}cfg.items=[...L,n];if(cfg.removed)cfg.removed=cfg.removed.filter(x=>x!==n);ch=true}
-    const rm=e.target.closest('[data-rm]');if(rm){const n=L[rm.dataset.rm];if(!confirm(`刪除耗材種類「${n}」？`))return;cfg.items=L.filter((_,i)=>i!==Number(rm.dataset.rm));
-      if(LATER_ITEMS.some(([x])=>x===n))cfg.removed=[...new Set([...(cfg.removed||[]),n])];ch=true}
-    const up=e.target.closest('[data-up]');if(up){const i=Number(up.dataset.up);[L[i-1],L[i]]=[L[i],L[i-1]];cfg.items=L;ch=true}
-    if(ch){try{await DB.saveCfg()}catch(err){alert('儲存失敗：'+(err.code==='permission-denied'?'沒有權限':err.message))}fillItems();draw();bg.querySelector('#newItem').focus()}
+    if(e.target.closest('[data-add]')){grab();const box=bg.querySelector('#newItem'),n=box.value.trim();if(!n)return;if(L.includes(n)){alert('已經有這個種類');return}
+      L.push(n);removed=removed.filter(x=>x!==n);draw();const row=[...bg.querySelectorAll('.pr-row:not(.sub-row)')].pop();row?.scrollIntoView({block:'nearest'});bg.querySelector('#newItem')?.focus();return}
+    const rm=e.target.closest('[data-rm]');if(rm){grab();const i=Number(rm.dataset.rm),n=L[i];if(!confirm(`刪除耗材種類「${n}」？（按「儲存」後生效）`))return;
+      L.splice(i,1);if(LATER_ITEMS.some(([x])=>x===n))removed=[...new Set([...removed,n])];draw();return}
+    const up=e.target.closest('[data-up]');if(up){grab();const i=Number(up.dataset.up);[L[i-1],L[i]]=[L[i],L[i-1]];draw();return}
+    if(!e.target.closest('[data-save]'))return;
+    grab();for(const [k,v] of Object.entries(P))if(!(v>=0)){alert('價格要是 0 以上的數字');return}
+    const btn=e.target.closest('[data-save]');btn.disabled=true;
+    try{
+      const catCh=edCat&&(JSON.stringify(L)!==JSON.stringify(itemList())||JSON.stringify(removed)!==JSON.stringify(cfg.removed||[]));
+      if(catCh){cfg.items=L;cfg.removed=removed;await DB.saveCfg()}
+      if(edPrice&&JSON.stringify(P)!==JSON.stringify(PRICES)){
+        if(fs)await fs.doc('csPrice/settings').set({p:P,updatedAt:Date.now(),updatedBy:me});
+        else{try{localStorage.setItem(PRICE_KEY,JSON.stringify(P))}catch(err){}}
+        PRICES=P;
+      }
+      bg.remove();fillItems();render();renderStats();toast('已儲存');
+    }catch(err){btn.disabled=false;alert('儲存失敗：'+(err.code==='permission-denied'?'沒有權限（或安全規則尚未更新）':err.message))}
   });
 });
 
