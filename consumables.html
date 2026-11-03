@@ -94,6 +94,10 @@ tr.editing td{background:var(--accent-soft)}
 .sg-r{display:flex;flex-direction:column;justify-content:center;font-weight:700;padding-right:6px;font-size:13px;line-height:1.2}
 .sg-r small{font-weight:400;color:var(--muted);font-size:11px}
 .sg-sep{grid-column:1/-1;height:6px}
+.pr-list{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+.pr-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--soft)}
+.pr-row.sub-row{padding-left:16px}.pr-row.sub-row .pr-name{color:var(--muted);font-size:14px}
+.pr-name{flex:1;min-width:0}.pr-spec summary{cursor:pointer;color:var(--accent);font-size:13px;padding:4px 0}
 .sg-g{grid-column:1/-1;font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;border-bottom:1px dashed var(--line)}
 .sg-x{border-radius:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--soft) 6px 8px)}
 .sg-corner{font-weight:400;font-size:11px;align-self:end;padding-right:6px;border-bottom:0}
@@ -149,6 +153,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
   <h1>新海美學牙醫・耗材登記</h1>
   <div class="head-r">
     <button id="cfgBtn" hidden>⚙ 耗材種類</button>
+    <button id="priceBtn" hidden title="設定耗材單價（只有超級管理員看得到價格與金額）">💲 價格</button>
     <button id="devBtn" hidden title="打卡裝置、治療計劃單與耗材的設備認證（只有超級管理員）">🔐 設備認證</button>
     <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip perm" id="mePerm"></span> <button class="btn-sm" id="personalBtn" hidden title="改用自己的 Google 帳號登入（個人模式）；登出後回到設備模式">登入</button> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
   </div>
@@ -232,6 +237,14 @@ const LEGACY_LV={view:'view',self:'edit',manage:'edit',super:'admin'},LEGACY_VIE
 const appLv=(acc,k)=>!acc||acc.perm==='suspended'?'none':(acc[k]||(acc.perm==='view'?LEGACY_VIEW[k]:LEGACY_LV[acc.perm])||'none');
 let fs=null,me='',mySid='',PERM='admin';
 let SCHED_SUPER=false;
+// 耗材單價（csPrice/settings.p：{耗材種類: 單價, '耗材種類|規格': 單價}），只有超級管理員讀得到、改得到（安全規則也擋住其他人）；
+// 規格沒有另外設價格時用耗材種類的單價。金額＝數量 × 目前的單價（改價格後，過去的紀錄也照新價格計算）
+let PRICES={};
+const PRICE_KEY='xinhai_cs_price_local_v1';
+const priceOf=x=>{const a=PRICES[x.item+'|'+(x.spec||'')],b=PRICES[x.item];return x.spec&&Number.isFinite(a)?a:Number.isFinite(b)?b:null};
+const amountOf=x=>{const p=priceOf(x);return p===null?null:p*(Number(x.qty)||0)};
+const money=n=>n===null||n===undefined?'':'$'+Math.round(n).toLocaleString('en-US');
+const showMoney=()=>SCHED_SUPER;
 let AUTH=null; // 目前使用的 Firebase 登入（設備模式＝預設執行個體；個人模式＝personal）
 const PERSONAL=(()=>{const q=/[?&]personal=1/.test(location.search);try{if(q)sessionStorage.setItem('cs_personal','1');return q||sessionStorage.getItem('cs_personal')==='1'}catch(e){return q}})(); // 排班超級管理員：顯示「設備認證」按鈕（devices.html）
 const canEdit=()=>['edit','admin','device'].includes(PERM); // 可以登記、修改、刪除未確認的耗材
@@ -239,14 +252,15 @@ const canCfg=()=>PERM==='admin';                            // 耗材管理：�
 let staff=[];           // 排班系統的人員名單 {id,role,code,name,active}
 let cfg={};             // csConfig/settings：耗材種類 items（還沒設定過時用 DEFAULT_ITEMS）
 const DEFAULT_ITEMS=['玻璃纖維釘','兒童乳牙套(SSC)','MTA(管)','MTA(粉)','膠原蛋白(速吉安)','膠原蛋白(亞果)','FDBA骨粉(粗)','FDBA骨粉(細)',
-  '可吸收再生膜(海昌/20*30mm/盒)','可吸收再生膜(Dentsply/15*25mm/盒)','不可吸收再生膜(cytoplast)','鈦網(Titanlum Membrane)','植牙骨釘(Bone screw)','植牙骨釘(Tenting screw)','植牙骨釘(Bone tack)',
+  '可吸收再生膜(海昌/20*30mm/盒)','可吸收再生膜(Dentsply/15*25mm/盒)','不可吸收再生膜(cytoplast)','鈦網(Titanlum Membrane)','植牙骨釘(Bone screw)','植牙骨釘(Tenting screw)','植牙骨釘(Bone tack)','植牙骨釘(Micro Screw)',
   '植體(Hiossen)','植體(Straumann BLC)','植體(Straumann BLX)','矯正骨釘','手捏臨時假牙','隱適美口掃'];
 // 之後才加進預設清單的種類：超級管理員已經自訂過清單時，自動插在指定種類後面（在 ⚙ 刪掉後記在 cfg.removed，不會再加回來）
-const LATER_ITEMS=[['植體(Straumann BLC)','植體(Hiossen)'],['植體(Straumann BLX)','植體(Straumann BLC)'],['可吸收再生膜(Dentsply/15*25mm/盒)','可吸收再生膜(海昌/20*30mm/盒)']];
+const LATER_ITEMS=[['植牙骨釘(Micro Screw)','植牙骨釘(Bone tack)'],['植體(Straumann BLC)','植體(Hiossen)'],['植體(Straumann BLX)','植體(Straumann BLC)'],['可吸收再生膜(Dentsply/15*25mm/盒)','可吸收再生膜(海昌/20*30mm/盒)']];
 // 需要追加選擇規格的耗材（存在紀錄的 spec 欄位）
 const ITEM_SPECS={
   '植牙骨釘(Bone screw)':{label:'長度',pick:true,opts:['6 mm','8 mm','10 mm']},
   '植牙骨釘(Tenting screw)':{label:'長度',pick:true,opts:['8.5 mm','10.0 mm','11.5 mm','13.0 mm']},
+  '植牙骨釘(Micro Screw)':{label:'長度',pick:true,opts:['8 mm','10 mm','12 mm','14 mm']},
   '玻璃纖維釘':{label:'顏色',pick:true,opts:['黃','紅','藍','綠'],colors:{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c7',綠:'#2e8b3d'}}, // 字體顯示對應顏色（要和 index.html 的 CS_SPEC_COLORS 一致）
   // 乳牙套：照診所套組盒的排列，4 列 × 12 格。上到下：上顎 D（第一乳臼齒）、上顎 E（第二乳臼齒）、下顎 D、下顎 E；
   // 每列左半是 LEFT（7 → 2 號），右半是 RIGHT（2 → 7 號）。存成例如「左上 D4」，畫面用 Palmer 角標（⌊D4、D4⌋、⌈D4、D4⌉）顯示
@@ -400,13 +414,14 @@ function startCloud(){
   afterLogin();
   fs.collection('staff').onSnapshot(snap=>{staff=snap.docs.map(d=>({id:d.id,...d.data()}));fillSelects();render()},e=>console.warn(e));
   fs.doc('csConfig/settings').onSnapshot(s=>{cfg=s.exists?s.data():{};fillItems()},e=>console.warn(e));
+  if(SCHED_SUPER)fs.doc('csPrice/settings').onSnapshot(s=>{PRICES=s.exists?(s.data().p||{}):{};render();renderStats()},e=>console.warn(e));
   fs.collection('csItems').where('status','in',['pending','rejected']).onSnapshot(snap=>{
     const m={};snap.docs.forEach(d=>m[d.id]={id:d.id,...d.data()});subOpen=m;mergeItems();
   },e=>{console.warn(e);toast('讀取紀錄失敗：'+(e.code==='permission-denied'?'沒有權限（請確認安全規則已更新）':e.message))});
   subscribeMonth();
 }
 function bootLocal(){
-  const m=location.search.match(/[?&]perm=(view|edit|admin|device|self|manage|super)/);PERM=m?(LEGACY_LV[m[1]]||m[1]):'admin';me='本機測試';SCHED_SUPER=PERM==='admin';
+  const m=location.search.match(/[?&]perm=(view|edit|admin|device|self|manage|super)/);PERM=m?(LEGACY_LV[m[1]]||m[1]):'admin';me='本機測試';SCHED_SUPER=PERM==='admin';try{PRICES=JSON.parse(localStorage.getItem(PRICE_KEY)||'{}')}catch(e){}
   const as=location.search.match(/[?&]as=([\w-]+)/);mySid=as?as[1]:'';
   const loadAll=()=>{
     let r=null;try{r=JSON.parse(localStorage.getItem(ROSTER_KEY)||'null')}catch(e){}
@@ -447,7 +462,7 @@ function afterLogin(){
   $('#mePerm').textContent={view:'檢視',edit:'登記',admin:'管理',device:'認證設備'}[PERM]||PERM;
   $('#signOutBtn').textContent=PERM==='device'?'退出設備模式':PERSONAL?'登出（回到設備模式）':'登出';
   $('#personalBtn').hidden=PERM!=='device';
-  $('#form').hidden=!canEdit();$('#cfgBtn').hidden=!canCfg();$('#devBtn').hidden=!SCHED_SUPER;
+  $('#form').hidden=!canEdit();$('#cfgBtn').hidden=!canCfg();$('#devBtn').hidden=!SCHED_SUPER;$('#priceBtn').hidden=!SCHED_SUPER;
   if(!$('#fDate').value)$('#fDate').value=today();
   $('#vMonth').value=view.month;
   render();
@@ -479,15 +494,15 @@ function render(){
   const yms=Object.keys(by).sort().reverse(),om=$('#otherMonths');om.hidden=!yms.length;
   om.innerHTML=yms.length?'其他月份還有未完成的紀錄：'+yms.map(ym=>`<button type="button" class="btn-sm" data-goto="${ym}">${Number(ym.slice(0,4))}年${Number(ym.slice(5))}月（${by[ym].n}${by[ym].r?`，退回 ${by[ym].r}`:''}）</button>`).join(' '):'';
   const canChange=x=>canEdit()&&(x.status!=='confirmed'||PERM==='admin');
-  $('#list').innerHTML='<thead><tr><th>日期</th><th>病患</th><th>病歷號</th><th>牙位</th><th>耗材種類</th><th class="num">數量</th><th>醫師</th><th>助理</th><th>狀態</th><th></th></tr></thead><tbody>'+
+  $('#list').innerHTML='<thead><tr><th>日期</th><th>病患</th><th>病歷號</th><th>牙位</th><th>耗材種類</th><th class="num">數量</th>'+(showMoney()?'<th class="num">金額</th>':'')+'<th>醫師</th><th>助理</th><th>狀態</th><th></th></tr></thead><tbody>'+
     (list.length?list.map(x=>`<tr data-id="${esc(x.id)}"${editing===x.id?' class="editing"':''}>
       <td class="nw">${esc(fmtD(x.date))}<div class="sub">${esc(x.date.slice(0,4))}</div></td>
       <td>${esc(x.pName)}${x.pBirth?`<div class="sub">生日 ${esc(x.pBirth)}</div>`:''}</td>
-      <td class="nw">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${itemHtml(x)}</td><td class="num">${esc(x.qty)}</td>
+      <td class="nw">${esc(x.chartNo)}</td><td>${esc(x.tooth||'')}</td><td>${itemHtml(x)}</td><td class="num">${esc(x.qty)}</td>${showMoney()?`<td class="num nw">${amountOf(x)===null?'<span class="sub">未設價格</span>':money(amountOf(x))}</td>`:''}
       <td class="nw">${esc(byId(x.doctorId)?.name||x.doctorName||'')}</td><td class="nw">${esc(byId(x.assistantId)?.name||x.assistantName||'')}</td>
       <td>${statusHtml(x)}</td>
       <td class="nw">${canChange(x)&&x.status!=='confirmed'?`<button type="button" class="btn-sm${x.status==='rejected'?' btn-primary':''}" data-edit>${x.status==='rejected'?'修改重送':'修改'}</button> `:''}${canChange(x)?'<button type="button" class="btn-sm btn-danger" data-del>刪除</button>':''}</td>
-    </tr>`).join(''):`<tr><td colspan="10" class="empty">這個月${view.st==='open'?'沒有待醫師確認或被退回的耗材':'沒有符合條件的紀錄'}</td></tr>`)+'</tbody>';
+    </tr>`).join(''):`<tr><td colspan="${showMoney()?11:10}" class="empty">這個月${view.st==='open'?'沒有待醫師確認或被退回的耗材':'沒有符合條件的紀錄'}</td></tr>`)+'</tbody>';
 }
 
 /* ====== 登記／修改 ====== */
@@ -586,11 +601,11 @@ function exportExcel(sortBy){
   const list=filtered().sort(sortBy==='item'?(a,b)=>io(a.item)-io(b.item)||a.item.localeCompare(b.item,'zh-Hant')||specIdx(a)-specIdx(b)||byDate(a,b)
     :sortBy==='doc'?(a,b)=>docKey(a).localeCompare(docKey(b),'zh-Hant',{numeric:true})||byDate(a,b):byDate);
   const at=t=>t?new Date(t).toLocaleString('zh-TW',{hour12:false}):'';
-  const rows=list.map(x=>({'日期':x.date,'病患姓名':x.pName,'病患生日':x.pBirth||'','病歷號':x.chartNo,'牙位':x.tooth||'','耗材種類':x.item,'規格':x.spec||'','數量':Number(x.qty)||0,
+  const rows=list.map(x=>({'日期':x.date,'病患姓名':x.pName,'病患生日':x.pBirth||'','病歷號':x.chartNo,'牙位':x.tooth||'','耗材種類':x.item,'規格':x.spec||'','數量':Number(x.qty)||0,...(showMoney()?{'單價':priceOf(x)??'','金額':amountOf(x)??''}:{}),
     '醫師':byId(x.doctorId)?.name||x.doctorName||'','助理':byId(x.assistantId)?.name||x.assistantName||'','狀態':ST[x.status]||x.status,
     '確認／退回':x.review?.byName||'','確認／退回時間':at(x.review?.at),'退回原因':x.status==='rejected'?(x.reason||''):'','登記者':x.createdBy||'','登記時間':at(x.createdAt)}));
   const ws=XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[11,10,11,10,10,28,8,6,8,8,11,10,18,20,12,18].map(w=>({wch:w}));
+  ws['!cols']=[11,10,11,10,10,28,8,6,...(showMoney()?[9,10]:[]),8,8,11,10,18,20,12,18].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'耗材登記');
   const tag=[view.item,view.doc&&byId(view.doc)?.name,view.st!=='all'&&$('#vSt').selectedOptions[0].text.replace(/（.*）/,'')].filter(Boolean).join('_');
   XLSX.writeFile(wb,`耗材登記_${view.month}${tag?'_'+tag:''}.xlsx`.replace(/[\\/:*?"<>|]/g,'-'));
@@ -606,6 +621,28 @@ $('#otherMonths').addEventListener('click',e=>{const b=e.target.closest('[data-g
 $('#vDoc').addEventListener('change',e=>{view.doc=e.target.value;render()});
 $('#vItem').addEventListener('change',e=>{view.item=e.target.value;render()});
 $('#vQ').addEventListener('input',e=>{view.q=e.target.value;render()});
+
+/* ====== 耗材價格（只有超級管理員）：每種耗材一個單價；有規格的可以展開，個別規格另設價格（留空＝用耗材種類的單價） ====== */
+$('#priceBtn').addEventListener('click',()=>{
+  if(!SCHED_SUPER)return;
+  const bg=document.createElement('div');bg.className='modal-bg';
+  const inp=(k,ph)=>`<input type="number" min="0" step="1" inputmode="numeric" data-pk="${esc(k)}" value="${Number.isFinite(PRICES[k])?PRICES[k]:''}" placeholder="${esc(ph)}" style="width:110px;text-align:right">`;
+  const rowsHtml=itemList().map(n=>{const sp=ITEM_SPECS[n]?.opts||[];
+    return `<div class="pr-row"><span class="pr-name">${esc(n)}</span>${inp(n,'單價')}</div>${sp.length?`<details class="pr-spec"><summary>${esc(ITEM_SPECS[n].label)}另設價格（${sp.length} 種，留空＝用上面的單價）${sp.some(v=>Number.isFinite(PRICES[n+'|'+v]))?'・已設 '+sp.filter(v=>Number.isFinite(PRICES[n+'|'+v])).length+' 種':''}</summary>${sp.map(v=>`<div class="pr-row sub-row"><span class="pr-name">${esc(v)}</span>${inp(n+'|'+v,'同上')}</div>`).join('')}</details>`:''}`}).join('');
+  bg.innerHTML=`<div class="modal" style="max-width:560px"><h3>耗材價格</h3><p class="hint">只有超級管理員看得到價格與金額（登記紀錄、統計、匯出 Excel）。金額＝數量 × 目前的單價，改價格後過去的紀錄也會照新價格計算。</p>
+    <div class="pr-list">${rowsHtml}</div><div class="acts" style="justify-content:flex-end"><button type="button" data-close>取消</button><button type="button" class="btn-primary" data-save>儲存</button></div></div>`;
+  document.body.appendChild(bg);
+  bg.addEventListener('click',async e=>{
+    if(e.target===bg||e.target.closest('[data-close]')){bg.remove();return}
+    if(!e.target.closest('[data-save]'))return;
+    const p={};for(const i of bg.querySelectorAll('[data-pk]')){const v=i.value.trim();if(v==='')continue;const n=Number(v);if(!(n>=0)){alert('價格要是 0 以上的數字');i.focus();return}p[i.dataset.pk]=n}
+    try{
+      if(fs)await fs.doc('csPrice/settings').set({p,updatedAt:Date.now(),updatedBy:me});
+      else{try{localStorage.setItem(PRICE_KEY,JSON.stringify(p))}catch(err){}PRICES=p}
+      bg.remove();render();renderStats();toast('已儲存價格');
+    }catch(err){alert('儲存失敗：'+(err.code==='permission-denied'?'沒有權限（只有超級管理員可以設定價格，或安全規則尚未更新）':err.message))}
+  });
+});
 
 /* ====== 耗材種類設定（超級管理員） ====== */
 $('#cfgBtn').addEventListener('click',()=>{
@@ -656,16 +693,18 @@ function renderStats(){
   // 依耗材清單順序排（清單外的放後面），同耗材依規格順序，醫師依姓名
   const L=itemList(),io=n=>{const i=L.indexOf(n);return i<0?999:i};
   const g=new Map();
-  data.forEach(x=>{const k=keyOf(x);if(!g.has(k))g.set(k,{k,x,o:io(x.item)*100+specIdx(x),n:0,q:{pending:0,rejected:0,confirmed:0}});const r=g.get(k);r.n++;r.q[x.status]=(r.q[x.status]||0)+(Number(x.qty)||0)});
+  data.forEach(x=>{const k=keyOf(x);if(!g.has(k))g.set(k,{k,x,o:io(x.item)*100+specIdx(x),n:0,q:{pending:0,rejected:0,confirmed:0}});const r=g.get(k);r.n++;r.q[x.status]=(r.q[x.status]||0)+(Number(x.qty)||0);
+    if(x.status==='confirmed'){const a=amountOf(x);if(a===null)r.noPrice=true;else r.amt=(r.amt||0)+a}});
   const rows=[...g.values()].sort((a,b)=>{const [ai,ad]=a.k.split('\u0001'),[bi,bd]=b.k.split('\u0001');return by==='doc'?ai.localeCompare(bi,'zh-Hant'):(a.o-b.o)||ai.localeCompare(bi,'zh-Hant')||String(ad).localeCompare(String(bd),'zh-Hant')});
-  const tot={n:0,pending:0,rejected:0,confirmed:0};rows.forEach(r=>{tot.n+=r.n;['pending','rejected','confirmed'].forEach(s=>tot[s]+=r.q[s])});
+  const tot={n:0,pending:0,rejected:0,confirmed:0,amt:0};rows.forEach(r=>{tot.n+=r.n;tot.amt+=r.amt||0;['pending','rejected','confirmed'].forEach(s=>tot[s]+=r.q[s])});
+  const M=showMoney(),amtCell=r=>`<td class="num nw">${r.amt?money(r.amt):''}${r.noPrice?'<div class="sub">有未設價格的</div>':''}</td>`;
   $('#stInfo').textContent=`${stRange}　共 ${tot.n} 筆`;
   const head=by==='doc'?'<th>醫師</th>':by==='itemDoc'?'<th>耗材種類</th><th>醫師</th>':'<th>耗材種類</th>';
   const cells=r=>{const [a,b]=r.k.split('\u0001');return by==='itemDoc'?`<td>${itemHtml(r.x)}</td><td class="nw">${esc(b)}</td>`:by==='item'?`<td>${itemHtml(r.x)}</td>`:`<td>${esc(a)}</td>`};
-  $('#stTable').innerHTML=`<thead><tr>${head}<th class="num">已確認數量</th><th class="num">待醫師確認</th><th class="num">醫師退回</th><th class="num">合計數量</th><th class="num">筆數</th><th></th></tr></thead><tbody>`+
-    (rows.length?rows.map(r=>`<tr${stKey===r.k?' class="editing"':''}>${cells(r)}<td class="num"><b>${r.q.confirmed}</b></td><td class="num">${r.q.pending||''}</td><td class="num">${r.q.rejected?`<span class="reason">${r.q.rejected}</span>`:''}</td><td class="num">${r.q.confirmed+r.q.pending+r.q.rejected}</td><td class="num">${r.n}</td><td><button type="button" class="btn-sm" data-stk="${esc(r.k)}">明細</button></td></tr>`).join('')
-      +`<tr><th${by==='itemDoc'?' colspan="2"':''}>合計</th><th class="num">${tot.confirmed}</th><th class="num">${tot.pending}</th><th class="num">${tot.rejected}</th><th class="num">${tot.confirmed+tot.pending+tot.rejected}</th><th class="num">${tot.n}</th><th></th></tr>`
-      :`<tr><td colspan="8" class="empty">這段期間沒有耗材登記</td></tr>`)+'</tbody>';
+  $('#stTable').innerHTML=`<thead><tr>${head}<th class="num">已確認數量</th>${M?'<th class="num">已確認金額</th>':''}<th class="num">待醫師確認</th><th class="num">醫師退回</th><th class="num">合計數量</th><th class="num">筆數</th><th></th></tr></thead><tbody>`+
+    (rows.length?rows.map(r=>`<tr${stKey===r.k?' class="editing"':''}>${cells(r)}<td class="num"><b>${r.q.confirmed}</b></td>${M?amtCell(r):''}<td class="num">${r.q.pending||''}</td><td class="num">${r.q.rejected?`<span class="reason">${r.q.rejected}</span>`:''}</td><td class="num">${r.q.confirmed+r.q.pending+r.q.rejected}</td><td class="num">${r.n}</td><td><button type="button" class="btn-sm" data-stk="${esc(r.k)}">明細</button></td></tr>`).join('')
+      +`<tr><th${by==='itemDoc'?' colspan="2"':''}>合計</th><th class="num">${tot.confirmed}</th>${M?`<th class="num nw">${money(tot.amt)}</th>`:''}<th class="num">${tot.pending}</th><th class="num">${tot.rejected}</th><th class="num">${tot.confirmed+tot.pending+tot.rejected}</th><th class="num">${tot.n}</th><th></th></tr>`
+      :`<tr><td colspan="${M?9:8}" class="empty">這段期間沒有耗材登記</td></tr>`)+'</tbody>';
   // 明細
   const det=stKey===null?null:data.filter(x=>keyOf(x)===stKey);
   $('#stDetail').hidden=!det;if(!det)return;

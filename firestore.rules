@@ -329,5 +329,7 @@ service cloud.firestore {
       allow delete: if isCsAdmin() || (canEditCs() && resource.data.status != 'confirmed');
     }
     match /csConfig/{id} { allow read: if csLv() != 'none' || isCsDevice() || canView(); allow write: if isCsAdmin(); }
+    // csPrice 耗材單價：只有超級管理員看得到、改得到（助理、醫師與耗材管理都讀不到價格）
+    match /csPrice/{id} { allow read, write: if isSuper(); }
   }
 }
