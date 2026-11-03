@@ -4830,7 +4830,7 @@ const csLabel=x=>(x=csNorm(x),x.item+(x.spec?` ${x.spec}`:'')); // 耗材＋規�
 const CS_SPEC_COLORS={'玻璃纖維釘':{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c7',綠:'#2e8b3d'}};
 // 乳牙套尺寸（例如「左上 D4」）加上 Palmer 角標：左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉
 const csPalmer=v=>{const m=/^([左右])([上下]) ([DE]\d)$/.exec(v||'');return m?`${esc(m[1]+m[2])} <span class="pal ${m[2]==='上'?'u':'l'}${m[1]==='左'?'l':'r'}">${esc(m[3])}</span>`:'';};
-const csHtml=x=>{x=csNorm(x);const c=CS_SPEC_COLORS[x.item]?.[x.spec];const sc=x.scanner||x.scannerName?`<br><small class="att-mute">${x.item==='口內掃描'?'掃描':'操作'}：${esc(byId(x.scanner)?.name||x.scannerName||'')}</small>`:'';return esc(x.item)+(x.spec?' '+(c?`<b style="color:${c}">${esc(x.spec)}</b>`:csPalmer(x.spec)||esc(x.spec)):'')+sc;};
+const csHtml=x=>{x=csNorm(x);const c=CS_SPEC_COLORS[x.item]?.[x.spec];const sc=x.scanner||x.scannerName?`<br><small class="att-mute">操作：${esc(byId(x.scanner)?.name||x.scannerName||'')}</small>`:'';return esc(x.item)+(x.spec?' '+(c?`<b style="color:${c}">${esc(x.spec)}</b>`:csPalmer(x.spec)||esc(x.spec)):'')+sc;};
 // 耗材「管理」權限：看所有醫師的待確認、可以取消確認（本機模式沒有模擬身分時視為管理）
 const csAdmin=()=>{if(mode==='local'&&!SIM_AS)return true;if(isAdmin&&myId)return true;const a=mode==='local'?{perm:SIM_AS[1]}:accessLinks[myStaffId()];return appLv(a,'cs')==='admin';};
 const canSeeCs=()=>byId(myStaffId())?.role==='doctor'||csAdmin();

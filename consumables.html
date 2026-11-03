@@ -269,8 +269,8 @@ const ITEM_SPECS={
   // 骨粉：分 2 cc、5 cc
   'FDBA骨粉(粗)':{label:'容量',pick:true,opts:['2 cc','5 cc']},
   'FDBA骨粉(細)':{label:'容量',pick:true,opts:['2 cc','5 cc']},
-  // 口內掃描、臨時假牙：另外要選操作的助理（op＝欄位名稱的前兩字：掃描人員、操作人員；存在 scanner、scannerName）
-  '口內掃描':{label:'種類',pick:true,opts:['全口掃描','局部掃描'],op:'掃描'},
+  // 口內掃描、臨時假牙：另外要選操作的助理（op＝欄位名稱的前兩字「操作」人員；存在 scanner、scannerName）
+  '口內掃描':{label:'種類',pick:true,opts:['全口掃描','局部掃描'],op:'操作'},
   '臨時假牙':{label:'種類',pick:true,opts:['打印臨時假牙','手捏臨時假牙','Reline臨時假牙'],op:'操作'},
   '植牙骨釘(Micro Screw)':{label:'長度',pick:true,opts:['8 mm','10 mm','12 mm','14 mm']},
   '玻璃纖維釘':{label:'顏色',pick:true,opts:['黃','紅','藍','綠'],colors:{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c7',綠:'#2e8b3d'}}, // 字體顯示對應顏色（要和 index.html 的 CS_SPEC_COLORS 一致）
@@ -622,7 +622,7 @@ function exportExcel(sortBy){
   const list=filtered().sort(sortBy==='item'?(a,b)=>io(a.item)-io(b.item)||a.item.localeCompare(b.item,'zh-Hant')||specIdx(a)-specIdx(b)||byDate(a,b)
     :sortBy==='doc'?(a,b)=>docKey(a).localeCompare(docKey(b),'zh-Hant',{numeric:true})||byDate(a,b):byDate);
   const at=t=>t?new Date(t).toLocaleString('zh-TW',{hour12:false}):'';
-  const rows=list.map(x=>({'日期':x.date,'病患姓名':x.pName,'病患生日':x.pBirth||'','病歷號':x.chartNo,'牙位':x.tooth||'','耗材種類':x.item,'規格':x.spec||'','掃描／操作人員':x.scanner||x.scannerName?(byId(x.scanner)?.name||x.scannerName||''):'','數量':Number(x.qty)||0,...(showMoney()?{'單價':priceOf(x)??'','金額':amountOf(x)??''}:{}),
+  const rows=list.map(x=>({'日期':x.date,'病患姓名':x.pName,'病患生日':x.pBirth||'','病歷號':x.chartNo,'牙位':x.tooth||'','耗材種類':x.item,'規格':x.spec||'','操作人員':x.scanner||x.scannerName?(byId(x.scanner)?.name||x.scannerName||''):'','數量':Number(x.qty)||0,...(showMoney()?{'單價':priceOf(x)??'','金額':amountOf(x)??''}:{}),
     '醫師':byId(x.doctorId)?.name||x.doctorName||'','助理':byId(x.assistantId)?.name||x.assistantName||'','狀態':ST[x.status]||x.status,
     '確認／退回':x.review?.byName||'','確認／退回時間':at(x.review?.at),'退回原因':x.status==='rejected'?(x.reason||''):'','登記者':x.createdBy||'','登記時間':at(x.createdAt)}));
   const ws=XLSX.utils.json_to_sheet(rows);
