@@ -258,13 +258,14 @@ let staff=[];           // 排班系統的人員名單 {id,role,code,name,active
 let cfg={};             // csConfig/settings：耗材種類 items（還沒設定過時用 DEFAULT_ITEMS）
 const DEFAULT_ITEMS=['玻璃纖維釘','兒童乳牙套(SSC)','MTA(管)','MTA(粉)','膠原蛋白(速吉安)','膠原蛋白(亞果)','FDBA骨粉(粗)','FDBA骨粉(細)',
   '可吸收再生膜(海昌/20*30mm/盒)','可吸收再生膜(Dentsply/15*25mm/盒)','不可吸收再生膜(cytoplast)','鈦網(Titanlum Membrane)','植牙骨釘(Bone screw)','植牙骨釘(Tenting screw)','植牙骨釘(Bone tack)','植牙骨釘(Micro Screw)',
-  '植體(Hiossen)','植體(Straumann BLC)','植體(Straumann BLX)','矯正骨釘','手捏臨時假牙','隱適美口掃'];
+  '植體(Hiossen)','植體(Straumann BLC)','植體(Straumann BLX)','矯正骨釘','臨時假牙','隱適美口掃'];
 // 之後才加進預設清單的種類：超級管理員已經自訂過清單時，自動插在指定種類後面（在 ⚙ 刪掉後記在 cfg.removed，不會再加回來）
 const LATER_ITEMS=[['植牙骨釘(Micro Screw)','植牙骨釘(Bone tack)'],['植體(Straumann BLC)','植體(Hiossen)'],['植體(Straumann BLX)','植體(Straumann BLC)'],['可吸收再生膜(Dentsply/15*25mm/盒)','可吸收再生膜(海昌/20*30mm/盒)']];
 // 需要追加選擇規格的耗材（存在紀錄的 spec 欄位）
 const ITEM_SPECS={
   '植牙骨釘(Bone screw)':{label:'長度',pick:true,opts:['6 mm','8 mm','10 mm']},
   '植牙骨釘(Tenting screw)':{label:'長度',pick:true,opts:['8.5 mm','10.0 mm','11.5 mm','13.0 mm']},
+  '臨時假牙':{label:'種類',pick:true,opts:['打印臨時假牙','手捏臨時假牙','Reline臨時假牙']},
   '植牙骨釘(Micro Screw)':{label:'長度',pick:true,opts:['8 mm','10 mm','12 mm','14 mm']},
   '玻璃纖維釘':{label:'顏色',pick:true,opts:['黃','紅','藍','綠'],colors:{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c7',綠:'#2e8b3d'}}, // 字體顯示對應顏色（要和 index.html 的 CS_SPEC_COLORS 一致）
   // 乳牙套：照診所套組盒的排列，4 列 × 12 格。上到下：上顎 D（第一乳臼齒）、上顎 E（第二乳臼齒）、下顎 D、下顎 E；
@@ -369,9 +370,13 @@ function drawGrid(s){
 }
 // 規格選單本身也用選到的顏色顯示
 function colorSpec(){const c=ITEM_SPECS[$('#fItem').value]?.colors?.[$('#fSpec').value]||'';$('#fSpec').style.color=c;$('#fSpec').style.fontWeight=c?'700':''}
+// 改過名稱的耗材種類：舊名 → {item 新名, spec 規格}。已自訂的清單、舊紀錄、舊價格都自動換成新名稱（紀錄在下次修改時才真的寫回雲端）
+const RENAMED_ITEMS={'手捏臨時假牙':{item:'臨時假牙',spec:'手捏臨時假牙'}};
+const normItem=x=>{const r=RENAMED_ITEMS[x.item];if(r){x.item=r.item;if(!x.spec)x.spec=r.spec}return x};
+const normPrices=p=>{const o={...p};for(const [old,r] of Object.entries(RENAMED_ITEMS))if(old in o){const k=r.spec?r.item+'|'+r.spec:r.item;if(!(k in o))o[k]=o[old];delete o[old]}return o};
 const itemList=()=>{
   if(!Array.isArray(cfg.items))return DEFAULT_ITEMS;
-  const L=[...cfg.items];
+  const L=[...new Set(cfg.items.map(n=>RENAMED_ITEMS[n]?.item||n))];
   LATER_ITEMS.forEach(([n,after])=>{if(L.includes(n)||(cfg.removed||[]).includes(n))return;const i=L.indexOf(after);i<0?L.push(n):L.splice(i+1,0,n)});
   return L;
 };
@@ -406,7 +411,7 @@ const DB={
 };
 // 雲端讀取：未完成（待確認＋退回）的全部讀；已確認的只讀所選月份
 let subOpen={},subMonth={},monthUnsub=null,monthKey='';
-const mergeItems=()=>{items=new Map(Object.entries({...subMonth,...subOpen}));fillItems();render()};
+const mergeItems=()=>{items=new Map(Object.entries({...subMonth,...subOpen}).map(([k,x])=>[k,normItem(x)]));fillItems();render()};
 function subscribeMonth(){
   if(!fs){render();return}
   if(monthKey===view.month)return;
@@ -419,19 +424,19 @@ function startCloud(){
   afterLogin();
   fs.collection('staff').onSnapshot(snap=>{staff=snap.docs.map(d=>({id:d.id,...d.data()}));fillSelects();render()},e=>console.warn(e));
   fs.doc('csConfig/settings').onSnapshot(s=>{cfg=s.exists?s.data():{};fillItems()},e=>console.warn(e));
-  if(SCHED_SUPER)fs.doc('csPrice/settings').onSnapshot(s=>{PRICES=s.exists?(s.data().p||{}):{};render();renderStats()},e=>console.warn(e));
+  if(SCHED_SUPER)fs.doc('csPrice/settings').onSnapshot(s=>{PRICES=normPrices(s.exists?(s.data().p||{}):{});render();renderStats()},e=>console.warn(e));
   fs.collection('csItems').where('status','in',['pending','rejected']).onSnapshot(snap=>{
     const m={};snap.docs.forEach(d=>m[d.id]={id:d.id,...d.data()});subOpen=m;mergeItems();
   },e=>{console.warn(e);toast('讀取紀錄失敗：'+(e.code==='permission-denied'?'沒有權限（請確認安全規則已更新）':e.message))});
   subscribeMonth();
 }
 function bootLocal(){
-  const m=location.search.match(/[?&]perm=(view|edit|admin|device|self|manage|super)/);PERM=m?(LEGACY_LV[m[1]]||m[1]):'admin';me='本機測試';SCHED_SUPER=PERM==='admin';try{PRICES=JSON.parse(localStorage.getItem(PRICE_KEY)||'{}')}catch(e){}
+  const m=location.search.match(/[?&]perm=(view|edit|admin|device|self|manage|super)/);PERM=m?(LEGACY_LV[m[1]]||m[1]):'admin';me='本機測試';SCHED_SUPER=PERM==='admin';try{PRICES=normPrices(JSON.parse(localStorage.getItem(PRICE_KEY)||'{}'))}catch(e){}
   const as=location.search.match(/[?&]as=([\w-]+)/);mySid=as?as[1]:'';
   const loadAll=()=>{
     let r=null;try{r=JSON.parse(localStorage.getItem(ROSTER_KEY)||'null')}catch(e){}
     staff=r?.staff?.length?r.staff:[{id:'d1',role:'doctor',code:'Dr.A',name:'王醫師'},{id:'d2',role:'doctor',code:'Dr.B',name:'李醫師'},{id:'a1',role:'assistant',code:'A1',name:'陳助理'},{id:'a2',role:'assistant',code:'A2',name:'林助理'}];
-    const d=Local.load();cfg=d.cfg||{};items=new Map(d.items.map(x=>[x.id,x]));
+    const d=Local.load();cfg=d.cfg||{};items=new Map(d.items.map(x=>[x.id,normItem(x)]));
     fillSelects();fillItems();render();
   };
   loadAll();afterLogin();
@@ -687,8 +692,8 @@ async function runStats(){
   if(!from||!to||from>to){alert('請選擇正確的日期區間');return}
   const btn=$('#sGo');btn.disabled=true;btn.textContent='讀取中…';
   try{
-    if(fs){const s=await fs.collection('csItems').where('date','>=',from).where('date','<=',to).get();stData=s.docs.map(d=>({id:d.id,...d.data()}))}
-    else stData=Local.load().items.filter(x=>x.date>=from&&x.date<=to);
+    if(fs){const s=await fs.collection('csItems').where('date','>=',from).where('date','<=',to).get();stData=s.docs.map(d=>normItem({id:d.id,...d.data()}))}
+    else stData=Local.load().items.filter(x=>x.date>=from&&x.date<=to).map(normItem);
     stRange=`${from} ～ ${to}`;stKey=null;renderStats();
   }catch(e){console.error(e);alert('統計失敗：'+(e.code==='permission-denied'?'沒有權限':e.message))}
   finally{btn.disabled=false;btn.textContent='開始統計'}
