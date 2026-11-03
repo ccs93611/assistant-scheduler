@@ -1,6 +1,6 @@
 /* 新海美學牙醫・治療項目介紹（給病人看的說明）
    treatments.html（介紹頁、列印衛教單）與 treatment-plan.html（項目旁的 ⓘ）共用這份資料。
-   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片；arrows:false 不加箭頭，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
+   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、cmp（{title, start, cols, rows} 做與不做的左右對照圖，點按鈕展開，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片；arrows:false 不加箭頭，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
    what（這是什麼）、who（適合誰）、steps（治療流程）、time（療程時間，文字或條列陣列）、care（注意事項，可省略）、note（補充，可省略）。
    內容僅為一般說明，實際療程依醫師診斷為準；修改內容時只要改這個檔案。 */
 'use strict';
@@ -148,6 +148,13 @@ const TREATMENT_INFO=[
  care:['假牙破裂請勿自行用膠水黏，會影響修理','並非每種損壞都能修理，太老舊或不密合時醫師可能建議重做']},
 /* ---------- 植牙式贗復 ---------- */
 {id:'apr',cat:'植牙式贗復',title:'APR 齒槽骨保存術',items:['APR齒槽骨保存術'],
+ cmp:{title:'比較：有沒有做齒槽骨保存術',
+  start:{img:{src:'media/apr-compare.webp',w:1651,h:953},x:41,y:449,w:403,h:233,cap:'拔牙後的拔牙窩'},
+  cols:[{head:'未進行齒槽骨保存術',result:'齒槽骨流失',tone:'bad'},{head:'有進行齒槽骨保存術',result:'維持齒槽骨量',tone:'good'}],
+  rows:[
+   {label:'口內外觀',cells:[{img:{src:'media/apr-compare.webp',w:1651,h:953},x:559,y:325,w:475,h:228,cap:'牙床塌陷、變窄'},{img:{src:'media/apr-compare.webp',w:1651,h:953},x:559,y:596,w:475,h:218,cap:'牙床維持飽滿'}]},
+   {label:'骨頭剖面',cells:[{img:{src:'media/apr-compare.webp',w:1651,h:953},x:1109,y:325,w:490,h:229,cap:'齒槽骨萎縮下陷'},{img:{src:'media/apr-compare.webp',w:1651,h:953},x:1109,y:596,w:490,h:218,cap:'齒槽骨高度、寬度保留'}]},
+   {label:'實際案例',cells:[{img:{src:'media/apr-case.jpg',w:511,h:615},x:0,y:0,w:511,h:298,cap:'牙床凹陷'},{img:{src:'media/apr-case.jpg',w:511,h:615},x:0,y:320,w:511,h:295,cap:'牙床飽滿'}]}]},
  pics:{src:'media/apr-source.webp',w:1780,h:883,rows:[
   [{x:64,y:38,w:514,h:319,cap:'拔牙後清創，保留齒槽窩'},{x:633,y:38,w:515,h:319,cap:'填入骨粉並覆蓋再生膜'},{x:1202,y:38,w:514,h:319,cap:'癒合後維持齒槽骨輪廓'}],
   [{x:64,y:456,w:796,h:342,cap:'術前：拔牙後的齒槽窩'},{x:921,y:456,w:795,h:342,cap:'術中：骨粉填補並覆蓋再生膜'}]]},
@@ -462,11 +469,12 @@ function tiStrengthHtml(cur){
 }
 /* 步驟圖：從同一張圖裁出每一格（CSS 背景定位），每列格子之間加箭頭，下方是說明文字 */
 function tiStepsHtml(p){
+  const pos=(v,room)=>room>0?(v/room*100).toFixed(3):0; // 裁切寬（高）跟原圖一樣時不用位移
   const crop=r=>`<div class="ti-crop" role="img" aria-label="${tiEsc(r.cap)}" style="aspect-ratio:${r.w}/${r.h};background-image:url('${tiEsc(p.src)}');`+
-    `background-size:${(p.w/r.w*100).toFixed(3)}% auto;background-position:${(r.x/(p.w-r.w)*100).toFixed(3)}% ${(r.y/(p.h-r.h)*100).toFixed(3)}%"></div>`;
+    `background-size:${(p.w/r.w*100).toFixed(3)}% auto;background-position:${pos(r.x,p.w-r.w)}% ${pos(r.y,p.h-r.h)}%"></div>`;
   const capHtml=c=>{const[t,...m]=c.split('\n');return m.length?`<b>${tiEsc(t)}</b><br>${m.map(tiEsc).join('<br>')}`:tiEsc(t)}; // 有換行時第一行當小標題
   const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  return `<div class="ti-steps">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}<figcaption>${capHtml(r.cap)}</figcaption></figure>`).join('')}</div>`).join('')}</div>`;
+  return `<div class="ti-steps"${p.maxw?` style="max-width:${p.maxw}px"`:''}>${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}${r.cap?`<figcaption>${capHtml(r.cap)}</figcaption>`:''}</figure>`).join('')}</div>`).join('')}</div>`;
 }
 /* 比較表（例如隱適美各方案）：hl＝要強調的欄（該欄的粗體字用紅色）；預設收起來，點「📊 標題」按鈕才展開（跟強度比較一樣，列印時只印展開的）；格子裡的 \n 換行（第二行起小字）、**文字** 粗體，第一欄第一行粗體 */
 function tiTableHtml(t){
@@ -474,13 +482,24 @@ function tiTableHtml(t){
   const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
   return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+tiEsc(h)+'</th>').join('')}</tr></thead><tbody>${
     t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table></div></div>`}
+/* 圖片比較（例如齒槽骨保存術有做／沒做）：預設收起來，點「📊 標題」展開；每段一個小標籤，下面是從圖裁出的照片 */
+function tiCmpHtml(c){
+  // 從圖裁出一塊（CSS 背景定位），跟 tiStepsHtml 的裁切方式相同
+  const pos=(v,room)=>room>0?(v/room*100).toFixed(3):0;
+  const crop=({img:p,x,y,w,h},alt)=>`<div class="ti-crop" role="img" aria-label="${tiEsc(alt)}" style="aspect-ratio:${w}/${h};background-image:url('${tiEsc(p.src)}');background-size:${(p.w/w*100).toFixed(3)}% auto;background-position:${pos(x,p.w-w)}% ${pos(y,p.h-h)}%"></div>`;
+  const cell=x=>`<figure>${crop(x,x.cap)}<figcaption>${tiEsc(x.cap)}</figcaption></figure>`;
+  return `<div class="ti-sec ti-cmp"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📊 ${tiEsc(c.title)}</button><div class="ti-cmp-wrap" hidden>
+    <div class="vs-start">${cell(c.start)}</div>
+    <svg class="vs-fork" viewBox="0 0 200 34" preserveAspectRatio="none" aria-hidden="true"><path d="M100,0V10M100,10H50V30M100,10H150V30" fill="none" stroke="#f0965a" stroke-width="2.5" vector-effect="non-scaling-stroke"/><path d="M45,25L50,32L55,25M145,25L150,32L155,25" fill="none" stroke="#f0965a" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
+    <div class="vs-grid">${c.cols.map(k=>`<div class="vs-head vs-${k.tone}">${tiEsc(k.head)}<b>${k.tone==='bad'?'✕':'✓'} ${tiEsc(k.result)}</b></div>`).join('')}${
+      c.rows.map(r=>`<div class="vs-row">${tiEsc(r.label)}</div>${r.cells.map((x,i)=>`<div class="vs-cell vs-${c.cols[i].tone}">${cell(x)}</div>`).join('')}`).join('')}</div></div></div>`}
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
   const sb=e.strength?`<button type="button" class="ti-str-btn" onclick="const s=this.closest('.ti-body').querySelector('.ti-str');s.hidden=!s.hidden;this.classList.toggle('on',!s.hidden)">📊 強度比較</button>`:'';
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="flex-grow:${(p.w/p.h).toFixed(3)}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
-    ${e.table?tiTableHtml(e.table):''}
+    ${e.table?tiTableHtml(e.table):''}${e.cmp?tiCmpHtml(e.cmp):''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
     <div class="ti-sec"><h4>療程時間</h4>${Array.isArray(e.time)?list(e.time):`<p>${tiEsc(e.time)}</p>`}</div>
@@ -515,6 +534,20 @@ const TI_CSS=`
 .ti-str-btn{margin-left:6px;padding:1px 9px;font-size:12px;line-height:1.6;border-radius:999px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;vertical-align:1px;white-space:nowrap}
 .ti-str-btn:hover,.ti-str-btn.on{background:var(--accent);color:var(--accent-ink)}
 .ti-str{margin:-4px 0 12px;overflow-x:auto}
+.ti-cmp-wrap{margin-top:8px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+.ti-cmp figure{margin:0}.ti-cmp figcaption{margin-top:4px;text-align:center;font-size:.88em;line-height:1.4}
+.vs-start{max-width:300px;margin:0 auto}
+.vs-fork{display:block;width:50%;height:30px;margin:2px auto 4px}
+.vs-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+.vs-head{text-align:center;padding:8px 6px;border-radius:10px;font-weight:700;font-size:.92em;line-height:1.35}
+.vs-head b{display:block;font-size:1.12em;margin-top:2px}
+.vs-bad.vs-head{background:rgba(229,72,77,.14);color:#e5484d;border:1.5px solid rgba(229,72,77,.5)}
+.vs-good.vs-head{background:rgba(63,182,185,.14);color:var(--accent);border:1.5px solid rgba(63,182,185,.55)}
+.vs-row{grid-column:1/-1;text-align:center;font-size:.85em;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:8px}
+.vs-row::before,.vs-row::after{content:"";flex:1;border-top:1px dashed var(--line)}
+.vs-cell .ti-crop{border:2px solid transparent}.vs-bad .ti-crop{border-color:rgba(229,72,77,.45)}.vs-good .ti-crop{border-color:rgba(63,182,185,.5)}
+.ti-red{color:#e5484d}
+@media print{.ti-red{color:#c62828}.ti-cmp-wrap{break-inside:avoid}}
 .ti-tbl-btn{margin-left:0;font-size:.9em;padding:3px 12px}.ti-tbl-wrap{overflow-x:auto;margin-top:8px}
 @media screen and (max-width:599px){.ti-tbl table{min-width:600px}} /* 手機上欄位太擠：表格保持一定寬度，左右滑動看 */
 .ti-tbl table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
