@@ -4822,12 +4822,15 @@ $('otRevTable').addEventListener('click',otClick);
 // 醫師只看指定給自己的；超級管理員看全部（只能看，確認／退回仍限醫師本人；可以對已確認的紀錄「取消確認」）
 const CS_LOCAL='xinhai_cs_local_v1'; // 本機模式：與 consumables.html?local=1 共用
 const csLocal=()=>{try{return JSON.parse(localStorage.getItem(CS_LOCAL)||'null')||{items:[]};}catch(e){return {items:[]};}};
-const csLabel=x=>x.item+(x.spec?` ${x.spec}`:''); // 耗材＋規格（例如 Bone screw 的長度）
+// 改過名稱的耗材（要和 consumables.html 的 RENAMED_ITEMS 一致）：舊紀錄顯示成新名稱
+const CS_RENAMED={'手捏臨時假牙':{item:'臨時假牙',spec:'手捏臨時假牙'},'隱適美口掃':{item:'口內掃描'}};
+const csNorm=x=>{const r=CS_RENAMED[x.item];return r?{...x,item:r.item,spec:x.spec||r.spec||''}:x};
+const csLabel=x=>(x=csNorm(x),x.item+(x.spec?` ${x.spec}`:'')); // 耗材＋規格（例如 Bone screw 的長度）
 // 規格字體顏色（玻璃纖維釘的顏色；要和 consumables.html 的 ITEM_SPECS 一致）
 const CS_SPEC_COLORS={'玻璃纖維釘':{黃:'#c99a00',紅:'#d32f2f',藍:'#1e63c7',綠:'#2e8b3d'}};
 // 乳牙套尺寸（例如「左上 D4」）加上 Palmer 角標：左上 ⌊、右上 ⌋、左下 ⌈、右下 ⌉
 const csPalmer=v=>{const m=/^([左右])([上下]) ([DE]\d)$/.exec(v||'');return m?`${esc(m[1]+m[2])} <span class="pal ${m[2]==='上'?'u':'l'}${m[1]==='左'?'l':'r'}">${esc(m[3])}</span>`:'';};
-const csHtml=x=>{const c=CS_SPEC_COLORS[x.item]?.[x.spec];return esc(x.item)+(x.spec?' '+(c?`<b style="color:${c}">${esc(x.spec)}</b>`:csPalmer(x.spec)||esc(x.spec)):'');};
+const csHtml=x=>{x=csNorm(x);const c=CS_SPEC_COLORS[x.item]?.[x.spec];const sc=x.scanner||x.scannerName?`<br><small class="att-mute">掃描：${esc(byId(x.scanner)?.name||x.scannerName||'')}</small>`:'';return esc(x.item)+(x.spec?' '+(c?`<b style="color:${c}">${esc(x.spec)}</b>`:csPalmer(x.spec)||esc(x.spec)):'')+sc;};
 // 耗材「管理」權限：看所有醫師的待確認、可以取消確認（本機模式沒有模擬身分時視為管理）
 const csAdmin=()=>{if(mode==='local'&&!SIM_AS)return true;if(isAdmin&&myId)return true;const a=mode==='local'?{perm:SIM_AS[1]}:accessLinks[myStaffId()];return appLv(a,'cs')==='admin';};
 const canSeeCs=()=>byId(myStaffId())?.role==='doctor'||csAdmin();
