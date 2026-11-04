@@ -46,8 +46,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 /* 左側欄寬度（浮水印也用它來對齊右側內容區） */
 :root{--side-w:300px}
 @media (min-width:1500px){:root{--side-w:550px}}
-@media (min-width:821px) and (max-width:1180px){:root{--side-w:230px}}
-@media (max-width:820px){:root{--side-w:0px}}
+@media (min-width:601px) and (max-width:1180px){:root{--side-w:230px}}
+@media (max-width:600px){:root{--side-w:0px}} /* 平板（含直向）列表一律在左側，只有手機才把列表放到上方 */
+.at-top{display:none}
 .app{display:grid;grid-template-columns:var(--side-w) 1fr;min-height:100vh}
 /* 隱藏左側欄：右側內容佔滿整個畫面，左上角留一個「☰ 列表」按鈕叫回來 */
 :root.side-hidden{--side-w:0px}
@@ -57,20 +58,20 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .side-tab:hover{width:28px;filter:brightness(1.1)}
 .side-tab .st-m{display:none}
 /* 手機：列表在畫面上方，按鈕改成列表正下方一整條「▲ 收起列表／▼ 展開列表」 */
-@media (max-width:820px){
+@media (max-width:600px){
   .side-tab{position:static;transform:none;width:100%;height:auto;padding:9px 12px;border-radius:0;font-size:15px;box-shadow:none;border-bottom:1px solid var(--line)}
   .side-tab:hover{width:100%}
   .app{align-content:start} /* 不讓列表、按鈕列被拉高 */
   .side-tab .st-d{display:none}.side-tab .st-m{display:inline}
 }
 /* 右側內容左邊留出把手的寬度，把手不會壓到計劃單 */
-@media (min-width:821px){.app main{padding-left:30px}}
+@media (min-width:601px){.app main{padding-left:30px}}
 .side-hidden .app main{padding-left:30px}
 aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;max-height:100vh;position:sticky;top:0}
 .side-head{padding:14px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr);gap:8px} /* 欄寬固定為左側欄寬，輸入欄不會撐出邊界 */
 .side-head>*,.side-head input,.side-head select{min-width:0;max-width:100%}
 .side-head h1{font-size:22px;line-height:1.3;margin:0;letter-spacing:.5px;text-align:center}
-@media (min-width:821px) and (max-width:1180px){.side-head h1{font-size:16px;letter-spacing:0}} /* 平板時左側欄較窄，維持一行 */
+@media (min-width:601px) and (max-width:1180px){.side-head h1{font-size:16px;letter-spacing:0}} /* 平板時左側欄較窄，維持一行 */
 .side-head .row{display:flex;gap:6px}
 .side-head .row>*{flex:1}
 .plan-list{overflow:auto;flex:1;container-type:inline-size;container-name:plist}
@@ -545,8 +546,9 @@ tfoot td{font-weight:700;background:var(--soft)}
 .tip-page .ti-photo img{max-height:70mm}
 .tip-page .ti-str-btn{display:none}
 .tip-disc{margin-top:6px;padding-top:4px;border-top:1px solid #cfd8dc;font-size:10px;color:#555}
-@media (max-width:820px){
+@media (max-width:600px){
   .app{grid-template-columns:1fr}
+  .at-side{display:none}.at-top{display:inline} /* 窄螢幕列表在上方：提示改成「從上方選一張」 */
   aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}
   .plan-list{max-height:340px}
   main{padding:12px}
@@ -665,7 +667,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
     </div>
   </aside>
   <button class="side-tab no-print" id="sideTab" title="隱藏左側欄" aria-label="隱藏左側欄"><span class="st-d">«</span><span class="st-m">▲ 收起列表</span></button>
-  <main id="main"><div class="empty">從左側選一張治療計劃單，或按「新增治療計劃單」。</div></main>
+  <main id="main"><div class="empty">從<span class="at-side">左側</span><span class="at-top">上方</span>選一張治療計劃單，或按「新增治療計劃單」。</div></main>
 </div>
 <input type="file" id="photoInput" accept="image/*" multiple hidden>
 <div id="gate" class="gate" hidden><div class="gate-box"><h2>新海美學牙醫・治療計劃單</h2><p id="gateMsg">連線中…</p><div id="gateActs"></div></div></div>
@@ -960,7 +962,7 @@ function datalists(){
 }
 function renderEditor(){
   const p=cur();const m=$('#main');
-  if(!p){m.innerHTML='<div class="empty">從左側選一張治療計劃單，或按「新增治療計劃單」。</div>';return}
+  if(!p){m.innerHTML='<div class="empty">從<span class="at-side">左側</span><span class="at-top">上方</span>選一張治療計劃單，或按「新增治療計劃單」。</div>';return}
   const L=p.status!=='open';const dis=L?'disabled':'';const c=calc(p);
   const IL=L||!!p.finalized,idis=IL?'disabled':''; // 定案後治療項目與金額鎖定
   const prev=p.prevId&&plans.get(p.prevId),next=p.nextId&&plans.get(p.nextId);
