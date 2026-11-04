@@ -1,6 +1,6 @@
 /* 新海美學牙醫・治療項目介紹（給病人看的說明）
    treatments.html（介紹頁、列印衛教單）與 treatment-plan.html（項目旁的 ⓘ）共用這份資料。
-   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt} 照片，有的話取代示意圖；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、cmp（{title, start, cols, rows} 做與不做的左右對照圖，點按鈕展開，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片；arrows:false 不加箭頭，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
+   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt, maxh} 照片，有的話取代示意圖，maxh 為最大高度（預設 380px）；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、cmp（{title, start, cols, rows} 做與不做的左右對照圖，點按鈕展開，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片；arrows:false 不加箭頭，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
    what（這是什麼）、who（適合誰）、steps（治療流程）、time（療程時間，文字或條列陣列）、care（注意事項，可省略）、note（補充，可省略）。
    內容僅為一般說明，實際療程依醫師診斷為準；修改內容時只要改這個檔案。 */
 'use strict';
@@ -207,6 +207,7 @@ const TREATMENT_INFO=[
  time:'規劃與製作約 1～2 週。',
  care:['導板是為您的口腔量身製作，取模後若有拔牙、牙齒移動需告知醫師']},
 {id:'implant-hiossen',cat:'植牙式贗復',title:'美國 Hiossen 植體',items:['美國Hiossen植體-前牙','美國Hiossen植體-後牙'],
+ photo:{src:'media/implant-hiossen.webp',alt:'美國 Hiossen 植體：特殊酸蝕與噴砂處理、多年臨床應用、強化冠狀面設計',maxh:640},
  table:TI_IMPLANT_CMP,
  what:'美國 Hiossen 植體，純鈦材質、表面經噴砂酸蝕處理，系統成熟、臨床使用廣泛，價格較親民，高 CP 值。在缺牙處的骨頭中植入人工牙根，等植體與骨頭結合後，再裝上牙冠。不用磨隔壁的牙齒，咀嚼起來接近自己的牙齒。',
  who:['缺一顆或多顆牙的人','不想磨隔壁健康牙齒做牙橋的人','活動假牙戴不習慣、想要固定式假牙的人'],
@@ -215,6 +216,7 @@ const TREATMENT_INFO=[
  care:['術後 2～3 天可能腫脹，前 48 小時冰敷，避免熱敷','術後一週避免抽菸、喝酒、劇烈運動','依醫囑服藥，約 7～14 天回診拆線','植牙不會蛀牙，但會得「植體周圍炎」：要確實清潔並每 3～6 個月回診檢查','有糖尿病、骨質疏鬆用藥、抗凝血藥物等請事先告知醫師'],
  note:'醫師會依骨量、部位、咬合與預算，與您討論適合的植體。前牙與後牙因美觀需求與咬合力不同，治療內容與費用也不同。'},
 {id:'implant-blc',cat:'植牙式贗復',title:'瑞士 Straumann BLC 植體',items:['瑞士Straumann BLC植體-前牙','瑞士Straumann BLC植體-後牙'],
+ photo:{src:'media/implant-straumann.webp',alt:'瑞士 Straumann 植體：SLA、SLActive 專利表面處理與 Roxolid 鈦鋯植體材質',maxh:640},
  table:TI_IMPLANT_CMP,
  what:'Straumann BLC™（Bone Level Conical），材質為 Roxolid 鈦鋯合金（強度比純鈦高），新一代骨水平錐形植體系統，特別針對有限的骨量空間與高穩定性需求而設計。品牌有長期臨床研究與追蹤。在缺牙處的骨頭中植入人工牙根，等植體與骨頭結合後，再裝上牙冠。不用磨隔壁的牙齒，咀嚼起來接近自己的牙齒。',
  who:['缺一顆或多顆牙的人','不想磨隔壁健康牙齒做牙橋的人','活動假牙戴不習慣、想要固定式假牙的人'],
@@ -223,6 +225,7 @@ const TREATMENT_INFO=[
  care:['術後 2～3 天可能腫脹，前 48 小時冰敷，避免熱敷','術後一週避免抽菸、喝酒、劇烈運動','依醫囑服藥，約 7～14 天回診拆線','植牙不會蛀牙，但會得「植體周圍炎」：要確實清潔並每 3～6 個月回診檢查','有糖尿病、骨質疏鬆用藥、抗凝血藥物等請事先告知醫師'],
  note:'醫師會依骨量、部位、咬合與預算，與您討論適合的植體。前牙與後牙因美觀需求與咬合力不同，治療內容與費用也不同。'},
 {id:'implant-blx',cat:'植牙式贗復',title:'瑞士 Straumann BLX 植體',items:['瑞士Straumann BLX植體-前牙','瑞士Straumann BLX植體-後牙'],
+ photo:{src:'media/implant-blx.webp',alt:'瑞士 Straumann BLX 植體：超親水、鈦鋯合金、深螺紋設計',maxh:640},
  table:TI_IMPLANT_CMP,
  what:'Straumann BLX™（Bone Level eXcellent），材質為 Roxolid 鈦鋯合金（強度比純鈦高），錐狀設計初期穩定度高，適合即拔即種或骨質較軟的部位。品牌有長期臨床研究與追蹤。在缺牙處的骨頭中植入人工牙根，等植體與骨頭結合後，再裝上牙冠。不用磨隔壁的牙齒，咀嚼起來接近自己的牙齒。',
  who:['缺一顆或多顆牙的人','不想磨隔壁健康牙齒做牙橋的人','活動假牙戴不習慣、想要固定式假牙的人'],
@@ -521,7 +524,7 @@ function tiBodyHtml(e){
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
     e.table?tiTableHtml(e.table):'',e.cmp?tiCmpHtml(e.cmp):''].join('');
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="flex-grow:${(p.w/p.h).toFixed(3)}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
+    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="flex-grow:${(p.w/p.h).toFixed(3)}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
