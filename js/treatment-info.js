@@ -1,6 +1,6 @@
 /* 新海美學牙醫・治療項目介紹（給病人看的說明）
    treatments.html（介紹頁、列印衛教單）與 treatment-plan.html（項目旁的 ⓘ）共用這份資料。
-   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt, maxh} 照片，有的話取代示意圖，maxh 為最大高度（預設 380px）；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、cmp（{title, start, cols, rows} 做與不做的左右對照圖，點按鈕展開，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片；arrows:false 不加箭頭，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
+   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt, maxh} 照片，有的話取代示意圖，maxh 為最大高度（預設 380px）；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），photoStack:true 改成上下排，可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、cmp（{title, start, cols, rows} 做與不做的左右對照圖，點按鈕展開，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片；arrows:false 不加箭頭，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
    what（這是什麼）、who（適合誰）、steps（治療流程）、time（療程時間，文字或條列陣列）、care（注意事項，可省略）、note（補充，可省略）。
    內容僅為一般說明，實際療程依醫師診斷為準；修改內容時只要改這個檔案。 */
 'use strict';
@@ -339,7 +339,7 @@ const TREATMENT_INFO=[
  care:['手術部位避免咀嚼與刷牙，依醫囑使用漱口水','戒菸、控制血糖可提高成功率','每 3 個月回診做牙周維護，避免牙周病復發']},
 /* ---------- 矯正 ---------- */
 {id:'lh',cat:'矯正',title:'LH 日式矯正',items:['LH日式矯正分析','LH日式矯正-全口','LH日式矯正-半口','LH日式矯正-局部'],
- photo:{src:'media/lh.webp',alt:'LH 矯正線三大特性：超彈性＋形狀記憶、力量更恆定、吸震特性'},
+ photo:[{src:'media/lh-braces.jpg',w:379,h:258,alt:'固定式矯正器'},{src:'media/lh.webp',w:1962,h:801,alt:'LH 矯正線三大特性：超彈性＋形狀記憶、力量更恆定、吸震特性'}],photoStack:true,
  table:{title:'與其他矯正方式比較',hl:1,head:['比較項目','LH 矯正','戴蒙矯正','一般傳統矯正'],rows:[
   ['核心技術','使用日本研發的「低遲滯鎳鈦合金線」，講求輕力哲學與形狀記憶。','矯正器自帶滑蓋鎖扣，取代橡皮圈，大幅降低鋼線與托槽間的摩擦力。','鋼線靠「橡皮圈」或「細鐵絲（結紮線）」綁死在托槽上。'],
   ['初期疼痛感','**最低**。力量溫和恆定且具吸震效果，剛換線的痠痛感不明顯。','**較低**。因摩擦力低，牙齒均勻受力，大幅減輕傳統的拉扯痛。','**明顯**。每次回診拉緊或換線後，前 3～7 天常有明顯齒軟、疼痛感。'],
@@ -524,7 +524,7 @@ function tiBodyHtml(e){
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
     e.table?tiTableHtml(e.table):'',e.cmp?tiCmpHtml(e.cmp):''].join('');
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="flex-grow:${(p.w/p.h).toFixed(3)}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
+    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
@@ -546,7 +546,8 @@ const TI_CSS=`
 .ti-row figcaption{margin-top:6px;text-align:center;font-size:13px;line-height:1.45}
 .ti-arr{flex:0 0 12px;width:12px;height:20px;align-self:center;margin-top:-1.6em}
 @media print{.ti-steps{break-inside:avoid}}
-.ti-photos{display:flex;gap:10px;margin:0 auto 14px;max-width:760px}.ti-photos img{flex:1 1 0;min-width:0;width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#fff}
+.ti-photos{display:flex;gap:10px;margin:0 auto 14px;max-width:760px}
+.ti-photos.stack{flex-direction:column;align-items:center}.ti-photos.stack img{flex:none;height:auto} /* photoStack：多張照片上下排，不放大超過原圖 */.ti-photos img{flex:1 1 0;min-width:0;width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#fff}
 @media print{.ti-photos{break-inside:avoid}}
 .ti-photo{margin:0 0 14px}.ti-photo img{display:block;margin:0 auto;width:auto;max-width:100%;max-height:380px;height:auto;border-radius:12px;border:1px solid var(--line)}
 @media print{.ti-fig,.ti-photo{break-inside:avoid}}
