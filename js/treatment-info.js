@@ -19,6 +19,11 @@ const TI_CAT_DESC={
   '自費醫材':'手術中使用、幫助傷口癒合與骨頭再生的材料。',
   '其他':'保護牙齒與顳顎關節等其他自費項目。'
 };
+/* 日本 GC Initial LiSi Block 與列支敦斯登 E.max 比較（GC／E.max 的貼片與全瓷冠共用） */
+const TI_GC_EMAX={title:'GC 與 E.max 比較',head:['比較項目','日本 GC Initial LiSi Block','列支敦斯登 E.max'],rows:[
+  ['強度','**較高**（約 408～508 MPa）','較低（約 360～450 MPa）'],
+  ['透光度','較低','**較高**'],
+  ['遮色能力','**較好**，較能蓋住變色的牙齒','較弱']]};
 const TREATMENT_INFO=[
 /* ---------- 固定式贗復 ---------- */
 {id:'dsd',cat:'固定式贗復',title:'DSD 數位微笑設計',items:['DSD數位微笑設計'],photo:{src:'media/dsd.webp',alt:'DSD 數位微笑設計：依臉部中線、牙齒比例與微笑曲線設計每顆牙齒的外形'},
@@ -45,6 +50,7 @@ const TREATMENT_INFO=[
  time:'約 2 次（修整取模 → 黏著），部分可當日完成。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
 {id:'veneer',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 美學貼片',items:['日本GC Initial LiSi Block美學貼片'],old:['GC Initial LiSi Block美學貼片','Veneer美學貼片'],
+ table:TI_GC_EMAX,
  pics:{src:'media/veneer-gc-source.webp',w:1671,h:941,rows:[
   [{x:36,y:117,w:510,h:231,cap:'治療前：上顎前牙 8 顆顏色較黃、有缺損、輕微汙漬與不整齊'},{x:603,y:117,w:461,h:231,cap:'少量修磨牙齒，進行數位取模，製作 GC 瓷塊貼片'},{x:1121,y:117,w:512,h:231,cap:'完成上顎前牙 8 顆 GC 瓷塊貼片，色澤自然、型態美觀、與臉型協調'}],
   [{x:40,y:459,w:774,h:351,cap:'術前：上顎前牙 8 顆有缺損、汙漬、形態不整齊，顏色較黃'},{x:856,y:459,w:774,h:351,cap:'術後：上顎前牙 8 顆使用 GC 瓷塊貼片，色澤明亮、自然'}]]},
@@ -54,6 +60,7 @@ const TREATMENT_INFO=[
  time:'約 1～2 次，部分可當日完成。',
  care:['避免啃咬過硬物體（啃骨頭、咬瓜子殼、開瓶蓋）','治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
 {id:'veneer-emax',cat:'固定式贗復',strength:'emax',title:'列支敦斯登 E.max 美學貼片',items:['列支敦斯登E.max美學貼片'],
+ table:TI_GC_EMAX,
  pics:{src:'media/veneer-emax-source.webp',w:1672,h:941,rows:[
   [{x:83,y:118,w:473,h:271,cap:'牙齒變色、缺損或外形不佳'},{x:612,y:118,w:451,h:271,cap:'少量修磨牙齒表面'},{x:1117,y:118,w:473,h:271,cap:'製作並黏著陶瓷貼片，恢復美觀'}],
   [{x:80,y:468,w:723,h:320,cap:'術前：前牙變色與缺角'},{x:867,y:468,w:724,h:320,cap:'術後：以陶瓷貼片恢復牙齒外形與色澤'}]]},
@@ -90,6 +97,7 @@ const TREATMENT_INFO=[
  time:'約 2～3 次，前後約 1～3 週。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','仍要確實刷牙、使用牙線']},
 {id:'crown-gc',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 全瓷冠',items:['日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙'],
+ table:TI_GC_EMAX,
  pics:{src:'media/crown-gc-source.webp',w:1536,h:1024,rows:[
   [{x:61,y:116,w:444,h:252,cap:'1. 術前評估\n下顎第一小臼齒因蛀牙或舊補綴物造成結構缺損，影響咀嚼功能'},{x:554,y:116,w:427,h:252,cap:'2. 牙齒修磨\n依 GC 全瓷冠的設計需求，修磨牙齒取得適當的外形與空間'},{x:1032,y:116,w:443,h:252,cap:'3. 比色確認\n進行牙齒比色，選擇最適合的 GC 全瓷冠顏色'}],
   [{x:237,y:538,w:548,h:270,cap:'4. GC 全瓷冠製作\n以 GC 全瓷材料製作正式假牙，具備良好的美觀性與生物相容性'},{x:840,y:538,w:635,h:270,cap:'5. 裝戴正式全瓷冠\n裝戴 GC 全瓷冠，確認咬合與邊緣密合，恢復牙齒外形、咀嚼功能與美觀'}]]},
@@ -99,6 +107,7 @@ const TREATMENT_INFO=[
  time:'約 1～2 次，部分可當日完成。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','仍要確實刷牙、使用牙線','避免咬冰塊、骨頭等硬物；有磨牙習慣建議配戴咬合板']},
 {id:'crown-emax',cat:'固定式贗復',strength:'emax',title:'列支敦斯登 E.max 全瓷冠',items:['列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙'],old:['Crown全瓷-前牙','Crown全瓷-後牙'],
+ table:TI_GC_EMAX,
  pics:{src:'media/crown-emax-source.webp',w:1536,h:1024,rows:[
   [{x:62,y:117,w:444,h:253,cap:'1. 術前評估\n前牙因外傷或齲齒造成缺損、變色，影響美觀與功能'},{x:555,y:117,w:425,h:253,cap:'2. 牙齒修磨\n修磨牙齒，製作適合 E.max 全瓷冠的牙體形態'},{x:1035,y:117,w:441,h:253,cap:'3. 數位口掃取模\n以數位口掃取得牙齒資料，進行 E.max 全瓷冠數位設計與製作'}],
   [{x:236,y:539,w:551,h:271,cap:'4. E.max 全瓷冠製作\n以 E.max 全瓷材料製作正式假牙，顏色與形態比對自然牙'},{x:842,y:539,w:634,h:271,cap:'5. 裝戴正式全瓷冠\n裝戴 E.max 全瓷冠，恢復牙齒外形、美觀與功能'}]]},
