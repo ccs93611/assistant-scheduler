@@ -516,10 +516,13 @@ function tiCmpHtml(c){
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
-  const sb=e.strength?`<button type="button" class="ti-str-btn" onclick="const s=this.closest('.ti-body').querySelector('.ti-str');s.hidden=!s.hidden;this.classList.toggle('on',!s.hidden)">📊 強度比較</button>`:'';
+  // 比較（強度、比較表、圖片比較）放在同一區：按鈕排成一列，點開的內容出現在按鈕下方
+  const tog=`onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)"`;
+  const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
+    e.table?tiTableHtml(e.table):'',e.cmp?tiCmpHtml(e.cmp):''].join('');
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}${sb}</p>${e.strength?tiStrengthHtml(e.strength):''}${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="flex-grow:${(p.w/p.h).toFixed(3)}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
-    ${e.table?tiTableHtml(e.table):''}${e.cmp?tiCmpHtml(e.cmp):''}
+    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="flex-grow:${(p.w/p.h).toFixed(3)}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
+    ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
     <div class="ti-sec"><h4>療程時間</h4>${Array.isArray(e.time)?list(e.time):`<p>${tiEsc(e.time)}</p>`}</div>
@@ -568,6 +571,10 @@ const TI_CSS=`
 .vs-cell .ti-crop{border:2px solid transparent}.vs-bad .ti-crop{border-color:rgba(229,72,77,.45)}.vs-good .ti-crop{border-color:rgba(63,182,185,.5)}
 .ti-red{color:#e5484d}
 @media print{.ti-red{color:#c62828}.ti-cmp-wrap{break-inside:avoid}}
+.ti-cmps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.ti-cmps>.ti-sec{display:contents}
+.ti-cmps .ti-tbl-btn{order:0}
+.ti-cmps .ti-str,.ti-cmps .ti-tbl-wrap,.ti-cmps .ti-cmp-wrap{order:1;flex:0 0 100%;min-width:0;margin:4px 0 0}
 .ti-tbl-btn{margin-left:0;font-size:.9em;padding:3px 12px}.ti-tbl-wrap{overflow-x:auto;margin-top:8px}
 @media screen and (max-width:599px){.ti-tbl table{min-width:600px}} /* 手機上欄位太擠：表格保持一定寬度，左右滑動看 */
 .ti-tbl table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
