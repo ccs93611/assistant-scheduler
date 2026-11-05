@@ -530,7 +530,7 @@ function tiStepsHtml(p){
 }
 /* 比較表（例如隱適美各方案）：hl＝要強調的欄（該欄的粗體字用紅色）；預設收起來，點「📊 標題」按鈕才展開（跟強度比較一樣，列印時只印展開的）；格子裡的 \n 換行（第二行起小字）、**文字** 粗體，第一欄第一行粗體 */
 function tiTableHtml(t){
-  const em=t=>tiEsc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  const em=t=>tiEsc(t).replace(/\*\*(.+?)\*\*/g,'<b class="em">$1</b>');
   const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
   return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+cell(h)+'</th>').join('')}</tr></thead><tbody>${
     t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table></div></div>`}
@@ -632,8 +632,8 @@ const TI_CSS=`
 .ti-tbl table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
 .ti-tbl th,.ti-tbl td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
 .ti-tbl th{color:var(--muted);font-weight:600}
-.ti-tbl td:first-child{white-space:nowrap}.ti-tbl td.hl b{color:#e5484d}
-@media print{.ti-tbl td.hl b{color:#c62828}}.ti-tbl td small{color:var(--muted);font-size:.9em}
+.ti-tbl td:first-child{white-space:nowrap}.ti-tbl td.hl b,.ti-tbl b.em{color:#e5484d}
+@media print{.ti-tbl td.hl b,.ti-tbl b.em{color:#c62828}}.ti-tbl td small{color:var(--muted);font-size:.9em}
 .ti-str table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.5}
 .ti-str th,.ti-str td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 .ti-str th{color:var(--muted);font-weight:600;white-space:nowrap}
