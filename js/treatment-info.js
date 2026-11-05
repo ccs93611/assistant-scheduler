@@ -41,6 +41,11 @@ const TI_PMMA_ZR_CMP={title:'PMMA 臨時牙與氧化鋯正式牙比較',head:['�
   ['美觀與變色','透光度普通，長期使用**易染色、磨損**','**極佳透光度**，高度緻密、**不易變色**'],
   ['清潔與衛生','表面微孔較多，易附著牙菌斑','表面極緻拋光，**不易卡色與牙結石**'],
   ['使用壽命','約 3～6 個月（不建議配戴超過一年）','照顧良好**可長達 15～20 年以上**']]};
+/* All-on-X 三種假牙重量與配戴感比較（臨時牙、正式氧化鋯牙、輕量化合金牙架三則共用） */
+const TI_ALLX_WEIGHT={title:'假牙重量與配戴感比較',head:['比較項目','1. PMMA 臨時牙','2. 純鈦支架＋獨立鋯牙\n鈦鋯複合材／正式牙','3. 全二氧化鋯\n全鋯一體化／正式牙'],rows:[
+  ['估計單顎總重量','**10～15 公克**','**25～35 公克**','**50～75 公克**'],
+  ['物理密度與結構','密度約 1.2 g/cm³，純高密度樹脂，無內部金屬。','內部骨架是輕量化的**純鈦**（4.5 g/cm³），外部套上單顆二氧化鋯。','密度高達 6.0 g/cm³，整座假牙由整塊全瓷數位研磨而成。'],
+  ['嘴巴整體的配戴體感','**極輕！**完全沒有負擔，感覺像天生的牙齒。','**最均衡！**有扎實感但不會過重，多數患者適應最快。','**最沉重！**份量感十足，初期會有嘴裡含著鵝卵石的感覺。']]};
 const TREATMENT_INFO=[
 /* ---------- 固定式贗復 ---------- */
 {id:'dsd',cat:'固定式贗復',title:'DSD 數位微笑設計',items:['DSD數位微笑設計'],photo:{src:'media/dsd.webp',alt:'DSD 數位微笑設計：依臉部中線、牙齒比例與微笑曲線設計每顆牙齒的外形'},
@@ -274,20 +279,22 @@ const TREATMENT_INFO=[
  care:['臨時牙期間以軟質食物為主，避免咬硬物，讓植體穩定癒合','用沖牙機、牙間刷、超級牙線清潔假牙與牙床之間','抽菸、糖尿病控制不佳會影響植體壽命'],
  note:'All-on-4～8：數字代表一顎植入的植體數量，醫師會依骨量與咬合力建議。臨時牙：手術後先戴的固定式樹脂牙。正式氧化鋯牙：強度高、美觀、耐磨的最終假牙。輕量化合金牙架：放在假牙內部的金屬支架，增加整排假牙的強度並減輕重量。'},
 {id:'all-on-x-temp',cat:'全口重建',title:'All-on-X PMMA臨時牙',items:['All-on-x PMMA臨時牙'],old:['All-on-x臨時牙'],
- table:TI_PMMA_ZR_CMP,
+ table:[TI_PMMA_ZR_CMP,TI_ALLX_WEIGHT],
  what:'All-on-X 植牙手術後，當天或數天內先裝上的固定式樹脂臨時假牙。讓您手術後就有牙齒可以用、維持外觀與說話，也讓植體在癒合期間受力平均，並先確認咬合高度、外形與發音，作為正式假牙的參考。',
  who:['接受 All-on-X 全口重建手術的人','等待植體與骨頭結合、還沒做正式假牙的期間'],
  steps:['手術前口內掃描、記錄咬合','植體手術後裝上支台','當天或數天內鎖上固定式臨時牙','癒合期間回診調整咬合與清潔'],
  time:'配戴約 3～6 個月，直到植體穩定後換成正式假牙。',
  care:['以軟質食物為主，避免啃咬硬物，讓植體穩定癒合','臨時牙是樹脂材質，強度較低，可能磨損或斷裂；如有破損請儘快回診','用沖牙機、牙間刷、超級牙線清潔假牙與牙床之間','臨時牙是鎖在植體上的，請勿自行拆卸']},
 {id:'all-on-x-zr',cat:'全口重建',title:'All-on-X 正式氧化鋯牙',items:['All-on-x正式氧化鋯牙'],
- table:TI_PMMA_ZR_CMP,
+ table:[TI_PMMA_ZR_CMP,TI_ALLX_WEIGHT],
  what:'All-on-X 植體與骨頭穩定結合後，以高強度氧化鋯製作的整排正式假牙，鎖在植體上不需取下。氧化鋯耐磨、不易斷裂、顏色自然，表面光滑不易卡色素與牙菌斑，可以長期使用。',
  who:['完成 All-on-X 手術、臨時牙配戴期滿、植體已經穩定的人'],
  steps:['確認植體穩定，口內掃描或取模','參考臨時牙的咬合與外形進行數位設計','試戴確認外觀、咬合與發音','製作氧化鋯假牙','鎖上正式假牙並調整咬合'],
  time:'約 3～5 次回診，前後約 4～8 週。',
  care:['每天用沖牙機、牙間刷、超級牙線清潔假牙與牙床之間','有夜間磨牙習慣建議配戴咬合板','避免用假牙啃咬過硬的東西（骨頭、堅果殼、冰塊）']},
 {id:'all-on-x-frame',cat:'全口重建',title:'All-on-X 輕量化合金牙架',items:['All-on-x輕量化合金牙架'],
+ table:TI_ALLX_WEIGHT,
+ photo:{src:'media/all-on-x-frame.webp',alt:'All-on-X 輕量化合金牙架：鎖在植體上的金屬支架'},
  what:'放在整排假牙內部的金屬支架，像骨架一樣強化整排假牙，讓長距離的假牙不易變形或斷裂，同時減輕假牙重量，戴起來更舒適。',
  who:['製作 All-on-X 正式假牙、需要加強整排假牙強度的人','咬合力較大或有磨牙習慣的人'],
  steps:['依正式假牙的設計規劃支架形狀','數位設計並製作輕量化合金支架','試戴確認密合度','與正式假牙結合後一起裝上'],
@@ -525,7 +532,7 @@ function tiStepsHtml(p){
 function tiTableHtml(t){
   const em=t=>tiEsc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
-  return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+tiEsc(h)+'</th>').join('')}</tr></thead><tbody>${
+  return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+cell(h)+'</th>').join('')}</tr></thead><tbody>${
     t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table></div></div>`}
 /* 圖片比較（例如齒槽骨保存術有做／沒做）：預設收起來，點「📊 標題」展開；每段一個小標籤，下面是從圖裁出的照片 */
 function tiCmpHtml(c){
@@ -553,7 +560,7 @@ function tiBodyHtml(e){
   // 比較（強度、比較表、圖片比較）放在同一區：按鈕排成一列，點開的內容出現在按鈕下方
   const tog=`onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)"`;
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
-    e.table?tiTableHtml(e.table):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):''].join('');
+    e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):''].join('');
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
