@@ -244,6 +244,6 @@ F['veneer-emax']=F.veneer; // E.max 美學貼片與 GC 美學貼片同一張圖
 F['crown-gc']=F['crown-cercon']; // GC 全瓷冠與其他牙冠同一張圖
 F['implant-hiossen']=F['implant-blc']=F['implant-blx']=F.implant; // 三種植體共用人工植牙示意圖
 F.locator=F.overdenture; // Locator 零件共用植牙固位式活動假牙示意圖
-F['all-on-x-temp']=F['all-on-x-zr']=F['all-on-x-frame']=F['all-on-x']; // All-on-X 的三種假牙共用全口重建示意圖
+F['all-on-x-frame']=F['all-on-x']; // All-on-X 輕量化合金牙架共用全口重建示意圖（臨時牙、正式氧化鋯牙不放圖）
 return F;
 })();
