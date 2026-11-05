@@ -215,7 +215,8 @@ const TREATMENT_INFO=[
  care:['術後 2 週內不要用力擤鼻涕、打噴嚏時張開嘴巴','避免搭飛機、潛水、吹奏樂器或用吸管','可能有少量鼻血或鼻涕帶血絲，屬正常','有鼻竇炎或感冒症狀請先告知醫師'],
  note:'頂竇（閉鎖式）：骨頭還剩一定高度時使用，傷口較小。開窗（側窗式）：骨頭很薄時使用，可增加較多骨量。'},
 {id:'implant-guide',cat:'植牙式贗復',title:'植牙手術導板',items:['植牙手術導版','All-on-x植牙手術導版'],old:['All-on-x植牙導版'],
- photo:[{src:'media/implant-guide.webp',w:1536,h:1024,alt:'植牙手術導板：透明導板套在牙齒模型上，金屬導管引導植體位置與角度'},{src:'media/implant-guide-2.webp',w:1448,h:1086,alt:'植牙手術導板戴在口內：以固定釘固定，依導管位置植入植體'}],
+ photoLead:true,
+ photo:[{src:'media/implant-guide-plan.webp',w:1624,h:968,alt:'植牙手術導板的電腦規劃：在 3D 斷層影像上避開神經，模擬植體的位置與角度'},{src:'media/implant-guide.webp',w:1536,h:1024,alt:'植牙手術導板：透明導板套在牙齒模型上，金屬導管引導植體位置與角度'},{src:'media/implant-guide-2.webp',w:1448,h:1086,alt:'植牙手術導板戴在口內：以固定釘固定，依導管位置植入植體'}],
  what:'依 3D 斷層與口內掃描，在電腦上先規劃植體的位置、角度與深度，再 3D 列印出手術導板。手術時戴上導板，依預先規劃的位置植入，更精準、避開神經血管，傷口也可以更小。',
  who:['想要更精準、更微創植牙的人','骨頭條件較複雜、靠近神經或鼻竇的部位','多顆植牙或全口重建'],
  steps:['3D 斷層攝影與口內掃描','電腦模擬植牙位置','製作導板','手術時戴上導板植牙'],
@@ -564,7 +565,7 @@ function tiBodyHtml(e){
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
     e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):''].join('');
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
+    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}${e.photoLead?' lead':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
@@ -587,6 +588,7 @@ const TI_CSS=`
 .ti-arr{flex:0 0 12px;width:12px;height:20px;align-self:center;margin-top:-1.6em}
 @media print{.ti-steps{break-inside:avoid}}
 .ti-photos{display:flex;gap:10px;margin:0 auto 14px;max-width:760px}
+.ti-photos.lead{flex-wrap:wrap}.ti-photos.lead img:first-child{flex:0 0 100%} /* photoLead：第一張放大在上，其餘並排在下 */
 .ti-photos.stack{flex-direction:column;align-items:center}.ti-photos.stack img{flex:none;height:auto} /* photoStack：多張照片上下排，不放大超過原圖 */.ti-photos img{flex:1 1 0;min-width:0;width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#fff}
 @media print{.ti-photos{break-inside:avoid}}
 .ti-photo{margin:0 0 14px}.ti-photo img{display:block;margin:0 auto;width:auto;max-width:100%;max-height:380px;height:auto;border-radius:12px;border:1px solid var(--line)}
