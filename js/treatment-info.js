@@ -565,7 +565,7 @@ function tiBodyHtml(e){
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
     e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):''].join('');
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}${e.photoLead?' lead':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
+    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}${e.photoLead?' big1':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
@@ -588,7 +588,7 @@ const TI_CSS=`
 .ti-arr{flex:0 0 12px;width:12px;height:20px;align-self:center;margin-top:-1.6em}
 @media print{.ti-steps{break-inside:avoid}}
 .ti-photos{display:flex;gap:10px;margin:0 auto 14px;max-width:760px}
-.ti-photos.lead{flex-wrap:wrap}.ti-photos.lead img:first-child{flex:0 0 100%} /* photoLead：第一張放大在上，其餘並排在下 */
+.ti-photos.big1{flex-wrap:wrap}.ti-photos.big1 img:first-child{flex:0 0 100%} /* photoLead：第一張放大在上，其餘並排在下 */
 .ti-photos.stack{flex-direction:column;align-items:center}.ti-photos.stack img{flex:none;height:auto} /* photoStack：多張照片上下排，不放大超過原圖 */.ti-photos img{flex:1 1 0;min-width:0;width:100%;height:auto;border-radius:12px;border:1px solid var(--line);background:#fff}
 @media print{.ti-photos{break-inside:avoid}}
 .ti-photo{margin:0 0 14px}.ti-photo img{display:block;margin:0 auto;width:auto;max-width:100%;max-height:380px;height:auto;border-radius:12px;border:1px solid var(--line)}
