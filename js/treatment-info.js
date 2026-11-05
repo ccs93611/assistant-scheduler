@@ -1,6 +1,6 @@
 /* 新海美學牙醫・治療項目介紹（給病人看的說明）
    treatments.html（介紹頁、列印衛教單）與 treatment-plan.html（項目旁的 ⓘ）共用這份資料。
-   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt, maxh} 照片，有的話取代示意圖，maxh 為最大高度（預設 380px）；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），photoStack:true 改成上下排，可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、cmp（{title, start, cols, rows} 做與不做的左右對照圖，點按鈕展開，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片；arrows:false 不加箭頭，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
+   每一則：id（網址用）、cat（治療種類，與治療計劃單相同）、title、photo（{src, alt, maxh} 照片，有的話取代示意圖，maxh 為最大高度（預設 380px）；多張並排時寫成陣列並加上 w、h（圖片原始寬高，讓同一排一樣高），photoStack:true 改成上下排，可省略）、table（{title, head, rows} 比較表，放在適合對象前面，可省略）、cmp（{title, start, cols, rows} 做與不做的左右對照圖，點按鈕展開，可省略）、terms（取消與改期費用表，點按鈕展開，可省略）、pics（從一張圖裁出幾格步驟圖／照片，有的話取代示意圖與照片；arrows:false 不加箭頭，可省略）、items（對應治療計劃單的項目名稱）、old（改名前的舊名稱，可省略）、
    what（這是什麼）、who（適合誰）、steps（治療流程）、time（療程時間，文字或條列陣列）、care（注意事項，可省略）、note（補充，可省略）。
    內容僅為一般說明，實際療程依醫師診斷為準；修改內容時只要改這個檔案。 */
 'use strict';
@@ -423,6 +423,14 @@ const TREATMENT_INFO=[
  care:['避免黏性食物與用手去拉','固定式的要仔細刷乾淨周圍','鬆脫或斷裂請保留並儘快回診']},
 /* ---------- 舒眠麻醉 ---------- */
 {id:'sedation',cat:'舒眠麻醉',title:'舒眠麻醉',items:['成人鎮靜-2hr','成人鎮靜-加時','兒童鎮靜-2hr','兒童鎮靜-加時','全麻-2hr','全麻-加時'],old:['舒眠麻醉-基本2hr','舒眠麻醉-追加1hr'],
+ terms:{title:'取消與改期費用',by:'舒美麻醉醫療團隊・鎮靜麻醉服務行政費用暨取消費用計價表',
+  deposit:'預收款項（訂金）NT 10,000',
+  kinds:['成人牙科鎮靜','兒童牙科鎮靜','插管全身麻醉'],
+  before:{label:'術前 1～7 天取消、改期',fees:['NT 4,000','NT 4,000','NT 8,000']},
+  sameDay:{label:'手術當日取消',note:'扣除訂金後，不足金額現場收現',stages:[
+   {label:'靜脈注射前',patient:'禁食不足、患病或注射疫苗未提前告知、未到、遲到 30 分鐘以上等',doctor:'執刀醫師或診所主動取消等',fees:[['NT 8,000','NT 8,000'],['NT 8,000','NT 8,000'],['NT 15,000','NT 15,000']]},
+   {label:'靜脈注射後',patient:'過敏性休克、惡性高熱、心肌梗塞、中風、氣喘發作等',doctor:'大出血或執刀醫師主動取消等',fees:[['NT 18,000','NT 18,000'],['NT 20,000','NT 20,000'],['NT 30,000','NT 30,000']]}]},
+  foot:['以上金額均為未稅價格。','如有未竟事宜，舒美麻醉保留最終解釋權；如有更新，依最新公告為主。']},
  what:'由麻醉專業人員從靜脈給予鎮靜藥物，讓您在治療中處於放鬆、半睡半醒的狀態，對治療過程的記憶通常很模糊。治療全程監測血壓、心跳與血氧。仍會搭配局部麻醉，所以不會痛。依年齡與需求分為成人鎮靜、兒童鎮靜與全身麻醉（全麻），全麻時會完全睡著。',
  who:['非常害怕看牙、容易緊張或作嘔的人','植牙、多顆拔牙、全口重建等時間較長的治療','希望一次完成較多治療的人'],
  steps:['術前評估：健康狀況、用藥、過敏史','依指示禁食禁水','治療時打上點滴、接上監測儀器，開始鎮靜','治療結束在診所休息至清醒','由家人陪同返家'],
@@ -516,13 +524,22 @@ function tiCmpHtml(c){
     <svg class="vs-fork" viewBox="0 0 200 34" preserveAspectRatio="none" aria-hidden="true"><path d="M100,0V10M100,10H50V30M100,10H150V30" fill="none" stroke="#f0965a" stroke-width="2.5" vector-effect="non-scaling-stroke"/><path d="M45,25L50,32L55,25M145,25L150,32L155,25" fill="none" stroke="#f0965a" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
     <div class="vs-grid">${c.cols.map(k=>`<div class="vs-head vs-${k.tone}">${tiEsc(k.head)}<b>${k.tone==='bad'?'✕':'✓'} ${tiEsc(k.result)}</b></div>`).join('')}${
       c.rows.map(r=>`<div class="vs-row">${tiEsc(r.label)}</div>${r.cells.map((x,i)=>`<div class="vs-cell vs-${c.cols[i].tone}">${cell(x)}</div>`).join('')}`).join('')}</div></div></div>`}
+/* 取消與改期費用（舒眠麻醉）：預設收起來，點「📋 標題」展開；術前取消一張表、手術當日取消依靜脈注射前／後與原因分開列 */
+function tiTermsHtml(t){
+  const k=t.kinds,sd=t.sameDay;
+  const before=`<h5>${tiEsc(t.before.label)}</h5><table><thead><tr><th>項目</th><th>費用</th></tr></thead><tbody>${k.map((n,i)=>`<tr><td>${tiEsc(n)}</td><td class="fee">${tiEsc(t.before.fees[i])}</td></tr>`).join('')}</tbody></table>`;
+  const day=`<h5>${tiEsc(sd.label)}<small>${tiEsc(sd.note)}</small></h5><table><thead><tr><th>項目</th><th>患者因素</th><th>執刀醫師因素</th></tr></thead><tbody>${
+    sd.stages.map(g=>`<tr class="stage"><td colspan="3">${tiEsc(g.label)}</td></tr><tr class="why"><td>原因<br><small>包括但不限於</small></td><td>${tiEsc(g.patient)}</td><td>${tiEsc(g.doctor)}</td></tr>${
+      k.map((n,i)=>`<tr><td>${tiEsc(n)}</td><td class="fee">${tiEsc(g.fees[i][0])}</td><td class="fee">${tiEsc(g.fees[i][1])}</td></tr>`).join('')}`).join('')}</tbody></table>`;
+  return `<div class="ti-sec ti-terms"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📋 ${tiEsc(t.title)}</button><div class="ti-terms-wrap" hidden>
+    <p class="by">${tiEsc(t.by)}</p><p class="dep">${tiEsc(t.deposit)}</p>${before}${day}<ul class="foot">${t.foot.map(x=>'<li>'+tiEsc(x)+'</li>').join('')}</ul></div></div>`}
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
   // 比較（強度、比較表、圖片比較）放在同一區：按鈕排成一列，點開的內容出現在按鈕下方
   const tog=`onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)"`;
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
-    e.table?tiTableHtml(e.table):'',e.cmp?tiCmpHtml(e.cmp):''].join('');
+    e.table?tiTableHtml(e.table):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):''].join('');
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
@@ -577,8 +594,18 @@ const TI_CSS=`
 @media print{.ti-red{color:#c62828}.ti-cmp-wrap{break-inside:avoid}}
 .ti-cmps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
 .ti-cmps>.ti-sec{display:contents}
-.ti-cmps .ti-tbl-btn{order:0}
-.ti-cmps .ti-str,.ti-cmps .ti-tbl-wrap,.ti-cmps .ti-cmp-wrap{order:1;flex:0 0 100%;min-width:0;margin:4px 0 0}
+.ti-cmps .ti-terms-wrap{padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft);overflow-x:auto}
+.ti-terms-wrap p{margin:0}.ti-terms-wrap .by{font-size:.85em;color:var(--muted)}.ti-terms-wrap .dep{font-weight:700;margin:6px 0 4px!important}
+.ti-terms-wrap h5{margin:12px 0 4px;font-size:1em;color:var(--accent)}.ti-terms-wrap h5 small{font-weight:400;color:var(--muted);margin-left:8px;font-size:.85em}
+.ti-terms-wrap table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
+.ti-terms-wrap th,.ti-terms-wrap td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.ti-terms-wrap th{color:var(--muted);font-weight:600}.ti-terms-wrap td.fee{white-space:nowrap;font-weight:700}
+.ti-terms-wrap tr.stage td{font-weight:700;background:var(--accent-soft);color:var(--accent)}.ti-terms-wrap tr.why td{font-size:.9em;color:var(--muted)}
+.ti-terms-wrap td:first-child{white-space:nowrap}
+.ti-terms-wrap .foot{margin:10px 0 0;padding-left:1.2em;font-size:.85em;color:var(--muted)}
+@media print{.ti-terms-wrap{break-inside:avoid}}
+.ti-tbl-btn{order:0}
+.ti-cmps .ti-str,.ti-cmps .ti-tbl-wrap,.ti-cmps .ti-cmp-wrap,.ti-cmps .ti-terms-wrap{order:1;flex:0 0 100%;min-width:0;margin:4px 0 0}
 .ti-tbl-btn{margin-left:0;font-size:.9em;padding:3px 12px}.ti-tbl-wrap{overflow-x:auto;margin-top:8px}
 @media screen and (max-width:599px){.ti-tbl table{min-width:600px}} /* 手機上欄位太擠：表格保持一定寬度，左右滑動看 */
 .ti-tbl table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
