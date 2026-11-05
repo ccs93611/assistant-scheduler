@@ -3720,7 +3720,7 @@ function renderRulesDoc(){
       <li>條件都一樣時用固定規則決定，同樣資料每次排出的結果相同。</li>
     </ol>
     <h3>四、排完後的檢驗</h3>
-    <ul><li>同一班裡，如果流動的助理當天其他班也跟著同一位醫師，就和目前的跟診助理對調，讓跟診更連貫（前提是雙方都沒被排除在該崗位）。</li><li>同一班裡，如果流動的助理當天其他班擔任主櫃，就和目前的主櫃助理對調，讓主櫃更連貫（前提同上）。</li><li>跟診優先於主櫃：先檢查跟診，再檢查主櫃，最後再檢查一次跟診；兩者衝突時以跟診連貫為準。</li><li>最後檢查全天班醫師：若醫師早、午、晚都有跟診，但跟診助理不是同一人，而當天有全天班助理在流動，就讓這位助理整天跟這位醫師，原本的跟診助理改到流動。</li><li>接著檢查主櫃：若當天早、午、晚的主櫃不是同一人，而當天有全天班助理在流動，就讓這位助理整天擔任主櫃，原本的主櫃改到流動。</li><li>若主櫃早午不同人、午晚也不同人，就找流動的助理互換，至少讓早午或午晚的主櫃是同一人（找換動最少的方式）。</li><li>最後再次檢查跟診：醫師當天的跟診助理若不連貫，就從流動或主櫃找一位助理互換，讓這位醫師盡量整天（至少連續兩班）由同一人跟診；被換下的跟診助理改到對方原本的崗位。</li><li>最後，若某班流動缺人而副櫃有人，就把副櫃的助理調到流動（被排除在流動的人不調）。</li></ul>`;
+    <ul><li>同一班裡，如果流動的助理當天其他班也跟著同一位醫師，就和目前的跟診助理對調，讓跟診更連貫（前提是雙方都沒被排除在該崗位）。</li><li>同一班裡，如果流動的助理當天其他班擔任主櫃，就和目前的主櫃助理對調，讓主櫃更連貫（前提同上）。</li><li>跟診優先於主櫃：先檢查跟診，再檢查主櫃，最後再檢查一次跟診；兩者衝突時以跟診連貫為準。</li><li>最後檢查全天班醫師：若醫師早、午、晚都有跟診，但跟診助理不是同一人，而當天有全天班助理在流動，就讓這位助理整天跟這位醫師，原本的跟診助理改到流動。</li><li>接著檢查主櫃：若當天早、午、晚的主櫃不是同一人，而當天有全天班助理在流動，就讓這位助理整天擔任主櫃，原本的主櫃改到流動。</li><li>若主櫃早午不同人、午晚也不同人，就找流動的助理互換，至少讓早午或午晚的主櫃是同一人（找換動最少的方式）。</li><li>最後再次檢查跟診：醫師當天的跟診助理若不連貫，就從流動、副櫃或主櫃找一位助理互換，讓這位醫師盡量整天（至少連續兩班）由同一人跟診；被換下的跟診助理改到對方原本的崗位。</li><li>最後，若某班流動缺人而副櫃有人，就把副櫃的助理調到流動（被排除在流動的人不調）。</li></ul>`;
 }
 function renderRules(){
   const dis=canWrite?'':' disabled';
@@ -4270,7 +4270,7 @@ function autoSchedule(fillOnly){
     pairMain++;
   });
 
-  // ---- 最後再次檢查：醫師當天跟診助理不連貫時，從流動或主櫃調人，讓跟診盡量由同一人 ----
+  // ---- 最後再次檢查：醫師當天跟診助理不連貫時，從流動、副櫃或主櫃調人（互換位置），讓跟診盡量由同一人 ----
   let lastFix=0;
   mi.dates.forEach(({wk,dow,key})=>{
     const cks=SHIFTS.map(x=>dow+'_'+x.id);
@@ -4287,17 +4287,17 @@ function autoSchedule(fillOnly){
       const freq={};cur.forEach(x=>{if(x)freq[x]=(freq[x]||0)+1;});
       const have=Math.max(0,...Object.values(freq));
       if(have===S.length)return; // 已經連貫
-      // 候選助理 X：每一班要嘛已經跟這位醫師，要嘛在流動或主櫃（可以互換）
-      const pool=new Set();S.forEach(i=>{ppl(cells[i][3]).forEach(id=>pool.add(id));ppl(cells[i][0]).forEach(id=>pool.add(id));if(asOf(i))pool.add(asOf(i));});
+      // 候選助理 X：每一班要嘛已經跟這位醫師，要嘛在流動、副櫃或主櫃（可以互換）
+      const pool=new Set();S.forEach(i=>{ppl(cells[i][3]).forEach(id=>pool.add(id));ppl(cells[i][0]).forEach(id=>pool.add(id));ppl(cells[i][1]).forEach(id=>pool.add(id));if(asOf(i))pool.add(asOf(i));});
       let best=null;
       pool.forEach(X=>{
         if(byId(X)?.role!=='assistant'||isExcluded(FOLLOW,X))return;
         const plan=[];
         S.forEach((i,k)=>{
           if(cur[k]===X){plan.push({i,from:-1});return;}
-          const from=cells[i][3].includes(X)?3:(cells[i][0].includes(X)?0:-2);
+          const from=cells[i][3].includes(X)?3:cells[i][1].includes(X)?1:(cells[i][0].includes(X)?0:-2); // 流動、副櫃、主櫃的人都可以換來跟診
           if(from<0)return;
-          if(cur[k]&&isExcluded(from,cur[k]))return; // 被換下的跟診助理要能去流動或主櫃
+          if(cur[k]&&isExcluded(from,cur[k]))return; // 被換下的跟診助理要能去流動、副櫃或主櫃
           if(from===0&&!cur[k])return; // 這一診沒有跟診助理可以換回主櫃時，不能把主櫃的人調走（主櫃優先於跟診）
           plan.push({i,from});
         });
