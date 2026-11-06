@@ -63,10 +63,10 @@ const TREATMENT_INFO=[
  time:'約 1～2 次，之後依醫師安排追蹤。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','若出現持續或夜間疼痛、腫脹，請儘快回診，可能需要改做根管治療','成功率與蛀牙深度、神經狀況有關，並非每顆牙都適合']},
 {id:'bpr',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 齒雕',items:['日本GC Initial LiSi Block齒雕'],old:['BPR齒雕'],
- table:{title:'齒雕與樹脂補牙比較',head:['比較項目','樹脂補牙（Resin）','齒雕（BPR 黏著式陶瓷修復體）'],rows:[
+ table:{title:'齒雕與樹脂補牙比較',pics:[{src:'media/bpr-before.jpg',cap:'治療前'},{src:'media/bpr-after.jpg',w:420,h:460,marks:[{tail:[440,118],tip:[362,147],label:'樹脂',sub:'舊補牙邊緣崩裂、染色，形成二次蛀牙'},{tail:[440,382],tip:[358,354],label:'齒雕',sub:'陶瓷修復體密合，恢復牙齒外形與顏色'}],cap:'治療後'}],head:['比較項目','樹脂補牙（Resin）','齒雕（BPR 黏著式陶瓷修復體）'],rows:[
   ['治療方式','口內直接填補、照光硬化（1 次完成）','口掃後在體外製作陶瓷嵌體，再以黏著劑固定'],
   ['適用範圍','範圍較小、淺層的蛀牙或裂縫','中大型缺損、超過牙齒結構 1/3，或影響咬頭的大範圍填補'],
-  ['使用壽命','約 **1～7 年**（易磨損、老化）','約 **10～15 年以上**，口腔清潔良好可達 **20～30 年或更久**（強度與耐磨度佳）'],
+  ['使用壽命','約 **1～7 年**（易磨損、老化）','口腔清潔良好可達 **20～30 年或更久**（強度與耐磨度佳）'],
   ['密合度與收縮','聚合時會有 **3%～5% 收縮率**，邊緣易有**微滲漏**','體外燒製無口內收縮問題，與真牙**邊緣密合度高**'],
   ['二次蛀牙機率','較高（久了容易染色、崩裂或邊緣蛀牙）','較低（結構穩定、生物相容性好）']]},
  pics:{src:'media/bpr-source.webp',w:1672,h:941,rows:[
@@ -534,15 +534,15 @@ function tiTableHtml(t){
   const bc=t.plain?'<b>$1</b>':'<b class="em">$1</b>'; // plain:true 的表粗體不用紅字
   const em=x=>tiEsc(x).replace(/\*\*(.+?)\*\*/g,bc).replace(/__(.+?)__/g,'<b>$1</b>'); // __粗體__ 不用紅字
   const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
-  return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+cell(h)+'</th>').join('')}</tr></thead><tbody>${
-    t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table></div></div>`}
+  return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="tiTog(this)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+cell(h)+'</th>').join('')}</tr></thead><tbody>${
+    t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table>${t.pics?`<div class="ti-tbl-pics">${t.pics.map(p=>`<figure${p.marks?' class="mk"':''}><div class="pw"><img src="${tiEsc(p.src)}" alt="${tiEsc(p.cap)}" loading="lazy">${p.marks?`<svg viewBox="0 0 ${p.w} ${p.h}" aria-hidden="true"><defs><marker id="tiah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#e5484d"/></marker></defs>${p.marks.map(m=>`<line x1="${m.tail[0]}" y1="${m.tail[1]}" x2="${m.tip[0]}" y2="${m.tip[1]}" stroke="#e5484d" stroke-width="6" marker-end="url(#tiah)"/>`).join('')}</svg>${p.marks.map(m=>`<span class="lb" style="top:${(m.tail[1]/p.h*100).toFixed(1)}%">${tiEsc(m.label)}${m.sub?`<small>${tiEsc(m.sub)}</small>`:''}</span>`).join('')}`:''}</div><figcaption>${cell(p.cap,true)}</figcaption></figure>`).join('')}</div>`:''}</div></div>`}
 /* 圖片比較（例如齒槽骨保存術有做／沒做）：預設收起來，點「📊 標題」展開；每段一個小標籤，下面是從圖裁出的照片 */
 function tiCmpHtml(c){
   // 從圖裁出一塊（CSS 背景定位），跟 tiStepsHtml 的裁切方式相同
   const pos=(v,room)=>room>0?(v/room*100).toFixed(3):0;
   const crop=({img:p,x,y,w,h},alt)=>`<div class="ti-crop" role="img" aria-label="${tiEsc(alt)}" style="aspect-ratio:${w}/${h};background-image:url('${tiEsc(p.src)}');background-size:${(p.w/w*100).toFixed(3)}% auto;background-position:${pos(x,p.w-w)}% ${pos(y,p.h-h)}%"></div>`;
   const cell=x=>`<figure>${crop(x,x.cap)}<figcaption>${tiEsc(x.cap)}</figcaption></figure>`;
-  return `<div class="ti-sec ti-cmp"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📊 ${tiEsc(c.title)}</button><div class="ti-cmp-wrap" hidden>
+  return `<div class="ti-sec ti-cmp"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="tiTog(this)">📊 ${tiEsc(c.title)}</button><div class="ti-cmp-wrap" hidden>
     <div class="vs-start">${cell(c.start)}</div>
     <svg class="vs-fork" viewBox="0 0 200 34" preserveAspectRatio="none" aria-hidden="true"><path d="M100,0V10M100,10H50V30M100,10H150V30" fill="none" stroke="#f0965a" stroke-width="2.5" vector-effect="non-scaling-stroke"/><path d="M45,25L50,32L55,25M145,25L150,32L155,25" fill="none" stroke="#f0965a" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
     <div class="vs-grid">${c.cols.map(k=>`<div class="vs-head vs-${k.tone}">${tiEsc(k.head)}<b>${k.tone==='bad'?'✕':'✓'} ${tiEsc(k.result)}</b></div>`).join('')}${
@@ -554,8 +554,13 @@ function tiTermsHtml(t){
   const day=`<h5>${tiEsc(sd.label)}<small>${tiEsc(sd.note)}</small></h5><table><thead><tr><th>項目</th><th>患者因素</th><th>執刀醫師因素</th></tr></thead><tbody>${
     sd.stages.map(g=>`<tr class="stage"><td colspan="3">${tiEsc(g.label)}</td></tr><tr class="why"><td>原因<br><small>包括但不限於</small></td><td>${tiEsc(g.patient)}</td><td>${tiEsc(g.doctor)}</td></tr>${
       k.map((n,i)=>`<tr><td>${tiEsc(n)}</td><td class="fee">${tiEsc(g.fees[i][0])}</td><td class="fee">${tiEsc(g.fees[i][1])}</td></tr>`).join('')}`).join('')}</tbody></table>`;
-  return `<div class="ti-sec ti-terms"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📋 ${tiEsc(t.title)}</button><div class="ti-terms-wrap" hidden>
+  return `<div class="ti-sec ti-terms"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="tiTog(this)">📋 ${tiEsc(t.title)}</button><div class="ti-terms-wrap" hidden>
     <p class="by">${tiEsc(t.by)}</p><p class="dep">${tiEsc(t.deposit)}</p>${before}${day}<ul class="foot">${t.foot.map(x=>'<li>'+tiEsc(x)+'</li>').join('')}</ul></div></div>`}
+/* 比較按鈕：點開一個時，同一則介紹裡其他已展開的比較自動收起（一次只開一種） */
+function tiTog(b){
+  const w=b.nextElementSibling,open=w.hidden;
+  if(open)b.closest('.ti-cmps')?.querySelectorAll('.ti-tbl-btn.on').forEach(x=>{if(x!==b){x.classList.remove('on');x.nextElementSibling.hidden=true}});
+  w.hidden=!open;b.classList.toggle('on',open)}
 /* 圖片彈窗（例如舒眠麻醉「關於舒美麻醉」；src 用 | 串多張時上下排）：點圖片放大／縮回（放大後可捲動），點背景、✕ 或按 Esc 關閉 */
 function tiPop(src,alt){
   const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'');o.setAttribute('role','dialog');o.setAttribute('aria-label',alt||'');
@@ -572,7 +577,7 @@ async function tiPopPrint(){
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
   // 比較（強度、比較表、圖片比較）放在同一區：按鈕排成一列，點開的內容出現在按鈕下方
-  const tog=`onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)"`;
+  const tog=`onclick="tiTog(this)"`;
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
     e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):'',
     e.about?[].concat(e.about).map(x=>`<div class="ti-sec ti-about"><button type="button" class="ti-str-btn ti-tbl-btn" data-src="${tiEsc([].concat(x.src).join('|'))}" data-alt="${tiEsc(x.alt||x.label)}" onclick="tiPop(this.dataset.src,this.dataset.alt)">${x.icon||'ℹ️'} ${tiEsc(x.label)}</button></div>`).join(''):''].join('');
@@ -653,6 +658,14 @@ const TI_CSS=`
   body.pop-print .ti-pop .x,body.pop-print .ti-pop .pr{display:none!important}
   body.pop-print .ti-pop img{display:block;width:190mm;max-width:190mm;max-height:277mm;object-fit:contain;margin:10mm auto 0;box-shadow:none;border-radius:0;break-after:page}
   body.pop-print .ti-pop img:last-of-type{break-after:auto}}
+.ti-tbl-pics{display:flex;gap:12px;justify-content:center;margin:12px 0 2px}
+.ti-tbl-pics figure{margin:0;flex:0 1 312px;min-width:0;text-align:center}
+.ti-tbl-pics .pw{position:relative}.ti-tbl-pics .pw svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.ti-tbl-pics figure.mk{margin-right:8.5em} /* 右側留空間放箭頭標籤 */
+.ti-tbl-pics .lb{position:absolute;left:calc(100% + 1.3em);width:7.5em;transform:translateY(-.75em);text-align:left;color:#e5484d;font-weight:700;font-size:.9em;line-height:1.35}.ti-tbl-pics .lb small{display:block;font-weight:400;font-size:.85em;color:var(--muted)}
+.ti-tbl-pics img{width:100%;height:auto;aspect-ratio:413/459;object-fit:cover;border-radius:10px;display:block}
+.ti-tbl-pics figcaption{font-size:.88em;line-height:1.45;margin-top:6px;color:var(--muted)}.ti-tbl-pics figcaption b{color:var(--ink);display:block}
+@media print{.ti-tbl-pics{break-inside:avoid}.ti-tbl-pics figure{flex-basis:71.5mm}}
 .ti-tbl-btn{order:0}
 .ti-cmps .ti-str,.ti-cmps .ti-tbl-wrap,.ti-cmps .ti-cmp-wrap,.ti-cmps .ti-terms-wrap{order:1;flex:0 0 100%;min-width:0;margin:4px 0 0}
 .ti-tbl-btn{margin-left:0;font-size:.9em;padding:3px 12px}.ti-tbl-wrap{overflow-x:auto;margin-top:8px}
