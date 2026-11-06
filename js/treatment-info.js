@@ -552,10 +552,16 @@ function tiTermsHtml(t){
     <p class="by">${tiEsc(t.by)}</p><p class="dep">${tiEsc(t.deposit)}</p>${before}${day}<ul class="foot">${t.foot.map(x=>'<li>'+tiEsc(x)+'</li>').join('')}</ul></div></div>`}
 /* 圖片彈窗（例如舒眠麻醉「關於舒美麻醉」；src 用 | 串多張時上下排）：點圖片放大／縮回（放大後可捲動），點背景、✕ 或按 Esc 關閉 */
 function tiPop(src,alt){
-  const o=document.createElement('div');const us=String(src).split('|');o.className='ti-pop'+(us.length>1?' multi':'');o.setAttribute('role','dialog');o.setAttribute('aria-label',alt||'');
-  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button>${us.map(u=>`<img src="${tiEsc(u)}" alt="${tiEsc(alt||'')}">`).join('')}`;
+  const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'');o.setAttribute('role','dialog');o.setAttribute('aria-label',alt||'');
+  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button><button type="button" class="pr" aria-label="列印">🖨️ 列印</button>${us.map(u=>`<img src="${tiEsc(u)}" alt="${tiEsc(alt||'')}">`).join('')}`;
   const close=()=>{o.remove();removeEventListener('keydown',key)},key=ev=>{if(ev.key==='Escape')close()};
-  o.onclick=ev=>{if(ev.target.tagName==='IMG')o.classList.toggle('full');else close()};addEventListener('keydown',key);document.body.appendChild(o)}
+  o.onclick=ev=>{if(ev.target.tagName==='IMG')o.classList.toggle('full');else if(ev.target.closest('.pr'))tiPopPrint();else close()};addEventListener('keydown',key);document.body.appendChild(o)}
+/* 彈窗裡的「列印」：只印彈窗的圖，一張圖一頁 A4 */
+async function tiPopPrint(){
+  await Promise.all([...document.querySelectorAll('.ti-pop img')].map(i=>i.decode().catch(()=>{})));
+  document.body.classList.add('pop-print');
+  const done=()=>{document.body.classList.remove('pop-print');removeEventListener('afterprint',done)};
+  addEventListener('afterprint',done);window.print()}
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
@@ -634,7 +640,13 @@ const TI_CSS=`
 .ti-pop.multi img{width:min(100%,1000px);max-height:none} /* 多張圖：寬度一致，上下捲動 */
 .ti-pop.full{display:block}.ti-pop.full img{max-width:none;max-height:none;width:max(100%,1600px);display:block;margin:0 0 12px;cursor:zoom-out}
 .ti-pop .x{position:fixed;top:10px;right:12px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.9);color:#111;font-size:20px;cursor:pointer}
-@media print{.ti-pop,.ti-about{display:none!important}}
+.ti-pop .pr{position:fixed;top:10px;right:62px;height:40px;padding:0 14px;border-radius:20px;border:0;background:rgba(255,255,255,.9);color:#111;font-size:15px;cursor:pointer}
+@media print{.ti-pop,.ti-about{display:none!important}
+  body.pop-print>*:not(.ti-pop){display:none!important}
+  html body.pop-print>#tiPop.ti-pop{display:block!important;position:static;background:none;padding:0;overflow:visible}
+  body.pop-print .ti-pop .x,body.pop-print .ti-pop .pr{display:none!important}
+  body.pop-print .ti-pop img{display:block;width:190mm;max-width:190mm;max-height:277mm;object-fit:contain;margin:10mm auto 0;box-shadow:none;border-radius:0;break-after:page}
+  body.pop-print .ti-pop img:last-of-type{break-after:auto}}
 .ti-tbl-btn{order:0}
 .ti-cmps .ti-str,.ti-cmps .ti-tbl-wrap,.ti-cmps .ti-cmp-wrap,.ti-cmps .ti-terms-wrap{order:1;flex:0 0 100%;min-width:0;margin:4px 0 0}
 .ti-tbl-btn{margin-left:0;font-size:.9em;padding:3px 12px}.ti-tbl-wrap{overflow-x:auto;margin-top:8px}
