@@ -557,15 +557,21 @@ function tiTermsHtml(t){
       k.map((n,i)=>`<tr><td>${tiEsc(n)}</td><td class="fee">${tiEsc(g.fees[i][0])}</td><td class="fee">${tiEsc(g.fees[i][1])}</td></tr>`).join('')}`).join('')}</tbody></table>`;
   return `<div class="ti-sec ti-terms"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="tiTog(this)">📋 ${tiEsc(t.title)}</button><div class="ti-terms-wrap" hidden>
     <p class="by">${tiEsc(t.by)}</p><p class="dep">${tiEsc(t.deposit)}</p>${before}${day}<ul class="foot">${t.foot.map(x=>'<li>'+tiEsc(x)+'</li>').join('')}</ul></div></div>`}
+/* 介紹裡的照片點一下就用彈窗放大（兩頁共用；列印模式時不動作） */
+addEventListener('click',ev=>{
+  const i=ev.target.closest?.('.ti-photo img,.ti-photos img,.ti-tbl-pics img');
+  if(!i||i.closest('.ti-pop')||document.body.classList.contains('pm'))return;
+  ev.preventDefault();const pw=i.closest('.pw');
+  tiPop(i.getAttribute('src'),i.alt,pw&&pw.querySelector('svg')?`<div class="ti-tbl-pics"><figure class="mk">${pw.outerHTML}</figure></div>`:'')});
 /* 比較按鈕：點開一個時，同一則介紹裡其他已展開的比較自動收起（一次只開一種） */
 function tiTog(b){
   const w=b.nextElementSibling,open=w.hidden;
   if(open)b.closest('.ti-cmps')?.querySelectorAll('.ti-tbl-btn.on').forEach(x=>{if(x!==b){x.classList.remove('on');x.nextElementSibling.hidden=true}});
   w.hidden=!open;b.classList.toggle('on',open)}
 /* 圖片彈窗（例如舒眠麻醉「關於舒美麻醉」；src 用 | 串多張時上下排）：點圖片放大／縮回（放大後可捲動），點背景、✕ 或按 Esc 關閉 */
-function tiPop(src,alt){
-  const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'');o.setAttribute('role','dialog');o.setAttribute('aria-label',alt||'');
-  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button><button type="button" class="pr" aria-label="列印">🖨️ 列印</button>${us.map(u=>`<img src="${tiEsc(u)}" alt="${tiEsc(alt||'')}">`).join('')}`;
+function tiPop(src,alt,html){
+  const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'')+(html?' mkp':'');o.setAttribute('role','dialog');o.setAttribute('aria-label',alt||'');
+  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button><button type="button" class="pr" aria-label="列印">🖨️ 列印</button>${html?html+`<img class="raw" src="${tiEsc(us[0])}" alt="${tiEsc(alt||'')}">`:us.map(u=>`<img src="${tiEsc(u)}" alt="${tiEsc(alt||'')}">`).join('')}`;
   const close=()=>{o.remove();removeEventListener('keydown',key)},key=ev=>{if(ev.key==='Escape')close()};
   o.onclick=ev=>{if(ev.target.tagName==='IMG')o.classList.toggle('full');else if(ev.target.closest('.pr'))tiPopPrint();else close()};addEventListener('keydown',key);document.body.appendChild(o)}
 /* 彈窗裡的「列印」：只印彈窗的圖，一張圖一頁 A4 */
@@ -647,6 +653,12 @@ const TI_CSS=`
 .ti-terms-wrap td:first-child{white-space:nowrap}
 .ti-terms-wrap .foot{margin:10px 0 0;padding-left:1.2em;font-size:.85em;color:var(--muted)}
 @media print{.ti-terms-wrap{break-inside:avoid}}
+.ti-photo img,.ti-photos img,.ti-tbl-pics img{cursor:zoom-in}
+.ti-pop.mkp .ti-tbl-pics{font-size:clamp(14px,2.2vw,20px);margin:auto;width:100%;justify-content:center;flex-direction:row;position:static}
+.ti-pop.mkp .ti-tbl-pics figure.mk{flex:none;width:min(616px,calc(100% - 10.5em),calc((100vh - 60px)*1.0));max-width:none;margin:0 10.5em 0 0}
+.ti-pop.mkp .ti-tbl-pics img{max-height:none;cursor:zoom-in}
+.ti-pop.mkp:not(.full) img.raw,.ti-pop.mkp.full .ti-tbl-pics{display:none}
+.ti-pop.mkp{background:rgba(0,0,0,.93)}.ti-pop.mkp .lb{font-size:1.15em;width:7em}.ti-pop.mkp .lb small{font-size:.8em;color:#d5dde0}
 .ti-pop{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;padding:16px;overflow:auto}
 .ti-pop img{max-width:100%;max-height:calc(100vh - 32px);height:auto;flex:none;border-radius:8px;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.5);cursor:zoom-in}
 .ti-pop.multi img{width:min(100%,1000px);max-height:none} /* 多張圖：寬度一致，上下捲動 */
@@ -658,7 +670,8 @@ const TI_CSS=`
   html body.pop-print>#tiPop.ti-pop{display:block!important;position:static;background:none;padding:0;overflow:visible}
   body.pop-print .ti-pop .x,body.pop-print .ti-pop .pr{display:none!important}
   body.pop-print .ti-pop img{display:block;width:190mm;max-width:190mm;max-height:277mm;object-fit:contain;margin:10mm auto 0;box-shadow:none;border-radius:0;break-after:page}
-  body.pop-print .ti-pop img:last-of-type{break-after:auto}}
+  body.pop-print .ti-pop img:last-of-type{break-after:auto}
+  body.pop-print .ti-pop.mkp .ti-tbl-pics{margin-top:15mm;font-size:16px}body.pop-print .ti-pop.mkp figure.mk{width:120mm}body.pop-print .ti-pop.mkp img{width:100%;max-width:none;margin:0}body.pop-print .ti-pop.mkp img.raw{display:none!important}body.pop-print .ti-pop.mkp .ti-tbl-pics{display:flex!important}}
 .ti-tbl-pics{display:flex;gap:12px;justify-content:center;margin:12px 0 2px}
 .ti-tbl-pics figure{margin:0;flex:0 1 312px;min-width:0;text-align:center}
 .ti-tbl-pics .pw{position:relative}.ti-tbl-pics .pw svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
