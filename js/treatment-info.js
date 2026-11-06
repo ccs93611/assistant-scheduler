@@ -63,7 +63,8 @@ const TREATMENT_INFO=[
  time:'約 1～2 次，之後依醫師安排追蹤。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','若出現持續或夜間疼痛、腫脹，請儘快回診，可能需要改做根管治療','成功率與蛀牙深度、神經狀況有關，並非每顆牙都適合']},
 {id:'bpr',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 齒雕',items:['日本GC Initial LiSi Block齒雕'],old:['BPR齒雕'],
- table:{title:'齒雕與樹脂補牙比較',pics:[{src:'media/bpr-before.jpg',cap:'治療前'},{src:'media/bpr-after.jpg',w:420,h:460,marks:[{tail:[440,118],tip:[362,147],label:'樹脂',sub:'舊補牙邊緣崩裂、染色，形成二次蛀牙'},{tail:[440,382],tip:[358,354],label:'齒雕',sub:'陶瓷修復體密合，恢復牙齒外形與顏色'}],cap:'治療後'}],head:['比較項目','樹脂補牙（Resin）','齒雕（BPR 黏著式陶瓷修復體）'],rows:[
+ about:{label:'製作流程',icon:'🛠️',src:'media/bpr-process.jpg?v=2',alt:'齒雕製作流程：蛀牙患處 → 3D 齒雕 → 準備黏合 → 黏合完成'},
+ table:{title:'齒雕與樹脂補牙比較',picsAr:'661/725',pics:[{src:'media/bpr-before.webp',cap:'治療前'},{src:'media/bpr-after.webp',w:661,h:725,marks:[{tail:[690,200],tip:[540,240],label:'樹脂',sub:'舊補牙邊緣崩裂、染色，形成二次蛀牙'},{tail:[690,560],tip:[535,520],label:'齒雕',sub:'陶瓷修復體密合，恢復牙齒外形與顏色'}],cap:'治療後'}],head:['比較項目','樹脂補牙（Resin）','齒雕（BPR 黏著式陶瓷修復體）'],rows:[
   ['治療方式','口內直接填補、照光硬化（1 次完成）','口掃後在體外製作陶瓷嵌體，再以黏著劑固定'],
   ['適用範圍','範圍較小、淺層的蛀牙或裂縫','中大型缺損、超過牙齒結構 1/3，或影響咬頭的大範圍填補'],
   ['使用壽命','約 **1～7 年**（易磨損、老化）','口腔清潔良好可達 **20～30 年或更久**（強度與耐磨度佳）'],
@@ -535,7 +536,7 @@ function tiTableHtml(t){
   const em=x=>tiEsc(x).replace(/\*\*(.+?)\*\*/g,bc).replace(/__(.+?)__/g,'<b>$1</b>'); // __粗體__ 不用紅字
   const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
   return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="tiTog(this)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+cell(h)+'</th>').join('')}</tr></thead><tbody>${
-    t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table>${t.pics?`<div class="ti-tbl-pics">${t.pics.map(p=>`<figure${p.marks?' class="mk"':''}><div class="pw"><img src="${tiEsc(p.src)}" alt="${tiEsc(p.cap)}" loading="lazy">${p.marks?`<svg viewBox="0 0 ${p.w} ${p.h}" aria-hidden="true"><defs><marker id="tiah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#e5484d"/></marker></defs>${p.marks.map(m=>`<line x1="${m.tail[0]}" y1="${m.tail[1]}" x2="${m.tip[0]}" y2="${m.tip[1]}" stroke="#e5484d" stroke-width="6" marker-end="url(#tiah)"/>`).join('')}</svg>${p.marks.map(m=>`<span class="lb" style="top:${(m.tail[1]/p.h*100).toFixed(1)}%">${tiEsc(m.label)}${m.sub?`<small>${tiEsc(m.sub)}</small>`:''}</span>`).join('')}`:''}</div><figcaption>${cell(p.cap,true)}</figcaption></figure>`).join('')}</div>`:''}</div></div>`}
+    t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table>${t.pics?`<div class="ti-tbl-pics">${t.pics.map(p=>`<figure${p.marks?' class="mk"':''}><div class="pw"><img src="${tiEsc(p.src)}" alt="${tiEsc(p.cap)}" loading="lazy"${t.picsAr?` style="aspect-ratio:${t.picsAr}"`:''}>${p.marks?`<svg viewBox="0 0 ${p.w} ${p.h}" aria-hidden="true"><defs><marker id="tiah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#e5484d"/></marker></defs>${p.marks.map(m=>`<line x1="${m.tail[0]}" y1="${m.tail[1]}" x2="${m.tip[0]}" y2="${m.tip[1]}" stroke="#e5484d" stroke-width="${(p.w/70).toFixed(1)}" marker-end="url(#tiah)"/>`).join('')}</svg>${p.marks.map(m=>`<span class="lb" style="top:${(m.tail[1]/p.h*100).toFixed(1)}%">${tiEsc(m.label)}${m.sub?`<small>${tiEsc(m.sub)}</small>`:''}</span>`).join('')}`:''}</div><figcaption>${cell(p.cap,true)}</figcaption></figure>`).join('')}</div>`:''}</div></div>`}
 /* 圖片比較（例如齒槽骨保存術有做／沒做）：預設收起來，點「📊 標題」展開；每段一個小標籤，下面是從圖裁出的照片 */
 function tiCmpHtml(c){
   // 從圖裁出一塊（CSS 背景定位），跟 tiStepsHtml 的裁切方式相同
@@ -665,6 +666,7 @@ const TI_CSS=`
 .ti-tbl-pics .lb{position:absolute;left:calc(100% + 1.3em);width:7.5em;transform:translateY(-.75em);text-align:left;color:#e5484d;font-weight:700;font-size:.9em;line-height:1.35}.ti-tbl-pics .lb small{display:block;font-weight:400;font-size:.85em;color:var(--muted)}
 .ti-tbl-pics img{width:100%;height:auto;aspect-ratio:413/459;object-fit:cover;border-radius:10px;display:block}
 .ti-tbl-pics figcaption{font-size:.88em;line-height:1.45;margin-top:6px;color:var(--muted)}.ti-tbl-pics figcaption b{color:var(--ink);display:block}
+@media (max-width:640px){.ti-tbl-pics{flex-direction:column;align-items:flex-start;position:sticky;left:0;width:min(100%,calc(100vw - 64px))}.ti-tbl-pics figure,.ti-tbl-pics figure.mk{flex:none;width:calc(100% - 9em);max-width:312px;margin:0}} /* 手機：照片上下排，右側留給箭頭標籤 */
 @media print{.ti-tbl-pics{break-inside:avoid}.ti-tbl-pics figure{flex-basis:71.5mm}}
 .ti-tbl-btn{order:0}
 .ti-cmps .ti-str,.ti-cmps .ti-tbl-wrap,.ti-cmps .ti-cmp-wrap,.ti-cmps .ti-terms-wrap{order:1;flex:0 0 100%;min-width:0;margin:4px 0 0}
