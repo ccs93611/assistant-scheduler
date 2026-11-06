@@ -445,15 +445,8 @@ const TREATMENT_INFO=[
  care:['避免黏性食物與用手去拉','固定式的要仔細刷乾淨周圍','鬆脫或斷裂請保留並儘快回診']},
 /* ---------- 舒眠麻醉 ---------- */
 {id:'sedation',cat:'舒眠麻醉',title:'舒眠麻醉',items:['成人鎮靜-2hr','成人鎮靜-加時','兒童鎮靜-2hr','兒童鎮靜-加時','全麻-2hr','全麻-加時'],old:['舒眠麻醉-基本2hr','舒眠麻醉-追加1hr'],
+ about:[{label:'關於舒美麻醉',src:'media/megacomfort-about.jpg',alt:'舒美麻醉醫療團隊沿革與參考文獻'},{label:'衛教單張',icon:'📄',src:'media/megacomfort-edu.jpg',alt:'舒美麻醉衛教單張：鎮靜麻醉種類、術前注意事項與不建議接受鎮靜麻醉之條件'},{label:'流程說明',icon:'🕒',src:['media/megacomfort-flow-1.jpg','media/megacomfort-flow-2.jpg'],alt:'舒美麻醉流程說明：術前時間軸與鎮靜暨插管全麻流程'},{label:'術前檢查',icon:'🩺',src:'media/megacomfort-preop.jpg',alt:'舒美麻醉術前檢查項目：靜態心電圖、胸部X光、血液常規、電解質、肝腎功能、凝血功能、糖化血紅素'},{label:'取消與改期費用',icon:'📋',src:'media/megacomfort-terms.jpg?v=2',alt:'牙科鎮靜麻醉行政費用預收款同意書：預收款、取消與改期費用'}],
  photo:{src:'media/sedation.webp?v=2',alt:'舒美麻醉醫療團隊：成立於 2014 年，提供牙科門診鎮靜麻醉服務，由麻醉專科醫師守護患者安全'},
- terms:{title:'取消與改期費用',by:'舒美麻醉醫療團隊・鎮靜麻醉服務行政費用暨取消費用計價表',
-  deposit:'預收款項（訂金）NT 10,000',
-  kinds:['成人牙科鎮靜','兒童牙科鎮靜','插管全身麻醉'],
-  before:{label:'術前 1～7 天取消、改期',fees:['NT 4,000','NT 4,000','NT 8,000']},
-  sameDay:{label:'手術當日取消',note:'扣除訂金後，不足金額現場收現',stages:[
-   {label:'靜脈注射前',patient:'禁食不足、患病或注射疫苗未提前告知、未到、遲到 30 分鐘以上等',doctor:'執刀醫師或診所主動取消等',fees:[['NT 8,000','NT 8,000'],['NT 8,000','NT 8,000'],['NT 15,000','NT 15,000']]},
-   {label:'靜脈注射後',patient:'過敏性休克、惡性高熱、心肌梗塞、中風、氣喘發作等',doctor:'大出血或執刀醫師主動取消等',fees:[['NT 18,000','NT 18,000'],['NT 20,000','NT 20,000'],['NT 30,000','NT 30,000']]}]},
-  foot:['以上金額均為未稅價格。','如有未竟事宜，舒美麻醉保留最終解釋權；如有更新，依最新公告為主。']},
  what:'由麻醉專業人員從靜脈給予鎮靜藥物，讓您在治療中處於放鬆、半睡半醒的狀態，對治療過程的記憶通常很模糊。治療全程監測血壓、心跳與血氧。仍會搭配局部麻醉，所以不會痛。依年齡與需求分為成人鎮靜、兒童鎮靜與全身麻醉（全麻），全麻時會完全睡著。',
  who:['非常害怕看牙、容易緊張或作嘔的人','植牙、多顆拔牙、全口重建等時間較長的治療','希望一次完成較多治療的人'],
  steps:['術前評估：健康狀況、用藥、過敏史','依指示禁食禁水','治療時打上點滴、接上監測儀器，開始鎮靜','治療結束在診所休息至清醒','由家人陪同返家'],
@@ -557,13 +550,20 @@ function tiTermsHtml(t){
       k.map((n,i)=>`<tr><td>${tiEsc(n)}</td><td class="fee">${tiEsc(g.fees[i][0])}</td><td class="fee">${tiEsc(g.fees[i][1])}</td></tr>`).join('')}`).join('')}</tbody></table>`;
   return `<div class="ti-sec ti-terms"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)">📋 ${tiEsc(t.title)}</button><div class="ti-terms-wrap" hidden>
     <p class="by">${tiEsc(t.by)}</p><p class="dep">${tiEsc(t.deposit)}</p>${before}${day}<ul class="foot">${t.foot.map(x=>'<li>'+tiEsc(x)+'</li>').join('')}</ul></div></div>`}
+/* 圖片彈窗（例如舒眠麻醉「關於舒美麻醉」；src 用 | 串多張時上下排）：點圖片放大／縮回（放大後可捲動），點背景、✕ 或按 Esc 關閉 */
+function tiPop(src,alt){
+  const o=document.createElement('div');const us=String(src).split('|');o.className='ti-pop'+(us.length>1?' multi':'');o.setAttribute('role','dialog');o.setAttribute('aria-label',alt||'');
+  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button>${us.map(u=>`<img src="${tiEsc(u)}" alt="${tiEsc(alt||'')}">`).join('')}`;
+  const close=()=>{o.remove();removeEventListener('keydown',key)},key=ev=>{if(ev.key==='Escape')close()};
+  o.onclick=ev=>{if(ev.target.tagName==='IMG')o.classList.toggle('full');else close()};addEventListener('keydown',key);document.body.appendChild(o)}
 /* 一則介紹的內容（兩頁共用，樣式在 TI_CSS） */
 function tiBodyHtml(e){
   const list=a=>`<ul>${a.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ul>`;
   // 比較（強度、比較表、圖片比較）放在同一區：按鈕排成一列，點開的內容出現在按鈕下方
   const tog=`onclick="const w=this.nextElementSibling;w.hidden=!w.hidden;this.classList.toggle('on',!w.hidden)"`;
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
-    e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):''].join('');
+    e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):'',
+    e.about?[].concat(e.about).map(x=>`<div class="ti-sec ti-about"><button type="button" class="ti-str-btn ti-tbl-btn" data-src="${tiEsc([].concat(x.src).join('|'))}" data-alt="${tiEsc(x.alt||x.label)}" onclick="tiPop(this.dataset.src,this.dataset.alt)">${x.icon||'ℹ️'} ${tiEsc(x.label)}</button></div>`).join(''):''].join('');
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}${e.photoLead?' big1':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
@@ -629,6 +629,12 @@ const TI_CSS=`
 .ti-terms-wrap td:first-child{white-space:nowrap}
 .ti-terms-wrap .foot{margin:10px 0 0;padding-left:1.2em;font-size:.85em;color:var(--muted)}
 @media print{.ti-terms-wrap{break-inside:avoid}}
+.ti-pop{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;padding:16px;overflow:auto}
+.ti-pop img{max-width:100%;max-height:calc(100vh - 32px);height:auto;flex:none;border-radius:8px;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.5);cursor:zoom-in}
+.ti-pop.multi img{width:min(100%,1000px);max-height:none} /* 多張圖：寬度一致，上下捲動 */
+.ti-pop.full{display:block}.ti-pop.full img{max-width:none;max-height:none;width:max(100%,1600px);display:block;margin:0 0 12px;cursor:zoom-out}
+.ti-pop .x{position:fixed;top:10px;right:12px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.9);color:#111;font-size:20px;cursor:pointer}
+@media print{.ti-pop,.ti-about{display:none!important}}
 .ti-tbl-btn{order:0}
 .ti-cmps .ti-str,.ti-cmps .ti-tbl-wrap,.ti-cmps .ti-cmp-wrap,.ti-cmps .ti-terms-wrap{order:1;flex:0 0 100%;min-width:0;margin:4px 0 0}
 .ti-tbl-btn{margin-left:0;font-size:.9em;padding:3px 12px}.ti-tbl-wrap{overflow-x:auto;margin-top:8px}
