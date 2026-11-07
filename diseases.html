@@ -106,6 +106,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 .di-links a{font-size:.82em;line-height:1.5;padding:2px 10px;border-radius:999px;border:1px solid var(--accent);color:var(--accent);text-decoration:none;white-space:nowrap}
 .di-links a:hover{background:var(--accent);color:var(--accent-ink)}
 .di-links a::after{content:" ›"}
+.di-y{color:#f2c94c}@media print{.di-y{color:#9a6b00}} /* 比較表裡 ==文字== 的黃字強調 */
 .di-links a.di{border-style:dashed;border-color:var(--warn);color:var(--warn)}.di-links a.di:hover{background:var(--warn);color:var(--accent-ink)}
 
 /* 治療介紹彈窗：點治療項目按鈕時開啟（內容跟治療介紹頁同一則）；裡面的照片再點會用 tiPop 放大，所以 z-index 要比 tiPop（100000）低 */
@@ -212,7 +213,7 @@ body.di-lock{overflow:hidden}
 </div>
 <script src="js/treatment-info.js?v=154"></script>
 <script src="js/treatment-figs.js?v=14"></script>
-<script src="js/disease-info.js?v=87"></script>
+<script src="js/disease-info.js?v=94"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -249,7 +250,7 @@ function bodyHtml(e){
     <p class="ti-what">${tiEsc(e.what)}</p>
     ${box('di-first','🚑 緊急處理',e.first)}
     <div class="di-two">${sec('常見原因',e.cause)}${sec('常見症狀',e.symptom)}</div>
-    ${e.table?`<div class="ti-cmps">${tiTableHtml(e.table)}</div>`:''}
+    ${e.table?`<div class="ti-cmps">${[].concat(e.table).map(t=>tiTableHtml(t).replace(/==(.+?)==/g,'<b class="di-y">$1</b>')).join('')}</div>`:''}
     ${e.stages?stageTreatHtml(e):treatHtml(e.treat||[])}
     ${sec('不處理可能的後果',e.risk)}
     ${sec('預防與保養',e.prevent)}
