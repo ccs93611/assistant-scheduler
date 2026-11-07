@@ -257,6 +257,12 @@ $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!
 $('#list').addEventListener('click',e=>{
   const p=e.target.closest('[data-print]');if(p){printIds([p.dataset.print]);return}
   const c=e.target.closest('[data-print-cat]');if(c){printIds(TREATMENT_INFO.filter(x=>x.cat===c.dataset.printCat&&!document.getElementById(x.id).hidden).map(x=>x.id))}
+  // 點開一則介紹時，其他已展開的自動收起（一次只展開一則；列印、網址帶入的不受影響）
+  const s=e.target.closest('details.ti>summary');
+  if(s&&!s.parentElement.open){const d0=s.parentElement,y0=s.getBoundingClientRect().top;
+    document.querySelectorAll('details.ti[open]').forEach(d=>{if(d!==d0)d.open=false});
+    // 上方的項目收起後，剛點的這則會往上跑；捲回原本的位置，讓它留在手指底下
+    const dy=s.getBoundingClientRect().top-y0;if(dy)scrollBy(0,dy)}
 });
 $('#printAll').onclick=()=>printIds(shown());
 $('#selPrint').onclick=()=>printIds(sel);
