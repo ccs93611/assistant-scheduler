@@ -212,7 +212,7 @@ body.di-lock{overflow:hidden}
 </div>
 <script src="js/treatment-info.js?v=154"></script>
 <script src="js/treatment-figs.js?v=14"></script>
-<script src="js/disease-info.js?v=21"></script>
+<script src="js/disease-info.js?v=36"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -284,12 +284,21 @@ function filter(){
   $('#empty').hidden=n>0;
   document.querySelectorAll('#chips button').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));
 }
+// 一次只展開一則：打開一則時，其他已展開的自動收起；上方的卡片收起後內容會往上跳，捲動補回讓剛點的那則停在原位。列印時要同時展開多則，暫停這個動作
+let printing=false;
+document.querySelectorAll('details.ti').forEach(d=>d.addEventListener('toggle',()=>{
+  if(!d.open||printing)return;
+  const top=d.getBoundingClientRect().top;
+  document.querySelectorAll('details.ti[open]').forEach(o=>{if(o!==d)o.open=false});
+  const dy=d.getBoundingClientRect().top-top;if(dy)scrollBy(0,dy);
+}));
 // 列印指定的疾病：暫時展開（含比較表）並標記 .pr，印完恢復
 function printIds(ids){
   const ds=ids.map(id=>document.getElementById(id)).filter(Boolean);if(!ds.length)return;
+  printing=true;
   const was=ds.map(d=>d.open),tbls=ds.flatMap(d=>[...d.querySelectorAll('.ti-tbl-wrap[hidden]')]);
   ds.forEach(d=>{d.open=true;d.classList.add('pr')});tbls.forEach(t=>t.hidden=false);
-  const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr')});tbls.forEach(t=>t.hidden=true);removeEventListener('afterprint',done)};
+  const done=()=>{ds.forEach((d,i)=>{d.open=was[i];d.classList.remove('pr')});tbls.forEach(t=>t.hidden=true);removeEventListener('afterprint',done);setTimeout(()=>printing=false,0)};
   addEventListener('afterprint',done);window.print();
 }
 $('#q').addEventListener('input',filter);
