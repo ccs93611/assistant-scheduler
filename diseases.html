@@ -108,6 +108,19 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 .di-links a::after{content:" ›"}
 .di-links a.di{border-style:dashed;border-color:var(--warn);color:var(--warn)}.di-links a.di:hover{background:var(--warn);color:var(--accent-ink)}
 
+/* 治療介紹彈窗：點治療項目按鈕時開啟（內容跟治療介紹頁同一則）；裡面的照片再點會用 tiPop 放大，所以 z-index 要比 tiPop（100000）低 */
+body.di-lock{overflow:hidden}
+.di-modal{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto}
+.di-modal .box{width:100%;max-width:880px;margin:auto 0;background:var(--panel);border:1.5px solid var(--accent);border-radius:14px;box-shadow:0 12px 50px rgba(0,0,0,.5)}
+.di-modal .hd{position:sticky;top:-24px;z-index:1;display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--accent-soft);border-bottom:1.5px solid var(--accent);border-radius:12px 12px 0 0}
+.di-modal .hd b{flex:1;font-size:1.2em;color:var(--accent);line-height:1.35}
+.di-modal .hd .cat{font-size:.8em;color:var(--muted);white-space:nowrap}
+.di-modal .x{flex:0 0 auto;width:36px;height:36px;border-radius:50%;padding:0;font-size:18px;line-height:1}
+.di-modal .bd{padding:14px 16px 6px}
+.di-modal .ft{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px 14px}
+@media (max-width:599px){.di-modal{padding:0}.di-modal .box{border-radius:0;border-width:0;min-height:100%}.di-modal .hd{top:0;border-radius:0}}
+@media print{.di-modal{display:none!important}}
+
 @media (max-width:520px){header.top h1{font-size:21px}}
 /* 平板：字放大，方便拿給病人看（內文字級在 TI_CSS） */
 @media screen and (min-width:600px) and (pointer:coarse),screen and (min-width:600px) and (max-width:1100px){
@@ -197,8 +210,9 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
   <div class="print-foot" id="printFoot"></div>
   <footer class="disc" id="disc"></footer>
 </div>
-<script src="js/treatment-info.js?v=153"></script>
-<script src="js/disease-info.js?v=8"></script>
+<script src="js/treatment-info.js?v=154"></script>
+<script src="js/treatment-figs.js?v=14"></script>
+<script src="js/disease-info.js?v=21"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -219,15 +233,17 @@ function treatLi(x){
   return `<li>${tiEsc(x.t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}${ls.length||dl?`<div class="di-links">${dl?`<a class="di" href="#${dl.id}">詳見：${tiEsc(dl.title)}</a>`:''}${ls.map(e=>`<a href="treatments.html#${e.id}">${tiEsc(e.title)}</a>`).join('')}</div>`:''}</li>`}
 const treatHtml=(a,h='治療方式')=>a.length?`<div class="ti-sec"><h4>${h}</h4><ul class="di-treat">${a.map(treatLi).join('')}</ul></div>`:'';
 // 病程與治療對照：每個階段一列，右邊是 s 指到這個階段的治療
-function stageTreatHtml(e){
-  const tr=e.treat||[],at=i=>tr.filter(x=>x.s!=null&&[].concat(x.s).includes(i));
+// flow2：同一種疾病的第二張流程圖（例如蛀牙的乳牙）
+const stageTreatHtml=e=>stageFlowHtml(e.stLabel||'病程變化與治療方式',e.stages,e.treat||[],e.otherLabel)+(e.flow2?stageFlowHtml(e.flow2.label,e.flow2.stages,e.flow2.treat||[]):'');
+function stageFlowHtml(label,stages,tr,otherLabel){
+  const e={stages},at=i=>tr.filter(x=>x.s!=null&&[].concat(x.s).includes(i));
   const n=e.stages.length,cols=Array.from({length:n},()=>'minmax(0,1fr)').join(' 22px '); // 階段欄之間夾一欄放箭頭
-  return `<div class="ti-sec"><h4>病程變化與治療方式</h4><div class="di-st" style="grid-template-columns:${cols}">${
+  return `<div class="ti-sec"><h4>${tiEsc(label)}</h4><div class="di-st" style="grid-template-columns:${cols}">${
     e.stages.map((s,i)=>{const c=stageColor(i,n),xs=at(i),col=`--c:${i*2+1}`;
       return (i?`<div class="di-st-arr" style="--c:${i*2}">${dArr}</div>`:'')+
-        `<div class="di-stage" style="${col};border-color:rgba(${c},.6);background:rgba(${c},.1)"><span class="n" style="color:rgb(${c})">${i+1}</span><b style="color:rgb(${c})">${tiEsc(s.t)}</b><span>${tiEsc(s.d)}</span></div>`+
+        `<div class="di-stage" style="${col};border-color:rgba(${c},.6);background:rgba(${c},.1)"><span class="n" style="color:rgb(${c})">${i+1}</span><b style="color:rgb(${c})">${tiEsc(s.t)}</b><span>${tiEsc(s.d).replace(/\n/g,'<br>')}</span></div>`+
         `<div class="di-st-tr" style="${col};border-color:rgba(${c},.6)">${xs.length?`<ul class="di-treat">${xs.map(treatLi).join('')}</ul>`:`<p class="di-none">${tiEsc(s.none||'—')}</p>`}</div>`}).join('')}</div></div>`+
-    treatHtml(tr.filter(x=>x.s==null),'其他治療方式')}
+    treatHtml(tr.filter(x=>x.s==null),tiEsc(otherLabel||'其他治療方式'))}
 function bodyHtml(e){
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>
@@ -279,6 +295,23 @@ function printIds(ids){
 $('#q').addEventListener('input',filter);
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;cat=b.dataset.cat;filter();scrollTo({top:0})});
 $('#list').addEventListener('click',e=>{const p=e.target.closest('[data-print]');if(p)printIds([p.dataset.print])});
+// 點治療項目：用彈窗顯示該則治療介紹（按 Ctrl／⌘ 或中鍵仍照連結開新分頁）；點背景、✕ 或按 Esc 關閉
+function openTreat(id){
+  const e=TI_BY_ID[id];if(!e)return;
+  const o=document.createElement('div');o.className='di-modal';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.setAttribute('aria-label',e.title);
+  o.innerHTML=`<div class="box"><div class="hd"><b>${tiEsc(e.title)}</b><span class="cat">${tiEsc(e.cat)}</span><button type="button" class="x" aria-label="關閉">✕</button></div>
+    <div class="bd">${tiBodyHtml(e)}<p class="ti-disclaimer">${tiEsc(TI_DISCLAIMER)}</p></div>
+    <div class="ft"><a class="btn-sm" href="treatments.html#${e.id}">在治療項目介紹頁開啟 ›</a><button type="button" class="btn-sm cl">關閉</button></div></div>`;
+  const close=()=>{o.remove();document.body.classList.remove('di-lock');removeEventListener('keydown',key)},
+    key=ev=>{if(ev.key==='Escape'&&!document.getElementById('tiPop'))close()}; // 照片放大中按 Esc 先關照片
+  o.addEventListener('click',ev=>{if(ev.target===o||ev.target.closest('.x,.cl'))close()});
+  addEventListener('keydown',key);document.body.classList.add('di-lock');document.body.appendChild(o);o.querySelector('.x').focus();
+}
+document.addEventListener('click',ev=>{
+  const a=ev.target.closest('.di-links a[href^="treatments.html#"]');
+  if(!a||ev.ctrlKey||ev.metaKey||ev.shiftKey||ev.button)return;
+  ev.preventDefault();openTreat(a.getAttribute('href').split('#')[1]);
+});
 $('#printAll').onclick=()=>printIds([...document.querySelectorAll('details.ti:not([hidden])')].map(d=>d.dataset.id));
 
 filter();
