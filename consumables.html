@@ -44,7 +44,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .btn-sm{padding:3px 8px;font-size:13px}
 /* 標題置中：左右兩欄等寬，右欄放設定與登入資訊 */
 /* 頁首：左邊 App 圖示＋標題＋診所名（與治療項目介紹頁相同），右邊設定與登入資訊 */
-header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+header{padding:14px 0;background:var(--panel);border-bottom:1px solid var(--line)}
+/* 頁首內容與下方卡片對齊（同樣的最大寬度與左右留白） */
+.head-in{max-width:1200px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:14px;flex:1;min-width:240px}
 .brand img{width:56px;height:56px;border-radius:13px;flex:none}
 .brand h1{font-size:32px;line-height:1.2;margin:0;font-weight:800;letter-spacing:.02em}
@@ -159,14 +161,14 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 </script>
 </head>
 <body>
-<header>
+<header><div class="head-in">
   <div class="brand"><img src="icons/icon-cs.svg?v=2" alt=""><div><h1>耗材登記</h1><div class="sub">新海美學牙醫診所</div></div></div>
   <div class="head-r">
     <button id="cfgBtn" hidden>⚙ 耗材種類</button>
     <button id="devBtn" hidden title="打卡裝置、治療計劃單與耗材的設備認證（只有超級管理員）">🔐 設備認證</button>
     <div class="me" id="me" hidden><span id="meEmail"></span> <span class="chip perm" id="mePerm"></span> <button class="btn-sm" id="personalBtn" hidden title="改用自己的 Google 帳號登入（個人模式）；登出後回到設備模式">登入</button> <button class="btn-sm btn-ghost" id="signOutBtn">登出</button></div>
   </div>
-</header>
+</div></header>
 <main>
   <form class="card" id="form" autocomplete="off" hidden>
     <h2><span id="fTitle">登記耗材</span><span class="sp"></span><button type="button" class="btn-sm" id="clearPt">清除病患資料</button></h2>
