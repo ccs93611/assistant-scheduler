@@ -197,7 +197,8 @@ const DISEASE_INFO=[
  treat:[
   {s:[0,1,2],t:'根管治療：清除壞死牙髓與細菌，消毒後緊密充填根管',ids:['micro-rct']},
   {t:'以前做過根管又再感染：根管再治療，重新清潔與充填',ids:['micro-retreat']},
-  {t:'根管治療後病灶仍未癒合，或牙根有穿孔：根尖手術或 MTA 修補',ids:['apicoectomy','mta-repair']},
+  {t:'若顯微根管治療後仍有根尖膿腫，可考慮顯微根尖手術',ids:['apicoectomy']},
+  {t:'牙根有穿孔：MTA 修補',ids:['mta-repair']},
   {t:'治療後：做纖維釘與牙冠保護，避免牙齒裂開',ids:['post','crown-cercon']},
   {s:2,t:'無法保留：拔牙後保存齒槽骨，再考慮植牙',ids:['apr','implant-hiossen','implant-blc']},
   {s:2,t:'急性腫脹：醫師會先引流膿液，必要時搭配抗生素'}],
