@@ -212,7 +212,7 @@ body.di-lock{overflow:hidden}
 </div>
 <script src="js/treatment-info.js?v=154"></script>
 <script src="js/treatment-figs.js?v=14"></script>
-<script src="js/disease-info.js?v=36"></script>
+<script src="js/disease-info.js?v=52"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -254,7 +254,7 @@ function bodyHtml(e){
     ${sec('不處理可能的後果',e.risk)}
     ${sec('預防與保養',e.prevent)}
     ${box('di-alert','⚠️ 出現這些情況請盡快就醫',e.alert)}
-    ${e.note?`<div class="ti-sec ti-note"><h4>補充說明</h4><p>${tiEsc(e.note)}</p></div>`:''}
+    ${e.note?`<div class="ti-sec ti-note"><h4>補充說明</h4>${Array.isArray(e.note)?list(e.note):`<p>${tiEsc(e.note).replace(/\n/g,'<br>')}</p>`}</div>`:''}
   </div>`}
 
 $('#list').innerHTML=DI_CATS.map((c,ci)=>{const es=DISEASE_INFO.filter(e=>e.cat===c);
