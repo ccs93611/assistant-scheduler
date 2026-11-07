@@ -67,14 +67,28 @@ details.ti[open]>summary .lead{display:none}
 footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 
 /* ---- 疾病介紹專用 ---- */
-/* 病程：由輕到重一排，顏色由主色漸漸轉成紅色；手機改上下排 */
-.di-stages{display:flex;align-items:stretch;gap:4px;margin:4px 0 6px}
-.di-stage{flex:1 1 0;min-width:0;border-radius:10px;padding:8px 10px;border:1.5px solid;line-height:1.45}
+/* 病程與治療對照：病程由輕到重橫向一排（顏色由主色漸漸轉成紅色），每個階段的治療放在正下方同一欄；
+   手機太窄放不下多欄，改成上下排（病程下面接治療，再往下一個階段）。--c 是第幾欄（箭頭也佔一欄） */
+.di-st{display:grid;gap:8px 0;margin-top:6px}
+.di-stage{min-width:0;border-radius:10px;padding:8px 10px;border:1.5px solid;line-height:1.45}
 .di-stage b{display:block;font-size:.98em}
 .di-stage span{display:block;font-size:.85em;color:var(--muted);margin-top:2px}
 .di-stage .n{display:inline-block;font-size:.75em;font-weight:700;opacity:.85;margin-bottom:1px}
-.di-sarr{flex:0 0 12px;align-self:center;width:12px;height:20px}
-@media (max-width:599px){.di-stages{flex-direction:column}.di-sarr{transform:rotate(90deg);margin:-2px auto}}
+.di-st-tr{min-width:0;border-top:3px solid;padding-top:8px}
+.di-st-tr .di-treat{gap:6px}.di-st-tr .di-treat>li{padding:7px 10px}
+.di-st-tr .di-links a{white-space:normal;border-radius:8px}
+.di-none{margin:0;padding:7px 2px;color:var(--muted);font-size:.92em}
+.di-st-arr{display:flex;align-items:center;justify-content:center}.di-st-arr svg{width:12px;height:20px}
+@media (min-width:600px){
+  .di-stage{grid-row:1;grid-column:var(--c)}
+  .di-st-tr{grid-row:2;grid-column:var(--c)}
+  .di-st-arr{grid-row:1;grid-column:var(--c)}
+}
+@media (max-width:599px){
+  .di-st{gap:0;grid-template-columns:1fr!important}
+  .di-st-tr{border-top:0;border-left:3px solid;margin:6px 0 0 14px;padding:0 0 0 10px}
+  .di-st-arr{padding:6px 0}.di-st-arr svg{transform:rotate(90deg)}
+}
 /* 兩欄：原因／症狀並排（寬螢幕） */
 .di-two{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
 @media (max-width:719px){.di-two{grid-template-columns:1fr}}
@@ -92,6 +106,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 .di-links a{font-size:.82em;line-height:1.5;padding:2px 10px;border-radius:999px;border:1px solid var(--accent);color:var(--accent);text-decoration:none;white-space:nowrap}
 .di-links a:hover{background:var(--accent);color:var(--accent-ink)}
 .di-links a::after{content:" ›"}
+.di-links a.di{border-style:dashed;border-color:var(--warn);color:var(--warn)}.di-links a.di:hover{background:var(--warn);color:var(--accent-ink)}
 
 @media (max-width:520px){header.top h1{font-size:21px}}
 /* 平板：字放大，方便拿給病人看（內文字級在 TI_CSS） */
@@ -151,7 +166,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
   details.ti>summary .t{font-size:20px;color:var(--accent)!important}
   .ti-in{padding:0}
   .ti-body{font-size:13px;line-height:1.55}
-  .ti-sec,.di-box,.di-stages,.di-treat>li{break-inside:avoid}
+  .ti-sec:not(:has(.di-st)),.di-box,.di-stage,.di-treat>li{break-inside:avoid}
   .di-stage,.di-box,.di-treat>li{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .di-links a{border:0;padding:0 6px 0 0;font-size:.85em}.di-links a::after{content:""}
   .di-links::before{content:"相關治療：";font-size:.85em;color:var(--muted)}
@@ -183,7 +198,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
   <footer class="disc" id="disc"></footer>
 </div>
 <script src="js/treatment-info.js?v=153"></script>
-<script src="js/disease-info.js?v=3"></script>
+<script src="js/disease-info.js?v=8"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -197,23 +212,30 @@ const box=(cls,h,a)=>a?.length?`<div class="di-box ${cls}"><h4>${h}</h4>${list(a
 // 病程顏色：第一段主色，最後一段紅色，中間依比例混色
 const stageColor=(i,n)=>{const k=n>1?i/(n-1):0,c=[[63,182,185],[240,150,90],[229,72,77]],
   s=k<.5?[c[0],c[1],k*2]:[c[1],c[2],(k-.5)*2],m=s[0].map((v,j)=>Math.round(v+(s[1][j]-v)*s[2]));return m.join(',')};
-const sArr='<svg class="di-sarr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-function stagesHtml(st){
-  return `<div class="ti-sec"><h4>病程變化</h4><div class="di-stages">${st.map((s,i)=>{const c=stageColor(i,st.length);
-    return (i?sArr:'')+`<div class="di-stage" style="border-color:rgba(${c},.6);background:rgba(${c},.1)"><span class="n" style="color:rgb(${c})">${i+1}</span><b style="color:rgb(${c})">${tiEsc(s.t)}</b><span>${tiEsc(s.d)}</span></div>`}).join('')}</div></div>`}
-// 治療方式：連到治療項目介紹（treatments.html#id 會自動展開並捲到該項目）
-function treatHtml(a){
-  return `<div class="ti-sec"><h4>治療方式</h4><ul class="di-treat">${a.map(x=>{const ls=(x.ids||[]).map(id=>TI_BY_ID[id]).filter(Boolean);
-    return `<li>${tiEsc(x.t)}${ls.length?`<div class="di-links">${ls.map(e=>`<a href="treatments.html#${e.id}">${tiEsc(e.title)}</a>`).join('')}</div>`:''}</li>`}).join('')}</ul></div>`}
+const dArr='<svg viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// 一項治療：連到治療項目介紹（treatments.html#id 會自動展開並捲到該項目）；di 連到本頁另一種疾病
+function treatLi(x){
+  const ls=(x.ids||[]).map(id=>TI_BY_ID[id]).filter(Boolean),dl=x.di&&DI_BY_ID[x.di];
+  return `<li>${tiEsc(x.t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}${ls.length||dl?`<div class="di-links">${dl?`<a class="di" href="#${dl.id}">詳見：${tiEsc(dl.title)}</a>`:''}${ls.map(e=>`<a href="treatments.html#${e.id}">${tiEsc(e.title)}</a>`).join('')}</div>`:''}</li>`}
+const treatHtml=(a,h='治療方式')=>a.length?`<div class="ti-sec"><h4>${h}</h4><ul class="di-treat">${a.map(treatLi).join('')}</ul></div>`:'';
+// 病程與治療對照：每個階段一列，右邊是 s 指到這個階段的治療
+function stageTreatHtml(e){
+  const tr=e.treat||[],at=i=>tr.filter(x=>x.s!=null&&[].concat(x.s).includes(i));
+  const n=e.stages.length,cols=Array.from({length:n},()=>'minmax(0,1fr)').join(' 22px '); // 階段欄之間夾一欄放箭頭
+  return `<div class="ti-sec"><h4>病程變化與治療方式</h4><div class="di-st" style="grid-template-columns:${cols}">${
+    e.stages.map((s,i)=>{const c=stageColor(i,n),xs=at(i),col=`--c:${i*2+1}`;
+      return (i?`<div class="di-st-arr" style="--c:${i*2}">${dArr}</div>`:'')+
+        `<div class="di-stage" style="${col};border-color:rgba(${c},.6);background:rgba(${c},.1)"><span class="n" style="color:rgb(${c})">${i+1}</span><b style="color:rgb(${c})">${tiEsc(s.t)}</b><span>${tiEsc(s.d)}</span></div>`+
+        `<div class="di-st-tr" style="${col};border-color:rgba(${c},.6)">${xs.length?`<ul class="di-treat">${xs.map(treatLi).join('')}</ul>`:`<p class="di-none">${tiEsc(s.none||'—')}</p>`}</div>`}).join('')}</div></div>`+
+    treatHtml(tr.filter(x=>x.s==null),'其他治療方式')}
 function bodyHtml(e){
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>
     ${box('di-first','🚑 緊急處理',e.first)}
-    ${e.stages?stagesHtml(e.stages):''}
-    ${e.table?`<div class="ti-cmps">${tiTableHtml(e.table)}</div>`:''}
     <div class="di-two">${sec('常見原因',e.cause)}${sec('常見症狀',e.symptom)}</div>
+    ${e.table?`<div class="ti-cmps">${tiTableHtml(e.table)}</div>`:''}
+    ${e.stages?stageTreatHtml(e):treatHtml(e.treat||[])}
     ${sec('不處理可能的後果',e.risk)}
-    ${e.treat?.length?treatHtml(e.treat):''}
     ${sec('預防與保養',e.prevent)}
     ${box('di-alert','⚠️ 出現這些情況請盡快就醫',e.alert)}
     ${e.note?`<div class="ti-sec ti-note"><h4>補充說明</h4><p>${tiEsc(e.note)}</p></div>`:''}
