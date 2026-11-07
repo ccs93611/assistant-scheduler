@@ -688,8 +688,8 @@ const TI_CSS=`
 .ti-tbl table{border-collapse:collapse;width:100%;font-size:.92em;line-height:1.5}
 .ti-tbl th,.ti-tbl td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
 .ti-tbl th{color:var(--muted);font-weight:600}
-.ti-tbl td:first-child{white-space:nowrap}.ti-tbl td.hl b,.ti-tbl b.em{color:#e5484d}
-@media print{.ti-tbl td.hl b,.ti-tbl b.em{color:#c62828}}.ti-tbl td small{color:var(--muted);font-size:.9em}
+.ti-tbl td:first-child{white-space:nowrap}.ti-tbl td.hl b,.ti-tbl b.em{color:#f5c542}
+@media print{.ti-tbl td.hl b,.ti-tbl b.em{color:#a86b00}}.ti-tbl td small{color:var(--muted);font-size:.9em}
 .ti-str table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.5}
 .ti-str th,.ti-str td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 .ti-str th{color:var(--muted);font-weight:600;white-space:nowrap}
