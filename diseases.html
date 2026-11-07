@@ -212,7 +212,7 @@ body.di-lock{overflow:hidden}
 </div>
 <script src="js/treatment-info.js?v=154"></script>
 <script src="js/treatment-figs.js?v=14"></script>
-<script src="js/disease-info.js?v=52"></script>
+<script src="js/disease-info.js?v=71"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -229,8 +229,8 @@ const stageColor=(i,n)=>{const k=n>1?i/(n-1):0,c=[[63,182,185],[240,150,90],[229
 const dArr='<svg viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // 一項治療：連到治療項目介紹（treatments.html#id 會自動展開並捲到該項目）；di 連到本頁另一種疾病
 function treatLi(x){
-  const ls=(x.ids||[]).map(id=>TI_BY_ID[id]).filter(Boolean),dl=x.di&&DI_BY_ID[x.di];
-  return `<li>${tiEsc(x.t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}${ls.length||dl?`<div class="di-links">${dl?`<a class="di" href="#${dl.id}">詳見：${tiEsc(dl.title)}</a>`:''}${ls.map(e=>`<a href="treatments.html#${e.id}">${tiEsc(e.title)}</a>`).join('')}</div>`:''}</li>`}
+  const ls=(x.ids||[]).map(id=>TI_BY_ID[id]).filter(Boolean),dls=[].concat(x.di||[]).map(id=>DI_BY_ID[id]).filter(Boolean); // di 可以填一個或多個
+  return `<li>${tiEsc(x.t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>')}${ls.length||dls.length?`<div class="di-links">${dls.map(dl=>`<a class="di" href="#${dl.id}">詳見：${tiEsc(dl.title)}</a>`).join('')}${ls.map(e=>`<a href="treatments.html#${e.id}">${tiEsc(e.title)}</a>`).join('')}</div>`:''}</li>`}
 const treatHtml=(a,h='治療方式')=>a.length?`<div class="ti-sec"><h4>${h}</h4><ul class="di-treat">${a.map(treatLi).join('')}</ul></div>`:'';
 // 病程與治療對照：每個階段一列，右邊是 s 指到這個階段的治療
 // flow2：同一種疾病的第二張流程圖（例如蛀牙的乳牙）
