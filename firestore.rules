@@ -329,6 +329,8 @@ service cloud.firestore {
       allow delete: if isCsAdmin() || (canEditCs() && resource.data.status != 'confirmed');
     }
     match /csConfig/{id} { allow read: if csLv() != 'none' || isCsDevice() || canView(); allow write: if isCsAdmin(); }
+    // csImages 耗材圖片（登記時點「！」看）：有耗材權限或耗材認證設備都可以看；耗材「管理」可以上傳、更換、刪除
+    match /csImages/{id} { allow read: if csLv() != 'none' || isCsDevice() || canView(); allow write: if isCsAdmin(); }
     // csPrice 耗材單價：只有超級管理員看得到、改得到（助理、醫師與耗材管理都讀不到價格）
     match /csPrice/{id} { allow read, write: if isSuper(); }
   }

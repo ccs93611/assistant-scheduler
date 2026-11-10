@@ -109,6 +109,20 @@ tr.editing td{background:var(--accent-soft)}
 .pr-specs>.sub{margin-bottom:2px}
 .pr-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--soft)}
 .pr-row.sub-row{padding:3px 0}.pr-row.sub-row .pr-name{color:var(--muted);font-size:14px}
+.item-pick{display:flex;gap:6px;align-items:center}.item-pick select{flex:1;min-width:0}
+.dd{position:relative;flex:1;min-width:0}
+.dd-btn{width:100%;display:flex;align-items:center;gap:8px;text-align:left;padding:7px 10px;background:var(--panel)}
+.dd-btn #fItemTxt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dd-btn.empty #fItemTxt{color:var(--muted)}
+.dd-arr{color:var(--muted);font-size:12px}
+.dd-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;max-height:320px;overflow:auto;background:var(--panel);border:1px solid var(--card-line);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.18);padding:4px}
+.dd-row{display:flex;align-items:center;gap:6px;border-radius:6px}.dd-row:hover,.dd-row.on{background:var(--accent-soft)}
+.dd-pick{flex:1;min-width:0;text-align:left;border:0;background:none;padding:8px 10px;font-size:15px}
+.img-btn.sm{width:26px;height:26px;font-size:14px;line-height:24px;margin-right:6px}
+.img-btn{flex:none;width:34px;height:34px;padding:0;border-radius:50%;background:var(--warn);border-color:var(--warn);color:#fff;font-weight:800;font-size:18px;line-height:32px}
+.img-btn:hover{filter:brightness(1.1)}
+.img-modal{max-width:720px}.img-box{text-align:center;margin:8px 0}.img-box img{max-width:100%;max-height:65vh;border-radius:8px;border:1px solid var(--line)}
+.pr-img{margin-left:8px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:0 8px;font-size:12px;color:var(--muted);vertical-align:middle}
+.pr-img.has{color:var(--accent);border-color:var(--accent)}
 .pr-name{flex:1;min-width:0}.pr-in{width:110px;text-align:right}.pr-acts{display:inline-flex;gap:4px}.pr-gap{display:inline-block;width:30px}.pr-spec summary{cursor:pointer;color:var(--accent);font-size:13px;padding:4px 0}
 .sg-g{grid-column:1/-1;font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;border-bottom:1px dashed var(--line)}
 .sg-x{border-radius:6px;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--soft) 6px 8px)}
@@ -179,7 +193,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
       <div class="field req"><label for="fBirth">病患生日</label><input type="date" id="fBirth" required></div>
       <div class="field req"><label for="fChart">病歷號</label><input id="fChart" required></div>
       <div class="field"><label for="fTooth">牙位</label><input id="fTooth" placeholder="例如 36、11-21"></div>
-      <div class="field req" style="grid-column:span 2"><label for="fItem">耗材種類</label><select id="fItem" required></select></div>
+      <div class="field req" style="grid-column:span 2"><label for="fItemBtn">耗材種類</label><div class="item-pick"><select id="fItem" hidden></select><div class="dd" id="fItemDD"><button type="button" class="dd-btn" id="fItemBtn" aria-haspopup="listbox" aria-expanded="false"><span id="fItemTxt">請選擇耗材種類</span><span class="dd-arr">▾</span></button><div class="dd-menu" id="fItemMenu" role="listbox" hidden></div></div><button type="button" class="img-btn" id="fItemImg" hidden title="看這個耗材的圖片" aria-label="看這個耗材的圖片">!</button></div></div>
       <div class="field req" id="fSpecF" hidden><label for="fSpec" id="fSpecL">長度</label><select id="fSpec"></select></div>
       <div class="field req" id="fScanF" hidden><label for="fScan" id="fScanL">操作人員</label><select id="fScan"></select></div>
       <div class="field req" id="fGridF" hidden style="grid-column:1/-1"><label id="fGridL">尺寸</label><div class="scroll-x"><div class="sg" id="fGrid"></div></div><div class="sub" id="fGridSel"></div></div>
@@ -327,6 +341,7 @@ const itemHtml=x=>(h=>x.scanner||x.scannerName?h+`<div class="sub">${esc(scanTex
 const specIdx=x=>x.spec?(ITEM_SPECS[x.item]?.opts.indexOf(x.spec)??99)+1:0; // 排序用：沒有規格排前面，其餘依選單順序
 // 選了需要規格的耗材時顯示規格選單（必填）
 function syncSpec(v,qty){
+  syncItemImg(); // 更新下拉按鈕上的文字與「！」
   const s=ITEM_SPECS[$('#fItem').value],sel=$('#fSpec'),grid=isGrid(s);
   $('#fScanF').hidden=!s?.op;$('#fScan').required=!!s?.op;
   if(s?.op){$('#fScanL').textContent=s.op+'人員';const o=$('#fScan').options[0];if(o)o.textContent='請選擇'+s.op+'人員'}
@@ -419,11 +434,48 @@ const DB={
     if(fs)return fs.collection('csItems').doc(id).delete();
     const d=Local.load();d.items=d.items.filter(y=>y.id!==id);Local.save(d);
   },
+  // 耗材圖片：csImages/{編碼後的耗材名稱}（{item, data: JPEG data URL}）；哪些耗材有圖記在 cfg.imgs（耗材名稱 → 上傳時間），不用先讀圖片就知道要不要顯示「！」
+  async getImg(n){
+    if(fs){const d=await fs.doc('csImages/'+imgId(n)).get();return d.exists?d.data().data:null}
+    try{return JSON.parse(localStorage.getItem(IMG_KEY)||'{}')[n]||null}catch(e){return null}
+  },
+  async setImg(n,data){
+    if(fs){if(data)await fs.doc('csImages/'+imgId(n)).set({item:n,data,updatedAt:Date.now(),updatedBy:me});else await fs.doc('csImages/'+imgId(n)).delete()}
+    else{let m={};try{m=JSON.parse(localStorage.getItem(IMG_KEY)||'{}')}catch(e){}if(data)m[n]=data;else delete m[n];localStorage.setItem(IMG_KEY,JSON.stringify(m))}
+    const imgs={...(cfg.imgs||{})};if(data)imgs[n]=Date.now();else delete imgs[n];cfg.imgs=imgs;imgCache.delete(n);
+    if(fs){const r=fs.doc('csConfig/settings');await r.update({imgs}).catch(()=>r.set({imgs},{merge:true}))}else{const d=Local.load();d.cfg={...(d.cfg||{}),imgs};Local.save(d)} // 雲端用 update 才會把整個 imgs 換掉（刪除時拿掉那一筆）
+  },
   async saveCfg(){
     if(fs)return fs.doc('csConfig/settings').set(cfg);
     const d=Local.load();d.cfg=cfg;Local.save(d);
   },
 };
+const IMG_KEY='xinhai_cs_img_local_v1',imgCache=new Map();
+const imgId=n=>encodeURIComponent(n).replace(/\./g,'%2E');
+const hasImg=n=>!!(n&&cfg.imgs&&cfg.imgs[n]);
+// 上傳前縮小（長邊最多 1200px、JPEG），控制在約 700KB 以內（Firestore 單筆上限 1MB）
+function shrinkImage(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();
+  im.onload=()=>{URL.revokeObjectURL(u);let w=im.naturalWidth,h=im.naturalHeight;const k=Math.min(1,1200/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);
+    const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);
+    let q=.85,d=c.toDataURL('image/jpeg',q);while(d.length>700000&&q>.4){q-=.1;d=c.toDataURL('image/jpeg',q)}res(d)};
+  im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('無法讀取這張圖片'))};im.src=u})}
+async function showItemImg(n){
+  const bg=document.createElement('div');bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal img-modal"><h3>${esc(n)}</h3><div class="img-box">讀取中…</div><div class="acts" style="justify-content:flex-end"><button type="button" data-close>關閉</button></div></div>`;
+  document.body.appendChild(bg);bg.addEventListener('click',e=>{if(e.target===bg||e.target.closest('[data-close]'))bg.remove()});
+  try{let d=imgCache.get(n);if(!d){d=await DB.getImg(n);if(d)imgCache.set(n,d)}
+    bg.querySelector('.img-box').innerHTML=d?`<img src="${d}" alt="${esc(n)}">`:'<p class="hint">這個耗材還沒有圖片。</p>'}
+  catch(e){bg.querySelector('.img-box').innerHTML=`<p class="reason">讀取失敗：${esc(e.message)}</p>`}
+}
+const syncItemImg=()=>{const n=$('#fItem').value;$('#fItemImg').hidden=!hasImg(n);$('#fItemTxt').textContent=n||'請選擇耗材種類';$('#fItemBtn').classList.toggle('empty',!n)};
+// 自訂下拉清單：每個耗材一列，有圖片的右邊有「！」，點「！」看圖片、點名稱選這個耗材
+function openItemMenu(){
+  const m=$('#fItemMenu'),cur=$('#fItem').value;
+  m.innerHTML=[...$('#fItem').options].filter(o=>o.value).map(o=>`<div class="dd-row${o.value===cur?' on':''}" role="option" aria-selected="${o.value===cur}"><button type="button" class="dd-pick" data-pick="${esc(o.value)}">${esc(o.value)}</button>${hasImg(o.value)?`<button type="button" class="img-btn sm" data-see="${esc(o.value)}" title="看「${esc(o.value)}」的圖片" aria-label="看圖片">!</button>`:''}</div>`).join('')||'<p class="hint" style="padding:8px">尚未設定耗材種類</p>';
+  m.hidden=false;$('#fItemBtn').setAttribute('aria-expanded','true');
+  (m.querySelector('.dd-row.on')||m.firstElementChild)?.scrollIntoView({block:'nearest'});
+}
+const closeItemMenu=()=>{$('#fItemMenu').hidden=true;$('#fItemBtn').setAttribute('aria-expanded','false')};
 // 雲端讀取：未完成（待確認＋退回）的全部讀；已確認的只讀所選月份
 let subOpen={},subMonth={},monthUnsub=null,monthKey='';
 const mergeItems=()=>{items=new Map(Object.entries({...subMonth,...subOpen}).map(([k,x])=>[k,normItem(x)]));fillItems();render()};
@@ -438,7 +490,7 @@ function subscribeMonth(){
 function startCloud(){
   afterLogin();
   fs.collection('staff').onSnapshot(snap=>{staff=snap.docs.map(d=>({id:d.id,...d.data()}));fillSelects();render()},e=>console.warn(e));
-  fs.doc('csConfig/settings').onSnapshot(s=>{cfg=s.exists?s.data():{};fillItems()},e=>console.warn(e));
+  fs.doc('csConfig/settings').onSnapshot(s=>{cfg=s.exists?s.data():{};fillItems();syncItemImg()},e=>console.warn(e));
   if(SCHED_SUPER)fs.doc('csPrice/settings').onSnapshot(s=>{PRICES=normPrices(s.exists?(s.data().p||{}):{});render();renderStats()},e=>console.warn(e));
   fs.collection('csItems').where('status','in',['pending','rejected']).onSnapshot(snap=>{
     const m={};snap.docs.forEach(d=>m[d.id]={id:d.id,...d.data()});subOpen=m;mergeItems();
@@ -480,6 +532,7 @@ function fillItems(extra){
   set(f,'<option value="">請選擇耗材種類</option>'+list.map(o).join('')+(cur&&!list.includes(cur)?o(cur):''));if(extra)f.value=extra;
   // 篩選選單：清單＋紀錄裡出現過、已不在清單的種類
   const old=[...new Set([...items.values()].map(x=>x.item))].filter(n=>n&&!list.includes(n));
+  if(typeof syncItemImg==='function')syncItemImg();
   set($('#vItem'),'<option value="">全部耗材</option>'+list.map(o).join('')+old.map(o).join(''));
 }
 function afterLogin(){
@@ -547,6 +600,7 @@ function setEditing(x){
 }
 $('#form').addEventListener('submit',async e=>{
   e.preventDefault();if(!canEdit())return;
+  if(!$('#fItem').value){alert('請選擇耗材種類');openItemMenu();return}
   const g=k=>$('#'+k).value.trim();
   // 表格按鈕可以複選：新增時每個規格各存一筆紀錄，數量是表格裡設定的支數；其他耗材用「數量」欄
   const sp=ITEM_SPECS[g('fItem')],grid=isGrid(sp);
@@ -569,7 +623,7 @@ $('#form').addEventListener('submit',async e=>{
     for(const x of xs){await DB.put(x);if(!fs)items.set(x.id,x)}
     try{localStorage.setItem('cs_last_asst',xs[0].assistantId)}catch(err){}
     if(old){setEditing(null);clearForm(true);toast(old.status==='rejected'?'已重新送出，等醫師確認':'已儲存修改')}
-    else{['fTooth','fItem'].forEach(k=>$('#'+k).value='');$('#fQty').value=1;syncSpec();$('#fItem').focus();toast(xs.length>1?`已登記 ${xs.length} 筆，等醫師確認`:'已登記，等醫師確認')}
+    else{['fTooth','fItem'].forEach(k=>$('#'+k).value='');$('#fQty').value=1;syncSpec();$('#fItemBtn').focus();toast(xs.length>1?`已登記 ${xs.length} 筆，等醫師確認`:'已登記，等醫師確認')}
     render();
   }catch(err){console.error(err);alert('儲存失敗：'+(err.code==='permission-denied'?'沒有權限（確認的紀錄不能修改，或安全規則尚未更新）':err.message))}
   finally{btn.disabled=false}
@@ -580,7 +634,16 @@ function clearForm(keepStaff){
   $('#fDate').value=$('#fDate').value||today();
 }
 $('#clearPt').addEventListener('click',()=>{['fName','fBirth','fChart','fTooth','fItem'].forEach(k=>$('#'+k).value='');$('#fQty').value=1;syncSpec();$('#fName').focus()});
-$('#fItem').addEventListener('change',()=>syncSpec());
+$('#fItem').addEventListener('change',()=>{syncSpec();syncItemImg()});
+$('#fItemImg').addEventListener('click',()=>{const n=$('#fItem').value;if(n)showItemImg(n)});
+$('#fItemBtn').addEventListener('click',()=>$('#fItemMenu').hidden?openItemMenu():closeItemMenu());
+$('#fItemMenu').addEventListener('click',e=>{
+  const see=e.target.closest('[data-see]');if(see){showItemImg(see.dataset.see);return}
+  const p=e.target.closest('[data-pick]');if(!p)return;
+  $('#fItem').value=p.dataset.pick;closeItemMenu();$('#fItem').dispatchEvent(new Event('change'));$('#fItemBtn').focus();
+});
+document.addEventListener('click',e=>{if(!e.target.closest('#fItemDD'))closeItemMenu()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#fItemMenu').hidden){closeItemMenu();$('#fItemBtn').focus()}});
 $('#fSpec').addEventListener('change',colorSpec);
 $('#fGrid').addEventListener('click',e=>{const b=e.target.closest('[data-sg]');if(!b)return;const v=b.dataset.sg;
   // 點格子：沒選過 → 1 支；已選 → 再加 1 支。修改既有紀錄時換成別格（保留支數）
@@ -649,6 +712,24 @@ $('#vDoc').addEventListener('change',e=>{view.doc=e.target.value;render()});
 $('#vItem').addEventListener('change',e=>{view.item=e.target.value;render()});
 $('#vQ').addEventListener('input',e=>{view.q=e.target.value;render()});
 
+// 設定裡的圖片管理：看目前的圖、上傳／更換（拍照或選檔案）、刪除；立即儲存（不用按設定視窗的「儲存」）
+async function imgDialog(n,after){
+  const bg=document.createElement('div');bg.className='modal-bg';
+  const draw=async()=>{let d=null;if(hasImg(n)){d=imgCache.get(n)||await DB.getImg(n).catch(()=>null);if(d)imgCache.set(n,d)}
+    bg.innerHTML=`<div class="modal img-modal"><h3>${esc(n)} 的圖片</h3><div class="img-box">${d?`<img src="${d}" alt="">`:'<p class="hint">還沒有圖片。登記耗材時，選了這個耗材旁邊會出現「！」，點開就是這張圖。</p>'}</div>
+      <input type="file" accept="image/*" hidden id="imgFile"><div class="acts"><button type="button" class="btn-primary" data-up>${d?'更換圖片':'上傳圖片'}</button>${d?'<button type="button" class="btn-danger" data-delimg>刪除圖片</button>':''}<span style="flex:1"></span><button type="button" data-close>關閉</button></div></div>`;
+    bg.querySelector('#imgFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const b=bg.querySelector('[data-up]');b.disabled=true;b.textContent='上傳中…';
+      try{const data=await shrinkImage(f);await DB.setImg(n,data);imgCache.set(n,data);toast('已儲存圖片');syncItemImg();await draw()}
+      catch(err){alert('上傳失敗：'+(err.code==='permission-denied'?'沒有權限（或安全規則尚未更新）':err.message));b.disabled=false;b.textContent='上傳圖片'}});
+  };
+  document.body.appendChild(bg);await draw();
+  bg.addEventListener('click',async e=>{
+    if(e.target===bg||e.target.closest('[data-close]')){bg.remove();after&&after();return}
+    if(e.target.closest('[data-up]'))bg.querySelector('#imgFile').click();
+    if(e.target.closest('[data-delimg]')){if(!confirm(`刪除「${n}」的圖片？`))return;try{await DB.setImg(n,null);toast('已刪除圖片');syncItemImg();await draw()}catch(err){alert('刪除失敗：'+(err.code==='permission-denied'?'沒有權限':err.message))}}
+  });
+}
+
 /* ====== 耗材種類與價格（同一個視窗）======
    耗材種類：耗材「管理」可以新增、刪除、調整順序（cfg.items）；價格：只有超級管理員看得到、改得到（csPrice/settings）。
    每種耗材一個單價，有規格的可以展開，個別規格另設價格（留空＝用耗材種類的單價）。先在視窗裡改，按「儲存」才一起存。 */
@@ -663,7 +744,7 @@ $('#cfgBtn').addEventListener('click',()=>{
     const rows=L.map((n,i)=>{const sp=edPrice?ITEM_SPECS[n]?.opts||[]:[];const setN=sp.filter(v=>Number.isFinite(P[n+'|'+v])).length;
       const on=openSpec.has(n);
       // 每種耗材一個框：耗材那一列＋（有規格時）名稱下方的「另設價格」開關，展開的規格價格縮排在同一個框裡
-      return `<div class="pr-grp${on?' open':''}"><div class="pr-row"><span class="pr-name">${esc(n)}${sp.length?`<button type="button" class="pr-tg" data-tg="${esc(n)}" aria-expanded="${on}">${on?'▾':'▸'} 依${esc(ITEM_SPECS[n].label)}另設價格（${sp.length} 種${setN?`，已設 ${setN} 種`:''}）</button>`:''}</span>${edPrice?inp(n,'單價'):''}${edCat?`<span class="pr-acts">${i?`<button type="button" class="btn-sm" data-up="${i}" title="往前移">↑</button>`:'<span class="pr-gap"></span>'}${i<L.length-1?`<button type="button" class="btn-sm" data-down="${i}" title="往後移">↓</button>`:'<span class="pr-gap"></span>'}<button type="button" class="btn-sm btn-danger" data-rm="${i}" title="刪除">×</button></span>`:''}</div>${sp.length&&on?`<div class="pr-specs"><div class="sub">${esc(n)} 的${esc(ITEM_SPECS[n].label)}價格，留空＝用上面的單價</div>${sp.map(v=>`<div class="pr-row sub-row"><span class="pr-name">${esc(v)}</span>${inp(n+'|'+v,'同上')}</div>`).join('')}</div>`:''}</div>`}).join('');
+      return `<div class="pr-grp${on?' open':''}"><div class="pr-row"><span class="pr-name">${esc(n)}${edCat?`<button type="button" class="pr-img${hasImg(n)?' has':''}" data-img="${esc(n)}" title="${hasImg(n)?'看／更換圖片':'上傳圖片'}">${hasImg(n)?'🖼 圖片':'＋ 圖片'}</button>`:''}${sp.length?`<button type="button" class="pr-tg" data-tg="${esc(n)}" aria-expanded="${on}">${on?'▾':'▸'} 依${esc(ITEM_SPECS[n].label)}另設價格（${sp.length} 種${setN?`，已設 ${setN} 種`:''}）</button>`:''}</span>${edPrice?inp(n,'單價'):''}${edCat?`<span class="pr-acts">${i?`<button type="button" class="btn-sm" data-up="${i}" title="往前移">↑</button>`:'<span class="pr-gap"></span>'}${i<L.length-1?`<button type="button" class="btn-sm" data-down="${i}" title="往後移">↓</button>`:'<span class="pr-gap"></span>'}<button type="button" class="btn-sm btn-danger" data-rm="${i}" title="刪除">×</button></span>`:''}</div>${sp.length&&on?`<div class="pr-specs"><div class="sub">${esc(n)} 的${esc(ITEM_SPECS[n].label)}價格，留空＝用上面的單價</div>${sp.map(v=>`<div class="pr-row sub-row"><span class="pr-name">${esc(v)}</span>${inp(n+'|'+v,'同上')}</div>`).join('')}</div>`:''}</div>`}).join('');
     bg.innerHTML=`<div class="modal" style="max-width:600px"><h3>${edPrice?'耗材種類與價格':'耗材種類'}</h3>
       <p class="hint">${edCat?'登記時從這份清單選擇，順序就是選單的順序（按 ↑ 往前移、↓ 往後移）。刪除種類不影響已登記的紀錄。':''}${edPrice?'價格只有超級管理員看得到（登記紀錄、統計、匯出 Excel 的金額）；金額＝數量 × 目前的單價。':''}改完按「儲存」才會生效。</p>
       <div class="pr-list">${rows||'<p class="hint">尚未設定</p>'}</div>
@@ -674,6 +755,7 @@ $('#cfgBtn').addEventListener('click',()=>{
   draw();document.body.appendChild(bg);
   bg.addEventListener('click',async e=>{
     if(e.target===bg||e.target.closest('[data-close]')){bg.remove();return}
+    const im=e.target.closest('[data-img]');if(im){grab();imgDialog(im.dataset.img,draw);return}
     const tg=e.target.closest('[data-tg]');if(tg){grab();const n=tg.dataset.tg;openSpec.has(n)?openSpec.delete(n):openSpec.add(n);draw();bg.querySelector(`[data-tg="${CSS.escape(n)}"]`)?.closest('.pr-grp')?.scrollIntoView({block:'nearest'});return}
     if(e.target.closest('[data-add]')){grab();const box=bg.querySelector('#newItem'),n=box.value.trim();if(!n)return;if(L.includes(n)){alert('已經有這個種類');return}
       L.push(n);removed=removed.filter(x=>x!==n);draw();const row=[...bg.querySelectorAll('.pr-row:not(.sub-row)')].pop();row?.scrollIntoView({block:'nearest'});bg.querySelector('#newItem')?.focus();return}
