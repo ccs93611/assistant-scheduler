@@ -79,7 +79,7 @@ const TREATMENT_INFO=[
  time:'約 2 次（修整取模 → 黏著），部分可當日完成。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
 {id:'veneer',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 美學貼片',items:['日本GC Initial LiSi Block美學貼片'],old:['GC Initial LiSi Block美學貼片','Veneer美學貼片'],
- about:{label:'貼片厚度',icon:'📏',src:['media/veneer-thick-1.png','media/veneer-thick-2.png'],alt:'美學貼片厚度：薄透的陶瓷貼片，黏著在牙齒表面'},
+ about:{label:'貼片厚度',icon:'📏',src:'media/veneer-thick-2.png?v=2',alt:'美學貼片厚度：薄透的陶瓷貼片，黏著在牙齒表面'},
  table:TI_GC_EMAX,
  pics:{src:'media/veneer-gc-source.webp',w:1671,h:941,rows:[
   [{x:36,y:117,w:510,h:231,cap:'治療前：上顎前牙 8 顆顏色較黃、有缺損、輕微汙漬與不整齊'},{x:603,y:117,w:461,h:231,cap:'少量修磨牙齒，進行數位取模，製作 GC 瓷塊貼片'},{x:1121,y:117,w:512,h:231,cap:'完成上顎前牙 8 顆 GC 瓷塊貼片，色澤自然、型態美觀、與臉型協調'}],
@@ -90,7 +90,7 @@ const TREATMENT_INFO=[
  time:'約 1～2 次，部分可當日完成。',
  care:['避免啃咬過硬物體（啃骨頭、咬瓜子殼、開瓶蓋）','治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
 {id:'veneer-emax',cat:'固定式贗復',strength:'emax',title:'列支敦斯登 E.max 美學貼片',items:['列支敦斯登E.max美學貼片'],
- about:{label:'貼片厚度',icon:'📏',src:['media/veneer-thick-1.png','media/veneer-thick-2.png'],alt:'美學貼片厚度：薄透的陶瓷貼片，黏著在牙齒表面'},
+ about:{label:'貼片厚度',icon:'📏',src:'media/veneer-thick-2.png?v=2',alt:'美學貼片厚度：薄透的陶瓷貼片，黏著在牙齒表面'},
  table:TI_GC_EMAX,
  pics:{src:'media/veneer-emax-source.webp',w:1672,h:941,rows:[
   [{x:83,y:118,w:473,h:271,cap:'牙齒變色、缺損或外形不佳'},{x:612,y:118,w:451,h:271,cap:'少量修磨牙齒表面'},{x:1117,y:118,w:473,h:271,cap:'製作並黏著陶瓷貼片，恢復美觀'}],
@@ -583,11 +583,16 @@ function tiTog(b){
   if(open)b.closest('.ti-cmps')?.querySelectorAll('.ti-tbl-btn.on').forEach(x=>{if(x!==b){x.classList.remove('on');x.nextElementSibling.hidden=true}});
   w.hidden=!open;b.classList.toggle('on',open)}
 /* 圖片彈窗（例如舒眠麻醉「關於舒美麻醉」；src 用 | 串多張時上下排）：點圖片放大／縮回（放大後可捲動），點背景、✕ 或按 Esc 關閉 */
-function tiPop(src,alt,html){
-  const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'')+(html?' mkp':'');o.setAttribute('role','dialog');o.setAttribute('aria-label',alt||'');
+function tiPop(src,alt,html,side){
+  const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'')+(html?' mkp':'')+(side?' side':'');o.setAttribute('role','dialog');o.setAttribute('aria-label',alt||'');
   o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button><button type="button" class="pr" aria-label="列印">🖨️ 列印</button>${html?html+`<img class="raw" src="${tiEsc(us[0])}" alt="${tiEsc(alt||'')}">`:us.map(u=>`<img src="${tiEsc(u)}" alt="${tiEsc(alt||'')}">`).join('')}`;
   const close=()=>{o.remove();removeEventListener('keydown',key)},key=ev=>{if(ev.key==='Escape')close()};
-  o.onclick=ev=>{if(ev.target.tagName==='IMG')o.classList.toggle('full');else if(ev.target.closest('.pr'))tiPopPrint();else close()};addEventListener('keydown',key);document.body.appendChild(o)}
+  o.onclick=ev=>{if(ev.target.tagName==='IMG')o.classList.toggle('full');else if(ev.target.closest('.pr'))tiPopPrint();else close()};addEventListener('keydown',key);document.body.appendChild(o);
+  if(us.length>1&&!html){const ims=[...o.querySelectorAll('img')];
+    Promise.all(ims.map(i=>i.decode().catch(()=>{}))).then(()=>{const r=ims.reduce((a,i)=>a+(i.naturalHeight/i.naturalWidth||0),0);
+      if(r)o.style.setProperty('--mw',Math.max(240,(innerHeight-32-12*(ims.length-1))/r)+'px');
+      const q=ims.reduce((a,i)=>a+(i.naturalWidth/i.naturalHeight||0),0);
+      if(side&&q)o.style.setProperty('--mh',Math.min(innerHeight-32,(innerWidth-32-12*(ims.length-1))/q)+'px')})}}
 /* 彈窗裡的「列印」：只印彈窗的圖，一張圖一頁 A4 */
 async function tiPopPrint(){
   await Promise.all([...document.querySelectorAll('.ti-pop img')].map(i=>i.decode().catch(()=>{})));
@@ -601,7 +606,7 @@ function tiBodyHtml(e){
   const tog=`onclick="tiTog(this)"`;
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
     e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):'',
-    e.about?[].concat(e.about).map(x=>`<div class="ti-sec ti-about"><button type="button" class="ti-str-btn ti-tbl-btn" data-src="${tiEsc([].concat(x.src).join('|'))}" data-alt="${tiEsc(x.alt||x.label)}" onclick="tiPop(this.dataset.src,this.dataset.alt)">${x.icon||'ℹ️'} ${tiEsc(x.label)}</button></div>`).join(''):''].join('');
+    e.about?[].concat(e.about).map(x=>`<div class="ti-sec ti-about"><button type="button" class="ti-str-btn ti-tbl-btn" data-src="${tiEsc([].concat(x.src).join('|'))}" data-alt="${tiEsc(x.alt||x.label)}" ${x.side?' data-side="1"':''} onclick="tiPop(this.dataset.src,this.dataset.alt,'',!!this.dataset.side)">${x.icon||'ℹ️'} ${tiEsc(x.label)}</button></div>`).join(''):''].join('');
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}${e.photoLead?' big1':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
@@ -675,7 +680,8 @@ const TI_CSS=`
 .ti-pop.mkp{background:rgba(0,0,0,.93)}.ti-pop.mkp .lb{font-size:1.15em;width:7em}.ti-pop.mkp .lb small{font-size:.8em;color:#d5dde0}
 .ti-pop{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;padding:16px;overflow:auto}
 .ti-pop img{max-width:100%;max-height:calc(100vh - 32px);height:auto;flex:none;border-radius:8px;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.5);cursor:zoom-in}
-.ti-pop.multi img{width:min(100%,1000px);max-height:none} /* 多張圖：寬度一致，上下捲動 */
+.ti-pop.multi img{width:min(100%,1000px,var(--mw,1000px));max-height:none} /* 多張圖：寬度一致；剛打開時整組縮到一個畫面放得下（--mw 由 tiPop 依圖片比例算），點圖再放大 */
+.ti-pop.side{flex-direction:row;justify-content:safe center;align-items:center}.ti-pop.side img{width:auto;height:var(--mh,40vh);max-width:none;max-height:none}.ti-pop.side.full img{height:auto}
 .ti-pop.full{display:block}.ti-pop.full img{max-width:none;max-height:none;width:max(100%,1600px);display:block;margin:0 0 12px;cursor:zoom-out}
 .ti-pop .x{position:fixed;top:10px;right:12px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.9);color:#111;font-size:20px;cursor:pointer}
 .ti-pop .pr{position:fixed;top:10px;right:62px;height:40px;padding:0 14px;border-radius:20px;border:0;background:rgba(255,255,255,.9);color:#111;font-size:15px;cursor:pointer}
