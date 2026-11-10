@@ -79,6 +79,7 @@ const TREATMENT_INFO=[
  time:'約 2 次（修整取模 → 黏著），部分可當日完成。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
 {id:'veneer',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 美學貼片',items:['日本GC Initial LiSi Block美學貼片'],old:['GC Initial LiSi Block美學貼片','Veneer美學貼片'],
+ about:{label:'貼片厚度',icon:'📏',src:['media/veneer-thick-1.png','media/veneer-thick-2.png'],alt:'美學貼片厚度：薄透的陶瓷貼片，黏著在牙齒表面'},
  table:TI_GC_EMAX,
  pics:{src:'media/veneer-gc-source.webp',w:1671,h:941,rows:[
   [{x:36,y:117,w:510,h:231,cap:'治療前：上顎前牙 8 顆顏色較黃、有缺損、輕微汙漬與不整齊'},{x:603,y:117,w:461,h:231,cap:'少量修磨牙齒，進行數位取模，製作 GC 瓷塊貼片'},{x:1121,y:117,w:512,h:231,cap:'完成上顎前牙 8 顆 GC 瓷塊貼片，色澤自然、型態美觀、與臉型協調'}],
@@ -89,6 +90,7 @@ const TREATMENT_INFO=[
  time:'約 1～2 次，部分可當日完成。',
  care:['避免啃咬過硬物體（啃骨頭、咬瓜子殼、開瓶蓋）','治療後幾天可能對冷熱敏感，通常會慢慢改善','有夜間磨牙的人建議配戴咬合板保護']},
 {id:'veneer-emax',cat:'固定式贗復',strength:'emax',title:'列支敦斯登 E.max 美學貼片',items:['列支敦斯登E.max美學貼片'],
+ about:{label:'貼片厚度',icon:'📏',src:['media/veneer-thick-1.png','media/veneer-thick-2.png'],alt:'美學貼片厚度：薄透的陶瓷貼片，黏著在牙齒表面'},
  table:TI_GC_EMAX,
  pics:{src:'media/veneer-emax-source.webp',w:1672,h:941,rows:[
   [{x:83,y:118,w:473,h:271,cap:'牙齒變色、缺損或外形不佳'},{x:612,y:118,w:451,h:271,cap:'少量修磨牙齒表面'},{x:1117,y:118,w:473,h:271,cap:'製作並黏著陶瓷貼片，恢復美觀'}],
