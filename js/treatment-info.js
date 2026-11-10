@@ -523,6 +523,7 @@ function tiFind(name){return TI_BY_ITEM[name]||null}
 function tiEsc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 /* 陶瓷材質強度比較（介紹裡有 strength 的項目，說明後面會有「強度比較」按鈕；key 對應 strength） */
 const TI_STRENGTH=[
+  {key:'resin',name:'樹脂',mpa:'約 60～90 MPa',use:'用於小型齲齒時'},
   {key:'enamel',name:'人類天然牙齒（琺瑯質）',mpa:'約 200 MPa',use:'天然保護層'},
   {key:'gc',name:'GC 玻璃陶瓷（二矽酸鋰）',mpa:'約 408～508 MPa',use:'美白貼片、前牙及小臼齒單顆假牙、3D 齒雕（強調免燒結、快速完工）'},
   {key:'emax',name:'E.max 玻璃陶瓷（二矽酸鋰）',mpa:'約 360～450 MPa',use:'美白貼片、前牙及小臼齒單顆假牙（業界金標準、文獻最多）'},
