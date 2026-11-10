@@ -642,8 +642,9 @@ $('#fItemMenu').addEventListener('click',e=>{
   const p=e.target.closest('[data-pick]');if(!p)return;
   $('#fItem').value=p.dataset.pick;closeItemMenu();$('#fItem').dispatchEvent(new Event('change'));$('#fItemBtn').focus();
 });
-document.addEventListener('click',e=>{if(!e.target.closest('#fItemDD'))closeItemMenu()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#fItemMenu').hidden){closeItemMenu();$('#fItemBtn').focus()}});
+// 點清單以外的地方才收起；看圖片的視窗（含關閉）不算，關掉圖片後清單維持展開
+document.addEventListener('click',e=>{if(!e.target.isConnected||e.target.closest('#fItemDD,.modal-bg'))return;closeItemMenu()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#fItemMenu').hidden&&!document.querySelector('.modal-bg')){closeItemMenu();$('#fItemBtn').focus()}});
 $('#fSpec').addEventListener('change',colorSpec);
 $('#fGrid').addEventListener('click',e=>{const b=e.target.closest('[data-sg]');if(!b)return;const v=b.dataset.sg;
   // 點格子：沒選過 → 1 支；已選 → 再加 1 支。修改既有紀錄時換成別格（保留支數）
