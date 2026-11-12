@@ -119,7 +119,7 @@ const TREATMENT_INFO=[
  time:'配戴到正式假牙完成，約數週至數月。',
  care:['臨時假牙較不堅固，避免咬硬、黏的食物（麻糬、牛軋糖、口香糖）','用牙線時從側邊抽出，不要往上拉','若鬆脫請保留並儘快回診重新黏上']},
 {id:'crown-cercon',cat:'固定式贗復',strength:'zr',title:'德國 Cercon 全鋯冠',items:['德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙'],old:['Crown氧化鋯-前牙','Crown氧化鋯-後牙','德國 Cercon全鋯冠-前牙','德國 Cercon全鋯冠-後牙'],
- about:{label:'牙橋',icon:'🌉',src:'media/cercon-bridge.webp',alt:'牙橋：磨小缺牙兩側的牙齒當支柱，套上連在一起的全鋯牙冠，補起中間缺的牙'},
+ about:{label:'牙橋',icon:'🌉',scale:0.7,src:'media/cercon-bridge.webp',alt:'牙橋：磨小缺牙兩側的牙齒當支柱，套上連在一起的全鋯牙冠，補起中間缺的牙'},
  pics:{src:'media/crown-cercon-source.webp',w:1536,h:1024,rows:[
   [{x:60,y:117,w:445,h:262,cap:'1. 舊有全瓷冠\n舊全瓷冠已有磨損、變色或邊緣不密合'},{x:556,y:117,w:427,h:262,cap:'2. 拆除舊假牙\n拆除舊全瓷冠，評估牙齒狀況'},{x:1039,y:117,w:438,h:262,cap:'3. 修型磨邊緣\n修磨牙齒，製作全鋯冠所需的牙體形態'}],
   [{x:60,y:517,w:671,h:330,cap:'4. 裝臨時假牙\n裝戴臨時假牙，保護牙齒並維持咬合'},{x:804,y:517,w:673,h:330,cap:'5. 裝正式假牙\n以全鋯材料製作正式假牙，完成裝戴，恢復牙齒外形與功能'}]]},
@@ -260,6 +260,7 @@ const TREATMENT_INFO=[
  care:['術後 2～3 天可能腫脹，前 48 小時冰敷，避免熱敷','術後一週避免抽菸、喝酒、劇烈運動','依醫囑服藥，約 7～14 天回診拆線','植牙不會蛀牙，但會得「植體周圍炎」：要確實清潔並每 3～6 個月回診檢查','有糖尿病、骨質疏鬆用藥、抗凝血藥物等請事先告知醫師'],
  note:'醫師會依骨量、部位、咬合與預算，與您討論適合的植體。前牙與後牙因美觀需求與咬合力不同，治療內容與費用也不同。'},
 {id:'implant-crown',cat:'植牙式贗復',title:'德國 Cercon 全鋯植牙冠',items:['德國Cercon全鋯植牙冠-前牙','德國Cercon全鋯植牙冠-後牙'],old:['植牙全鋯冠-前牙','植牙全鋯冠-後牙'],
+ photo:{src:'media/implant-crown.png',alt:'全鋯植牙冠：氧化鋯牙冠連接金色基台，以螺絲鎖在植體上'},
  what:'使用德國 Cercon 氧化鋯製作裝在植體上的牙冠。不含金屬，顏色自然，強度（Flexural Strength）最高可達 1200 MPa、耐咬、不易崩瓷。依需要以螺絲固定或黏著固定。',
  who:['植體已經與骨頭結合、準備裝假牙的人'],
  steps:['口內掃描或取模','製作牙冠（必要時先試戴）','鎖上或黏上牙冠，調整咬合'],
@@ -592,8 +593,8 @@ function tiTog(b){
   if(open)b.closest('.ti-cmps')?.querySelectorAll('.ti-tbl-btn.on').forEach(x=>{if(x!==b){x.classList.remove('on');x.nextElementSibling.hidden=true}});
   w.hidden=!open;b.classList.toggle('on',open)}
 /* 圖片彈窗（例如舒眠麻醉「關於舒美麻醉」；src 用 | 串多張時上下排）：點圖片放大／縮回（放大後可捲動），點背景、✕ 或按 Esc 關閉 */
-function tiPop(src,alt,html,side){
-  const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'')+(html?' mkp':'')+(side?' side':'');o.setAttribute('role','dialog');o.setAttribute('aria-label',alt||'');
+function tiPop(src,alt,html,side,scale){
+  const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'')+(html?' mkp':'')+(side?' side':'');o.setAttribute('role','dialog');if(scale)o.style.setProperty('--sc',scale);o.setAttribute('aria-label',alt||'');
   o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button><button type="button" class="pr" aria-label="列印">🖨️ 列印</button>${html?html+`<img class="raw" src="${tiEsc(us[0])}" alt="${tiEsc(alt||'')}">`:us.map(u=>`<img src="${tiEsc(u)}" alt="${tiEsc(alt||'')}">`).join('')}`;
   const close=()=>{o.remove();removeEventListener('keydown',key)},key=ev=>{if(ev.key==='Escape')close()};
   o.onclick=ev=>{if(ev.target.tagName==='IMG')o.classList.toggle('full');else if(ev.target.closest('.pr'))tiPopPrint();else close()};addEventListener('keydown',key);document.body.appendChild(o);
@@ -615,7 +616,7 @@ function tiBodyHtml(e){
   const tog=`onclick="tiTog(this)"`;
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
     e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):'',
-    e.about?[].concat(e.about).map(x=>`<div class="ti-sec ti-about"><button type="button" class="ti-str-btn ti-tbl-btn" data-src="${tiEsc([].concat(x.src).join('|'))}" data-alt="${tiEsc(x.alt||x.label)}" ${x.side?' data-side="1"':''} onclick="tiPop(this.dataset.src,this.dataset.alt,'',!!this.dataset.side)">${x.icon||'ℹ️'} ${tiEsc(x.label)}</button></div>`).join(''):''].join('');
+    e.about?[].concat(e.about).map(x=>`<div class="ti-sec ti-about"><button type="button" class="ti-str-btn ti-tbl-btn" data-src="${tiEsc([].concat(x.src).join('|'))}" data-alt="${tiEsc(x.alt||x.label)}" ${x.side?' data-side="1"':''}${x.scale?` data-scale="${x.scale}"`:''} onclick="tiPop(this.dataset.src,this.dataset.alt,'',!!this.dataset.side,this.dataset.scale)">${x.icon||'ℹ️'} ${tiEsc(x.label)}</button></div>`).join(''):''].join('');
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}${e.photoLead?' big1':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
@@ -688,7 +689,7 @@ const TI_CSS=`
 .ti-pop.mkp:not(.full) img.raw,.ti-pop.mkp.full .ti-tbl-pics{display:none}
 .ti-pop.mkp{background:rgba(0,0,0,.93)}.ti-pop.mkp .lb{font-size:1.15em;width:7em}.ti-pop.mkp .lb small{font-size:.8em;color:#d5dde0}
 .ti-pop{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;padding:16px;overflow:auto}
-.ti-pop img{max-width:100%;max-height:calc(100vh - 32px);height:auto;flex:none;border-radius:8px;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.5);cursor:zoom-in}
+.ti-pop img{max-width:calc(100% * var(--sc,1));max-height:calc((100vh - 32px) * var(--sc,1));height:auto;flex:none;border-radius:8px;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.5);cursor:zoom-in}
 .ti-pop.multi img{width:min(100%,1000px,var(--mw,1000px));max-height:none} /* 多張圖：寬度一致；剛打開時整組縮到一個畫面放得下（--mw 由 tiPop 依圖片比例算），點圖再放大 */
 .ti-pop.side{flex-direction:row;justify-content:safe center;align-items:center}.ti-pop.side img{width:auto;height:var(--mh,40vh);max-width:none;max-height:none}.ti-pop.side.full img{height:auto}
 .ti-pop.full{display:block}.ti-pop.full img{max-width:none;max-height:none;width:max(100%,1600px);display:block;margin:0 0 12px;cursor:zoom-out}
