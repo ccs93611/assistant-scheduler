@@ -592,6 +592,11 @@ function tiTermsHtml(t){
     <p class="by">${tiEsc(t.by)}</p><p class="dep">${tiEsc(t.deposit)}</p>${before}${day}<ul class="foot">${t.foot.map(x=>'<li>'+tiEsc(x)+'</li>').join('')}</ul></div></div>`}
 /* 介紹裡的照片點一下就用彈窗放大（兩頁共用；列印模式時不動作） */
 addEventListener('click',ev=>{
+  const cr=ev.target.closest?.('.ti-crop');
+  if(cr&&!cr.closest('.ti-pop')&&!document.body.classList.contains('pm')){
+    const [w,h]=(cr.style.aspectRatio||'1/1').split('/').map(Number),ar=w/h||1;
+    const W=Math.min(1000,innerWidth-32,(innerHeight-32)*ar);
+    tiPop('',cr.getAttribute('aria-label')||'',`<div class="ti-crop zc" style="${cr.getAttribute('style')};width:${Math.round(W)}px"></div>`);return}
   const i=ev.target.closest?.('.ti-photo img,.ti-photos img,.ti-tbl-pics img');
   if(!i||i.closest('.ti-pop')||document.body.classList.contains('pm'))return;
   ev.preventDefault();const pw=i.closest('.pw');
@@ -696,7 +701,7 @@ const TI_CSS=`
 .ti-terms-wrap td:first-child{white-space:nowrap}
 .ti-terms-wrap .foot{margin:10px 0 0;padding-left:1.2em;font-size:.85em;color:var(--muted)}
 @media print{.ti-terms-wrap{break-inside:avoid}}
-.ti-photo img,.ti-photos img,.ti-tbl-pics img{cursor:zoom-in}
+.ti-photo img,.ti-photos img,.ti-tbl-pics img,.ti-crop{cursor:zoom-in}.ti-pop .ti-crop.zc{flex:none;cursor:default;border-radius:10px}
 .ti-pop.mkp .ti-tbl-pics{font-size:clamp(14px,2.2vw,20px);margin:auto;width:100%;justify-content:center;flex-direction:row;position:static}
 .ti-pop.mkp .ti-tbl-pics figure.mk{flex:none;width:min(616px,calc(100% - 10.5em),calc((100vh - 60px)*1.0));max-width:none;margin:0 10.5em 0 0}
 .ti-pop.mkp .ti-tbl-pics img{max-height:none;cursor:zoom-in}
