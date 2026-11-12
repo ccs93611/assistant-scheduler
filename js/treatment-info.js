@@ -366,6 +366,7 @@ const TREATMENT_INFO=[
  time:'手術 1 次，約 7～14 天拆線；做正式假牙前通常需等待 1～3 個月讓牙齦穩定（前牙較久）。',
  care:['術後牙齦可能腫、牙齒暫時敏感','手術部位用軟毛牙刷輕刷，可依醫囑使用漱口水','避免辛辣、過熱的食物']},
 {id:'fgg',cat:'牙周手術',title:'FGG 角化牙齦移植',items:['FGG角化牙齦移植'],
+ pics:{src:'media/fgg-a.webp',w:2000,h:1333,bigArrow:true,columns:[{title:'術前',cells:[{src:'media/fgg-a.webp',iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'側面'},{src:'media/fgg-b.webp',rot:180,iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'咬合面'}]},{title:'移植當天',cells:[{src:'media/fgg-f.webp',iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'取上顎牙齦移植、縫合固定'}]},{title:'癒合後',cells:[{src:'media/fgg-g.webp',iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'側面'},{src:'media/fgg-h.webp',rot:180,iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'咬合面'}]}]},
  what:'從上顎取一小片牙齦，移植到牙齒或植體周圍角化牙齦（較厚、較硬的牙齦）不足的地方，增加保護，讓刷牙不痛、減少牙齦萎縮與植體周圍發炎。',
  who:['牙齒或植體周圍牙齦很薄、刷牙會痛的人','牙齦持續萎縮的人','植體周圍沒有足夠角化牙齦的人'],
  steps:['局部麻醉','準備受贈區','從上顎取下牙齦','縫合固定在受贈區','上顎取組織處可戴保護板'],
@@ -554,10 +555,13 @@ function tiStrengthHtml(cur){
 function tiStepsHtml(p){
   const pos=(v,room)=>room>0?(v/room*100).toFixed(3):0; // 裁切寬（高）跟原圖一樣時不用位移
   const crop=r=>{const src=r.src||p.src,W=r.iw||p.w,H=r.ih||p.h;return `<div class="ti-crop" role="img" aria-label="${tiEsc(r.cap)}" style="aspect-ratio:${r.w}/${r.h};background-image:url('${tiEsc(src)}');`+
-    `background-size:${(W/r.w*100).toFixed(3)}% auto;background-position:${pos(r.x,W-r.w)}% ${pos(r.y,H-r.h)}%"></div>`};
+    `background-size:${(W/r.w*100).toFixed(3)}% auto;background-position:${pos(r.x,W-r.w)}% ${pos(r.y,H-r.h)}%${r.rot?`;transform:rotate(${r.rot}deg)`:''}"></div>`}; // rot：旋轉角度（例如 180）
   const capHtml=c=>{const[t,...m]=c.split('\n');return m.length?`<b>${tiEsc(t)}</b><br>${m.map(tiEsc).join('<br>')}`:tiEsc(t)}; // 有換行時第一行當小標題
   const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  return `<div class="ti-steps${p.bigArrow?' big':''}" style="${p.maxw?`max-width:${p.maxw}px;`:''}${p.printScale?`--pw:${p.printScale*100}%`:''}">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}${r.cap?`<figcaption>${capHtml(r.cap)}</figcaption>`:''}</figure>`).join('')}</div>`).join(p.down?`<div class="ti-darr">${arr}</div>`:'')}</div>`;
+  const fig=r=>`<figure>${crop(r)}${r.cap?`<figcaption>${capHtml(r.cap)}</figcaption>`:''}</figure>`;
+  if(p.columns)return `<div class="ti-steps ti-cols${p.bigArrow?' big':''}" style="${p.maxw?`max-width:${p.maxw}px;`:''}${p.printScale?`--pw:${p.printScale*100}%`:''}"><div class="ti-row">${
+    p.columns.map(c=>`<div class="ti-col">${c.title?`<div class="ti-col-t">${tiEsc(c.title)}</div>`:''}<div class="ti-col-b">${c.cells.map(fig).join('')}</div></div>`).join(arr)}</div></div>`;
+  return `<div class="ti-steps${p.bigArrow?' big':''}" style="${p.maxw?`max-width:${p.maxw}px;`:''}${p.printScale?`--pw:${p.printScale*100}%`:''}">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="${p.cols?`flex:0 1 calc((100% - ${(p.cols-1)*(p.bigArrow?46:24)}px) / ${p.cols})`:`flex-grow:${(r.w/r.h).toFixed(3)}`}">${crop(r)}${r.cap?`<figcaption>${capHtml(r.cap)}</figcaption>`:''}</figure>`).join('')}</div>`).join(p.down?`<div class="ti-darr">${arr}</div>`:'')}</div>`;
 }
 /* 比較表（例如隱適美各方案）：hl＝要強調的欄（該欄的粗體字用紅色）；預設收起來，點「📊 標題」按鈕才展開（跟強度比較一樣，列印時只印展開的）；格子裡的 \n 換行（第二行起小字）、**文字** 粗體，第一欄第一行粗體 */
 function tiTableHtml(t){
@@ -645,7 +649,10 @@ const TI_CSS=`
 .ti-row figcaption{margin-top:6px;text-align:center;font-size:13px;line-height:1.45}
 .ti-arr{flex:0 0 12px;width:12px;height:20px;align-self:center;margin-top:-1.6em}
 .ti-darr{display:flex;justify-content:center;margin:-6px 0}.ti-darr .ti-arr{transform:rotate(90deg);margin:0}
-.ti-steps.big .ti-row{gap:10px}.ti-steps.big .ti-arr{flex:0 0 26px;width:26px;height:44px}.ti-steps.big figcaption{font-weight:700;font-size:1.05em;color:var(--ink)}
+.ti-steps.big .ti-row{gap:10px;justify-content:center}
+.ti-cols .ti-row{align-items:stretch}.ti-cols .ti-arr{align-self:center;margin-top:0}
+.ti-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column}.ti-col-t{text-align:center;font-weight:700;color:var(--accent);margin-bottom:6px}
+.ti-col-b{flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px}.ti-col-b figure{margin:0;flex:none}.ti-steps.big .ti-arr{flex:0 0 26px;width:26px;height:44px}.ti-steps.big figcaption{font-weight:700;font-size:1.05em;color:var(--ink)}
 @media print{.ti-steps{break-inside:avoid}}
 .ti-photos{display:flex;gap:10px;margin:0 auto 14px;max-width:760px}
 .ti-photos.big1{flex-wrap:wrap}.ti-photos.big1 img:first-child{flex:0 0 100%} /* photoLead：第一張放大在上，其餘並排在下 */
