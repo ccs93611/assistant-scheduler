@@ -359,7 +359,7 @@ const TREATMENT_INFO=[
  care:['填補後即可進食，麻藥未退前避免咬到嘴唇或臉頰','避免用填補處咬過硬的東西','深的蛀牙填補後可能短暫敏感']},
 /* ---------- 牙周手術 ---------- */
 {id:'clp',cat:'牙周手術',title:'CLP 牙冠增長術',items:['CLP牙冠增長術'],
- pics:{src:'media/clp.webp',w:1233,h:1276,printScale:0.5,bigArrow:true,down:true,maxw:620,rows:[[{x:0,y:0,w:1233,h:621,cap:'術前'}],[{x:0,y:653,w:1233,h:623,cap:'術後'}]]},
+ pics:{src:'media/clp.webp',w:1233,h:1276,bigArrow:true,rows:[[{x:0,y:0,w:1233,h:621,cap:'術前'},{x:0,y:653,w:1233,h:623,cap:'術後'}],[{src:'media/clp-2.webp',iw:1048,ih:1501,x:9,y:59,w:1034,h:639,cap:'術前'},{src:'media/clp-2.webp',iw:1048,ih:1501,x:9,y:804,w:1034,h:690,cap:'術後'}]]},
  what:'把牙齦（必要時連同少量骨頭）修整到適當的位置，讓牙齒露出更多。可用於蛀牙或斷裂在牙齦下、牙冠太短做不了假牙，或改善「露齦笑」、牙齦高低不齊。',
  who:['蛀牙、斷裂延伸到牙齦下的牙齒','牙冠太短、假牙不易固定的人','露齦笑或牙齦線不對稱的人'],
  steps:['局部麻醉','修整牙齦與骨頭','縫合','癒合後再進行假牙或美學治療'],
@@ -553,8 +553,8 @@ function tiStrengthHtml(cur){
 /* 步驟圖：從同一張圖裁出每一格（CSS 背景定位），每列格子之間加箭頭，下方是說明文字 */
 function tiStepsHtml(p){
   const pos=(v,room)=>room>0?(v/room*100).toFixed(3):0; // 裁切寬（高）跟原圖一樣時不用位移
-  const crop=r=>`<div class="ti-crop" role="img" aria-label="${tiEsc(r.cap)}" style="aspect-ratio:${r.w}/${r.h};background-image:url('${tiEsc(p.src)}');`+
-    `background-size:${(p.w/r.w*100).toFixed(3)}% auto;background-position:${pos(r.x,p.w-r.w)}% ${pos(r.y,p.h-r.h)}%"></div>`;
+  const crop=r=>{const src=r.src||p.src,W=r.iw||p.w,H=r.ih||p.h;return `<div class="ti-crop" role="img" aria-label="${tiEsc(r.cap)}" style="aspect-ratio:${r.w}/${r.h};background-image:url('${tiEsc(src)}');`+
+    `background-size:${(W/r.w*100).toFixed(3)}% auto;background-position:${pos(r.x,W-r.w)}% ${pos(r.y,H-r.h)}%"></div>`};
   const capHtml=c=>{const[t,...m]=c.split('\n');return m.length?`<b>${tiEsc(t)}</b><br>${m.map(tiEsc).join('<br>')}`:tiEsc(t)}; // 有換行時第一行當小標題
   const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   return `<div class="ti-steps${p.bigArrow?' big':''}" style="${p.maxw?`max-width:${p.maxw}px;`:''}${p.printScale?`--pw:${p.printScale*100}%`:''}">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}${r.cap?`<figcaption>${capHtml(r.cap)}</figcaption>`:''}</figure>`).join('')}</div>`).join(p.down?`<div class="ti-darr">${arr}</div>`:'')}</div>`;
