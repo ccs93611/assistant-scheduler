@@ -491,7 +491,7 @@ const TREATMENT_INFO=[
  note:'舒眠麻醉需事先評估，並非每個人都適合，醫師會在治療前與您說明。'},
 /* ---------- 牙齒美白 ---------- */
 {id:'home-whitening',cat:'牙齒美白',title:'客製化居家美白',items:['客製化居家美白'],
- about:{label:'術前術後比較',icon:'🔍',src:'media/home-white-ba.webp',alt:'居家美白術前術後比較：上為術前牙齒偏黃，下為美白後'},
+ about:{label:'術前術後比較',icon:'🔍',src:'media/home-white-ba.webp',iw:1254,ih:1254,crops:[{x:57,y:56,w:1140,h:551},{x:57,y:644,w:1140,h:552}],alt:'居家美白術前術後比較：上為術前牙齒偏黃，下為美白後'},
  pics:{src:'media/home-white-1.png',w:300,h:225,bigArrow:true,maxw:600,rows:[[{x:0,y:0,w:300,h:225,cap:'在美白牙托內擠入美白凝膠'},{src:'media/home-white-2.png',iw:354,ih:227,x:0,y:0,w:354,h:227,cap:'戴上牙托，依醫師指示的時間配戴'}]]},
  what:'依您的牙齒訂製專屬的美白牙托，在家中把醫師開立的美白凝膠放進牙托配戴，讓藥劑慢慢分解牙齒內部的色素，使牙齒變亮。效果自然、較持久。',
  who:['牙齒顏色偏黃、想讓牙齒變白的人','希望在家自行安排時間美白的人'],
@@ -610,6 +610,11 @@ function tiTog(b){
   const w=b.nextElementSibling,open=w.hidden;
   if(open)b.closest('.ti-cmps')?.querySelectorAll('.ti-tbl-btn.on').forEach(x=>{if(x!==b){x.classList.remove('on');x.nextElementSibling.hidden=true}});
   w.hidden=!open;b.classList.toggle('on',open)}
+function tiPopCrops(b){
+  const {iw,ih,c}=JSON.parse(b.dataset.crops),src=b.dataset.src,gap=10;
+  const r=c.reduce((a,k)=>a+k.h/k.w,0),W=Math.round(Math.min(1000,innerWidth-32,(innerHeight-32-gap*(c.length-1))/r));
+  const pos=(v,room)=>room>0?(v/room*100).toFixed(3):0;
+  tiPop(src,b.dataset.alt,`<div style="display:flex;flex-direction:column;gap:${gap}px">${c.map(k=>`<div class="ti-crop zc" style="width:${W}px;aspect-ratio:${k.w}/${k.h};background-image:url('${tiEsc(src)}');background-size:${(iw/k.w*100).toFixed(3)}% auto;background-position:${pos(k.x,iw-k.w)}% ${pos(k.y,ih-k.h)}%"></div>`).join('')}</div>`)}
 /* 圖片彈窗（例如舒眠麻醉「關於舒美麻醉」；src 用 | 串多張時上下排）：點圖片放大／縮回（放大後可捲動），點背景、✕ 或按 Esc 關閉 */
 function tiPop(src,alt,html,side,scale){
   const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'')+(html?' mkp':'')+(side?' side':'');o.setAttribute('role','dialog');if(scale)o.style.setProperty('--sc',scale);o.setAttribute('aria-label',alt||'');
@@ -634,7 +639,7 @@ function tiBodyHtml(e){
   const tog=`onclick="tiTog(this)"`;
   const cmps=[e.strength?`<div class="ti-sec ti-strw"><button type="button" class="ti-str-btn ti-tbl-btn" ${tog}>📊 強度比較</button>${tiStrengthHtml(e.strength)}</div>`:'',
     e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):'',
-    e.about?[].concat(e.about).map(x=>`<div class="ti-sec ti-about"><button type="button" class="ti-str-btn ti-tbl-btn" data-src="${tiEsc([].concat(x.src).join('|'))}" data-alt="${tiEsc(x.alt||x.label)}" ${x.side?' data-side="1"':''}${x.scale?` data-scale="${x.scale}"`:''} onclick="tiPop(this.dataset.src,this.dataset.alt,'',!!this.dataset.side,this.dataset.scale)">${x.icon||'ℹ️'} ${tiEsc(x.label)}</button></div>`).join(''):''].join('');
+    e.about?[].concat(e.about).map(x=>`<div class="ti-sec ti-about"><button type="button" class="ti-str-btn ti-tbl-btn" data-src="${tiEsc([].concat(x.src).join('|'))}" data-alt="${tiEsc(x.alt||x.label)}" ${x.side?' data-side="1"':''}${x.scale?` data-scale="${x.scale}"`:''}${x.crops?` data-crops="${tiEsc(JSON.stringify({iw:x.iw,ih:x.ih,c:x.crops}))}"`:''} onclick="this.dataset.crops?tiPopCrops(this):tiPop(this.dataset.src,this.dataset.alt,'',!!this.dataset.side,this.dataset.scale)">${x.icon||'ℹ️'} ${tiEsc(x.label)}</button></div>`).join(''):''].join('');
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}${e.photoLead?' big1':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"${e.photo.printScale?` style="--ps:${e.photo.printScale}"`:''}><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
