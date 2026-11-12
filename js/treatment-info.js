@@ -457,13 +457,14 @@ const TREATMENT_INFO=[
  note:'活動維持器：有鋼絲與樹脂，耐用、可調整。透明維持器：透明牙套式，外觀不明顯。固定式維持器：黏在前牙內側的細線，不用自己記得戴。'},
 /* ---------- 兒童牙科 ---------- */
 {id:'ssc',cat:'兒童牙科',title:'SSC 金屬乳牙套',items:['SSC金屬乳牙套'],
- photo:{src:'media/ssc.webp',alt:'SSC 金屬乳牙套：左為蛀牙的乳臼齒，右為套上金屬乳牙套後'},
+ pics:{src:'media/ssc.webp',w:1519,h:1035,bigArrow:true,rows:[[{x:0,y:0,w:740,h:1035,cap:'術前'},{x:778,y:0,w:741,h:1035,cap:'術後'}]]},
  what:'乳牙蛀牙範圍大、或做過乳牙神經治療後，用預成的不鏽鋼牙套把整顆乳牙包起來，保護乳牙直到自然換牙，維持咀嚼與換牙空間。',
  who:['乳臼齒大範圍蛀牙的孩子','做過乳牙神經治療的乳牙','蛀牙風險高、一般填補容易再蛀的孩子'],
  steps:['局部麻醉、清除蛀牙','修整乳牙','選擇合適大小的牙套並黏上'],
  time:'通常 1 次完成。',
  care:['麻藥未退前提醒孩子不要咬嘴唇、臉頰','當天避免黏性食物（糖果、口香糖）','牙套會隨乳牙一起自然脫落換牙']},
 {id:'strip-crown',cat:'兒童牙科',title:'Strip Crown 樹脂乳牙套',items:['Strip crown樹酯乳牙套'],
+ pics:{src:'media/strip-crown.webp',w:1201,h:1310,bigArrow:true,down:true,maxw:620,rows:[[{x:19,y:17,w:1160,h:628,cap:'術前'}],[{x:19,y:665,w:1160,h:625,cap:'術後'}]]},
  what:'乳門牙大範圍蛀牙時，以透明牙套模型灌入牙色樹脂，重建乳牙的外型，顏色自然、美觀。',
  who:['乳門牙大範圍蛀牙或斷裂的孩子','在意孩子門牙外觀的家長'],
  steps:['局部麻醉、清除蛀牙','以透明模型填入樹脂、成形','移除模型、修整拋光'],
@@ -554,7 +555,7 @@ function tiStepsHtml(p){
     `background-size:${(p.w/r.w*100).toFixed(3)}% auto;background-position:${pos(r.x,p.w-r.w)}% ${pos(r.y,p.h-r.h)}%"></div>`;
   const capHtml=c=>{const[t,...m]=c.split('\n');return m.length?`<b>${tiEsc(t)}</b><br>${m.map(tiEsc).join('<br>')}`:tiEsc(t)}; // 有換行時第一行當小標題
   const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  return `<div class="ti-steps"${p.maxw?` style="max-width:${p.maxw}px"`:''}>${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}${r.cap?`<figcaption>${capHtml(r.cap)}</figcaption>`:''}</figure>`).join('')}</div>`).join('')}</div>`;
+  return `<div class="ti-steps${p.bigArrow?' big':''}"${p.maxw?` style="max-width:${p.maxw}px"`:''}>${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}${r.cap?`<figcaption>${capHtml(r.cap)}</figcaption>`:''}</figure>`).join('')}</div>`).join(p.down?`<div class="ti-darr">${arr}</div>`:'')}</div>`;
 }
 /* 比較表（例如隱適美各方案）：hl＝要強調的欄（該欄的粗體字用紅色）；預設收起來，點「📊 標題」按鈕才展開（跟強度比較一樣，列印時只印展開的）；格子裡的 \n 換行（第二行起小字）、**文字** 粗體，第一欄第一行粗體 */
 function tiTableHtml(t){
@@ -641,6 +642,8 @@ const TI_CSS=`
 .ti-crop{width:100%;border-radius:14px;background-repeat:no-repeat;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ti-row figcaption{margin-top:6px;text-align:center;font-size:13px;line-height:1.45}
 .ti-arr{flex:0 0 12px;width:12px;height:20px;align-self:center;margin-top:-1.6em}
+.ti-darr{display:flex;justify-content:center;margin:-6px 0}.ti-darr .ti-arr{transform:rotate(90deg);margin:0}
+.ti-steps.big .ti-row{gap:10px}.ti-steps.big .ti-arr{flex:0 0 26px;width:26px;height:44px}.ti-steps.big figcaption{font-weight:700;font-size:1.05em;color:var(--ink)}
 @media print{.ti-steps{break-inside:avoid}}
 .ti-photos{display:flex;gap:10px;margin:0 auto 14px;max-width:760px}
 .ti-photos.big1{flex-wrap:wrap}.ti-photos.big1 img:first-child{flex:0 0 100%} /* photoLead：第一張放大在上，其餘並排在下 */
