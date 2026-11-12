@@ -130,10 +130,10 @@ body.pm .ti-body{font-size:12.5px;line-height:1.5;display:grid;grid-template-col
 body.pm .ti-body>.ti-what,body.pm .ti-body>.ti-tbl,body.pm .ti-body>.ti-cmps,body.pm .ti-body>.ti-cmp,body.pm .ti-body>.ti-str,body.pm .ti-body>.ti-steps,body.pm .ti-body>.ti-fig,body.pm .ti-body>.ti-photo,body.pm .ti-body>.ti-photos,body.pm .ti-body>.ti-note{grid-column:1/-1}
 body.pm .ti-what{margin-bottom:6px!important}
 body.pm .ti-sec{margin-top:5px}body.pm .ti-sec h4{font-size:13px}
-body.pm .ti-steps{max-width:none;gap:6px;margin-bottom:4px;width:100%;box-sizing:border-box} /* 在兩欄格線裡要撐滿整列，否則裁切照片會縮到幾乎看不見 */
+body.pm .ti-steps{max-width:none;gap:6px;margin-bottom:4px;width:var(--pw,100%);box-sizing:border-box} /* 在兩欄格線裡要撐滿整列，否則裁切照片會縮到幾乎看不見 */
 body.pm .ti-fig{max-width:150mm!important;margin-bottom:4px}
 body.pm .ti-row figcaption,body.pm .ti-fig figcaption{font-size:10.5px;line-height:1.35}
-body.pm .ti-photo img{max-height:70mm}
+body.pm .ti-photo img{max-height:calc(70mm * var(--ps,1))} /* photo.printScale：列印時縮小（例如 0.7） */
 body.pm .ti-str table{font-size:11px}
 @media print{
   :root{color-scheme:light;--card-line:#cfd8dc;--accent-ink:#fff;--bg:#fff;--panel:#fff;--ink:#111;--muted:#555;--line:#cfd8dc;--soft:#f1f4f5;--accent:#0f7c80;--accent-soft:#e8f4f4}
@@ -181,7 +181,7 @@ body.pm .ti-str table{font-size:11px}
   <div class="print-foot" id="printFoot"></div>
   <footer class="disc" id="disc"></footer>
 </div>
-<script src="js/treatment-info.js?v=177"></script>
+<script src="js/treatment-info.js?v=180"></script>
 <script src="js/treatment-figs.js?v=14"></script>
 <script>
 'use strict';

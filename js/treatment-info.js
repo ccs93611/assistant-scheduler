@@ -261,7 +261,7 @@ const TREATMENT_INFO=[
  note:'醫師會依骨量、部位、咬合與預算，與您討論適合的植體。前牙與後牙因美觀需求與咬合力不同，治療內容與費用也不同。'},
 {id:'implant-crown',cat:'植牙式贗復',title:'德國 Cercon 全鋯植牙冠',items:['德國Cercon全鋯植牙冠-前牙','德國Cercon全鋯植牙冠-後牙'],old:['植牙全鋯冠-前牙','植牙全鋯冠-後牙'],
  about:{label:'植牙牙橋',icon:'🌉',scale:0.7,src:'media/implant-bridge.webp',alt:'植牙牙橋：以兩支植體當支柱，鎖上連在一起的全鋯牙橋，補起多顆缺牙'},
- photo:{src:'media/implant-crown.png',alt:'全鋯植牙冠：氧化鋯牙冠連接金色基台，以螺絲鎖在植體上'},
+ photo:{src:'media/implant-crown.png',printScale:0.7,alt:'全鋯植牙冠：氧化鋯牙冠連接金色基台，以螺絲鎖在植體上'},
  what:'使用德國 Cercon 氧化鋯製作裝在植體上的牙冠。不含金屬，顏色自然，強度（Flexural Strength）最高可達 1200 MPa、耐咬、不易崩瓷。依需要以螺絲固定或黏著固定。',
  who:['植體已經與骨頭結合、準備裝假牙的人'],
  steps:['口內掃描或取模','製作牙冠（必要時先試戴）','鎖上或黏上牙冠，調整咬合'],
@@ -308,7 +308,7 @@ const TREATMENT_INFO=[
  care:['每天用沖牙機、牙間刷、超級牙線清潔假牙與牙床之間','有夜間磨牙習慣建議配戴咬合板','避免用假牙啃咬過硬的東西（骨頭、堅果殼、冰塊）']},
 {id:'all-on-x-frame',cat:'全口重建',title:'All-on-X 輕量化合金牙架',items:['All-on-x輕量化合金牙架'],
  table:TI_ALLX_WEIGHT,
- photo:{src:'media/all-on-x-frame.webp',alt:'All-on-X 輕量化合金牙架：鎖在植體上的金屬支架'},
+ photo:{src:'media/all-on-x-frame.webp',printScale:0.7,alt:'All-on-X 輕量化合金牙架：鎖在植體上的金屬支架'},
  what:'放在整排假牙內部的金屬支架，像骨架一樣強化整排假牙，讓長距離的假牙不易變形或斷裂，同時減輕假牙重量，戴起來更舒適。',
  who:['製作 All-on-X 正式假牙、需要加強整排假牙強度的人','咬合力較大或有磨牙習慣的人'],
  steps:['依正式假牙的設計規劃支架形狀','數位設計並製作輕量化合金支架','試戴確認密合度','與正式假牙結合後一起裝上'],
@@ -457,20 +457,21 @@ const TREATMENT_INFO=[
  note:'活動維持器：有鋼絲與樹脂，耐用、可調整。透明維持器：透明牙套式，外觀不明顯。固定式維持器：黏在前牙內側的細線，不用自己記得戴。'},
 /* ---------- 兒童牙科 ---------- */
 {id:'ssc',cat:'兒童牙科',title:'SSC 金屬乳牙套',items:['SSC金屬乳牙套'],
- pics:{src:'media/ssc.webp',w:1519,h:1035,bigArrow:true,rows:[[{x:0,y:0,w:740,h:1035,cap:'術前'},{x:778,y:0,w:741,h:1035,cap:'術後'}]]},
+ pics:{src:'media/ssc.webp',w:1519,h:1035,printScale:0.5,bigArrow:true,rows:[[{x:0,y:0,w:740,h:1035,cap:'術前'},{x:778,y:0,w:741,h:1035,cap:'術後'}]]},
  what:'乳牙蛀牙範圍大、或做過乳牙神經治療後，用預成的不鏽鋼牙套把整顆乳牙包起來，保護乳牙直到自然換牙，維持咀嚼與換牙空間。',
  who:['乳臼齒大範圍蛀牙的孩子','做過乳牙神經治療的乳牙','蛀牙風險高、一般填補容易再蛀的孩子'],
  steps:['局部麻醉、清除蛀牙','修整乳牙','選擇合適大小的牙套並黏上'],
  time:'通常 1 次完成。',
  care:['麻藥未退前提醒孩子不要咬嘴唇、臉頰','當天避免黏性食物（糖果、口香糖）','牙套會隨乳牙一起自然脫落換牙']},
 {id:'strip-crown',cat:'兒童牙科',title:'Strip Crown 樹脂乳牙套',items:['Strip crown樹酯乳牙套'],
- pics:{src:'media/strip-crown.webp',w:1201,h:1310,bigArrow:true,down:true,maxw:620,rows:[[{x:19,y:17,w:1160,h:628,cap:'術前'}],[{x:19,y:665,w:1160,h:625,cap:'術後'}]]},
+ pics:{src:'media/strip-crown.webp',w:1201,h:1310,printScale:0.5,bigArrow:true,down:true,maxw:620,rows:[[{x:19,y:17,w:1160,h:628,cap:'術前'}],[{x:19,y:665,w:1160,h:625,cap:'術後'}]]},
  what:'乳門牙大範圍蛀牙時，以透明牙套模型灌入牙色樹脂，重建乳牙的外型，顏色自然、美觀。',
  who:['乳門牙大範圍蛀牙或斷裂的孩子','在意孩子門牙外觀的家長'],
  steps:['局部麻醉、清除蛀牙','以透明模型填入樹脂、成形','移除模型、修整拋光'],
  time:'通常 1 次。',
  care:['避免用門牙啃咬硬物','睡前避免喝奶、含糖飲料，並確實刷牙']},
 {id:'space-maintainer',cat:'兒童牙科',title:'空間維持器',items:['空間維持器'],
+ photo:{src:'media/space-maintainer.webp',alt:'空間維持器：乳臼齒提早脫落後，在旁邊的牙齒套上金屬環、用金屬線撐住空位'},
  what:'乳牙太早掉落或拔除時，旁邊的牙齒會往空位傾倒，造成恆牙長不出來或長歪。空間維持器可以把這個空間保留住，等恆牙長出來。',
  who:['乳牙提早拔除或脫落，恆牙還要很久才會長出的孩子'],
  steps:['拍 X 光評估恆牙位置','取模或掃描','黏上（或配戴）空間維持器','定期回診，恆牙要長出時拆除'],
@@ -555,7 +556,7 @@ function tiStepsHtml(p){
     `background-size:${(p.w/r.w*100).toFixed(3)}% auto;background-position:${pos(r.x,p.w-r.w)}% ${pos(r.y,p.h-r.h)}%"></div>`;
   const capHtml=c=>{const[t,...m]=c.split('\n');return m.length?`<b>${tiEsc(t)}</b><br>${m.map(tiEsc).join('<br>')}`:tiEsc(t)}; // 有換行時第一行當小標題
   const arr='<svg class="ti-arr" viewBox="0 0 12 20" aria-hidden="true"><path d="M3,2L9,10L3,18" fill="none" stroke="#f0965a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  return `<div class="ti-steps${p.bigArrow?' big':''}"${p.maxw?` style="max-width:${p.maxw}px"`:''}>${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}${r.cap?`<figcaption>${capHtml(r.cap)}</figcaption>`:''}</figure>`).join('')}</div>`).join(p.down?`<div class="ti-darr">${arr}</div>`:'')}</div>`;
+  return `<div class="ti-steps${p.bigArrow?' big':''}" style="${p.maxw?`max-width:${p.maxw}px;`:''}${p.printScale?`--pw:${p.printScale*100}%`:''}">${p.rows.map(row=>`<div class="ti-row">${row.map((r,i)=>(i&&p.arrows!==false?arr:'')+`<figure style="flex-grow:${(r.w/r.h).toFixed(3)}">${crop(r)}${r.cap?`<figcaption>${capHtml(r.cap)}</figcaption>`:''}</figure>`).join('')}</div>`).join(p.down?`<div class="ti-darr">${arr}</div>`:'')}</div>`;
 }
 /* 比較表（例如隱適美各方案）：hl＝要強調的欄（該欄的粗體字用紅色）；預設收起來，點「📊 標題」按鈕才展開（跟強度比較一樣，列印時只印展開的）；格子裡的 \n 換行（第二行起小字）、**文字** 粗體，第一欄第一行粗體 */
 function tiTableHtml(t){
@@ -621,7 +622,7 @@ function tiBodyHtml(e){
     e.table?[].concat(e.table).map(tiTableHtml).join(''):'',e.cmp?tiCmpHtml(e.cmp):'',e.terms?tiTermsHtml(e.terms):'',
     e.about?[].concat(e.about).map(x=>`<div class="ti-sec ti-about"><button type="button" class="ti-str-btn ti-tbl-btn" data-src="${tiEsc([].concat(x.src).join('|'))}" data-alt="${tiEsc(x.alt||x.label)}" ${x.side?' data-side="1"':''}${x.scale?` data-scale="${x.scale}"`:''} onclick="tiPop(this.dataset.src,this.dataset.alt,'',!!this.dataset.side,this.dataset.scale)">${x.icon||'ℹ️'} ${tiEsc(x.label)}</button></div>`).join(''):''].join('');
   return `<div class="ti-body">
-    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}${e.photoLead?' big1':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
+    <p class="ti-what">${tiEsc(e.what)}</p>${e.pics?tiStepsHtml(e.pics):Array.isArray(e.photo)?`<div class="ti-photos${e.photoStack?' stack':''}${e.photoLead?' big1':''}">${e.photo.map(p=>`<img src="${tiEsc(p.src)}" alt="${tiEsc(p.alt||e.title)}" loading="lazy" style="${e.photoStack?`width:100%;max-width:${p.w}px;aspect-ratio:${p.w}/${p.h}`:`flex-grow:${(p.w/p.h).toFixed(3)}`}">`).join('')}</div>`:e.photo?`<figure class="ti-photo"${e.photo.printScale?` style="--ps:${e.photo.printScale}"`:''}><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy"${e.photo.maxh?` style="max-height:${e.photo.maxh}px"`:''}></figure>`:(typeof TI_FIGS!=='undefined'&&TI_FIGS[e.id]?TI_FIGS[e.id]():'')}
     ${cmps?`<div class="ti-cmps">${cmps}</div>`:''}
     <div class="ti-sec"><h4>適合對象</h4>${list(e.who)}</div>
     <div class="ti-sec"><h4>治療流程</h4><ol>${e.steps.map(x=>`<li>${tiEsc(x)}</li>`).join('')}</ol></div>
