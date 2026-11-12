@@ -402,6 +402,7 @@ const TREATMENT_INFO=[
  care:['剛黏上或調整後的幾天會痠痛，屬正常','避免咬硬、黏的食物，水果切小塊','矯正器周圍容易卡食物，要使用矯正牙刷、牙間刷仔細清潔','矯正器脫落或線刺到嘴巴，請聯絡診所'],
  note:'全口：上下顎同時矯正。半口：只矯正上顎或下顎。局部：只調整少數幾顆牙。'},
 {id:'lh-2by4',cat:'矯正',title:'LH 2 by 4 兒童早期矯正',items:['LH 2 by 4 兒童早期矯正(單顎)','LH 2 by 4 兒童早期矯正(雙顎)'],
+ about:{label:'案例分享',icon:'🦷',src:'media/lh-2by4-before.webp',iw:2000,ih:1333,crops:[{x:442,y:456,w:1067,h:498,cap:'術前'},{src:'media/lh-2by4-after.webp',x:205,y:290,w:1500,h:700,cap:'術後'}],alt:'2 by 4 兒童早期矯正案例：術前門牙反咬，術後門牙咬合改善'},
  photo:{src:'media/lh-2by4.webp?v=2',alt:'2 by 4 矯正：第一大臼齒裝矯正環、4 顆門牙黏矯正器'},
  what:'「2 by 4」是兒童換牙期常用的局部矯正方式：只在 2 顆第一大臼齒裝上矯正環、4 顆恆門牙黏上矯正器，再搭配日本 LH 低遲滯矯正線，用溫和、持續的力量把門牙排整齊或調整到正確位置。趁孩子還在換牙、骨頭仍在發育時先處理，可以改善門牙咬合，也為之後恆牙長出預留空間。',
  who:['約 7～10 歲、正在換牙（門牙已換、後面乳牙還在）的孩子','門牙反咬（地包天）、門牙歪斜、扭轉或擁擠的孩子','門牙之間縫隙過大，或門牙往前暴的孩子','醫師評估需要先做早期矯正，避免問題越來越嚴重的孩子'],
@@ -612,9 +613,9 @@ function tiTog(b){
   w.hidden=!open;b.classList.toggle('on',open)}
 function tiPopCrops(b){
   const {iw,ih,c}=JSON.parse(b.dataset.crops),src=b.dataset.src,gap=10;
-  const r=c.reduce((a,k)=>a+k.h/k.w,0),W=Math.round(Math.min(1000,innerWidth-32,(innerHeight-32-gap*(c.length-1))/r));
+  const capH=c.some(k=>k.cap)?30:0,r=c.reduce((a,k)=>a+k.h/k.w,0),W=Math.round(Math.min(1000,innerWidth-32,(innerHeight-32-(gap+capH)*c.length)/r));
   const pos=(v,room)=>room>0?(v/room*100).toFixed(3):0;
-  tiPop(src,b.dataset.alt,`<div style="display:flex;flex-direction:column;gap:${gap}px">${c.map(k=>`<div class="ti-crop zc" style="width:${W}px;aspect-ratio:${k.w}/${k.h};background-image:url('${tiEsc(src)}');background-size:${(iw/k.w*100).toFixed(3)}% auto;background-position:${pos(k.x,iw-k.w)}% ${pos(k.y,ih-k.h)}%"></div>`).join('')}</div>`)}
+  tiPop(src,b.dataset.alt,`<div style="display:flex;flex-direction:column;gap:${gap}px">${c.map(k=>{const u=k.src||src,IW=k.iw||iw,IH=k.ih||ih;return `<div class="ti-crop zc" style="width:${W}px;aspect-ratio:${k.w}/${k.h};background-image:url('${tiEsc(u)}');background-size:${(IW/k.w*100).toFixed(3)}% auto;background-position:${pos(k.x,IW-k.w)}% ${pos(k.y,IH-k.h)}%"></div>${k.cap?`<div class="ti-pop-cap">${tiEsc(k.cap)}</div>`:''}`}).join('')}</div>`)}
 /* 圖片彈窗（例如舒眠麻醉「關於舒美麻醉」；src 用 | 串多張時上下排）：點圖片放大／縮回（放大後可捲動），點背景、✕ 或按 Esc 關閉 */
 function tiPop(src,alt,html,side,scale){
   const o=document.createElement('div');const us=String(src).split('|');o.id='tiPop';o.className='ti-pop'+(us.length>1?' multi':'')+(html?' mkp':'')+(side?' side':'');o.setAttribute('role','dialog');if(scale)o.style.setProperty('--sc',scale);o.setAttribute('aria-label',alt||'');
@@ -710,7 +711,7 @@ const TI_CSS=`
 .ti-terms-wrap td:first-child{white-space:nowrap}
 .ti-terms-wrap .foot{margin:10px 0 0;padding-left:1.2em;font-size:.85em;color:var(--muted)}
 @media print{.ti-terms-wrap{break-inside:avoid}}
-.ti-photo img,.ti-photos img,.ti-tbl-pics img,.ti-crop{cursor:zoom-in}.ti-pop .ti-crop.zc{flex:none;cursor:default;border-radius:10px}
+.ti-photo img,.ti-photos img,.ti-tbl-pics img,.ti-crop{cursor:zoom-in}.ti-pop-cap{color:#fff;text-align:center;font-weight:700;margin-top:-4px;font-size:16px}.ti-pop .ti-crop.zc{flex:none;cursor:default;border-radius:10px}
 .ti-pop.mkp .ti-tbl-pics{font-size:clamp(14px,2.2vw,20px);margin:auto;width:100%;justify-content:center;flex-direction:row;position:static}
 .ti-pop.mkp .ti-tbl-pics figure.mk{flex:none;width:min(616px,calc(100% - 10.5em),calc((100vh - 60px)*1.0));max-width:none;margin:0 10.5em 0 0}
 .ti-pop.mkp .ti-tbl-pics img{max-height:none;cursor:zoom-in}
