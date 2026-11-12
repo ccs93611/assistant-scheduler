@@ -130,7 +130,7 @@ body.pm .ti-body{font-size:12.5px;line-height:1.5;display:grid;grid-template-col
 body.pm .ti-body>.ti-what,body.pm .ti-body>.ti-tbl,body.pm .ti-body>.ti-cmps,body.pm .ti-body>.ti-cmp,body.pm .ti-body>.ti-str,body.pm .ti-body>.ti-steps,body.pm .ti-body>.ti-fig,body.pm .ti-body>.ti-photo,body.pm .ti-body>.ti-photos,body.pm .ti-body>.ti-note{grid-column:1/-1}
 body.pm .ti-what{margin-bottom:6px!important}
 body.pm .ti-sec{margin-top:5px}body.pm .ti-sec h4{font-size:13px}
-body.pm .ti-steps{max-width:none;gap:6px;margin-bottom:4px}
+body.pm .ti-steps{max-width:none;gap:6px;margin-bottom:4px;width:100%;box-sizing:border-box} /* 在兩欄格線裡要撐滿整列，否則裁切照片會縮到幾乎看不見 */
 body.pm .ti-fig{max-width:150mm!important;margin-bottom:4px}
 body.pm .ti-row figcaption,body.pm .ti-fig figcaption{font-size:10.5px;line-height:1.35}
 body.pm .ti-photo img{max-height:70mm}
