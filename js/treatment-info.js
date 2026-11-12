@@ -366,7 +366,7 @@ const TREATMENT_INFO=[
  time:'手術 1 次，約 7～14 天拆線；做正式假牙前通常需等待 1～3 個月讓牙齦穩定（前牙較久）。',
  care:['術後牙齦可能腫、牙齒暫時敏感','手術部位用軟毛牙刷輕刷，可依醫囑使用漱口水','避免辛辣、過熱的食物']},
 {id:'fgg',cat:'牙周手術',title:'FGG 角化牙齦移植',items:['FGG角化牙齦移植'],
- pics:{src:'media/fgg-a.webp',w:2000,h:1333,bigArrow:true,columns:[{title:'術前',cells:[{src:'media/fgg-a.webp',iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'側面'},{src:'media/fgg-b.webp',rot:180,iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'咬合面'}]},{title:'移植當天',cells:[{src:'media/fgg-f.webp',iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'取上顎牙齦移植、縫合固定'}]},{title:'癒合後',cells:[{src:'media/fgg-g.webp',iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'側面'},{src:'media/fgg-h.webp',rot:180,iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'咬合面'}]}]},
+ pics:{src:'media/fgg-a.webp',w:2000,h:1333,bigArrow:true,columns:[{title:'術前：植體周圍角化牙齦不足',cells:[{src:'media/fgg-a.webp',iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'側面'},{src:'media/fgg-b.webp',rot:180,iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'咬合面'}]},{title:'移植當天',cells:[{src:'media/fgg-f.webp',iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'取上顎牙齦移植、縫合固定'}]},{title:'癒合後：植體周圍有足夠的角化牙齦',cells:[{src:'media/fgg-g.webp',iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'側面'},{src:'media/fgg-h.webp',rot:180,iw:2000,ih:1333,x:0,y:0,w:2000,h:1150,cap:'咬合面'}]}]},
  what:'從上顎取一小片牙齦，移植到牙齒或植體周圍角化牙齦（較厚、較硬的牙齦）不足的地方，增加保護，讓刷牙不痛、減少牙齦萎縮與植體周圍發炎。',
  who:['牙齒或植體周圍牙齦很薄、刷牙會痛的人','牙齦持續萎縮的人','植體周圍沒有足夠角化牙齦的人'],
  steps:['局部麻醉','準備受贈區','從上顎取下牙齦','縫合固定在受贈區','上顎取組織處可戴保護板'],
