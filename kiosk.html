@@ -916,7 +916,7 @@ function recentDup(sid,s,ts=Date.now()){
 // 辨識錯人：列出人員（今天有排這一診的排前面），選了之後用同一次辨識重新確認，紀錄標記為手動選擇
 function pickPerson(wrongSid,chosen,info){
   const d=new Date(),sch=new Set(chosen.sh==='extra'?[]:staff.filter(s=>scheduledShifts(s.id,d).some(x=>x.id===chosen.sh)).map(s=>s.id));
-  const list=staff.filter(s=>s.active!==false&&s.role!=='manager').sort((a,b)=>(sch.has(b.id)-sch.has(a.id))||String(a.code||'').localeCompare(String(b.code||''),'en',{numeric:true}));
+  const list=staff.filter(s=>s.active!==false&&s.role==='assistant') /* 只列助理 */.sort((a,b)=>(sch.has(b.id)-sch.has(a.id))||String(a.code||'').localeCompare(String(b.code||''),'en',{numeric:true}));
   $('pickSub').textContent=`${shOf(chosen.sh).name}・${chosen.k==='in'?'上班卡':'下班卡'}　綠框是今天有排這一診的人；這筆打卡會標記為「手動選擇」，並保存照片供管理者核對`;
   $('pickList').innerHTML=list.map(s=>`<button data-pick="${esc(s.id)}" class="${sch.has(s.id)?'sch':''}">${esc(s.code||'')}<small>${esc(s.name||'')}</small></button>`).join('')||'<p>沒有人員</p>';
   const close=()=>{$('pickOv').hidden=true;};
