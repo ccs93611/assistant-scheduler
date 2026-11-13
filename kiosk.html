@@ -148,6 +148,18 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 .code{font-size:2.2rem;font-weight:700;letter-spacing:.2em;text-align:center;margin:10px 0;color:var(--gold)}
 .mini-stage{position:relative;border-radius:14px;overflow:hidden;background:#0B100D;aspect-ratio:4/3;margin-top:12px}
 .mini-stage video{position:absolute;inset:0}
+.en-head{display:flex;align-items:center;gap:14px;margin-top:4px}
+.en-arrow{flex:none;width:64px;height:64px;border-radius:50%;background:var(--ok);color:#fff;font-size:38px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
+.en-tip{font-size:1.35rem;font-weight:700}
+.en-sub{font-size:.9rem;opacity:.75;margin-top:2px;min-height:1.2em}
+.en-dot{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid #fff;background:rgba(255,255,255,.25);transition:transform .12s,background .2s;pointer-events:none}
+.en-dot.hit{background:var(--ok);border-color:var(--ok)}
+.en-done{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.2rem;font-weight:800;color:#fff;background:rgba(30,120,70,.55)}
+.en-done[hidden]{display:none}
+.en-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:0;margin:12px 0 4px}
+.en-steps li{padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:.85rem}
+.en-steps li.cur{border-color:var(--ok);color:var(--ok);font-weight:700}
+.en-steps li.f{background:var(--ok);border-color:var(--ok);color:#fff}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .chips button{padding:10px 16px;border-radius:999px}
 .chips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -242,15 +254,16 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
   <div class="box">
     <h2>登錄臉部</h2>
     <div id="enrollForm">
-      <p>請本人站在鏡頭前、拿下口罩。登錄時會擷取 5 個角度的臉部特徵值（一串數字），不保存照片。</p>
+      <p>請本人站在鏡頭前、拿下口罩。登錄時會依畫面的箭頭依序「正面 → 向左 → 向右 → 抬頭 → 低頭」，每個角度確認記錄後才換下一個；只保存臉部特徵值（一串數字），不保存照片。</p>
       <select id="enSid"></select>
       <label class="chk"><input type="checkbox" id="enConsent"><span>本人已閱讀並同意：診所蒐集本人臉部特徵值，僅用於出勤打卡辨識；離職或本人要求時刪除。（依個人資料保護法，需本人同意）</span></label>
       <div class="row"><button id="enCancel">取消</button><button class="primary" id="enStart">開始登錄</button></div>
     </div>
     <div id="enrollRun" hidden>
-      <p id="enMsg">請正視鏡頭…</p>
-      <div class="mini-stage"><video id="enCam" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video></div>
-      <div class="prog" id="enProg"></div>
+      <div class="en-head"><span class="en-arrow" id="enArrow">●</span><div><div class="en-tip" id="enMsg">請正視鏡頭…</div><div class="en-sub" id="enSub"></div></div></div>
+      <div class="mini-stage"><video id="enCam" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>
+        <div class="en-dot" id="enDot"></div><div class="en-done" id="enDone" hidden>✓ 已記錄</div></div>
+      <ol class="en-steps" id="enProg"></ol>
       <div class="row"><button id="enStop">取消</button></div>
     </div>
   </div>
@@ -1045,20 +1058,52 @@ $('enStart').onclick=async()=>{
   if(!$('enConsent').checked){toast('需要本人勾選同意','warn');return;}
   $('enrollForm').hidden=true;$('enrollRun').hidden=false;
   $('enCam').srcObject=stream;$('enCam').play().catch(()=>{});
-  const prog=()=>{$('enProg').innerHTML=Array.from({length:SAMPLES},(_,i)=>`<i class="${i<vecs.length?'f':''}"></i>`).join('');};
-  const tips=['請正視鏡頭','請稍微向左轉','請稍微向右轉','請稍微抬頭','請稍微低頭'];
-  const vecs=[];let last=0;enrolling=true;prog();
-  const t0=Date.now();
-  while(enrolling&&vecs.length<SAMPLES&&Date.now()-t0<45000){
-    $('enMsg').textContent=tips[vecs.length]||'請正視鏡頭';
+  // 依臉部特徵點量頭的方向：h＝鼻尖相對兩眼中心的水平偏移（以兩眼距離為單位），v＝鼻尖在眼睛到下巴之間的位置
+  // 原始影像沒有鏡像：本人向左轉時鼻尖往影像右邊移（h 變大）；畫面鏡像顯示，所以箭頭畫成 ←
+  const pose=f=>{const m=f?.mesh;if(!m||m.length<264)return null;const L=m[33],R=m[263],N=m[1],C=m[152];
+    const ex=(L[0]+R[0])/2,ey=(L[1]+R[1])/2,ed=Math.hypot(R[0]-L[0],R[1]-L[1])||1,ch=(C[1]-ey)||1;
+    return {h:(N[0]-ex)/ed,v:(N[1]-ey)/ch};};
+  const STEPS=[{k:'front',lb:'正面',arrow:'●',tip:'請正視鏡頭',sub:'保持不動，看著畫面中央'},
+    {k:'left',lb:'向左',arrow:'←',tip:'請把頭慢慢向左轉',sub:'轉到圓點變成綠色'},
+    {k:'right',lb:'向右',arrow:'→',tip:'請把頭慢慢向右轉',sub:'轉到圓點變成綠色'},
+    {k:'up',lb:'抬頭',arrow:'↑',tip:'請把頭慢慢抬高',sub:'下巴往上，轉到圓點變成綠色'},
+    {k:'down',lb:'低頭',arrow:'↓',tip:'請把頭慢慢低下',sub:'下巴往下，轉到圓點變成綠色'}];
+  const TH={h:0.15,v:0.06},HOLD=3; // 轉動門檻；連續幾幀符合才記錄
+  const vecs=[];let base=null,hold=0;enrolling=true;
+  const prog=i=>{$('enProg').innerHTML=STEPS.map((s,j)=>`<li class="${j<vecs.length?'f':j===i?'cur':''}">${j<vecs.length?'✓ ':''}${s.lb}</li>`).join('');};
+  const show=(s,sub)=>{$('enArrow').textContent=s.arrow;$('enMsg').textContent=s.tip;$('enSub').textContent=sub??s.sub;};
+  // 圓點跟著頭的方向移動（鏡像畫面：左轉往左），讓本人知道轉了多少
+  const dot=(p,ok)=>{const d=$('enDot');if(!p||!base){d.style.transform='';d.classList.toggle('hit',!!ok);return;}
+    const x=Math.max(-1,Math.min(1,-(p.h-base.h)/(TH.h*1.6)))*90,y=Math.max(-1,Math.min(1,(p.v-base.v)/(TH.v*1.6)))*70;
+    d.style.transform=`translate(${x}px,${y}px)`;d.classList.toggle('hit',!!ok);};
+  const hit=(s,p)=>{if(s.k==='front')return true;if(!p||!base)return false;const dh=p.h-base.h,dv=p.v-base.v;
+    return s.k==='left'?dh>=TH.h&&Math.abs(dv)<TH.v*2:s.k==='right'?dh<=-TH.h&&Math.abs(dv)<TH.v*2:s.k==='up'?dv<=-TH.v&&Math.abs(dh)<TH.h*1.5:dv>=TH.v&&Math.abs(dh)<TH.h*1.5;};
+  const t0=Date.now();prog(0);show(STEPS[0]);
+  while(enrolling&&vecs.length<SAMPLES&&Date.now()-t0<90000){
+    const i=vecs.length,s=STEPS[i];
     let f=null;try{f=(await human.detect($('cam'))).face?.[0];}catch(e){}
-    const q=faceQuality(f,$('cam'));
-    if(q==='ok'&&isLive(f)&&Date.now()-last>700){vecs.push(Array.from(f.embedding));last=Date.now();prog();}
-    else if(q==='far')$('enMsg').textContent='請再靠近一點';
-    else if(q==='weak'||q==='none')$('enMsg').textContent='看不到臉，請拿下口罩、正對鏡頭';
-    await new Promise(r=>setTimeout(r,150));
+    if(!enrolling)break;
+    const w=f?.box?.[2]||0,vw=$('cam').videoWidth||1,p=pose(f);
+    let why='';
+    if(!f||(f.faceScore??f.score??0)<0.7||!f.embedding?.length)why='看不到臉，請拿下口罩、正對鏡頭';
+    else if(w<vw*0.18)why='請再靠近一點';
+    else if(!isLive(f))why='無法確認為真人，請靠近並正對鏡頭';
+    else if(s.k==='front'&&(Math.abs(f.rotation?.angle?.yaw||0)>0.25||Math.abs(f.rotation?.angle?.pitch||0)>0.25))why='請正對鏡頭';
+    const ok=!why&&hit(s,p);
+    dot(p,ok);show(s,why||(ok?'很好，請保持不動…':s.sub));
+    hold=ok?hold+1:0;
+    if(hold>=HOLD){
+      if(s.k==='front')base=p;
+      vecs.push(Array.from(f.embedding));hold=0;prog(vecs.length);
+      // 確認已記錄這個角度，停一下再換下一個動作
+      $('enDone').textContent=`✓ ${s.lb}已記錄`;$('enDone').hidden=false;
+      await new Promise(r=>setTimeout(r,1100));$('enDone').hidden=true;
+      if(vecs.length<SAMPLES){show(STEPS[vecs.length]);}
+      continue;
+    }
+    await new Promise(r=>setTimeout(r,120));
   }
-  if(vecs.length<SAMPLES){enrolling=false;toast(Date.now()-t0>=45000?'登錄逾時，請再試一次':'已取消登錄','warn');$('enrollOv').hidden=true;$('adminOv').hidden=false;return;}
+  if(vecs.length<SAMPLES){enrolling=false;toast(Date.now()-t0>=90000?`登錄逾時（停在「${STEPS[vecs.length].lb}」），請再試一次`:'已取消登錄','warn');$('enrollOv').hidden=true;$('adminOv').hidden=false;return;}
   enrolling=false;
   // 和其他人太像時提醒（可能是雙胞胎、或登錄到別人）
   const clash=vecs.map(v=>bestMatch(v,sid)).filter(m=>m.sid&&m.sim>=settings.thr);
