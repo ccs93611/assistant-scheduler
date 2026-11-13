@@ -106,7 +106,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 .di-links a{font-size:.82em;line-height:1.5;padding:2px 10px;border-radius:999px;border:1px solid var(--accent);color:var(--accent);text-decoration:none;white-space:nowrap}
 .di-links a:hover{background:var(--accent);color:var(--accent-ink)}
 .di-links a::after{content:" ›"}
-/* 案例影片：說明下方一顆按鈕，點了用彈窗播放（靜音、循環）；點背景、✕ 或按 Esc 關閉；列印時不印按鈕 */
+/* 案例影片：說明下方一顆按鈕，點了用彈窗播放（靜音，播完停在最後畫面）；點背景、✕ 或按 Esc 關閉；列印時不印按鈕 */
 .di-vbtn{margin:0 0 12px}
 .di-vpop{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px}
 .di-vpop video{display:block;flex:none;max-width:100%;height:auto;border-radius:10px;background:#000;box-shadow:0 8px 40px rgba(0,0,0,.5)}
@@ -318,7 +318,7 @@ $('#list').addEventListener('click',e=>{const p=e.target.closest('[data-print]')
 function openVideo(src,cap,rate=1){
   const o=document.createElement('div');o.className='di-vpop';o.setAttribute('role','dialog');o.setAttribute('aria-label',cap||'案例影片');
   const t=String(cap||'').replace(/^影片[:：]\s*/,''); // 彈窗裡的標題不要「影片：」字樣（按鈕上保留）
-  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button>${t?`<div class="cap">${tiEsc(t)}</div>`:''}<video src="${tiEsc(src)}?v=2" autoplay muted loop playsinline controls></video>`;
+  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button>${t?`<div class="cap">${tiEsc(t)}</div>`:''}<video src="${tiEsc(src)}?v=2" autoplay muted playsinline controls></video>`;
   // 影片放大到原尺寸的 2 倍，但不超出螢幕（扣掉四周留白與上方標題的高度）
   const v=o.querySelector('video'),fit=()=>{if(!v.videoWidth)return;
     const capH=(o.querySelector('.cap')?.offsetHeight||0)+12,s=Math.min(2,(innerWidth-32)/v.videoWidth,(innerHeight-32-capH)/v.videoHeight);v.style.width=Math.floor(v.videoWidth*s)+'px'};
