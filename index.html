@@ -5017,7 +5017,7 @@ function renderAttLog(mi){
   sel.value=attLog.sid;$('attLogDate').value=attLog.date;$('attLogVoid').checked=attLog.showVoid;
   // 對應：班別上下班、其他、有加班申請；來源：各打卡裝置名稱、補登（選單只列這個月有出現的）
   const srcKey=p=>p.src==='manual'?'manual':'dev:'+(p.devName||'打卡裝置');
-  const mapOpts=[['','全部'],...MAP_ORDER.map(x=>[x,x]),['other','其他'],['ot','有加班申請'],['anom','辨識異常']];
+  const mapOpts=[['','全部'],...MAP_ORDER.map(x=>[x,x]),['other','其他'],['ot','有加班申請'],['anom','辨識異常（全部）'],['anom-none','辨識異常：未確認'],['anom-ok','辨識異常：確認正常'],['anom-bad','辨識異常：確認異常']];
   const srcs=[...new Set(mp.map(srcKey))].sort((a,b)=>a==='manual'?1:b==='manual'?-1:a.localeCompare(b,'zh-Hant'));
   if(attLog.src&&!srcs.includes(attLog.src))attLog.src='';
   const fill=(el,opts,v)=>{const h=opts.map(([k,l])=>`<option value="${esc(k)}">${esc(l)}</option>`).join('');if(el.innerHTML!==h)el.innerHTML=h;el.value=v;};
@@ -5030,8 +5030,8 @@ function renderAttLog(mi){
   const S=attLogSort,kf=keyOf[S.key]||keyOf.date;
   // 辨識異常：辨識錯人後手動改選、臉部相似度偏低（低於門檻＋0.05，勉強過門檻的也列出）、螢幕特徵達到門檻（疑似螢幕）
   const anomThr=Number(attCfg().thr)||0.6,anomScr=Number(attCfg().scrThr)||0.6;
-  const isAnom=p=>!p.void&&p.src!=='manual'&&(!!p.picked||(p.sim!=null&&p.sim<anomThr+0.05)||(!!p.scr&&p.scr.s>=anomScr));
-  const mapHit=p=>{if(!attLog.map)return true;if(attLog.map==='anom')return isAnom(p);if(attLog.map==='ot')return !!p.ot;const t=p.void?'':(lab[p.id]?.t||'');if(attLog.map==='other')return !p.void&&!MAP_ORDER.some(x=>t.startsWith(x));return t.startsWith(attLog.map);};
+  const isAnom=p=>!p.void&&(!!p.review||p.src!=='manual'&&(!!p.picked||(p.sim!=null&&p.sim<anomThr+0.05)||(!!p.scr&&p.scr.s>=anomScr)));
+  const mapHit=p=>{if(!attLog.map)return true;if(attLog.map==='anom')return isAnom(p);if(attLog.map.startsWith('anom-')){const st=attLog.map.slice(5);return isAnom(p)&&(st==='none'?!p.review:p.review?.st===st);}if(attLog.map==='ot')return !!p.ot;const t=p.void?'':(lab[p.id]?.t||'');if(attLog.map==='other')return !p.void&&!MAP_ORDER.some(x=>t.startsWith(x));return t.startsWith(attLog.map);};
   const list=mp.filter(p=>(!attLog.sid||p.staffId===attLog.sid)&&(!attLog.date||p.date===attLog.date)&&(attLog.showVoid||!p.void)&&mapHit(p)&&(!attLog.src||srcKey(p)===attLog.src))
     .sort((a,b)=>{const x=kf(a),y=kf(b);const c=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');return (c*S.dir)||(b.ts-a.ts);});
   const th=(key,label)=>`<th><button type="button" class="th-btn${S.key===key?' on':''}" data-logsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
@@ -5044,7 +5044,7 @@ function renderAttLog(mi){
   $('attLog').innerHTML=`<thead><tr>${th('date','日期')}<th>時間</th>${lowPerm()?'':th('staff','人員')}${th('map','對應')}${th('src','來源')}${showScore?'<th class="num" title="相似度；下方為防偽、活體分數">臉部辨識</th><th class="num" title="總分；下方為摩爾紋、反光、發光、閃爍">螢幕特徵</th>':''}<th>照片</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(p=>{
       const d=parseYmd(p.date),L=lab[p.id];
-      const src=p.src==='manual'?`補登（${esc(p.by||'')}）${p.note?`<br><small class="att-mute">${esc(p.note)}</small>`:''}`:`${esc(p.devName||'打卡裝置')}${p.sim&&!showScore?` <small class="att-mute">相似度 ${p.sim}</small>`:''}${p.picked?`<br><small class="att-bad">手動選擇（辨識為 ${esc(fullName(byId(p.picked.from))||'?')}）</small>`:''}`;
+      const src=p.src==='manual'?`補登（${esc(p.by||'')}）${p.note?`<br><small class="att-mute">${esc(p.note)}</small>`:''}`:`${esc(p.devName||'打卡裝置')}${p.sim&&!showScore?` <small class="att-mute">相似度 ${p.sim}</small>`:''}${p.picked?`<br><small class="att-bad">手動選擇（辨識為 ${esc(fullName(byId(p.picked.from))||'?')}）</small>`:''}${p.review&&showScore?`<br><small class="${p.review.st==='bad'?'att-bad':'att-ok'}">已確認${p.review.st==='bad'?'異常':'正常'}（${esc(p.review.name||'')}）</small>`:''}`;
       const otTxt=p.ot&&!p.void?` <span class="${p.ot.status==='pending'?'att-bad':p.ot.status==='replaced'?'att-mute':'att-ok'}">加班 ${p.ot.status==='approved'?p.ot.approvedMin:p.ot.extra&&!p.ot.from?'?':p.ot.min} 分（${esc(otStatusText(p.ot))}）</span>`:'';
       const map0=p.void?`<span class="att-mute">已作廢${p.voidNote?`：${esc(p.voidNote)}`:''}</span>`:L?`${L.other?`<span class="att-mute">${L.t}</span>`:L.t}${L.bad?` <span class="att-bad">${L.bad}</span>`:''}`:'';
       const map=map0+otTxt;
@@ -5063,18 +5063,28 @@ function punchPhotoHtml(p){
   const scr=showScr?hold(!!p.scr,p.scr?`螢幕特徵 <span class="${bad?'att-bad':''}">${p.scr.s}${bad?'（疑似螢幕）':''}</span><br><small class="att-mute">摩爾紋 ${p.scr.m}・反光 ${p.scr.g}・發光 ${p.scr.e}・閃爍 ${p.scr.f}</small>`:'',' ph-scr'):'';
   return `<h3 class="ph-title">${esc(fullName(byId(p.staffId)))}・${esc(p.date)} ${hhmm(p.ts)}</h3><img class="att-photo" src="${esc(p.photo)}" alt="打卡照片">`
     +`<p class="hint ph-line">${esc(p.devName||'')}${p.sim?`，相似度 ${p.sim}`:''}</p>`
-    +hold(!!p.picked,p.picked?`<span class="att-bad">手動選擇（原本辨識為 ${esc(fullName(byId(p.picked.from))||'?')}）</span>`:'')+scr;
+    +hold(!!p.picked,p.picked?`<span class="att-bad">手動選擇（原本辨識為 ${esc(fullName(byId(p.picked.from))||'?')}）</span>`:'')+scr
+    +(showScr?hold(!!p.review,p.review?`<span class="${p.review.st==='bad'?'att-bad':'att-ok'}"><b>已確認${p.review.st==='bad'?'異常':'正常'}</b>（${esc(p.review.name||'')} ${fmtAt(p.review.at)}）</span>`:''):'');
 }
 function openPunchPhoto(id){
   if(!punches.some(x=>x.id===id))return;
   const ids=attPhotoIds.includes(id)?attPhotoIds.slice():[id];let i=ids.indexOf(id);
   dialog(`<div class="ph-nav"><button type="button" class="ph-arrow prev" data-phstep="-1" aria-label="上一張">‹</button><div id="phBody"></div><button type="button" class="ph-arrow next" data-phstep="1" aria-label="下一張">›</button></div><p class="hint" id="phPos" style="text-align:center;margin:4px 0 0"></p>`,()=>{},'關閉',false,null); // 只是檢視照片：只留「關閉」
   const ov=document.querySelector('.overlay:last-of-type');
-  const show=()=>{const p=punches.find(x=>x.id===ids[i]);if(!p)return;ov.querySelector('#phBody').innerHTML=punchPhotoHtml(p);
+  // 主管看過照片後可以標記「確認正常」或「確認異常」（例如代打卡），記下確認的人與時間；再按一次同一個按鈕取消
+  const mark=canWrite&&!lowPerm();
+  if(mark)ov.querySelector('[data-ok]').insertAdjacentHTML('beforebegin','<button type="button" data-phrev="ok"></button><button type="button" class="danger" data-phrev="bad"></button>');
+  let cur=null;
+  const show=(np)=>{const p=np||punches.find(x=>x.id===ids[i]);if(!p)return;cur=p;ov.querySelector('#phBody').innerHTML=punchPhotoHtml(p);
+    if(mark){const st=p.review?.st;ov.querySelector('[data-phrev="ok"]').textContent=st==='ok'?'取消確認正常':'確認正常';ov.querySelector('[data-phrev="bad"]').textContent=st==='bad'?'取消確認異常':'確認異常';}
     ov.querySelector('[data-phstep="-1"]').disabled=i<=0;ov.querySelector('[data-phstep="1"]').disabled=i>=ids.length-1;
     ov.querySelector('#phPos').textContent=ids.length>1?`${i+1} / ${ids.length}`:'';};
   const step=d=>{const j=i+d;if(j<0||j>=ids.length)return;i=j;show();};
-  ov.addEventListener('click',e=>{const b=e.target.closest('[data-phstep]');if(b){e.stopPropagation();step(Number(b.dataset.phstep));}});
+  ov.addEventListener('click',e=>{const b=e.target.closest('[data-phstep]');if(b){e.stopPropagation();step(Number(b.dataset.phstep));return;}
+    const rb=e.target.closest('[data-phrev]');
+    if(rb&&cur){const st=rb.dataset.phrev,w=st==='ok'?'正常':'異常',n=Object.assign({},cur);
+      if(n.review?.st===st){delete n.review;toast(`已取消「確認${w}」。`);}else{n.review={st,by:myId||'',name:myName(),at:Date.now()};toast(`已標記為確認${w}。`);}
+      store.punch(n);show(n);}});
   ov.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){e.preventDefault();step(-1);}else if(e.key==='ArrowRight'){e.preventDefault();step(1);}});
   show();
 }
