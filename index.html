@@ -5051,7 +5051,7 @@ function renderAttLog(mi){
       return `<tr${p.void?' class="att-mute"':''}><td style="white-space:nowrap">${d.getMonth()+1}/${d.getDate()}（${DAYS[(d.getDay()+6)%7]}）</td><td class="${p.void?'':''}" style="font-variant-numeric:tabular-nums">${p.void?`<s>${hhmm(p.ts)}</s>`:hhmm(p.ts)}</td>
         ${lowPerm()?'':`<td>${esc(fullName(byId(p.staffId)))}</td>`}<td>${map}</td><td>${src}</td>${showScore?faceCell(p)+scrCell(p):''}
         <td>${p.photo?`<span class="punch"><img src="${esc(p.photo)}" alt="" data-photo="${esc(p.id)}"></span>`:''}</td>
-        <td>${canWrite&&!p.void?`<button class="small" data-pvoid="${esc(p.id)}">作廢</button>`:''}</td></tr>`;
+        <td>${canWrite?(p.void?`<button class="small" data-punvoid="${esc(p.id)}">恢復</button>`:`<button class="small" data-pvoid="${esc(p.id)}">作廢</button>`):''}</td></tr>`;
     }).join(''):`<tr><td colspan="${showScore?9:7}" class="att-mute">沒有打卡紀錄</td></tr>`)+'</tbody>';
 }
 // 打卡照片放大：可以用左右箭頭（畫面兩側按鈕或鍵盤 ← →）切換到列表中的上一張、下一張照片
@@ -5234,6 +5234,12 @@ $('tab-att').addEventListener('click',e=>{
   if(e.target.closest('[data-attclose]')){attSel=null;renderAll();return;}
   const ph=e.target.closest('[data-photo]');
   if(ph){openPunchPhoto(ph.dataset.photo);return;}
+  // 恢復已作廢的打卡：拿掉作廢標記，重新列入出勤計算（記下恢復的人與時間）
+  const pu=e.target.closest('[data-punvoid]');
+  if(pu){const p=punches.find(x=>x.id===pu.dataset.punvoid);if(!p||!canWrite)return;
+    dialog(`<h3>恢復打卡</h3><p>${esc(fullName(byId(p.staffId)))} ${esc(p.date)} ${hhmm(p.ts)}${p.voidNote?`（作廢原因：${esc(p.voidNote)}）`:''}。恢復後重新列入出勤計算。</p>`,()=>{
+      const n=Object.assign({},p,{restoredBy:myId||'',restoredAt:Date.now()});delete n.void;delete n.voidBy;delete n.voidAt;delete n.voidNote;
+      store.punch(n);toast('已恢復這筆打卡。');},'恢復');return;}
   const pv=e.target.closest('[data-pvoid]');
   if(pv){const p=punches.find(x=>x.id===pv.dataset.pvoid);if(!p)return;
     dialog(`<h3>作廢打卡</h3><p>${esc(fullName(byId(p.staffId)))} ${esc(p.date)} ${hhmm(p.ts)}。作廢後不列入出勤計算（紀錄保留）。</p><div class="field"><label>原因</label><input id="pvWhy" placeholder="例如：重複打卡、認錯人"></div>`,ov=>{store.punch(Object.assign({},p,{void:true,voidBy:myId||'',voidAt:Date.now(),voidNote:ov.querySelector('#pvWhy').value.trim()}));},'作廢',true);return;}
