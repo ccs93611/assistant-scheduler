@@ -5009,7 +5009,7 @@ function renderAttLog(mi){
   sel.value=attLog.sid;$('attLogDate').value=attLog.date;$('attLogVoid').checked=attLog.showVoid;
   // 對應：班別上下班、其他、有加班申請；來源：各打卡裝置名稱、補登（選單只列這個月有出現的）
   const srcKey=p=>p.src==='manual'?'manual':'dev:'+(p.devName||'打卡裝置');
-  const mapOpts=[['','全部'],...MAP_ORDER.map(x=>[x,x]),['other','其他'],['ot','有加班申請']];
+  const mapOpts=[['','全部'],...MAP_ORDER.map(x=>[x,x]),['other','其他'],['ot','有加班申請'],['anom','辨識異常']];
   const srcs=[...new Set(mp.map(srcKey))].sort((a,b)=>a==='manual'?1:b==='manual'?-1:a.localeCompare(b,'zh-Hant'));
   if(attLog.src&&!srcs.includes(attLog.src))attLog.src='';
   const fill=(el,opts,v)=>{const h=opts.map(([k,l])=>`<option value="${esc(k)}">${esc(l)}</option>`).join('');if(el.innerHTML!==h)el.innerHTML=h;el.value=v;};
@@ -5020,14 +5020,17 @@ function renderAttLog(mi){
   const srcTxt=p=>p.src==='manual'?'補登 '+(p.by||''):(p.devName||'打卡裝置');
   const keyOf={date:p=>p.ts,staff:p=>{const x=byId(p.staffId);return (x?.code||x?.name||'')},map:p=>{if(p.void)return 99;const t=lab[p.id]?.t||'',i=MAP_ORDER.findIndex(x=>t.startsWith(x));return i<0?90:i;},src:srcTxt};
   const S=attLogSort,kf=keyOf[S.key]||keyOf.date;
-  const mapHit=p=>{if(!attLog.map)return true;if(attLog.map==='ot')return !!p.ot;const t=p.void?'':(lab[p.id]?.t||'');if(attLog.map==='other')return !p.void&&!MAP_ORDER.some(x=>t.startsWith(x));return t.startsWith(attLog.map);};
+  // 辨識異常：辨識錯人後手動改選、臉部相似度偏低（低於門檻＋0.05，勉強過門檻的也列出）、螢幕特徵達到門檻（疑似螢幕）
+  const anomThr=Number(attCfg().thr)||0.6,anomScr=Number(attCfg().scrThr)||0.6;
+  const isAnom=p=>!p.void&&p.src!=='manual'&&(!!p.picked||(p.sim!=null&&p.sim<anomThr+0.05)||(!!p.scr&&p.scr.s>=anomScr));
+  const mapHit=p=>{if(!attLog.map)return true;if(attLog.map==='anom')return isAnom(p);if(attLog.map==='ot')return !!p.ot;const t=p.void?'':(lab[p.id]?.t||'');if(attLog.map==='other')return !p.void&&!MAP_ORDER.some(x=>t.startsWith(x));return t.startsWith(attLog.map);};
   const list=mp.filter(p=>(!attLog.sid||p.staffId===attLog.sid)&&(!attLog.date||p.date===attLog.date)&&(attLog.showVoid||!p.void)&&mapHit(p)&&(!attLog.src||srcKey(p)===attLog.src))
     .sort((a,b)=>{const x=kf(a),y=kf(b);const c=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');return (c*S.dir)||(b.ts-a.ts);});
   const th=(key,label)=>`<th><button type="button" class="th-btn${S.key===key?' on':''}" data-logsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
   $('attLogCount').textContent=`共 ${list.length} 筆`;
   const showScore=!lowPerm(); // 臉部辨識、螢幕特徵分數：排班管理以上才顯示
   const scrThr=Number(attCfg().scrThr)||0.6,thr=Number(attCfg().thr)||0.6;
-  const faceCell=p=>p.src==='manual'||p.sim==null?'<td class="num att-mute">—</td>':`<td class="num" style="white-space:nowrap"><span class="${p.sim<thr?'att-bad':''}">${p.sim}</span><br><small class="att-mute">防偽 ${p.real??'—'}・活體 ${p.live??'—'}</small></td>`;
+  const faceCell=p=>p.src==='manual'||p.sim==null?'<td class="num att-mute">—</td>':`<td class="num" style="white-space:nowrap"><span class="${p.sim<thr+0.05?'att-bad':''}"${p.sim<thr+0.05?` title="相似度偏低（低於門檻 ${thr}＋0.05）"`:''}>${p.sim}</span><br><small class="att-mute">防偽 ${p.real??'—'}・活體 ${p.live??'—'}</small></td>`;
   const scrCell=p=>!p.scr?'<td class="num att-mute">—</td>':`<td class="num" style="white-space:nowrap"><span class="${p.scr.s>=scrThr?'att-bad':''}">${p.scr.s}${p.scr.s>=scrThr?'（疑似螢幕）':''}</span><br><small class="att-mute">摩爾紋 ${p.scr.m}・反光 ${p.scr.g}・發光 ${p.scr.e}・閃爍 ${p.scr.f}</small></td>`;
   $('attLog').innerHTML=`<thead><tr>${th('date','日期')}<th>時間</th>${lowPerm()?'':th('staff','人員')}${th('map','對應')}${th('src','來源')}${showScore?'<th class="num" title="相似度；下方為防偽、活體分數">臉部辨識</th><th class="num" title="總分；下方為摩爾紋、反光、發光、閃爍">螢幕特徵</th>':''}<th>照片</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(p=>{
