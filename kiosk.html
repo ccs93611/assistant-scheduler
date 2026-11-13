@@ -171,7 +171,11 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 .log-head{display:flex;align-items:center;gap:10px}.log-head h2{flex:1;margin:0}
 .log-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
 .log-ctl button{padding:10px 14px}.log-ctl select{width:auto;flex:1;min-width:140px}
-.log-label{font-weight:700;font-variant-numeric:tabular-nums;min-width:8.5em;text-align:center}
+.log-label{font-weight:700;font-variant-numeric:tabular-nums;min-width:6.5em;flex:1;text-align:center;white-space:nowrap}
+/* ◀ 日期 ▶ 今天 綁在一起不拆行；窄螢幕時單日／整月一列、日期切換一列、人員選單一列 */
+.log-nav{display:flex;align-items:center;gap:8px;flex:1 1 300px}
+.log-ctl select{flex-basis:100%}
+@media (max-width:520px){.log-ctl .seg{flex:1 1 100%}.log-ctl .seg button{flex:1}}
 .seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}.seg button{border:0;border-radius:0;background:transparent}.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
 .log-list{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px}
 .log-day{color:var(--sub);font-size:.85rem;margin:8px 2px 0}
@@ -307,8 +311,7 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
     <div class="log-head"><h2>打卡紀錄</h2><button id="logClose">關閉</button></div>
     <div class="log-ctl">
       <div class="seg" id="logMode"><button data-m="day" class="on">單日</button><button data-m="month">整月</button></div>
-      <button id="logPrev" aria-label="前一個">◀</button><span id="logLabel" class="log-label"></span><button id="logNext" aria-label="下一個">▶</button>
-      <button id="logToday">今天</button>
+      <div class="log-nav"><button id="logPrev" aria-label="前一個">◀</button><span id="logLabel" class="log-label"></span><button id="logNext" aria-label="下一個">▶</button><button id="logToday">今天</button></div>
       <select id="logSid"></select>
     </div>
     <div class="log-list" id="logList"></div>
