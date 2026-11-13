@@ -326,6 +326,10 @@ tr.drop-after td{box-shadow:inset 0 -3px 0 var(--accent)}
 }
 textarea.note-ta{width:100%;resize:none;overflow:hidden;line-height:1.4;display:block;min-height:34px;white-space:pre-wrap;word-break:break-word}
 .cat-tag{font-size:11px;color:var(--accent);display:block;white-space:nowrap} /* 治療種類、介紹、保固排在同一行 */
+/* 病患資料必填：標籤後紅色＊；還沒填的欄位紅框（只在畫面上，列印不顯示） */
+.req{color:var(--danger);margin-left:2px;font-weight:700}
+@media screen{.pt-grid input:invalid:not(:disabled){border-color:var(--danger);box-shadow:0 0 0 1px var(--danger) inset}}
+@media print{.req{display:none}}
 /* 項目旁的 ⓘ：開啟給病人看的治療介紹（treatment-info.js） */
 /* 項目旁的「ⓘ 介紹」「🛡 保固」：膠囊形按鈕，淡底色＋外框，比較明顯 */
 .ti-btn{border:1px solid var(--accent);background:var(--accent-soft);padding:1px 5px;margin-left:4px;border-radius:999px;color:var(--accent);font-size:11px;font-weight:700;line-height:1.25;vertical-align:baseline;white-space:nowrap}
@@ -790,7 +794,9 @@ const syncHint=()=>[syncSts().map(k=>(SYNC_ST.find(x=>x[0]===k)||[,k])[1].replac
 let allLoaded=false,allLoading=null;
 // 雲端搜尋舊單用的欄位（姓名、病歷號、單號、結單時間）
 // payMonths：有繳費的月份（統計「醫師自費收入」「矯正首次繳費」用）；closedYm：結單月份（統計「助理獎金」「助理業績」用）
-const idxFields=p=>({name:(p.name||'').trim(),chartNo:(p.chartNo||'').trim(),no:p.no||'',closedAt:p.closedAt||'',closedYm:(p.closedAt||'').slice(0,7),
+// 搜尋用：姓名、病歷號比對時忽略空白與特殊字元（只留文字與數字，英文不分大小寫）
+const srchNorm=s=>String(s||'').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+const idxFields=p=>({name:(p.name||'').trim(),chartNo:(p.chartNo||'').trim(),nameK:srchNorm(p.name),chartK:srchNorm(p.chartNo),no:p.no||'',closedAt:p.closedAt||'',closedYm:(p.closedAt||'').slice(0,7),
   payMonths:[...new Set((p.payments||[]).map(x=>(x.date||'').slice(0,7)).filter(Boolean))].sort(),
   createdDay:(p.createdAt||'').slice(0,10)}); // createdDay：開立日期（「無繳費且過期比例」依開立日期區間讀取用）
 const IDX_V=3; // 所有舊單都補好上面這些欄位後，settings.idxV 會設成這個版本，統計才能只讀需要的月份
@@ -880,8 +886,10 @@ async function saveSettings(){rebuildCats();try{await DB.saveSettings()}catch(e)
 
 /* ====== 列表 ====== */
 function renderList(){
-  const q=$('#search').value.trim().toLowerCase(),sf=$('#statusFilter').value;
-  const arr=[...plans.values()].filter(p=>(!sf||(sf==='todo'?todoOf(p).n>0:stOf(p)===sf))&&(!q||[p.name,p.chartNo,p.no,p.doctor,p.assistant,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q))))
+  const q=$('#search').value.trim().toLowerCase(),qk=srchNorm(q),sf=$('#statusFilter').value;
+  // 姓名、病歷號忽略空白與特殊字元比對；其他欄位照原本文字比對
+  const hit=p=>(qk&&[p.name,p.chartNo].some(v=>srchNorm(v).includes(qk)))||[p.name,p.chartNo,p.no,p.doctor,p.assistant,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q));
+  const arr=[...plans.values()].filter(p=>(!sf||(sf==='todo'?todoOf(p).n>0:stOf(p)===sf))&&(!q||hit(p)))
     .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')||b.updatedAt-a.updatedAt);
   $('#planList').innerHTML=arr.length?arr.map(p=>{const c=calc(p);return `<button class="plan-item ${p.id===curId?'on':''}" data-open="${p.id}">
     <div class="l1"><div class="nmr"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m">${esc(p.chartNo||'')}</span></div><span class="m big">${p.birthday?'生日 '+esc(p.birthday):''}</span></div>
@@ -982,13 +990,13 @@ function renderEditor(){
   <section class="card">
     <h2>病患資料</h2>
     <div class="pt-wrap"><div class="grid-f pt-grid">
-      <label>姓名<input data-f="name" value="${esc(p.name)}" ${idis}></label>
-      <label>生日<input type="date" data-f="birthday" value="${esc(p.birthday)}" ${idis}></label>
-      <label>病歷號<input data-f="chartNo" value="${esc(p.chartNo)}" ${idis}></label>
-      <div class="dt-pair dr-pair"><label>主治醫師<span class="combo-wrap pp-wrap"><input data-f="doctor" data-pp="doc" autocomplete="off" placeholder="選擇醫師" value="${esc(p.doctor)}" ${idis}></span></label>
-      <label>責任助理<span class="combo-wrap pp-wrap"><input data-f="assistant" data-pp="asst" autocomplete="off" placeholder="選擇助理" value="${esc(p.assistant)}" ${idis}></span></label></div>
-      <div class="dt-pair"><label>單據開立時間<input type="datetime-local" data-f="createdAt" value="${esc(p.createdAt)}" ${idis}></label>
-      <label><span class="exp-lbl">有效期限${expMonthsSel(p,dis)}</span><input type="date" data-f="expiry" value="${esc(expiryOf(p))}" ${dis} class="${isExpired(p)&&p.status==='open'?'expired-in':''}" title="可直接選日期；清空則依左上的月數計算"></label></div>
+      <label><span>姓名<b class="req" title="必填">*</b></span><input data-f="name" value="${esc(p.name)}" required ${idis}></label>
+      <label><span>生日<b class="req" title="必填">*</b></span><input type="date" data-f="birthday" value="${esc(p.birthday)}" required ${idis}></label>
+      <label><span>病歷號<b class="req" title="必填">*</b></span><input data-f="chartNo" value="${esc(p.chartNo)}" required ${idis}></label>
+      <div class="dt-pair dr-pair"><label><span>主治醫師<b class="req" title="必填">*</b></span><span class="combo-wrap pp-wrap"><input data-f="doctor" data-pp="doc" autocomplete="off" placeholder="選擇醫師" value="${esc(p.doctor)}" required ${idis}></span></label>
+      <label><span>責任助理<b class="req" title="必填">*</b></span><span class="combo-wrap pp-wrap"><input data-f="assistant" data-pp="asst" autocomplete="off" placeholder="選擇助理" value="${esc(p.assistant)}" required ${idis}></span></label></div>
+      <div class="dt-pair"><label><span>單據開立時間<b class="req" title="必填">*</b></span><input type="datetime-local" data-f="createdAt" value="${esc(p.createdAt)}" required ${idis}></label>
+      <label><span class="exp-lbl">有效期限<b class="req" title="必填">*</b>${expMonthsSel(p,dis)}</span><input type="date" data-f="expiry" value="${esc(expiryOf(p))}" ${dis} class="${isExpired(p)&&p.status==='open'?'expired-in':''}" title="可直接選日期；清空則依左上的月數計算"></label></div>
     </div></div>
   </section>
 
@@ -1384,8 +1392,12 @@ $('#main').addEventListener('click',async e=>{
 });
 
 /* 定案：治療項目與金額鎖定，之後只能用「計畫變更」另開新單 */
+const PT_REQ=[['name','姓名'],['birthday','生日'],['chartNo','病歷號'],['doctor','主治醫師'],['assistant','責任助理'],['createdAt','單據開立時間']];
 async function finalize(p){
   const c=calc(p),items=p.items.filter(i=>i.name);
+  // 病患資料全部必填（有效期限沒填會依月數計算，一定有值）
+  const miss=PT_REQ.filter(([k])=>!String(p[k]||'').trim()).map(([,n])=>n);
+  if(miss.length){alert('病患資料為必填，請先填寫：'+miss.join('、'));document.querySelector(`#main [data-f="${PT_REQ.find(([,n])=>n===miss[0])[0]}"]`)?.focus();return}
   if(!items.length){alert('請先填寫治療項目再定案');return}
   if(items.some(isOrthoItem)&&!items.every(isOrthoItem)){alert('矯正類項目不能和其他種類開在同一張計劃單，請把其他種類移到另一張單後再定案。');return}
   if(items.filter(i=>!i.custom&&ORTHO_MAIN.has(i.name)).length>1){alert('一張計劃單只能有一項矯正療程，請另開一張單後再定案。');return}
@@ -2587,8 +2599,10 @@ async function loadMonthsBack(n){
 // 雲端搜尋舊單：姓名開頭、病歷號開頭、單號開頭
 async function searchOld(q){
   if(!fs)return 0;q=q.trim();if(!q)return 0;
-  const end=q+'',col=fs.collection('tpPlans');
-  const snaps=await Promise.all(['name','chartNo','no'].map(k=>col.where(k,'>=',q).where(k,'<=',end).limit(50).get()));
+  const col=fs.collection('tpPlans');
+  // 姓名、病歷號另外用去掉空白與特殊字元的欄位（nameK、chartK）找，輸入時多打空白或符號也找得到（之後存過的單才有這兩個欄位）
+  const qk=srchNorm(q),ks=[['name',q],['chartNo',q],['no',q],...(qk?[['nameK',qk],['chartK',qk]]:[])];
+  const snaps=await Promise.all(ks.map(([k,v])=>col.where(k,'>=',v).where(k,'<=',v+'').limit(50).get()));
   let n=0;snaps.forEach(sn=>sn.docs.forEach(d=>{if(addPlanDoc(d))n++}));renderList();return n;
 }
 // 打開的單連到還沒讀進來的前單／新單（計畫變更），補讀那一張
