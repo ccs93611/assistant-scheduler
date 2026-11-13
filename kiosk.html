@@ -148,10 +148,10 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 .code{font-size:2.2rem;font-weight:700;letter-spacing:.2em;text-align:center;margin:10px 0;color:var(--gold)}
 .mini-stage{position:relative;border-radius:14px;overflow:hidden;background:#0B100D;aspect-ratio:4/3;margin-top:12px}
 .mini-stage video{position:absolute;inset:0}
-.pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-height:52vh;overflow:auto;margin-bottom:12px}
-.pick-grid button{padding:12px 8px;font-size:1rem}
-.pick-grid button small{display:block;font-size:.72rem;opacity:.7;margin-top:2px}
-.pick-grid button.sch{border-color:var(--ok)}
+.who-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-height:52vh;overflow:auto;margin-bottom:12px}
+.who-grid button{padding:12px 8px;font-size:1rem}
+.who-grid button small{display:block;font-size:.72rem;opacity:.7;margin-top:2px}
+.who-grid button.sch{border-color:var(--ok)}
 .en-head{display:flex;align-items:center;gap:14px;margin-top:4px}
 .en-arrow{flex:none;width:64px;height:64px;border-radius:50%;background:var(--ok);color:#fff;font-size:38px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
 .en-tip{font-size:1.35rem;font-weight:700}
@@ -237,7 +237,7 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
   <div class="box" style="width:min(560px,100%)">
     <h2 style="margin:0 0 4px">選擇正確人員</h2>
     <p id="pickSub" style="margin:0 0 10px;opacity:.75"></p>
-    <div class="pick-grid" id="pickList"></div>
+    <div class="who-grid" id="pickList"></div>
     <div class="row"><button id="pickCancel">取消打卡</button></div>
   </div>
 </div>
