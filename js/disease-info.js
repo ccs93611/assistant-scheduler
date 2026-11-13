@@ -17,8 +17,8 @@ const DI_CAT_DESC={
   '缺牙區軟硬組織問題':'拔牙或缺牙後，缺牙處的骨頭與牙肉跟著改變，常常是植牙前需要先處理的問題。'
 };
 /* 後牙缺牙導致前牙咬合創傷的影片（咬合高度喪失、咬合創傷、缺牙三則共用）；已用 ffmpeg 裁掉原始檔上下的黑邊（720×1278 → 720×572），
-   再用 Real-ESRGAN（realesrgan-x4plus-anime）AI 放大，和原版放大各取一半疊合（看起來較自然），輸出 1440×1144 */
-const DI_VID_POST={src:'media/posterior-loss-trauma-v2.mp4',cap:'影片：後牙缺牙，導致前牙咬合創傷'};
+   再用 Real-ESRGAN（realesrgan-x4plus-anime）AI 放大，和原版放大各取一半疊合（看起來較自然），輸出 1440×1144；去掉最後 1 秒（淡出黑畫面） */
+const DI_VID_POST={src:'media/posterior-loss-trauma-v3.mp4',cap:'影片：後牙缺牙，導致前牙咬合創傷'};
 /* 內因性與外因性顏色異常比較（兩則共用） */
 const DI_STAIN_CMP={title:'內因性與外因性顏色異常比較',plain:true,head:['比較項目','內因性顏色異常','外因性顏色異常'],rows:[
   ['顏色在哪裡','**牙齒內部**（琺瑯質、象牙質本身變色）','**牙齒表面**（色素附著在外面）'],
