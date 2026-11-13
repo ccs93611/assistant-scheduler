@@ -1024,6 +1024,7 @@ async function drawLog(){
   const from=month?st.date.slice(0,8)+'01':st.date,to=month?monthEnd(st.date):st.date,dd=dayOf(st.date);
   $('logLabel').textContent=month?`${dd.getFullYear()} 年 ${dd.getMonth()+1} 月`:`${dd.getMonth()+1}/${dd.getDate()}（${DAYS[dd.getDay()]}）`;
   $('logMode').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.m===st.mode));
+  $('logToday').textContent=st.mode==='month'?'本月':'今天'; // 整月時回到本月
   $('logNext').disabled=to>=ymd(new Date());
   $('logList').innerHTML='<div class="log-foot">載入中…</div>';
   let ps=[];
