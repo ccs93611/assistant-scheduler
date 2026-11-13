@@ -546,14 +546,16 @@ function afterLogin(){
   $('#vMonth').value=view.month;
   render();
 }
+const srchKey=v=>String(v??'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 function filtered(){
-  const q=view.q.trim().toLowerCase();
+  // 搜尋時忽略空白與符號（全形、半形都算），只比對文字和數字，例如「a 001」「A-001」都找得到 A001
+  const q=srchKey(view.q);
   return [...items.values()].filter(x=>{
     if(x.month!==view.month)return false;
     if(view.st==='open'?!['pending','rejected'].includes(x.status):(view.st!=='all'&&x.status!==view.st))return false;
     if(view.doc&&x.doctorId!==view.doc)return false;
     if(view.item&&x.item!==view.item)return false;
-    if(q&&![x.pName,x.chartNo,itemLabel(x),x.tooth].some(v=>String(v||'').toLowerCase().includes(q)))return false;
+    if(q&&![x.pName,x.chartNo,itemLabel(x),x.tooth].some(v=>srchKey(v).includes(q)))return false;
     return true;
   }).sort((a,b)=>({rejected:0,pending:1,confirmed:2}[a.status]-{rejected:0,pending:1,confirmed:2}[b.status])||b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
 }
