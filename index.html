@@ -371,6 +371,14 @@ body.low-perm .leave-form .field:has(> [data-n="staff"]),body.low-perm #fcForm .
 body.low-perm #attRulesCard,body.low-perm #devCard,body.low-perm #attToPay,body.low-perm #tab-att button:disabled,body.low-perm #attLogSid,body.low-perm #otSid{display:none;}
 body.view-only #tab-leave form,body.view-only #tab-docleave form,body.view-only #tab-leave button:disabled,body.view-only #tab-docleave button:disabled{display:none;}
 .att-photo{display:block; width:min(320px,100%); height:auto; aspect-ratio:1; border-radius:12px; object-fit:cover; margin:8px auto;}
+.ph-nav{position:relative;}
+.ph-title{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;} /* 標題固定一行，切換照片時高度不變 */
+.ph-line{margin:2px 0 0; height:1.55em; line-height:1.55; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.ph-line.ph-scr{height:3.2em;}
+.ph-line small{display:inline-block; margin-top:2px;}
+.ph-arrow{position:absolute; top:calc(50% - 40px); z-index:2; width:40px; height:56px; padding:0; border-radius:10px; font-size:2rem; line-height:1; background:rgba(255,255,255,.85); border:1px solid var(--line); color:var(--ink);}
+.ph-arrow.prev{left:-6px;} .ph-arrow.next{right:-6px;}
+.ph-arrow:disabled{opacity:.25; cursor:default;}
 .pay-note{min-width:120px; max-width:240px; white-space:pre-wrap; font-size:.8rem; color:var(--sub);}
 #pf-note{width:100%; resize:vertical; font:inherit;}
 .pay-bulk thead th{position:sticky; top:0; background:var(--panel); z-index:1;}
@@ -5028,6 +5036,7 @@ function renderAttLog(mi){
     .sort((a,b)=>{const x=kf(a),y=kf(b);const c=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');return (c*S.dir)||(b.ts-a.ts);});
   const th=(key,label)=>`<th><button type="button" class="th-btn${S.key===key?' on':''}" data-logsort="${key}" aria-label="依${label}排序">${label}<span>${S.key===key?(S.dir>0?'▲':'▼'):'↕'}</span></button></th>`;
   $('attLogCount').textContent=`共 ${list.length} 筆`;
+  attPhotoIds=list.filter(p=>p.photo).map(p=>p.id); // 照片視窗的上一張／下一張依目前列表順序
   const showScore=!lowPerm(); // 臉部辨識、螢幕特徵分數：排班管理以上才顯示
   const scrThr=Number(attCfg().scrThr)||0.6,thr=Number(attCfg().thr)||0.6;
   const faceCell=p=>p.src==='manual'||p.sim==null?'<td class="num att-mute">—</td>':`<td class="num" style="white-space:nowrap"><span class="${p.sim<thr+0.05?'att-bad':''}"${p.sim<thr+0.05?` title="相似度偏低（低於門檻 ${thr}＋0.05）"`:''}>${p.sim}</span><br><small class="att-mute">防偽 ${p.real??'—'}・活體 ${p.live??'—'}</small></td>`;
@@ -5044,6 +5053,30 @@ function renderAttLog(mi){
         <td>${p.photo?`<span class="punch"><img src="${esc(p.photo)}" alt="" data-photo="${esc(p.id)}"></span>`:''}</td>
         <td>${canWrite&&!p.void?`<button class="small" data-pvoid="${esc(p.id)}">作廢</button>`:''}</td></tr>`;
     }).join(''):`<tr><td colspan="${showScore?9:7}" class="att-mute">沒有打卡紀錄</td></tr>`)+'</tbody>';
+}
+// 打卡照片放大：可以用左右箭頭（畫面兩側按鈕或鍵盤 ← →）切換到列表中的上一張、下一張照片
+let attPhotoIds=[];
+// 每張照片都保留同樣的列數（沒有的資訊以空白佔位），上一張／下一張切換時視窗大小不變
+function punchPhotoHtml(p){
+  const hold=(on,html,cls='')=>`<p class="hint ph-line${cls}"${on?'':' aria-hidden="true"'}>${on?html:''}</p>`;
+  const showScr=!lowPerm(),t=Number(attCfg().scrThr)||0.6,bad=!!p.scr&&p.scr.s>=t;
+  const scr=showScr?hold(!!p.scr,p.scr?`螢幕特徵 <span class="${bad?'att-bad':''}">${p.scr.s}${bad?'（疑似螢幕）':''}</span><br><small class="att-mute">摩爾紋 ${p.scr.m}・反光 ${p.scr.g}・發光 ${p.scr.e}・閃爍 ${p.scr.f}</small>`:'',' ph-scr'):'';
+  return `<h3 class="ph-title">${esc(fullName(byId(p.staffId)))}・${esc(p.date)} ${hhmm(p.ts)}</h3><img class="att-photo" src="${esc(p.photo)}" alt="打卡照片">`
+    +`<p class="hint ph-line">${esc(p.devName||'')}${p.sim?`，相似度 ${p.sim}`:''}</p>`
+    +hold(!!p.picked,p.picked?`<span class="att-bad">手動選擇（原本辨識為 ${esc(fullName(byId(p.picked.from))||'?')}）</span>`:'')+scr;
+}
+function openPunchPhoto(id){
+  if(!punches.some(x=>x.id===id))return;
+  const ids=attPhotoIds.includes(id)?attPhotoIds.slice():[id];let i=ids.indexOf(id);
+  dialog(`<div class="ph-nav"><button type="button" class="ph-arrow prev" data-phstep="-1" aria-label="上一張">‹</button><div id="phBody"></div><button type="button" class="ph-arrow next" data-phstep="1" aria-label="下一張">›</button></div><p class="hint" id="phPos" style="text-align:center;margin:4px 0 0"></p>`,()=>{},'關閉');
+  const ov=document.querySelector('.overlay:last-of-type');
+  const show=()=>{const p=punches.find(x=>x.id===ids[i]);if(!p)return;ov.querySelector('#phBody').innerHTML=punchPhotoHtml(p);
+    ov.querySelector('[data-phstep="-1"]').disabled=i<=0;ov.querySelector('[data-phstep="1"]').disabled=i>=ids.length-1;
+    ov.querySelector('#phPos').textContent=ids.length>1?`${i+1} / ${ids.length}`:'';};
+  const step=d=>{const j=i+d;if(j<0||j>=ids.length)return;i=j;show();};
+  ov.addEventListener('click',e=>{const b=e.target.closest('[data-phstep]');if(b){e.stopPropagation();step(Number(b.dataset.phstep));}});
+  ov.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){e.preventDefault();step(-1);}else if(e.key==='ArrowRight'){e.preventDefault();step(1);}});
+  show();
 }
 function renderAtt(mi){
   attSubscribe(mi);
@@ -5196,7 +5229,7 @@ $('tab-att').addEventListener('click',e=>{
   if(row&&!e.target.closest('button')){attSel=attSel===row.dataset.attsid?null:row.dataset.attsid;renderAll();if(attSel)$('attDetail').scrollIntoView({behavior:'smooth',block:'nearest'});return;}
   if(e.target.closest('[data-attclose]')){attSel=null;renderAll();return;}
   const ph=e.target.closest('[data-photo]');
-  if(ph){const p=punches.find(x=>x.id===ph.dataset.photo);if(p)dialog(`<h3>${esc(fullName(byId(p.staffId)))}・${esc(p.date)} ${hhmm(p.ts)}</h3><img class="att-photo" src="${esc(p.photo)}" alt="打卡照片"><p class="hint">${esc(p.devName||'')}${p.sim?`，相似度 ${p.sim}`:''}</p>`,()=>{},'關閉');return;}
+  if(ph){openPunchPhoto(ph.dataset.photo);return;}
   const pv=e.target.closest('[data-pvoid]');
   if(pv){const p=punches.find(x=>x.id===pv.dataset.pvoid);if(!p)return;
     dialog(`<h3>作廢打卡</h3><p>${esc(fullName(byId(p.staffId)))} ${esc(p.date)} ${hhmm(p.ts)}。作廢後不列入出勤計算（紀錄保留）。</p><div class="field"><label>原因</label><input id="pvWhy" placeholder="例如：重複打卡、認錯人"></div>`,ov=>{store.punch(Object.assign({},p,{void:true,voidBy:myId||'',voidAt:Date.now(),voidNote:ov.querySelector('#pvWhy').value.trim()}));},'作廢',true);return;}
