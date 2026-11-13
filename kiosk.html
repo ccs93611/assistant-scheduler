@@ -672,9 +672,38 @@ function renderRecent(){
 let stream=null,phoneModel=null,phoneObjs=[],phoneAt=0; // phoneObjs：最近一次偵測到的物品 {label,score,box:[x,y,w,h]}
 async function openCamera(){
   if(!navigator.mediaDevices?.getUserMedia)throw new Error('這個瀏覽器不支援相機。');
+  if(stream)stream.getTracks().forEach(t=>{try{t.stop();}catch(e){}}); // 重開時先關掉舊的
   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:960},height:{ideal:720}},audio:false});
   $('cam').srcObject=stream;await $('cam').play().catch(()=>{});
+  if(!$('enrollRun').hidden){$('enCam').srcObject=stream;$('enCam').play().catch(()=>{});}
+  camLastT=-1;camStillSince=0;
 }
+// App 縮到背景再打開（或螢幕關掉再開）時，Android 常會讓相機畫面停住：回到前景就重開相機；
+// 另外每 2 秒檢查畫面有沒有在動，停住超過 3 秒也重開
+let camLastT=-1,camStillSince=0,camRestarting=false,hiddenAt=0,camGate=false;
+async function restartCamera(why){
+  if(camRestarting||!running)return;camRestarting=true;
+  console.warn('重開相機：'+why);
+  try{await openCamera();if(camGate){camGate=false;hideGate();}}catch(e){console.error(e);camGate=true;showGate('camera',e.message||String(e));}
+  finally{camRestarting=false;}
+}
+function camHealthy(){
+  const v=$('cam'),tr=stream?.getVideoTracks?.()[0];
+  return !!tr&&tr.readyState==='live'&&!tr.muted&&!v.paused&&v.readyState>=2;
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){hiddenAt=Date.now();return;}
+  // 回到前景：背景超過 1 秒或相機已經不正常就重開
+  setTimeout(()=>{if(running&&(Date.now()-hiddenAt>1000||!camHealthy()))restartCamera('回到前景');},300);
+});
+window.addEventListener('pageshow',e=>{if(e.persisted&&running)restartCamera('頁面恢復');});
+setInterval(()=>{
+  if(!running||document.hidden||camRestarting)return;
+  const v=$('cam'),t=v.currentTime;
+  if(!camHealthy()){restartCamera('相機狀態異常');return;}
+  if(t===camLastT){if(!camStillSince)camStillSince=Date.now();else if(Date.now()-camStillSince>3000)restartCamera('畫面停住');}
+  else{camLastT=t;camStillSince=0;}
+},2000);
 async function loadModels(){
   if(!window.Human)throw new Error('辨識程式下載失敗，請確認網路連線。');
   const H=window.Human.Human||window.Human.default;
@@ -770,6 +799,7 @@ renderPick();setInterval(()=>{if(!sel)renderPick();},30*1000);
 // ---------- 打卡主迴圈 ----------
 let streak={sid:null,n:0}, badSince=0;
 function setMsg(t,cls=''){$('msg').textContent=t;$('guide').className='guide '+cls;}
+let detectStall=0; // 連續辨識逾時次數
 async function loop(){
   if(!running)return;
   try{
@@ -778,7 +808,9 @@ async function loop(){
       $('scanCd').textContent=left>0?`${left} 秒`:'';
       if(left<=0)endScan();
       else if($('cam').readyState>=2){
-        const res=await human.detect($('cam'));
+        const res=await Promise.race([human.detect($('cam')),new Promise(r=>setTimeout(()=>r(null),4000))]);
+        if(!res){detectStall++;if(detectStall>=3)location.reload();else restartCamera('辨識逾時');throw new Error('辨識逾時');}
+        detectStall=0;
         if(!res.face?.length)phoneObjs=[]; // 沒有人時清掉舊的物品結果，避免下一個人被前一次的結果擋住
         updateScreenScore($('cam'),res.face?.[0]);
         if(settings.noScreen&&phoneModel&&res.face?.length&&Date.now()-phoneAt>400){
