@@ -110,7 +110,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 .di-vbtn{margin:0 0 12px}
 .di-vpop{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px}
 .di-vpop video{display:block;flex:none;max-width:100%;height:auto;border-radius:10px;background:#000;box-shadow:0 8px 40px rgba(0,0,0,.5)}
-.di-vpop .cap{color:#d5dde0;font-size:15px;text-align:center}
+.di-vpop .cap{color:#fff;font-size:min(30px,6vw);font-weight:700;line-height:1.3;text-align:center;padding:0 52px} /* 影片上方標題：原本 15px 放大一倍、粗體；手機上依螢幕寬度縮小；左右留空避開 ✕ */
 .di-vpop .x{position:fixed;top:10px;right:12px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.9);color:#111;font-size:20px;padding:0}
 @media print{.di-vbtn,.di-vpop{display:none!important}}
 .di-y{color:#f2c94c}@media print{.di-y{color:#9a6b00}} /* 比較表裡 ==文字== 的黃字強調 */
@@ -220,7 +220,7 @@ body.di-lock{overflow:hidden}
 </div>
 <script src="js/treatment-info.js?v=154"></script>
 <script src="js/treatment-figs.js?v=14"></script>
-<script src="js/disease-info.js?v=105"></script>
+<script src="js/disease-info.js?v=108"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -255,7 +255,7 @@ function stageFlowHtml(label,stages,tr,otherLabel){
 function bodyHtml(e){
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>
-    ${e.video?`<div class="di-vbtn"><button type="button" class="ti-str-btn ti-tbl-btn" data-video="${tiEsc(e.video.src)}" data-cap="${tiEsc(e.video.cap||'')}">🎬 ${tiEsc(e.video.cap||'案例影片')}</button></div>`:''}
+    ${e.video?`<div class="di-vbtn"><button type="button" class="ti-str-btn ti-tbl-btn" data-video="${tiEsc(e.video.src)}" data-cap="${tiEsc(e.video.cap||'')}" data-rate="${e.video.rate||1}">🎬 ${tiEsc(e.video.cap||'案例影片')}</button></div>`:''}
     ${box('di-first','🚑 緊急處理',e.first)}
     <div class="di-two">${sec('常見原因',e.cause)}${sec('常見症狀',e.symptom)}</div>
     ${e.table?`<div class="ti-cmps">${[].concat(e.table).map(t=>tiTableHtml(t).replace(/==(.+?)==/g,'<b class="di-y">$1</b>')).join('')}</div>`:''}
@@ -313,15 +313,16 @@ function printIds(ids){
 $('#q').addEventListener('input',filter);
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;cat=b.dataset.cat;filter();scrollTo({top:0})});
 $('#list').addEventListener('click',e=>{const p=e.target.closest('[data-print]');if(p)printIds([p.dataset.print]);
-  const vb=e.target.closest('[data-video]');if(vb)openVideo(vb.dataset.video,vb.dataset.cap)});
-// 案例影片彈窗（原生控制列）
-function openVideo(src,cap){
+  const vb=e.target.closest('[data-video]');if(vb)openVideo(vb.dataset.video,vb.dataset.cap,+vb.dataset.rate||1)});
+// 案例影片彈窗（原生控制列）；rate＝播放速度
+function openVideo(src,cap,rate=1){
   const o=document.createElement('div');o.className='di-vpop';o.setAttribute('role','dialog');o.setAttribute('aria-label',cap||'案例影片');
-  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button><video src="${tiEsc(src)}?v=2" autoplay muted loop playsinline controls></video>${cap?`<div class="cap">${tiEsc(cap)}</div>`:''}`;
-  // 影片放大到原尺寸的 2 倍，但不超出螢幕（扣掉四周留白與下方說明的高度）
+  const t=String(cap||'').replace(/^影片[:：]\s*/,''); // 彈窗裡的標題不要「影片：」字樣（按鈕上保留）
+  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button>${t?`<div class="cap">${tiEsc(t)}</div>`:''}<video src="${tiEsc(src)}?v=2" autoplay muted loop playsinline controls></video>`;
+  // 影片放大到原尺寸的 2 倍，但不超出螢幕（扣掉四周留白與上方標題的高度）
   const v=o.querySelector('video'),fit=()=>{if(!v.videoWidth)return;
-    const s=Math.min(2,(innerWidth-32)/v.videoWidth,(innerHeight-100)/v.videoHeight);v.style.width=Math.floor(v.videoWidth*s)+'px'};
-  v.addEventListener('loadedmetadata',fit);addEventListener('resize',fit);
+    const capH=(o.querySelector('.cap')?.offsetHeight||0)+12,s=Math.min(2,(innerWidth-32)/v.videoWidth,(innerHeight-32-capH)/v.videoHeight);v.style.width=Math.floor(v.videoWidth*s)+'px'};
+  v.defaultPlaybackRate=v.playbackRate=rate;v.addEventListener('loadedmetadata',()=>{v.playbackRate=rate;fit()});addEventListener('resize',fit);
   const close=()=>{o.remove();document.body.classList.remove('di-lock');removeEventListener('keydown',key);removeEventListener('resize',fit)},key=ev=>{if(ev.key==='Escape')close()};
   o.addEventListener('click',ev=>{if(ev.target===o||ev.target.closest('.x'))close()});
   addEventListener('keydown',key);document.body.classList.add('di-lock');document.body.appendChild(o);
