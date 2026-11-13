@@ -17,7 +17,7 @@ const DI_CAT_DESC={
   '缺牙區軟硬組織問題':'拔牙或缺牙後，缺牙處的骨頭與牙肉跟著改變，常常是植牙前需要先處理的問題。'
 };
 /* 根尖周囊腫的影片（蛀牙、二次蛀牙、齒髓炎、根尖周炎四則共用）；原始檔滿版、畫面已有中文標註，只重新壓縮（11.4 MB → 5 MB，畫質看不出差別） */
-const DI_VID_CYST={src:'media/apical-cyst.mp4',cap:'影片：齲齒導致牙髓壞死及根尖囊腫'};
+const DI_VID_CYST={src:'media/apical-cyst.mp4',cap:'影片：齲齒導致牙髓壞死及根尖膿腫'};
 /* 後牙缺牙導致前牙咬合創傷的影片（咬合高度喪失、咬合創傷、缺牙三則共用）；已用 ffmpeg 裁掉原始檔上下的黑邊（720×1278 → 720×572），
    再用 Real-ESRGAN（realesrgan-x4plus-anime）AI 放大，和原版放大各取一半疊合（看起來較自然），輸出 1440×1144；去掉最後 1 秒（淡出黑畫面） */
 const DI_VID_POST={src:'media/posterior-loss-trauma-v3.mp4',cap:'影片：後牙缺牙，導致前牙咬合創傷'};
@@ -262,7 +262,9 @@ const DISEASE_INFO=[
  alert:['自發性抽痛、半夜痛醒','止痛藥效果越來越差','臉頰或牙肉開始腫起來'],
  note:'如果疼痛突然消失，不一定是好了，也可能是神經已經壞死，之後仍可能出現感染，建議還是要檢查。'},
 
-{id:'apical',cat:'牙髓與根尖周圍組織疾病',title:'根尖周炎／根尖膿腫',alias:['根尖發炎','根尖病灶','根尖囊腫','膿包','牙齦長膿包','臉腫','牙齒咬了會痛','蜂窩性組織炎','抽神經'],
+{id:'apical',
+ cases:[{label:'案例',imgs:['media/apical-case-1.jpg','media/apical-case-3.jpg','media/apical-case-4.jpg','media/apical-case-2.jpg']}], // 案例照片：按鈕點開後用彈窗上下排列
+ cat:'牙髓與根尖周圍組織疾病',title:'根尖周炎／根尖膿腫',alias:['根尖發炎','根尖病灶','根尖囊腫','膿包','牙齦長膿包','臉腫','牙齒咬了會痛','蜂窩性組織炎','抽神經'],
  video:DI_VID_CYST,
  what:'牙髓壞死後，細菌感染穿過牙根尖擴散到齒槽骨，在牙根尖周圍發炎或化膿，需要做根管治療（俗稱抽神經）。',
  stages:[

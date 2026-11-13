@@ -220,7 +220,7 @@ body.di-lock{overflow:hidden}
 </div>
 <script src="js/treatment-info.js?v=154"></script>
 <script src="js/treatment-figs.js?v=14"></script>
-<script src="js/disease-info.js?v=114"></script>
+<script src="js/disease-info.js?v=117"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -255,7 +255,8 @@ function stageFlowHtml(label,stages,tr,otherLabel){
 function bodyHtml(e){
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>
-    ${e.video?`<div class="di-vbtn">${[].concat(e.video).map(x=>`<button type="button" class="ti-str-btn ti-tbl-btn" data-video="${tiEsc(x.src)}" data-cap="${tiEsc(x.cap||'')}" data-rate="${x.rate||1}">🎬 ${tiEsc(x.cap||'案例影片')}</button>`).join('')}</div>`:''}
+    ${e.video||e.cases?`<div class="di-vbtn">${[].concat(e.video||[]).map(x=>`<button type="button" class="ti-str-btn ti-tbl-btn" data-video="${tiEsc(x.src)}" data-cap="${tiEsc(x.cap||'')}" data-rate="${x.rate||1}">🎬 ${tiEsc(x.cap||'案例影片')}</button>`).join('')}${
+      (e.cases||[]).map(c=>`<button type="button" class="ti-str-btn ti-tbl-btn" data-case="${tiEsc(c.imgs.join('|'))}" data-alt="${tiEsc(e.title+'・'+c.label)}">📷 ${tiEsc(c.label)}</button>`).join('')}</div>`:''}
     ${box('di-first','🚑 緊急處理',e.first)}
     <div class="di-two">${sec('常見原因',e.cause)}${sec('常見症狀',e.symptom)}</div>
     ${e.table?`<div class="ti-cmps">${[].concat(e.table).map(t=>tiTableHtml(t).replace(/==(.+?)==/g,'<b class="di-y">$1</b>')).join('')}</div>`:''}
@@ -313,6 +314,7 @@ function printIds(ids){
 $('#q').addEventListener('input',filter);
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;cat=b.dataset.cat;filter();scrollTo({top:0})});
 $('#list').addEventListener('click',e=>{const p=e.target.closest('[data-print]');if(p)printIds([p.dataset.print]);
+  const cb=e.target.closest('[data-case]');if(cb)tiPop(cb.dataset.case,cb.dataset.alt); // 案例照片：沿用治療介紹的圖片彈窗（多張上下排列，點圖放大，可列印）
   const vb=e.target.closest('[data-video]');if(vb)openVideo(vb.dataset.video,vb.dataset.cap,+vb.dataset.rate||1)});
 // 案例影片彈窗（原生控制列）；rate＝播放速度
 function openVideo(src,cap,rate=1){
