@@ -106,6 +106,13 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 .di-links a{font-size:.82em;line-height:1.5;padding:2px 10px;border-radius:999px;border:1px solid var(--accent);color:var(--accent);text-decoration:none;white-space:nowrap}
 .di-links a:hover{background:var(--accent);color:var(--accent-ink)}
 .di-links a::after{content:" ›"}
+/* 案例影片：說明下方一顆按鈕，點了用彈窗播放（靜音、循環）；點背景、✕ 或按 Esc 關閉；列印時不印按鈕 */
+.di-vbtn{margin:0 0 12px}
+.di-vpop{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px}
+.di-vpop video{display:block;max-width:100%;max-height:calc(100vh - 90px);border-radius:10px;background:#000;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.di-vpop .cap{color:#d5dde0;font-size:15px;text-align:center}
+.di-vpop .x{position:fixed;top:10px;right:12px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.9);color:#111;font-size:20px;padding:0}
+@media print{.di-vbtn,.di-vpop{display:none!important}}
 .di-y{color:#f2c94c}@media print{.di-y{color:#9a6b00}} /* 比較表裡 ==文字== 的黃字強調 */
 .di-links a.di{border-style:dashed;border-color:var(--warn);color:var(--warn)}.di-links a.di:hover{background:var(--warn);color:var(--accent-ink)}
 
@@ -213,7 +220,7 @@ body.di-lock{overflow:hidden}
 </div>
 <script src="js/treatment-info.js?v=154"></script>
 <script src="js/treatment-figs.js?v=14"></script>
-<script src="js/disease-info.js?v=94"></script>
+<script src="js/disease-info.js?v=99"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -248,6 +255,7 @@ function stageFlowHtml(label,stages,tr,otherLabel){
 function bodyHtml(e){
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>
+    ${e.video?`<div class="di-vbtn"><button type="button" class="ti-str-btn ti-tbl-btn" data-video="${tiEsc(e.video.src)}" data-cap="${tiEsc(e.video.cap||'')}">🎬 ${tiEsc(e.video.cap||'案例影片')}</button></div>`:''}
     ${box('di-first','🚑 緊急處理',e.first)}
     <div class="di-two">${sec('常見原因',e.cause)}${sec('常見症狀',e.symptom)}</div>
     ${e.table?`<div class="ti-cmps">${[].concat(e.table).map(t=>tiTableHtml(t).replace(/==(.+?)==/g,'<b class="di-y">$1</b>')).join('')}</div>`:''}
@@ -304,7 +312,16 @@ function printIds(ids){
 }
 $('#q').addEventListener('input',filter);
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;cat=b.dataset.cat;filter();scrollTo({top:0})});
-$('#list').addEventListener('click',e=>{const p=e.target.closest('[data-print]');if(p)printIds([p.dataset.print])});
+$('#list').addEventListener('click',e=>{const p=e.target.closest('[data-print]');if(p)printIds([p.dataset.print]);
+  const vb=e.target.closest('[data-video]');if(vb)openVideo(vb.dataset.video,vb.dataset.cap)});
+// 案例影片彈窗
+function openVideo(src,cap){
+  const o=document.createElement('div');o.className='di-vpop';o.setAttribute('role','dialog');o.setAttribute('aria-label',cap||'案例影片');
+  o.innerHTML=`<button type="button" class="x" aria-label="關閉">✕</button><video src="${tiEsc(src)}" autoplay muted loop playsinline controls></video>${cap?`<div class="cap">${tiEsc(cap)}</div>`:''}`;
+  const close=()=>{o.remove();document.body.classList.remove('di-lock');removeEventListener('keydown',key)},key=ev=>{if(ev.key==='Escape')close()};
+  o.addEventListener('click',ev=>{if(ev.target===o||ev.target.closest('.x'))close()});
+  addEventListener('keydown',key);document.body.classList.add('di-lock');document.body.appendChild(o);
+}
 // 點治療項目：用彈窗顯示該則治療介紹（按 Ctrl／⌘ 或中鍵仍照連結開新分頁）；點背景、✕ 或按 Esc 關閉
 function openTreat(id){
   const e=TI_BY_ID[id];if(!e)return;
