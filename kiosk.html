@@ -148,6 +148,10 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
 .code{font-size:2.2rem;font-weight:700;letter-spacing:.2em;text-align:center;margin:10px 0;color:var(--gold)}
 .mini-stage{position:relative;border-radius:14px;overflow:hidden;background:#0B100D;aspect-ratio:4/3;margin-top:12px}
 .mini-stage video{position:absolute;inset:0}
+.pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-height:52vh;overflow:auto;margin-bottom:12px}
+.pick-grid button{padding:12px 8px;font-size:1rem}
+.pick-grid button small{display:block;font-size:.72rem;opacity:.7;margin-top:2px}
+.pick-grid button.sch{border-color:var(--ok)}
 .en-head{display:flex;align-items:center;gap:14px;margin-top:4px}
 .en-arrow{flex:none;width:64px;height:64px;border-radius:50%;background:var(--ok);color:#fff;font-size:38px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
 .en-tip{font-size:1.35rem;font-weight:700}
@@ -225,6 +229,16 @@ label.chk input{width:22px;height:22px;flex:none;margin-top:2px}
     <div class="note" id="resNote"></div>
     <div class="bar"><i id="resBar"></i></div>
     <div class="row" id="resActs"><button id="resNo">不是我</button><button class="primary" id="resOk">確認打卡</button></div>
+    <div class="row" id="resNotMe" hidden><button id="resCancel">取消打卡</button><button class="primary" id="resPick">選擇正確人員</button></div>
+  </div>
+</div>
+<!-- 選擇正確人員（辨識錯人時） -->
+<div class="ov" id="pickOv" hidden>
+  <div class="box" style="width:min(560px,100%)">
+    <h2 style="margin:0 0 4px">選擇正確人員</h2>
+    <p id="pickSub" style="margin:0 0 10px;opacity:.75"></p>
+    <div class="pick-grid" id="pickList"></div>
+    <div class="row"><button id="pickCancel">取消打卡</button></div>
   </div>
 </div>
 <!-- 管理密碼 -->
@@ -485,7 +499,7 @@ function showGate(kind,arg){
   b.innerHTML=`<h2>發生問題</h2><p>${esc(arg)}</p><div class="row"><button class="primary" onclick="location.reload()">重新整理</button></div>`;
 }
 function hideGate(){$('gate').hidden=true;}
-const anyOverlay=()=>['gate','resOv','pinOv','adminOv','enrollOv','facesOv','otOv','logOv'].some(id=>!$(id).hidden);
+const anyOverlay=()=>['gate','resOv','pickOv','pinOv','adminOv','enrollOv','facesOv','otOv','logOv'].some(id=>!$(id).hidden);
 // 詢問是否申請加班；回傳原因字串，不申請（或 60 秒沒回應）回傳 null
 // 加班原因詢問，三種模式：
 //   {mode:'ask'}：一般加班，可選「不用」；60 秒沒回應＝不申請（回傳 null）
@@ -850,9 +864,10 @@ function handleFrame(f,objs){
 }
 function snapshot(box){
   try{
-    const v=$('cam'),c=document.createElement('canvas'),S=112;c.width=c.height=S;
-    const [x,y,w,h]=box,s=Math.max(w,h)*1.25,cx=x+w/2,cy=y+h/2;
+    const v=$('cam'),c=document.createElement('canvas'),S=240;c.width=c.height=S; // 240×240，範圍為臉的 2 倍（看得到肩膀、手上的東西）
+    const [x,y,w,h]=box,s=Math.max(w,h)*2,cx=x+w/2,cy=y+h/2;
     const ctx=c.getContext('2d');ctx.translate(S,0);ctx.scale(-1,1); // 與畫面一樣左右鏡像
+    ctx.fillStyle='#000';ctx.fillRect(0,0,S,S); // 超出畫面的部分補黑
     ctx.drawImage(v,cx-s/2,cy-s/2,s,s,0,0,S,S);
     return c.toDataURL('image/jpeg',0.6);
   }catch(e){return null;}
@@ -862,6 +877,18 @@ let resTimer=null;
 function recentDup(sid,s,ts=Date.now()){
   const lim=(Number(settings.dupMin)||0)*60000;if(!lim)return null;
   return todays.filter(p=>p.staffId===sid&&p.sel&&p.sel.sh===s.sh&&p.sel.k===s.k&&ts-p.ts>=0&&ts-p.ts<lim).sort((a,b)=>b.ts-a.ts)[0]||null;
+}
+// 辨識錯人：列出人員（今天有排這一診的排前面），選了之後用同一次辨識重新確認，紀錄標記為手動選擇
+function pickPerson(wrongSid,chosen,info){
+  const d=new Date(),sch=new Set(chosen.sh==='extra'?[]:staff.filter(s=>scheduledShifts(s.id,d).some(x=>x.id===chosen.sh)).map(s=>s.id));
+  const list=staff.filter(s=>s.active!==false&&s.role!=='manager').sort((a,b)=>(sch.has(b.id)-sch.has(a.id))||String(a.code||'').localeCompare(String(b.code||''),'en',{numeric:true}));
+  $('pickSub').textContent=`${shOf(chosen.sh).name}・${chosen.k==='in'?'上班卡':'下班卡'}　綠框是今天有排這一診的人；這筆打卡會標記為「手動選擇」，並保存照片供管理者核對`;
+  $('pickList').innerHTML=list.map(s=>`<button data-pick="${esc(s.id)}" class="${sch.has(s.id)?'sch':''}">${esc(s.code||'')}<small>${esc(s.name||'')}</small></button>`).join('')||'<p>沒有人員</p>';
+  const close=()=>{$('pickOv').hidden=true;};
+  $('pickCancel').onclick=()=>{close();endScan();setTimeout(()=>{paused=false;},800);toast('已取消打卡');};
+  $('pickList').onclick=e=>{const b=e.target.closest('[data-pick]');if(!b)return;close();
+    sel=chosen;confirmPunch(b.dataset.pick,Object.assign({},info,{pickedFrom:info.pickedFrom||wrongSid}));};
+  $('pickOv').hidden=false;
 }
 function confirmPunch(sid,info){
   paused=true;
@@ -876,19 +903,26 @@ function confirmPunch(sid,info){
   $('resBox').classList.remove('done');
   $('resKind').textContent=g.label;$('resWho').textContent=nameOf(sid);$('resTime').textContent=hhmm(ts);
   $('resNote').textContent=g.note||'';$('resNote').className='note'+(g.warn?' warn2':g.note?' late':'');
-  $('resActs').hidden=false;$('resOv').hidden=false;
+  $('resActs').hidden=false;$('resNotMe').hidden=true;$('resOv').hidden=false;
   const bar=$('resBar');bar.style.transition='none';bar.style.width='0';
   // 沒有排這一診時不自動打卡，要本人按「確認打卡」
-  if(!g.warn)requestAnimationFrame(()=>{bar.style.transition=`width ${CONFIRM_MS}ms linear`;bar.style.width='100%';});
+  if(info.pickedFrom){$('resNote').textContent=(g.note?g.note+'；':'')+`手動選擇（原本辨識為 ${nameOf(info.pickedFrom)}）`;$('resNote').className='note warn2';}
+  if(!g.warn&&!info.pickedFrom)requestAnimationFrame(()=>{bar.style.transition=`width ${CONFIRM_MS}ms linear`;bar.style.width='100%';});
   let done=false;
   const finish=async ok=>{
     clearTimeout(resTimer);
     if(done)return;
-    if(!ok){$('resOv').hidden=true;scanUntil=Date.now()+SCAN_MS;setTimeout(()=>{paused=false;},1500);return;} // 不是我：繼續掃臉
+    if(!ok){ // 不是我：停止倒數，讓本人選「取消打卡」或「選擇正確人員」
+      const bar=$('resBar');bar.style.transition='none';bar.style.width='0';
+      $('resActs').hidden=true;$('resNotMe').hidden=false;$('resNote').textContent='辨識錯誤？可以取消，或選擇正確的人員打卡';$('resNote').className='note warn2';
+      $('resCancel').onclick=()=>{$('resNotMe').hidden=true;$('resOv').hidden=true;endScan();setTimeout(()=>{paused=false;},800);toast('已取消打卡');};
+      $('resPick').onclick=()=>{$('resNotMe').hidden=true;$('resOv').hidden=true;pickPerson(sid,chosen,info);};
+      return;}
     done=true;
     const p={id:uid('p'),staffId:sid,ts,date:ymd(new Date(ts)),src:'kiosk',device:src.deviceId(),devName:device.name||'',
       sel:chosen,sim:Math.round(info.sim*1000)/1000,real:info.real!=null?Math.round(info.real*100)/100:null,live:info.live!=null?Math.round(info.live*100)/100:null};
     {const sr=scrRecord();if(sr)p.scr=sr;} // 螢幕特徵分數（輔助判斷）
+    if(info.pickedFrom)p.picked={from:info.pickedFrom}; // 辨識錯人、由打卡人手動選擇（from＝原本辨識成的人）
     if(photo)p.photo=photo;
     // 超過下班時間：先問要不要申請加班（必填原因），回答後才寫入這筆打卡（裝置只能新增、不能修改打卡）
     let otReason=null;
@@ -934,7 +968,7 @@ function confirmPunch(sid,info){
   };
   $('resNo').onclick=()=>finish(false);
   $('resOk').onclick=()=>finish(true);
-  if(!g.warn)resTimer=setTimeout(()=>finish(true),CONFIRM_MS);
+  if(!g.warn&&!info.pickedFrom)resTimer=setTimeout(()=>finish(true),CONFIRM_MS);
 }
 
 // ---------- 啟動 ----------

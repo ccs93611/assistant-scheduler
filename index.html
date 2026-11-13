@@ -370,7 +370,7 @@ body.low-perm [data-attclose],body.low-perm #attTable .att-face,body.low-perm .m
 body.low-perm .leave-form .field:has(> [data-n="staff"]),body.low-perm #fcForm .field:has(> #fcStaff){display:none;}
 body.low-perm #attRulesCard,body.low-perm #devCard,body.low-perm #attToPay,body.low-perm #tab-att button:disabled,body.low-perm #attLogSid,body.low-perm #otSid{display:none;}
 body.view-only #tab-leave form,body.view-only #tab-docleave form,body.view-only #tab-leave button:disabled,body.view-only #tab-docleave button:disabled{display:none;}
-.att-photo{display:block; width:224px; height:224px; border-radius:12px; object-fit:cover; margin:8px auto;}
+.att-photo{display:block; width:min(320px,100%); height:auto; aspect-ratio:1; border-radius:12px; object-fit:cover; margin:8px auto;}
 .pay-note{min-width:120px; max-width:240px; white-space:pre-wrap; font-size:.8rem; color:var(--sub);}
 #pf-note{width:100%; resize:vertical; font:inherit;}
 .pay-bulk thead th{position:sticky; top:0; background:var(--panel); z-index:1;}
@@ -5032,7 +5032,7 @@ function renderAttLog(mi){
   $('attLog').innerHTML=`<thead><tr>${th('date','日期')}<th>時間</th>${lowPerm()?'':th('staff','人員')}${th('map','對應')}${th('src','來源')}${showScore?'<th class="num" title="相似度；下方為防偽、活體分數">臉部辨識</th><th class="num" title="總分；下方為摩爾紋、反光、發光、閃爍">螢幕特徵</th>':''}<th>照片</th><th></th></tr></thead><tbody>`+
     (list.length?list.map(p=>{
       const d=parseYmd(p.date),L=lab[p.id];
-      const src=p.src==='manual'?`補登（${esc(p.by||'')}）${p.note?`<br><small class="att-mute">${esc(p.note)}</small>`:''}`:`${esc(p.devName||'打卡裝置')}${p.sim&&!showScore?` <small class="att-mute">相似度 ${p.sim}</small>`:''}`;
+      const src=p.src==='manual'?`補登（${esc(p.by||'')}）${p.note?`<br><small class="att-mute">${esc(p.note)}</small>`:''}`:`${esc(p.devName||'打卡裝置')}${p.sim&&!showScore?` <small class="att-mute">相似度 ${p.sim}</small>`:''}${p.picked?`<br><small class="att-bad">手動選擇（辨識為 ${esc(fullName(byId(p.picked.from))||'?')}）</small>`:''}`;
       const otTxt=p.ot&&!p.void?` <span class="${p.ot.status==='pending'?'att-bad':p.ot.status==='replaced'?'att-mute':'att-ok'}">加班 ${p.ot.status==='approved'?p.ot.approvedMin:p.ot.extra&&!p.ot.from?'?':p.ot.min} 分（${esc(otStatusText(p.ot))}）</span>`:'';
       const map0=p.void?`<span class="att-mute">已作廢${p.voidNote?`：${esc(p.voidNote)}`:''}</span>`:L?`${L.other?`<span class="att-mute">${L.t}</span>`:L.t}${L.bad?` <span class="att-bad">${L.bad}</span>`:''}`:'';
       const map=map0+otTxt;
