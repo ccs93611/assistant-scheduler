@@ -899,7 +899,7 @@ function confirmPunch(sid,info){
     toast(`${nameOf(sid)} ${ago?ago+' 分鐘前':'剛剛'}已打過${shOf(sel.sh).name}${sel.k==='in'?'上班':'下班'}卡（${hhmm(dup.ts)}），${settings.dupMin} 分鐘內不能重複打卡`,'warn');
     endScan();setTimeout(()=>{paused=false;},1500);return;
   }
-  const ts=Date.now(),chosen=Object.assign({},sel),g=selNote(sid,chosen,ts),photo=settings.photo?snapshot(info.box):null;
+  const ts=Date.now(),chosen=Object.assign({},sel),g=selNote(sid,chosen,ts),photo=settings.photo?(info.photo||snapshot(info.box)):null; // 手動選擇沿用第一次辨識當下的照片（選名單時人已移動，用舊的臉框重拍會裁歪）
   $('resBox').classList.remove('done');
   $('resKind').textContent=g.label;$('resWho').textContent=nameOf(sid);$('resTime').textContent=hhmm(ts);
   $('resNote').textContent=g.note||'';$('resNote').className='note'+(g.warn?' warn2':g.note?' late':'');
@@ -916,7 +916,7 @@ function confirmPunch(sid,info){
       const bar=$('resBar');bar.style.transition='none';bar.style.width='0';
       $('resActs').hidden=true;$('resNotMe').hidden=false;$('resNote').textContent='辨識錯誤？可以取消，或選擇正確的人員打卡';$('resNote').className='note warn2';
       $('resCancel').onclick=()=>{$('resNotMe').hidden=true;$('resOv').hidden=true;endScan();setTimeout(()=>{paused=false;},800);toast('已取消打卡');};
-      $('resPick').onclick=()=>{$('resNotMe').hidden=true;$('resOv').hidden=true;pickPerson(sid,chosen,info);};
+      $('resPick').onclick=()=>{$('resNotMe').hidden=true;$('resOv').hidden=true;pickPerson(sid,chosen,Object.assign({},info,{photo}));};
       return;}
     done=true;
     const p={id:uid('p'),staffId:sid,ts,date:ymd(new Date(ts)),src:'kiosk',device:src.deviceId(),devName:device.name||'',

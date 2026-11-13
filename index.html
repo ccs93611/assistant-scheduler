@@ -4562,7 +4562,7 @@ function openShiftLog(){
       const txt=x.kind==='extra'?`<b>${esc(codeOf(x.sid))}</b> 自己加診：${swSlotTxt(Object.assign({pi:x.slot.pi},x.slot))}${x.slot.doc?`（跟 ${esc(codeOf(x.slot.doc))}）`:''}`
         :`<b>${esc(codeOf(x.from))}</b> ${swSlotTxt(x.a)} ⇄ <b>${esc(codeOf(x.to))}</b> ${swSlotTxt(x.b)}<div class="att-mute" style="font-size:.72rem">${esc(codeOf(x.from))} 於 ${fmtAt(x.reqAt||x.at)} 提出，${esc(codeOf(x.to))} 同意</div>`;
       return `<tr><td style="white-space:nowrap">${fmtAt(x.at)}</td><td><span class="pill" style="${st}">${k}</span></td><td>${txt}</td></tr>`;}).join('')}</tbody></table></div>`:'<p class="att-mute">沒有紀錄。</p>';};
-  dialog(`<h3>${esc(mi.label)} 加診換班日誌</h3><p class="desc" style="margin:0 0 8px">${canWrite?`${esc(mi.label)}助理自己加診與換班的紀錄（依加診／換班的診次日期）；要看其他月份，請先切換班表月份。`:`${esc(mi.label)}和你有關的加診與換班紀錄。`}</p><div id="slogBody">${body()}</div>`,()=>{},'關閉',false,'返回');
+  dialog(`<h3>${esc(mi.label)} 加診換班日誌</h3><p class="desc" style="margin:0 0 8px">${canWrite?`${esc(mi.label)}助理自己加診與換班的紀錄（依加診／換班的診次日期）；要看其他月份，請先切換班表月份。`:`${esc(mi.label)}和你有關的加診與換班紀錄。`}</p><div id="slogBody">${body()}</div>`,()=>{},'關閉',false,null);
   const ov=[...document.querySelectorAll('.overlay')].pop();ov.querySelector('.dialog').style.maxWidth='720px';ov.querySelector('[data-x]').remove();
 }
 // 換班申請卡片：本人看到自己提出的、別人找自己的；排班管理以上看到全部
@@ -4677,14 +4677,14 @@ function openPrivate(s){
       const o={};ov.querySelectorAll('[data-pv]').forEach(i=>{const v=i.value.trim();if(v)o[i.dataset.pv]=v;});
       if(o.email&&!/^[^@\s]+@[^@\s]+$/.test(o.email)){toast('E-mail 格式不正確。','warn');return false;}
       store.priv(s.id,o);syncBirthMonth(s.id,o.birthday);toast('已儲存個資。');
-    },canWrite?'儲存':'關閉');
+    },canWrite?'儲存':'關閉',false,canWrite?'取消':null);
   const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
   ov.addEventListener('input',e=>{if(e.target.dataset.pv==='hireDate'||e.target.dataset.pv==='resignDate')ov.querySelector('#pvSen').textContent=seniority(ov.querySelector('[data-pv=hireDate]').value,ov.querySelector('[data-pv=resignDate]').value);});
   ov.querySelector('[data-pv]')?.focus();
 }
 function dialog(html,onOk,okLabel='確認',danger=false,cancelLabel='取消',onCancel=null){
   const ov=document.createElement('div');ov.className='overlay';
-  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true">${html}<div class="acts"><button data-x>${cancelLabel}</button><button class="primary" data-ok style="${danger?'background:var(--warn);border-color:var(--warn);color:#fff':''}">${okLabel}</button></div></div>`;
+  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true">${html}<div class="acts">${cancelLabel===null?'':`<button data-x>${cancelLabel}</button>`}<button class="primary" data-ok style="${danger?'background:var(--warn);border-color:var(--warn);color:#fff':''}">${okLabel}</button></div></div>`;
   document.body.appendChild(ov);
   const close=()=>ov.remove();
   ov.addEventListener('click',e=>{if(e.target===ov||e.target.closest('[data-x]'))close();if(e.target.closest('[data-ok]')){const r=onOk(ov);if(r!==false)close();}});
@@ -5068,7 +5068,7 @@ function punchPhotoHtml(p){
 function openPunchPhoto(id){
   if(!punches.some(x=>x.id===id))return;
   const ids=attPhotoIds.includes(id)?attPhotoIds.slice():[id];let i=ids.indexOf(id);
-  dialog(`<div class="ph-nav"><button type="button" class="ph-arrow prev" data-phstep="-1" aria-label="上一張">‹</button><div id="phBody"></div><button type="button" class="ph-arrow next" data-phstep="1" aria-label="下一張">›</button></div><p class="hint" id="phPos" style="text-align:center;margin:4px 0 0"></p>`,()=>{},'關閉');
+  dialog(`<div class="ph-nav"><button type="button" class="ph-arrow prev" data-phstep="-1" aria-label="上一張">‹</button><div id="phBody"></div><button type="button" class="ph-arrow next" data-phstep="1" aria-label="下一張">›</button></div><p class="hint" id="phPos" style="text-align:center;margin:4px 0 0"></p>`,()=>{},'關閉',false,null); // 只是檢視照片：只留「關閉」
   const ov=document.querySelector('.overlay:last-of-type');
   const show=()=>{const p=punches.find(x=>x.id===ids[i]);if(!p)return;ov.querySelector('#phBody').innerHTML=punchPhotoHtml(p);
     ov.querySelector('[data-phstep="-1"]').disabled=i<=0;ov.querySelector('[data-phstep="1"]').disabled=i>=ids.length-1;
@@ -5120,7 +5120,7 @@ function renderAtt(mi){
       ${ed?`<button class="small" data-padd="">補登打卡</button> `:''}${ed&&faceMeta[s.id]?`<button class="small danger" data-delface="${esc(s.id)}">刪除臉部資料</button> `:''}<button class="small" data-attclose>關閉</button></div>
       <p class="desc">${lowPerm()?'每一診的上班卡、下班卡與狀態。斜體（補）是管理者補登的打卡。打卡有問題請洽診所管理者。':'斜體（補）是管理者補登的打卡；按 × 作廢誤打的卡（保留紀錄，不列入計算）。有照片的打卡可以點照片放大核對。'}</p>
       <div class="scroll-x"><table class="list"><thead><tr><th>日期</th><th>診</th><th>上班卡</th><th>下班卡</th><th>狀態</th></tr></thead><tbody>${rows.join('')||'<tr><td colspan="5" class="att-mute">這個月到今天為止沒有排班或打卡</td></tr>'}</tbody></table></div>
-      ${voided.length?`<p class="hint">已作廢：${voided.map(p=>`${Number(p.date.slice(5,7))}/${Number(p.date.slice(8))} ${punchHtml(p,false)}`).join('、')}</p>`:''}`;
+      ${voided.length?`<p class="hint">已作廢：${voided.map(p=>`${Number(p.date.slice(5,7))}/${Number(p.date.slice(8))} ${punchHtml(p,false)}${canWrite?` <button class="small" data-punvoid="${esc(p.id)}">恢復</button>`:''}`).join('、')}</p>`:''}`;
   }
   renderAttLog(mi);
   renderOt(mi);
