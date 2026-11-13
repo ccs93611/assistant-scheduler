@@ -1462,7 +1462,7 @@ function openProof(sid,date,type,onBack){ // onBack：從「要現在上傳證�
   };
   paint();
   ov.addEventListener('click',async e=>{
-    if(e.target===ov||e.target.closest('[data-pfclose]')){const back=onBack&&!proofsOf(sid,date,type).length;close();if(back)onBack();return;}
+    if(e.target.closest('[data-pfclose]')){const back=onBack&&!proofsOf(sid,date,type).length;close();if(back)onBack();return;}
     const op=e.target.closest('[data-pfopen]');if(op){const d=await proofData(op.dataset.pfopen);if(!d){toast('讀取不到檔案。','warn');return;}const b=await (await fetch(d)).blob();window.open(URL.createObjectURL(b),'_blank');return;}
     const dl=e.target.closest('[data-pfdel]');if(dl){dialog('<h3>刪除這份證明？</h3><p>刪除後無法復原。</p>',async()=>{await store.delProof(dl.dataset.pfdel);paint();},'刪除',true);return;}
   });
@@ -1657,7 +1657,7 @@ function openMonthReview(role){
     dov.querySelector('[data-mrno]').addEventListener('click',()=>{dov.remove();setTimeout(()=>reqReject(r),0);});
   };
   ov.addEventListener('click',e=>{
-    if(e.target===ov||e.target.closest('[data-mrclose]')){close();return;}
+    if(e.target.closest('[data-mrclose]')){close();return;}
     const nav=e.target.closest('[data-mrnav]');if(nav){off+=Number(nav.dataset.mrnav);paint();return;}
     if(e.target.closest('[data-mrnow]')){off=0;paint();return;}
     const mw=e.target.closest('[data-mrwhen]');if(mw){reqWhen=mw.dataset.mrwhen;jump();paint();renderLeaveReqs(role);return;}
@@ -3496,7 +3496,7 @@ function lotReveal(){
     ${me&&rec.placements[me]?`<p class="lot-mine">${myWin.length?`🎉 你抽中 ${myWin.map(k=>md(parseYmd(k))).join('、')}`:''}${myWin.length&&myLose.length?'；':''}${myLose.length?`${myLose.map(k=>md(parseYmd(k))).join('、')} 沒抽中，籌碼退回`:''}</p>`:''}
     <div class="acts"><button class="primary" data-x>好</button></div></div>`;
   document.body.appendChild(ov);
-  ov.addEventListener('click',e=>{if(e.target===ov||e.target.closest('[data-x]'))ov.remove();});
+  ov.addEventListener('click',e=>{if(e.target.closest('[data-x]'))ov.remove();});
   // 名字輪流亮起，約 1.6 秒後停在抽中的人
   ov.querySelectorAll('.lot-draw').forEach(box=>{
     const sp=[...box.querySelectorAll('[data-s]')],win=box.dataset.win.split(',');let i=0;
@@ -4687,7 +4687,7 @@ function dialog(html,onOk,okLabel='確認',danger=false,cancelLabel='取消',onC
   ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true">${html}<div class="acts">${cancelLabel===null?'':`<button data-x>${cancelLabel}</button>`}<button class="primary" data-ok style="${danger?'background:var(--warn);border-color:var(--warn);color:#fff':''}">${okLabel}</button></div></div>`;
   document.body.appendChild(ov);
   const close=()=>ov.remove();
-  ov.addEventListener('click',e=>{if(e.target===ov||e.target.closest('[data-x]'))close();if(e.target.closest('[data-ok]')){const r=onOk(ov);if(r!==false)close();}});
+  ov.addEventListener('click',e=>{if(e.target.closest('[data-x]'))close();if(e.target.closest('[data-ok]')){const r=onOk(ov);if(r!==false)close();}});
   ov.querySelector('[data-ok]').focus();
   ov.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
 }
@@ -5843,7 +5843,7 @@ function openMonthLeave(when,role='assistant'){
     toast(whole?`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} 全天${l.type}。`:`已取消 ${codeOf(l.staffId)} ${l.date.slice(5).replace('-','/')} ${SHIFTS.find(s=>s.id===sh).name}的${word}。`);paint();
   };
   ov.addEventListener('click',e=>{
-    if(e.target===ov||e.target.closest('[data-mlcancel]')){cancel();return;}
+    if(e.target.closest('[data-mlcancel]')){cancel();return;}
     if(e.target.closest('[data-mlsave]')){save();return;}
     const nav=e.target.closest('[data-mlnav]');if(nav){off+=Number(nav.dataset.mlnav);paint();return;}
     if(e.target.closest('[data-mlundo]')){undo();return;}
