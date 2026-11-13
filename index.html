@@ -994,7 +994,7 @@ body.gated .shell{display:none;}
           <div class="scroll-x" id="attLogBox" style="max-height:480px;overflow-y:auto"><table class="list" id="attLog"></table></div>
         </div>
         <div class="card" id="attRulesCard">
-          <h2>出勤規則</h2>
+          <div class="lv-title-row"><h2 style="margin:0">出勤規則</h2><button type="button" class="small" id="attRulesEdit" data-w>修改</button></div>
           <p class="desc">打卡裝置也會用這些設定顯示遲到／早退提示；不在可打卡時段內的上班卡、下班卡按鈕會變灰色無法選擇。晚班在「晚班可下班時間」之後打下班卡不算早退。</p>
           <div id="attRules"></div>
         </div>
@@ -5126,7 +5126,9 @@ function renderAtt(mi){
   renderOt(mi);
   // 規則
   // 出勤規則：分成四組，每組欄位等寬對齊；說明放在欄位下方
-  {const dis=canWrite?'':' disabled';
+  // 平常鎖定（欄位不能改），按「修改」才能編輯，改完按「鎖定」
+  {const dis=canWrite&&attRulesUnlocked?'':' disabled';
+  $('attRulesEdit').textContent=attRulesUnlocked?'鎖定':'修改';$('attRulesEdit').classList.toggle('primary',attRulesUnlocked);$('attRulesCard').classList.toggle('ar-locked',!attRulesUnlocked);
   const num=(k,label,hint,attrs='step="1" min="0"')=>`<div class="ar-field"><label for="ar-${k}">${label}</label><input id="ar-${k}" type="number" data-attcfg="${k}" value="${esc(C[k])}" ${attrs}${dis}><small>${hint}</small></div>`;
   const date=(k,label,hint)=>`<div class="ar-field"><label for="ar-${k}">${label}</label><input id="ar-${k}" type="date" data-attcfg="${k}" value="${esc(C[k]||'')}"${dis}><small>${hint}</small></div>`;
   const time=(k,label,hint)=>`<div class="ar-field"><label for="ar-${k}">${label}</label><input id="ar-${k}" type="time" data-attcfg="${k}" value="${esc(C[k]||'')}"${dis}><small>${hint}</small></div>`;
@@ -5182,7 +5184,9 @@ $('attLogReset').addEventListener('click',()=>{attLog={sid:'',date:'',showVoid:f
 $('attLogMap').addEventListener('change',e=>{attLog.map=e.target.value;renderAll();});
 $('attLogSrc').addEventListener('change',e=>{attLog.src=e.target.value;renderAll();});
 $('attLog').addEventListener('click',e=>{const b=e.target.closest('[data-logsort]');if(!b)return;const k=b.dataset.logsort;attLogSort=attLogSort.key===k?{key:k,dir:-attLogSort.dir}:{key:k,dir:k==='date'?-1:1};renderAll();});
-$('attRules').addEventListener('change',e=>{
+let attRulesUnlocked=false; // 出勤規則預設鎖定
+$('attRulesEdit').addEventListener('click',()=>{if(!canWrite)return;attRulesUnlocked=!attRulesUnlocked;document.activeElement?.blur();renderAll();toast(attRulesUnlocked?'出勤規則可以修改了，改完請按「鎖定」。':'出勤規則已鎖定。');});
+$('attRules').addEventListener('change',e=>{if(!attRulesUnlocked)return;
   const k=e.target.dataset.attcfg;if(!k||!canWrite)return;
   const next=Object.assign({},kioskCfg);
   if(e.target.type==='checkbox')next[k]=e.target.checked;
