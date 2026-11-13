@@ -107,7 +107,7 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 .di-links a:hover{background:var(--accent);color:var(--accent-ink)}
 .di-links a::after{content:" ›"}
 /* 案例影片：說明下方一顆按鈕，點了用彈窗播放（靜音，播完停在最後畫面）；點背景、✕ 或按 Esc 關閉；列印時不印按鈕 */
-.di-vbtn{margin:0 0 12px}
+.di-vbtn{margin:0 0 12px;display:flex;flex-wrap:wrap;gap:8px} /* 一則可以有多支影片，按鈕並排 */
 .di-vpop{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px}
 .di-vpop video{display:block;flex:none;max-width:100%;height:auto;border-radius:10px;background:#000;box-shadow:0 8px 40px rgba(0,0,0,.5)}
 .di-vpop .cap{color:#fff;font-size:min(30px,6vw);font-weight:700;line-height:1.3;text-align:center;padding:0 52px} /* 影片上方標題：原本 15px 放大一倍、粗體；手機上依螢幕寬度縮小；左右留空避開 ✕ */
@@ -220,7 +220,7 @@ body.di-lock{overflow:hidden}
 </div>
 <script src="js/treatment-info.js?v=154"></script>
 <script src="js/treatment-figs.js?v=14"></script>
-<script src="js/disease-info.js?v=108"></script>
+<script src="js/disease-info.js?v=109"></script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
@@ -255,7 +255,7 @@ function stageFlowHtml(label,stages,tr,otherLabel){
 function bodyHtml(e){
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>
-    ${e.video?`<div class="di-vbtn"><button type="button" class="ti-str-btn ti-tbl-btn" data-video="${tiEsc(e.video.src)}" data-cap="${tiEsc(e.video.cap||'')}" data-rate="${e.video.rate||1}">🎬 ${tiEsc(e.video.cap||'案例影片')}</button></div>`:''}
+    ${e.video?`<div class="di-vbtn">${[].concat(e.video).map(x=>`<button type="button" class="ti-str-btn ti-tbl-btn" data-video="${tiEsc(x.src)}" data-cap="${tiEsc(x.cap||'')}" data-rate="${x.rate||1}">🎬 ${tiEsc(x.cap||'案例影片')}</button>`).join('')}</div>`:''}
     ${box('di-first','🚑 緊急處理',e.first)}
     <div class="di-two">${sec('常見原因',e.cause)}${sec('常見症狀',e.symptom)}</div>
     ${e.table?`<div class="ti-cmps">${[].concat(e.table).map(t=>tiTableHtml(t).replace(/==(.+?)==/g,'<b class="di-y">$1</b>')).join('')}</div>`:''}
