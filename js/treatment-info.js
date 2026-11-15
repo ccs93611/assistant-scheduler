@@ -214,6 +214,17 @@ const TREATMENT_INFO=[
  time:'補骨後通常需等待約 4～9 個月，依範圍大小而定。',
  care:['術後 2～3 天腫脹較明顯，前 48 小時可冰敷','避免用手術部位咀嚼，戒菸可大幅提高成功率','依醫囑服藥，約 7～14 天回診拆線','若傷口裂開或看到再生膜外露，請儘快回診'],
  note:'少量補骨：植牙時同步補小範圍骨缺損。水平骨增量：增加骨頭寬度。垂直骨增高：增加骨頭高度，難度與等待時間最長。'},
+{id:'bba',cat:'植牙式贗復',title:'BBA 自體骨補骨',items:['BBA自體骨補骨'],
+ table:{title:'多久可以骨再生？',head:['骨再生結果','6 個月','12 個月'],rows:[
+  ['骨體積恢復率','64.5%','**89.2%**'],
+  ['骨密度（HU）','102.5','**453.9**']],
+  foot:['原始密度 690.3 HU。','**自然骨再生：**取骨後不需額外填補骨粉，骨缺損仍能自行修復。']},
+ what:'使用您自己身上的骨頭來補骨。通常在植牙或手術區附近（例如下顎骨後方、下巴或植牙鑽孔時收集的骨屑）取得少量骨頭，處理後放到缺骨的地方，必要時與骨粉混合並覆蓋再生膜。自體骨含有自己的活細胞與生長因子，沒有排斥問題，是骨頭再生效果最好的補骨材料。',
+ who:['植牙部位骨頭寬度或高度不足的人','缺骨範圍較大，需要較好骨再生效果的人','希望使用自己的組織、不想使用外來骨粉的人'],
+ steps:['以 3D 斷層（CBCT）評估缺骨範圍與可取骨的位置','局部麻醉','從取骨區取得自體骨（或收集植牙鑽孔時的骨屑）','將自體骨（必要時混合骨粉）放到缺骨處，覆蓋再生膜並固定','縫合，等待骨頭癒合','可與植牙同時進行，或先補骨再植牙'],
+ time:'補骨後通常需等待約 4～6 個月，依範圍大小而定。',
+ care:['術後 2～3 天腫脹較明顯，前 48 小時可冰敷','取骨的位置也會有傷口，可能比補骨處更痠痛，屬正常現象','避免用手術部位咀嚼，戒菸可大幅提高成功率','依醫囑服藥，約 7～14 天回診拆線','補骨區域可能有少量骨片裸露，需回診修除裸露之部分','若傷口裂開、持續出血或麻木感沒有改善，請儘快回診'],
+ note:'自體骨取得的量有限，缺骨範圍大時常與骨粉混合使用，醫師會依您的狀況評估。'},
 {id:'sinus-lift',cat:'植牙式贗復',title:'Sinus Lift 上顎竇增高術',items:['Sinus Lift頂竇','Sinus Lift開窗'],
  pics:{src:'media/sinus-lift-source.webp',w:1672,h:941,rows:[
   [{x:39,y:117,w:485,h:290,cap:'1. 局部麻醉與翻瓣\n露出上顎骨側壁'},{x:585,y:117,w:495,h:290,cap:'2. 開側窗\n小心抬高上顎竇黏膜'},{x:1143,y:118,w:487,h:290,cap:'3. 填入骨粉\n增加植牙所需骨量'}],
@@ -574,7 +585,7 @@ function tiTableHtml(t){
   const em=x=>tiEsc(x).replace(/\*\*(.+?)\*\*/g,bc).replace(/__(.+?)__/g,'<b>$1</b>'); // __粗體__ 不用紅字
   const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
   return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="tiTog(this)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+cell(h)+'</th>').join('')}</tr></thead><tbody>${
-    t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table>${t.pics?`<div class="ti-tbl-pics">${t.pics.map(p=>`<figure${p.marks?' class="mk"':''}><div class="pw"><img src="${tiEsc(p.src)}" alt="${tiEsc(p.cap)}" loading="lazy"${t.picsAr?` style="aspect-ratio:${t.picsAr}"`:''}>${p.marks?`<svg viewBox="0 0 ${p.w} ${p.h}" aria-hidden="true"><defs><marker id="tiah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#e5484d"/></marker></defs>${p.marks.map(m=>`<line x1="${m.tail[0]}" y1="${m.tail[1]}" x2="${m.tip[0]}" y2="${m.tip[1]}" stroke="#e5484d" stroke-width="${(p.w/70).toFixed(1)}" marker-end="url(#tiah)"/>`).join('')}</svg>${p.marks.map(m=>`<span class="lb" style="top:${(m.tail[1]/p.h*100).toFixed(1)}%">${tiEsc(m.label)}${m.sub?`<small>${tiEsc(m.sub)}</small>`:''}</span>`).join('')}`:''}</div><figcaption>${cell(p.cap,true)}</figcaption></figure>`).join('')}</div>`:''}</div></div>`}
+    t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table>${t.foot?`<ul class="ti-tbl-foot">${t.foot.map(x=>`<li>${em(x)}</li>`).join('')}</ul>`:''}${t.pics?`<div class="ti-tbl-pics">${t.pics.map(p=>`<figure${p.marks?' class="mk"':''}><div class="pw"><img src="${tiEsc(p.src)}" alt="${tiEsc(p.cap)}" loading="lazy"${t.picsAr?` style="aspect-ratio:${t.picsAr}"`:''}>${p.marks?`<svg viewBox="0 0 ${p.w} ${p.h}" aria-hidden="true"><defs><marker id="tiah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#e5484d"/></marker></defs>${p.marks.map(m=>`<line x1="${m.tail[0]}" y1="${m.tail[1]}" x2="${m.tip[0]}" y2="${m.tip[1]}" stroke="#e5484d" stroke-width="${(p.w/70).toFixed(1)}" marker-end="url(#tiah)"/>`).join('')}</svg>${p.marks.map(m=>`<span class="lb" style="top:${(m.tail[1]/p.h*100).toFixed(1)}%">${tiEsc(m.label)}${m.sub?`<small>${tiEsc(m.sub)}</small>`:''}</span>`).join('')}`:''}</div><figcaption>${cell(p.cap,true)}</figcaption></figure>`).join('')}</div>`:''}</div></div>`}
 /* 圖片比較（例如齒槽骨保存術有做／沒做）：預設收起來，點「📊 標題」展開；每段一個小標籤，下面是從圖裁出的照片 */
 function tiCmpHtml(c){
   // 從圖裁出一塊（CSS 背景定位），跟 tiStepsHtml 的裁切方式相同
@@ -740,6 +751,7 @@ const TI_CSS=`
 .ti-tbl-pics figcaption{font-size:.88em;line-height:1.45;margin-top:6px;color:var(--muted)}.ti-tbl-pics figcaption b{color:var(--ink);display:block}
 @media (max-width:640px){.ti-tbl-pics{flex-direction:column;align-items:flex-start;position:sticky;left:0;width:min(100%,calc(100vw - 64px))}.ti-tbl-pics figure,.ti-tbl-pics figure.mk{flex:none;width:calc(100% - 9em);max-width:312px;margin:0}} /* 手機：照片上下排，右側留給箭頭標籤 */
 @media print{.ti-tbl-pics{break-inside:avoid}.ti-tbl-pics figure{flex-basis:71.5mm}}
+.ti-tbl-foot{margin:8px 0 2px;padding-left:1.2em;font-size:.92em;line-height:1.6}.ti-tbl-foot li{margin:2px 0}
 .ti-tbl-btn{order:0}
 .ti-cmps .ti-str,.ti-cmps .ti-tbl-wrap,.ti-cmps .ti-cmp-wrap,.ti-cmps .ti-terms-wrap{order:1;flex:0 0 100%;min-width:0;margin:4px 0 0}
 .ti-tbl-btn{margin-left:0;font-size:.9em;padding:3px 12px}.ti-tbl-wrap{overflow-x:auto;margin-top:8px}
