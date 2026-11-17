@@ -145,6 +145,7 @@ main{padding:20px;min-width:0}
 .chip{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;font-weight:600;white-space:nowrap}
 .chip.open{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn)}
 .chip.pending{background:var(--warn-soft);color:var(--warn)}
+.chip.optPending{background:var(--warn-soft);color:var(--warn);border:2px dashed var(--warn);padding:0 7px} /* 未確認方案：已確認、還沒選定方案 */
 .chip.expiredNone{background:var(--soft);color:var(--muted);border:1px solid var(--muted)}  /* 同「未定案」但實線框 */
 .chip.expiredPaid{background:var(--soft);color:var(--muted);border:1px solid var(--warn)}   /* 同「未定案」外加橘框（同「進行中」） */
 .chip.draftCont,.chip.draft{background:var(--soft);color:var(--muted);border:2px dashed var(--muted);padding:0 7px} /* 粗虛線，和實線框容易區分 */
@@ -689,15 +690,16 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
         <select id="statusFilter">
           <option value="">全部狀態</option>
           <option value="todo">⚠ 有未完成項目（未儲存／未簽名）</option>
-          <option value="draft">未定案</option>
-          <option value="draftCont">未定案-續（由計畫變更延續）</option>
-          <option value="pending">尚未進行（已定案、未繳費）</option>
+          <option value="draft">填寫中</option>
+          <option value="draftCont">填寫中-續（由計畫變更延續）</option>
+          <option value="optPending">未確認方案（已確認、多個方案還沒選定）</option>
+          <option value="pending">已定案（未繳費）</option>
           <option value="open">進行中</option>
           <option value="paid">已結單－費用收訖</option>
           <option value="early">提前結單</option>
           <option value="changed">已結單－計畫變更</option>
           <option value="expiredNone">無繳費且過期</option>
-          <option value="draftExpired">未定案且過期</option>
+          <option value="draftExpired">填寫中且過期</option>
         </select>
       </div>
     </div>
@@ -828,7 +830,7 @@ const canDelPlan=p=>PERM==='admin'||(canEdit()&&!p.finalized&&p.status==='open')
 const isPhotoData=s=>typeof s==='string'&&s.startsWith('data:');
 const fileCache=new Map();
 // 雲端一打開就讀、並即時同步的單：所選狀態的單＋近 N 天內有異動的單（在「⚙ 設定 → 雲端讀取」調整）；allLoaded＝已讀進全部舊單
-const SYNC_ST=[['open','未結單（未定案、尚未進行、進行中、過期）'],['paid','已結單－費用收訖（含提前結單）'],['changed','已結單－計畫變更']];
+const SYNC_ST=[['open','未結單（填寫中、未確認方案、已定案、進行中、過期）'],['paid','已結單－費用收訖（含提前結單）'],['changed','已結單－計畫變更']];
 const syncDays=()=>settings.syncDays??30;
 const syncSts=()=>settings.syncStatuses||['open'];
 const syncHint=()=>[syncSts().map(k=>(SYNC_ST.find(x=>x[0]===k)||[,k])[1].replace(/（.*）/,'')).join('、'),syncDays()>0?`近 ${syncDays()} 天內有異動`:''].filter(Boolean).join('，以及')||'（沒有設定）';
@@ -899,11 +901,11 @@ function calc(p){
   const rcpt=p.receipts.reduce((a,x)=>a+(x.amount||0),0);
   return {orig,chg,paid,due:chg-paid,rcpt};
 }
-const STATUS={early:'提前結單',draftCont:'未定案-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draftExpired:'未定案且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
-// 顯示用狀態（未結單時）：還沒定案 → 未定案；已定案但還沒有繳費紀錄 → 尚未進行；有繳費紀錄 → 進行中
+const STATUS={early:'提前結單',draftCont:'填寫中-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draftExpired:'填寫中且過期',draft:'填寫中',optPending:'未確認方案',pending:'已定案',open:'進行中',paid:'已結單－費用收訖',changed:'已結單－計畫變更'};
+// 顯示用狀態（未結單時）：還沒按「確認」→ 填寫中；已確認但多個方案還沒選定 → 未確認方案；已確認（單一方案或已選定方案）、還沒有繳費紀錄 → 已定案；有繳費紀錄 → 進行中
 // 有繳費：只要有過一筆金額不是 0 的繳費紀錄（含退費、前單轉入）
 const hasPaid=p=>p.payments.some(x=>x.amount);
-const stOf=p=>p.status==='paid'&&p.earlyClose?'early':p.status!=='open'?p.status:isExpired(p)?(p.finalized?'expiredNone':'draftExpired'):!p.finalized?(p.prevId?'draftCont':'draft'):hasPaid(p)?'open':'pending';
+const stOf=p=>p.status==='paid'&&p.earlyClose?'early':p.status!=='open'?p.status:isExpired(p)?(p.finalized?'expiredNone':'draftExpired'):!p.finalized?(p.prevId?'draftCont':'draft'):p.opts&&!p.optChosen?'optPending':hasPaid(p)?'open':'pending';
 // 有效期限：預設為單據開立日起 6 個月，可手動調整（手動設定的存在 p.expiry）；還沒結單、沒有繳費紀錄且超過期限顯示「無繳費且過期」
 const EXPIRY_MONTHS=6;
 function addMonths(ymd,n){const [y,m,d]=ymd.split('-').map(Number);const last=new Date(y,m-1+n+1,0).getDate();const dt=new Date(y,m-1+n,Math.min(d,last));return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`}
@@ -912,7 +914,7 @@ const expiryOf=p=>p.expiry||((p.createdAt||'').slice(0,10)?addMonths(p.createdAt
 const expMonthsSel=(p,dis)=>`<select class="mo-chip" data-f="expMonths" title="有效月數（從單據開立日起算）" ${dis}>${[1,2,3,4,5,6,7,8,9,10,11,12,18,24,36].map(n=>`<option value="${n}" ${!p.expiry&&expMonthsOf(p)===n?'selected':''}>${n} 個月</option>`).join('')}<option value="" ${p.expiry?'selected':''} disabled>自訂日期</option></select>`;
 // 有過繳費紀錄（含前單轉入）的單不會過期；只有完全沒繳費、超過有效期限才算過期
 const isExpired=p=>{if(hasPaid(p))return false;const e=expiryOf(p);return !!e&&today()>e};
-const ST_SHORT={early:'提前結單',draftCont:'未定案-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draftExpired:'未定案且過期',draft:'未定案',pending:'尚未進行',open:'進行中',paid:'已收訖',changed:'計畫變更'};
+const ST_SHORT={early:'提前結單',draftCont:'填寫中-續',expiredPaid:'有繳費且過期',expiredNone:'無繳費且過期',draftExpired:'填寫中且過期',draft:'填寫中',optPending:'未確認方案',pending:'已定案',open:'進行中',paid:'已收訖',changed:'計畫變更'};
 
 /* ====== 儲存 ====== */
 let saveT=null,pendingP=null;
@@ -1073,18 +1075,18 @@ function renderEditorMain(viewing){
       <div class="hl" ${c.orig-c.chg?'':'hidden'}><small>變更後總金額</small><b id="tChg">${c.orig-c.chg?'$'+money(c.chg):''}</b></div>
     </div>
     <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>${p.opts?'</div>':''}
-    ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已定案（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
+    ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已確認（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
     <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量；「確認金額」留空表示與金額相同；「調整」輸入負數為折扣、正數為漲價。</div>
   </section>
   ${p.opts&&!p.optChosen?p.opts.filter(o=>o.id!==p.optCur).map(o=>`<section class="card print-only opt-print"><h2>治療項目－${esc(o.label)}</h2>${optRoHtml(p,o.id)}</section>`).join(''):''}
 
   <section class="card">
-    <h2>患者同意治療計畫</h2>
+    <h2>簽名</h2>
     <div class="consent-row">
       <div class="consent-sig"><div class="hint">患者（或法定代理人）簽名</div>
         <div class="sigbox" data-act="consentSig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:(L?'未簽名':'點此簽名')}</div></div>
       <div class="consent-at"><div class="hint">簽名時間</div><div class="ro-box">${p.consent.at?esc(fmtDT(p.consent.at)):'—'}</div></div>
-      ${p.finalized||L?'':'<button class="btn-primary btn-fin no-print" data-act="finalize">定案</button>'}
+      ${p.finalized||L?'':'<button class="btn-primary btn-fin no-print" data-act="finalize">確認</button>'}
     </div>
     ${p.optChosen?`<div class="consent-row opt-chosen">
       <div class="consent-sig"><div class="hint">患者選定「${esc(optLabel(p,p.optChosen.id))}」簽名</div>
@@ -1402,7 +1404,7 @@ $('#main').addEventListener('click',async e=>{
   if(e.target.closest('[data-ti-plan]')){window.open('treatments.html?ids='+planTiIds(p).join(','),'_blank','noopener');return}
   const op=e.target.closest('[data-open-plan]');if(op){openPlan(op.dataset.openPlan);return}
   const a=e.target.closest('[data-act]');
-  if(optView&&!(a&&['optSwitch','print'].includes(a.dataset.act)))return; // 查看其他方案時只能看
+  if(optView&&!(a&&['optSwitch','print','optChoose'].includes(a.dataset.act)))return; // 查看其他方案時只能看
   if(a){const act=a.dataset.act,L=p.status!=='open';
     if(act==='print')printPlan(p);
     else if(act==='addItem'){p.items.push(newItem());touch();renderEditor()}
@@ -1414,7 +1416,7 @@ $('#main').addEventListener('click',async e=>{
       document.querySelector('#main .opt-panel')?.classList.add('flip-'+dir)} // 翻頁：往後的方案從右邊翻過來、往前的從左邊
     else if(act==='optAdd'){await optAdd(p);touch();renderEditor()}
     else if(act==='optDel'){optDel(p);touch();renderEditor()}
-    else if(act==='optChoose'){if(!p.items.some(i=>i.name)){alert('這個方案還沒有治療項目');return}await optChoose(p);touch();renderEditor()}
+    else if(act==='optChoose'){const sid=optView||p.optCur,its=sid===p.optCur?p.items:p.optStore[sid].items;if(!its.some(i=>i.name)){alert('這個方案還沒有治療項目');return}await optChoose(p);touch();renderEditor()}
     else if(act==='optUnchoose'){if(!confirm('取消選定方案？患者的選定簽名會一併刪除，需要重新選定。'))return;p.optChosen=null;touch();renderEditor()}
     else if(act==='optSigView'){showImage(p.optChosen.sig,'患者選定方案簽名')}
     else if(act==='addPayLine'){ // 同一次繳費再加一個項目（共用日期、經手助理、簽名）
@@ -1422,6 +1424,8 @@ $('#main').addEventListener('click',async e=>{
       grp.forEach(x=>{if(!x.gid)x.gid=gid});const last=grp[grp.length-1];
       p.payments.splice(p.payments.indexOf(last)+1,0,{id:uid(),gid,date:grp[0].date,handler:grp[0].handler||'',itemId:null,teeth:[],pontics:[],bridgeTeeth:[],bridgeGroups:[],amount:0,amtAuto:true,note:'',sig:null});
       touch();renderEditor()}
+    else if((act==='addTrt'||act==='addPay')&&p.opts&&!p.optChosen){alert(`這張單有 ${p.opts.length} 個方案，患者還沒選定。
+請先讓患者選定方案並簽名（治療項目區的「✔ 患者選定」），再${act==='addTrt'?'新增治療紀錄':'新增繳費'}。`)}
     else if(act==='addTrt'){(p.treatments=p.treatments||[]).push({id:uid(),date:today(),itemId:null,teeth:[],pontics:[],bridgeTeeth:[],bridgeGroups:[],note:'',remark:'',saved:false});touch();renderEditor()}
     else if(act==='addPay'){p.payments.push({id:uid(),date:today(),handler:'',itemId:null,teeth:[],pontics:[],bridgeTeeth:[],bridgeGroups:[],amount:Math.max(0,calc(p).due),amtAuto:true,note:'',sig:null});touch();renderEditor()}
     else if(act==='addRcpt'){const c=calc(p);p.receipts.push({id:uid(),date:today(),amount:Math.max(0,c.paid-c.rcpt),taken:false,note:'',handler:'',photos:[]});touch();renderEditor()}
@@ -1493,10 +1497,12 @@ function optDel(p){
 const optTotal=(p,id)=>id===p.optCur?calc(optKeep?{...p,items:optKeep.items,adj:optKeep.adj}:p).chg:calc({...p,items:p.optStore[id].items,adj:p.optStore[id].adj||0}).chg;
 // 方案分頁（畫面用）：各方案名稱與金額；未選定時可切換、新增、刪除、選定；選定後只能看
 function optBarHtml(p,IL){
-  const ch=p.optChosen;
+  const ch=p.optChosen,L=p.status!=='open',shown=optView||p.optCur;
   if(!p.opts)return IL?'':'<div class="opt-bar no-print"><button class="btn-sm" data-act="optAdd" title="同一張單提供患者第二個方案比較">＋ 新增方案</button></div>';
   const tabs=p.opts.map(o=>`<button class="opt-tab ${o.id===(optView||p.optCur)?'on':''} ${ch&&ch.id===o.id?'chosen':''} ${ch&&ch.id!==o.id?'unused':''}" data-act="optSwitch" data-opt="${o.id}"><span class="opt-name">${ch?`<span class="opt-mark ${ch.id===o.id?'ok':'no'}">${ch.id===o.id?'✔':'✕'}</span>`:''}${esc(o.label)}</span><small>$${money(optTotal(p,o.id))}</small></button>`).join('');
-  const acts=IL?'':ch?'':`<button class="btn-sm" data-act="optAdd">＋ 新增方案</button><button class="btn-sm btn-danger" data-act="optDel">刪除此方案</button><span class="sp"></span><button class="btn-sm btn-primary" data-act="optChoose">✔ 患者選定${esc(optLabel(p,p.optCur))}</button>`;
+  // 還沒確認：可新增、刪除方案；確認後（多個方案還沒選定）：只能選定目前看的方案
+  const choose=`<span class="sp"></span><button class="btn-sm btn-primary" data-act="optChoose">✔ 患者選定${esc(optLabel(p,shown))}</button>`;
+  const acts=L||ch||!canEdit()?'':p.finalized?choose:IL?'':`<button class="btn-sm" data-act="optAdd">＋ 新增方案</button><button class="btn-sm btn-danger" data-act="optDel">刪除此方案</button>${choose}`;
   return `<div class="opt-bar no-print">${tabs}${acts}</div>`;
 }
 // 其他方案的唯讀表格（列印比較用、選定後查看未採用的方案用）
@@ -1507,9 +1513,10 @@ function optRoHtml(p,id){
     <div class="totals"><div><small>總金額</small><b>$${money(c.orig)}</b></div>${c.orig-c.chg?`<div class="hl"><small>變更後總金額</small><b>$${money(c.chg)}</b></div>`:''}</div>`;
 }
 async function optChoose(p){
-  const lbl=optLabel(p,p.optCur);
-  const s=await openSig(`患者選定「${lbl}」簽名`,null,`選定後其他方案會打 ✕，只能查看；之後以${lbl}定案、繳費。`);
-  if(!s)return;p.optChosen={id:p.optCur,sig:s,at:nowLocal()};
+  const id=optView||p.optCur,lbl=optLabel(p,id);
+  const s=await openSig(`患者選定「${lbl}」簽名`,null,`選定後其他方案會打 ✕，只能查看；之後以${lbl}繳費、治療。`);
+  if(!s)return;if(id!==p.optCur){optSwitch(p,id);optView=null} // 確認後在查看的方案上選定：把它換成目前方案
+  p.optChosen={id,sig:s,at:nowLocal()};
 }
 const PT_REQ=[['name','姓名'],['birthday','生日'],['chartNo','病歷號'],['doctor','主治醫師'],['assistant','責任助理'],['createdAt','單據開立時間']];
 async function finalize(p){
@@ -1517,15 +1524,15 @@ async function finalize(p){
   // 病患資料全部必填（有效期限沒填會依月數計算，一定有值）
   const miss=PT_REQ.filter(([k])=>!String(p[k]||'').trim()).map(([,n])=>n);
   if(miss.length){alert('病患資料為必填，請先填寫：'+miss.join('、'));document.querySelector(`#main [data-f="${PT_REQ.find(([,n])=>n===miss[0])[0]}"]`)?.focus();return}
-  if(p.opts&&(!p.optChosen||p.optChosen.id!==p.optCur)){alert(p.optChosen?`請切換到患者選定的「${optLabel(p,p.optChosen.id)}」再定案`:'這張單有多個方案，請先讓患者選定方案並簽名（方案分頁右邊的「✔ 患者選定」）再定案');return}
-  if(!items.length){alert('請先填寫治療項目再定案');return}
-  if(items.some(isOrthoItem)&&!items.every(isOrthoItem)){alert('矯正類項目不能和其他種類開在同一張計劃單，請把其他種類移到另一張單後再定案。');return}
-  if(items.filter(i=>!i.custom&&ORTHO_MAIN.has(i.name)).length>1){alert('一張計劃單只能有一項矯正療程，請另開一張單後再定案。');return}
-  if(items.some(i=>qtyOne(i)&&i.qty>1)){alert('矯正療程與矯正分析的數量固定為 1 單位，請修正後再定案。');return}
-  if(!p.consent.sig){alert('患者簽名同意治療計畫後才能定案');return}
-  const warn=[];if(p.items.length>items.length)warn.push(`・有 ${p.items.length-items.length} 列未選治療項目，定案時會移除`);
+  if(p.opts&&p.optChosen&&p.optChosen.id!==p.optCur)optSwitch(p,p.optChosen.id); // 已選定方案：以選定的方案確認（多個方案還沒選定也可以先確認，之後再選定）
+  if(!items.length){alert('請先填寫治療項目再確認');return}
+  if(items.some(isOrthoItem)&&!items.every(isOrthoItem)){alert('矯正類項目不能和其他種類開在同一張計劃單，請把其他種類移到另一張單後再確認。');return}
+  if(items.filter(i=>!i.custom&&ORTHO_MAIN.has(i.name)).length>1){alert('一張計劃單只能有一項矯正療程，請另開一張單後再確認。');return}
+  if(items.some(i=>qtyOne(i)&&i.qty>1)){alert('矯正療程與矯正分析的數量固定為 1 單位，請修正後再確認。');return}
+  if(!p.consent.sig){alert('患者簽名後才能確認');return}
+  const warn=[];if(p.items.length>items.length)warn.push(`・有 ${p.items.length-items.length} 列未選治療項目，確認時會移除`);
   if(p.items.some(i=>i.teethBad&&i.teethBad.length))warn.push('・有牙位無法辨識（紅色）');
-  if(!confirm(`定案治療計畫\n\n共 ${items.length} 項，總金額 $${money(c.orig)}，變更後總金額 $${money(c.chg)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n定案後病患資料、治療項目與金額將無法再更動（如需變更請用「計畫變更」）。確定定案？`))return;
+  if(!confirm(`確認治療計畫\n\n共 ${items.length} 項，總金額 $${money(c.orig)}，變更後總金額 $${money(c.chg)}\n${warn.length?'\n注意：\n'+warn.join('\n')+'\n':''}\n確認後病患資料、治療項目與金額將無法再更動（如需變更請用「計畫變更」）。確定確認？`))return;
   p.items=items;p.finalized=true;p.finalizedAt=nowLocal();await saveNow(p);renderList();renderEditor();
 }
 // 通知彈窗：buttons=[{label,value,cls}]，回傳按下的 value（按 ✕ 為 undefined）
@@ -1538,7 +1545,8 @@ function askDialog(title,html,buttons){
 async function closePaid(p){
   const c=calc(p),warn=[];
   if(!p.items.some(i=>i.name))warn.push('尚未填任何治療項目');
-  if(!p.finalized)warn.push('治療計畫尚未定案');
+  if(!p.finalized)warn.push('治療計畫尚未確認（填寫中）');
+  if(p.opts&&!p.optChosen)warn.push('多個方案，患者尚未選定方案');
   if(!p.consent.sig)warn.push('患者尚未簽署同意治療計畫');
   const uns=payGroups(p).filter(g=>!g[0].transfer&&!g[0].sig).length;if(uns)warn.push(`有 ${uns} 次繳費尚未簽名`);
   const sumRow=`<div class="ask-sum"><span>變更後總金額</span><b>$${money(c.chg)}</b><span>已繳合計</span><b>$${money(c.paid)}</b><span>未繳餘額</span><b class="${c.due?'due':''}">$${money(c.due)}</b></div>`;
@@ -2558,7 +2566,7 @@ async function handleDevice(u){
   const back=TP_HW?'':' <button id="devCancel">改用 Google 登入</button>'; // App 裡不能用 Google 登入
   const g=$('#gate'),msg=$('#gateMsg'),acts=$('#gateActs');g.hidden=false;
   if(!tpOn(d)&&!tpOn(h)&&(!d||!d.name)){
-    msg.innerHTML=`申請把這台設備設為「認證設備」。<br>核准後開啟本頁不需要 Google 登入，可以開單、編輯，只能刪除未定案的單。<br>${ids}`;
+    msg.innerHTML=`申請把這台設備設為「認證設備」。<br>核准後開啟本頁不需要 Google 登入，可以開單、編輯，只能刪除填寫中的單。<br>${ids}`;
     acts.innerHTML=`<input id="devName" placeholder="設備名稱，例如：櫃台平板" style="width:100%;margin:6px 0"><br><button class="btn-primary" id="devSend">送出申請</button>${back}`;
     if(!TP_HW)$('#devCancel').onclick=signOut;
     $('#devSend').onclick=async()=>{
