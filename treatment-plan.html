@@ -504,7 +504,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 /* 預覽（給患者看）：寬一點、字大一點 */
 /* 預覽視窗：灰底上放一張 A4 大小（210×297mm）的白紙，依視窗寬度整張縮放（像列印預覽），內容多時紙會往下延長 */
 .modal:has(.pv){max-width:min(860px,100%);background:#e7ecee}
-.pv-wrap{width:210mm;margin:0 auto}.pv-wrap .opt-bar{padding-left:10mm}
+.pv-wrap{width:210mm;margin:0 auto}.pv-c .opt-bar{padding-left:0;margin-bottom:6px}
 /* 平板：預覽幾乎占滿整個畫面，整張 A4 紙縮放到一眼看得完 */
 @media (max-width:1180px){.modal-bg:has(.pv){padding:6px}.modal:has(.pv){max-width:100%;max-height:calc(100vh - 12px);padding:8px 8px 6px}.modal:has(.pv) .acts{margin-top:6px}}
 .pv{position:relative;background:#fff;width:210mm;height:297mm;overflow:hidden;box-sizing:border-box;padding:14mm 14mm 16mm;margin:0 auto 4px;box-shadow:0 2px 10px rgba(0,0,0,.15);border-radius:2px;color:#1d2a30;transform-origin:left center}
@@ -1495,11 +1495,11 @@ $('#main').addEventListener('click',async e=>{
 // 治療計劃單的 A4 頁面（預覽與列印共用，預覽看到的就是印出來的）：每個方案一張 A4；
 // 多個方案還沒選定 → 每個方案各一頁；只有一個方案或已選定 → 一頁。內容太多時整頁縮小到放進一張 A4
 function planPageIds(p){return p.opts?(p.optChosen?[p.optChosen.id]:p.opts.map(o=>o.id)):[p.optCur]}
-function planPageHtml(p,id,n,total){
+function planPageHtml(p,id,n,total,tabs=''){ // tabs：預覽時放在「治療項目」標題下方的方案索引籤（列印不放）
   const row=(k,v)=>`<div><small>${k}</small><b>${esc(v||'—')}</b></div>`,ch=p.optChosen,multi=!!p.opts&&!ch;
   return `<div class="pv-c"><div class="pv-head"><b>治療計劃單</b><span>單號 ${esc(p.no)}</span></div>
     <h2>病患資料</h2><div class="pv-grid">${row('姓名',p.name)}${row('生日',p.birthday?p.birthday.replace(/-/g,'/'):'')}${row('病歷號',p.chartNo)}${row('主治醫師',p.doctor)}${row('責任助理',p.assistant)}${row('單據開立時間',fmtDT(p.createdAt))}${row('有效期限',(expiryOf(p)||'').replace(/-/g,'/'))}</div>
-    <h2>治療項目${p.opts?'－'+esc(optLabel(p,id))+(ch&&ch.id===id?'（患者選定）':''):''}</h2>${optRoHtml(p,id)}${p.itemsNote?`<div class="pv-note"><small>備註</small>${esc(p.itemsNote)}</div>`:''}
+    <h2>治療項目${p.opts?'－'+esc(optLabel(p,id))+(ch&&ch.id===id?'（患者選定）':''):''}</h2>${tabs}${optRoHtml(p,id)}${p.itemsNote?`<div class="pv-note"><small>備註</small>${esc(p.itemsNote)}</div>`:''}
     <h2>簽名</h2><div class="pv-sigs">
       <div><small>患者（或法定代理人）簽名</small><div class="pv-sig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:''}</div><small>簽名時間：${p.consent.at?esc(fmtDT(p.consent.at)):''}</small></div>
       ${ch?`<div><small>患者選定「${esc(optLabel(p,ch.id))}」簽名</small><div class="pv-sig"><img src="${ch.sig}" alt="選定方案簽名"></div><small>選定時間：${esc(fmtDT(ch.at))}</small></div>`:''}
@@ -1511,8 +1511,8 @@ function fitPlanPage(pg){const c=pg.querySelector('.pv-c');c.style.zoom=1;const 
 /* ====== 預覽：給患者看，就是列印出來的樣子（A4）；多個方案時用書頁索引籤翻頁，一個方案一張 A4 ====== */
 function openPreview(p){
   const ids=planPageIds(p),ch=p.optChosen;let k=0;
-  const tabsHtml=()=>ids.length>1?`<div class="opt-bar pv-optbar">${ids.map((id,i)=>`<button class="opt-tab ${i===k?'on':''}" data-pvpage="${i}"><span class="opt-name">${esc(optLabel(p,id))}</span><small>$${money(optTotal(p,id))}</small></button>`).join('')}</div>`:'';
-  modal(`<div class="pv-wrap">${tabsHtml()}<div class="pv">${planPageHtml(p,ids[0],1,ids.length)}</div></div>
+  const tabsHtml=()=>ids.length>1?`<div class="opt-bar pv-optbar no-print">${ids.map((id,i)=>`<button class="opt-tab ${i===k?'on':''}" data-pvpage="${i}"><span class="opt-name">${esc(optLabel(p,id))}</span><small>$${money(optTotal(p,id))}</small></button>`).join('')}</div>`:'';
+  modal(`<div class="pv-wrap"><div class="pv">${planPageHtml(p,ids[0],1,ids.length,tabsHtml())}</div></div>
     <div class="acts"><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
   (box,close)=>{
     const wrap=box.querySelector('.pv-wrap');
@@ -1523,7 +1523,7 @@ function openPreview(p){
     box.addEventListener('click',e=>{if(e.target.closest('[data-x="close"]'))close();
       const t=e.target.closest('[data-pvpage]');if(t&&+t.dataset.pvpage!==k){ // 翻頁：往後的方案從右邊翻過來、往前的從左邊
         const dir=+t.dataset.pvpage>k?'next':'prev';k=+t.dataset.pvpage;
-        wrap.innerHTML=tabsHtml()+`<div class="pv flip-${dir}">${planPageHtml(p,ids[k],k+1,ids.length)}</div>`;fit()}});
+        wrap.innerHTML=`<div class="pv flip-${dir}">${planPageHtml(p,ids[k],k+1,ids.length,tabsHtml())}</div>`;fit()}});
     Promise.all([...wrap.querySelectorAll('img')].map(i=>i.decode().catch(()=>{}))).then(fit);fit();
     addEventListener('resize',fit);new MutationObserver((m,o)=>{if(!box.isConnected){removeEventListener('resize',fit);o.disconnect()}}).observe(document.body,{childList:true})});
 }
