@@ -403,7 +403,7 @@ textarea.item-ta{display:block;width:100%;resize:none;overflow:hidden;line-heigh
 .teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
 .teeth-cell button{padding:3px 6px}
 .disc-amt{color:var(--warn)}
-.btn-fin{font-size:18px;font-weight:700;padding:10px 36px;border-radius:10px}
+.btn-fin{font-size:18px;font-weight:700;padding:10px 12px;border-radius:10px;min-height:52px;white-space:nowrap} /* 確認、取消選定：同樣大小 */
 .ro-amt{display:block;text-align:right;padding:0 4px;font-variant-numeric:tabular-nums;white-space:nowrap}
 input.expired-in{border-color:var(--danger);color:var(--danger)}
 .changed-amt{color:var(--danger);font-weight:600}
@@ -417,7 +417,9 @@ tfoot td{font-weight:700;background:var(--soft)}
 .totals .due b{color:var(--danger)}
 .sigbox{border:1px dashed var(--line);border-radius:8px;min-height:90px;display:flex;align-items:center;justify-content:center;background:var(--sig-bg);cursor:pointer;color:#888;position:relative}
 .sigbox img{max-height:110px;max-width:100%}
-.consent-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px} /* 簽名欄（隨畫面拉長）、簽名時間、定案：下緣切齊 */
+.consent-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 140px;align-items:end;gap:12px} /* 簽名欄、時間、按鈕三欄固定寬度：患者簽名與選定方案簽名兩列上下對齊 */
+@media (max-width:600px){.consent-row{grid-template-columns:minmax(0,1fr) 120px}.consent-row>.consent-sig{grid-column:1/-1}}
+.consent-row>button{width:100%}
 /* 多個方案：方案分頁（名稱＋金額），目前的方案實心、患者選定的打勾、未採用的淡化 */
 /* 「＋ 新增項目」放在項目表格下方左邊（和「調整」同一列） */
 .add-item-btn{float:left;font-weight:700}
@@ -456,7 +458,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .opt-ro td,.opt-ro th{padding:5px 6px}.opt-ro .cat-tag{display:block}
 .consent-sig{flex:1 1 240px;min-width:0}.consent-at{flex:0 1 240px}
 .ro-box{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--soft);white-space:nowrap}.consent-row>.btn-fin{flex:0 0 auto;margin-left:auto}
-.sigbox[data-act="consentSig"]{min-height:72px}.sigbox[data-act="consentSig"] img{max-height:88px} /* 患者同意簽名欄縮為 80% */
+.sigbox[data-act="consentSig"],.sigbox[data-act="optSigView"]{min-height:72px}.sigbox[data-act="consentSig"] img,.sigbox[data-act="optSigView"] img{max-height:88px} /* 患者同意簽名欄縮為 80% */
 .sig-mini{height:38px;background:var(--sig-bg);border-radius:4px;border:1px solid var(--line);cursor:pointer;display:block}
 /* 同一次繳費的多個項目 */
 .pay-tbl td[rowspan]{vertical-align:top;background:var(--panel)}
@@ -1092,7 +1094,7 @@ function renderEditorMain(viewing){
       <div class="consent-sig"><div class="hint">患者選定「${esc(optLabel(p,p.optChosen.id))}」簽名</div>
         <div class="sigbox" data-act="optSigView"><img src="${p.optChosen.sig}" alt="選定方案簽名"></div></div>
       <div class="consent-at"><div class="hint">選定時間</div><div class="ro-box">${esc(fmtDT(p.optChosen.at))}</div></div>
-      ${p.finalized||L?'':'<button class="btn-sm no-print" data-act="optUnchoose">取消選定</button>'}
+      ${p.finalized||L?'':'<button class="btn-fin no-print" data-act="optUnchoose">取消選定</button>'}
     </div>`:''}
   </section>
 
