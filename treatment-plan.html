@@ -449,7 +449,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 @keyframes optFlipNext{from{transform:perspective(1400px) rotateY(-75deg);transform-origin:left center;opacity:.2}to{transform:none;opacity:1}}
 @keyframes optFlipPrev{from{transform:perspective(1400px) rotateY(75deg);transform-origin:right center;opacity:.2}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.opt-panel.flip-next,.opt-panel.flip-prev{animation:none}}
-@media print{.opt-panel{border:0;padding:0;border-radius:0;box-shadow:none;background:none;margin:0}}
+@media print{.app .opt-panel{border:0;padding:0;border-radius:0;box-shadow:none;background:none;margin:0}} /* 只有畫面上的單去掉書頁；預覽/列印的 A4 頁面保留書頁感 */
 .opt-tab{display:inline-flex;flex-direction:column;align-items:center;line-height:1.25;padding:5px 14px;border:1.5px solid var(--accent);border-radius:10px;background:var(--panel);color:var(--accent);font-weight:700}
 .opt-tab small{font-weight:400;font-size:12px;color:var(--muted)}
 .opt-tab.on{background:var(--accent);color:var(--accent-ink)}.opt-tab.on small{color:inherit;opacity:.85}
@@ -519,6 +519,20 @@ tfoot td{font-weight:700;background:var(--soft)}
 .tm{display:inline-grid;min-width:max-content;grid-template-columns:16px minmax(44px,max-content) minmax(44px,max-content);align-items:center;font-size:14px;font-weight:700;line-height:1.5}.tm-r{display:contents} /* 上下兩排共用欄寬，中線上下對齊 */
 .tm-r+.tm-r>*{border-top:1.5px solid var(--line)}
 .tm i{font-style:normal;font-weight:400;font-size:11px;color:var(--muted)}.tm-a{text-align:right;padding:0 6px 0 0;border-right:2px dashed #b9c4c9;white-space:nowrap}.tm-b{padding:0 0 0 6px;white-space:nowrap}
+/* ---- 治療計劃單 A4 頁面美化（預覽與列印共用） ---- */
+.pv-c .pv-head{display:flex;align-items:flex-end;gap:12px;padding-bottom:10px;border-bottom:3px solid var(--accent);box-shadow:0 2px 0 #fff,0 4px 0 #cfe3e3;margin-bottom:6px}
+.pv-c .pv-head b{font-size:28px;letter-spacing:2px;color:var(--accent);line-height:1}
+.pv-c .pv-no{font-size:13px;color:#5f6f76}.pv-c .pv-date{margin-left:auto;font-size:12px;color:#5f6f76;background:#eef5f5;border-radius:999px;padding:3px 10px}
+.pv-c h2{display:flex;align-items:center;gap:8px;font-size:17px;color:var(--accent);margin:18px 0 8px;padding:0 0 4px;border-left:0;border-bottom:1px solid #d5e3e5}
+.pv-c h2::before{content:"";width:6px;height:18px;border-radius:3px;background:var(--accent)}
+.pv-c .pv-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 18px;background:#f5f9f9;border:1px solid #dfeaec;border-radius:10px;padding:12px 16px}
+.pv-c .pv-grid b{font-size:16px}
+.pv-c .opt-ro{border-radius:8px;overflow:hidden}.pv-c .opt-ro th{background:#e3f0f0;color:var(--accent);font-size:13px}.pv-c .opt-ro tbody tr:nth-child(even) td{background:#fafcfc}
+.pv-c .totals{margin-top:8px}.pv-c .totals b{font-size:22px;color:var(--accent)}
+.pv-c .pv-note{background:#fbfaf5;border-left:4px solid #e3c77a;border-radius:6px;padding:8px 12px}
+.pv-c .pv-sig{border:1.5px dashed #b9c9cc;background:#fff;min-height:84px}
+.pv-c .opt-bar{margin-top:2px}.pv-c .pv-book{margin:0 12px 14px 0}
+.pv-pno{font-size:12px;letter-spacing:1px}
 .tm-r>*{padding-top:4px;padding-bottom:4px;min-height:30px} /* 上下高度跟計劃單上的牙位欄差不多，只縮左右 */.pv-c .opt-ro{font-size:15px}.pv-note{margin-top:10px;white-space:pre-wrap}
 .modal.modal-wide{max-width:min(1280px,100%);max-height:94vh;min-height:min(80vh,760px);padding:22px 26px}
 .inc-sum{display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0 10px;font-size:14px}
@@ -1497,9 +1511,9 @@ $('#main').addEventListener('click',async e=>{
 function planPageIds(p){return p.opts?(p.optChosen?[p.optChosen.id]:p.opts.map(o=>o.id)):[p.optCur]}
 function planPageHtml(p,id,n,total,tabs=''){ // tabs：預覽時放在「治療項目」標題下方的方案索引籤（列印不放）
   const row=(k,v)=>`<div><small>${k}</small><b>${esc(v||'—')}</b></div>`,ch=p.optChosen,multi=!!p.opts&&!ch;
-  return `<div class="pv-c"><div class="pv-head"><b>治療計劃單</b><span>單號 ${esc(p.no)}</span></div>
+  return `<div class="pv-c"><div class="pv-head"><b>治療計劃單</b><span class="pv-no">單號 ${esc(p.no)}</span><span class="pv-date">開立 ${esc(fmtDT(p.createdAt))}</span></div>
     <h2>病患資料</h2><div class="pv-grid">${row('姓名',p.name)}${row('生日',p.birthday?p.birthday.replace(/-/g,'/'):'')}${row('病歷號',p.chartNo)}${row('主治醫師',p.doctor)}${row('責任助理',p.assistant)}${row('單據開立時間',fmtDT(p.createdAt))}${row('有效期限',(expiryOf(p)||'').replace(/-/g,'/'))}</div>
-    <h2>治療項目${p.opts?'－'+esc(optLabel(p,id))+(ch&&ch.id===id?'（患者選定）':''):''}</h2>${tabs}${optRoHtml(p,id)}${p.itemsNote?`<div class="pv-note"><small>備註</small>${esc(p.itemsNote)}</div>`:''}
+    <h2>治療項目${p.opts?'－'+esc(optLabel(p,id))+(ch&&ch.id===id?'（患者選定）':''):''}</h2>${p.opts?`${tabs}<div class="opt-panel pv-book">${optRoHtml(p,id)}</div>`:optRoHtml(p,id)}${p.itemsNote?`<div class="pv-note"><small>備註</small>${esc(p.itemsNote)}</div>`:''}
     <h2>簽名</h2><div class="pv-sigs">
       <div><small>患者（或法定代理人）簽名</small><div class="pv-sig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:''}</div><small>簽名時間：${p.consent.at?esc(fmtDT(p.consent.at)):''}</small></div>
       ${ch?`<div><small>患者選定「${esc(optLabel(p,ch.id))}」簽名</small><div class="pv-sig"><img src="${ch.sig}" alt="選定方案簽名"></div><small>選定時間：${esc(fmtDT(ch.at))}</small></div>`:''}
@@ -1523,7 +1537,9 @@ function openPreview(p){
     box.addEventListener('click',e=>{if(e.target.closest('[data-x="close"]'))close();
       const t=e.target.closest('[data-pvpage]');if(t&&+t.dataset.pvpage!==k){ // 翻頁：往後的方案從右邊翻過來、往前的從左邊
         const dir=+t.dataset.pvpage>k?'next':'prev';k=+t.dataset.pvpage;
-        wrap.innerHTML=`<div class="pv flip-${dir}">${planPageHtml(p,ids[k],k+1,ids.length,tabsHtml())}</div>`;fit()}});
+        // 只有治療項目（書頁）翻頁，其他內容不動：換上新方案的頁面內容，只對書頁播翻頁動畫
+        const pv=wrap.querySelector('.pv'),z=pv.querySelector('.pv-c').style.zoom;pv.innerHTML=planPageHtml(p,ids[k],k+1,ids.length,tabsHtml());pv.querySelector('.pv-c').style.zoom=z;
+        pv.querySelector('.pv-book')?.classList.add('flip-'+dir);fit()}});
     Promise.all([...wrap.querySelectorAll('img')].map(i=>i.decode().catch(()=>{}))).then(fit);fit();
     addEventListener('resize',fit);new MutationObserver((m,o)=>{if(!box.isConnected){removeEventListener('resize',fit);o.disconnect()}}).observe(document.body,{childList:true})});
 }
