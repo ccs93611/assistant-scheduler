@@ -508,7 +508,10 @@ tfoot td{font-weight:700;background:var(--soft)}
 .pv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px 16px}.pv-grid small,.pv-note small{display:block;color:var(--muted);font-size:13px}.pv-grid b{font-size:17px}
 .pv-sigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 20px}.pv-sigs small{display:block;color:var(--muted);font-size:13px}
 .pv-sig{border:1px solid var(--line);border-radius:8px;min-height:80px;display:flex;align-items:center;justify-content:center;margin:4px 0;background:#fff}.pv-sig img{max-height:90px;max-width:100%}
-.pv-opt{margin:14px 0 6px;font-size:17px}.pv .opt-ro{font-size:15px}.pv-note{margin-top:10px;white-space:pre-wrap}
+.pv-opt{margin:14px 0 6px;font-size:17px}
+.tm{display:inline-grid;grid-template-columns:16px minmax(44px,auto) minmax(44px,auto);align-items:center;font-size:14px;font-weight:700;line-height:1.5}.tm-r{display:contents} /* 上下兩排共用欄寬，中線上下對齊 */
+.tm-r+.tm-r>*{border-top:1.5px solid var(--line)}
+.tm i{font-style:normal;font-weight:400;font-size:11px;color:var(--muted)}.tm-a{text-align:right;padding:1px 6px 1px 0;border-right:2px dashed #b9c4c9;white-space:nowrap}.tm-b{padding:1px 0 1px 6px;white-space:nowrap}.pv .opt-ro{font-size:15px}.pv-note{margin-top:10px;white-space:pre-wrap}
 .modal.modal-wide{max-width:min(1280px,100%);max-height:94vh;min-height:min(80vh,760px);padding:22px 26px}
 .inc-sum{display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0 10px;font-size:14px}
 .inc-sum .inc-total{font-weight:700;color:var(--accent)}
@@ -1533,9 +1536,18 @@ function optBarHtml(p,IL){
   return `<div class="opt-bar no-print">${tabs}${acts}</div>`;
 }
 // 其他方案的唯讀表格（列印比較用、選定後查看未採用的方案用）
+// 唯讀牙位圖（預覽、方案比較用）：上下兩排、中間虛線分左右（病人右側在中線左邊），只留需要的空間
+function teethMini(it){
+  const v=teethInputs(it);if(!v.up&&!v.lo)return '';
+  const half=t=>{if(!t)return ['',''];const {endR,startL}=midSplit(t);
+    if(endR!=null&&(startL==null||endR<=startL))return [t.slice(0,endR),startL!=null?t.slice(startL):''];
+    if(startL!=null)return ['',t.slice(startL)];return [t,''];};
+  const row=(lb,t)=>{const [a,b]=half(t);return `<div class="tm-r"><i>${lb}</i><span class="tm-a">${esc(a.replace(/[,，、s]+$/,''))}</span><span class="tm-b">${esc(b)}</span></div>`};
+  return `<div class="tm">${row('上',v.up)}${row('下',v.lo)}</div>`;
+}
 function optRoHtml(p,id){
   const s=id===p.optCur?{items:p.items,adj:adjOf(p)}:p.optStore[id];const q={...p,items:s.items,adj:s.adj||0},c=calc(q);
-  const rows=s.items.filter(i=>i.name).map((it,i)=>{const t=teethInputs(it);return `<tr><td>${i+1}</td><td><span class="cat-tag">${esc(it.custom?'自訂項目':it.cat)}</span><b>${esc(it.name)}</b></td><td>${esc([t.up&&'上 '+t.up,t.lo&&'下 '+t.lo].filter(Boolean).join('／'))}</td><td class="num">$${money(unitOf(it))}</td><td class="num">${it.qty}</td><td class="num">$${money(it.orig||0)}</td><td class="num">${discOf(it)?'$'+money(chgOf(it)):''}</td></tr>`}).join('');
+  const rows=s.items.filter(i=>i.name).map((it,i)=>{const t=teethInputs(it);return `<tr><td>${i+1}</td><td><span class="cat-tag">${esc(it.custom?'自訂項目':it.cat)}</span><b>${esc(it.name)}</b></td><td class="tm-td">${teethMini(it)}</td><td class="num">$${money(unitOf(it))}</td><td class="num">${it.qty}</td><td class="num">$${money(it.orig||0)}</td><td class="num">${discOf(it)?'$'+money(chgOf(it)):''}</td></tr>`}).join('');
   return `<div class="tbl-wrap"><table class="items-tbl opt-ro"><thead><tr><th>#</th><th>治療種類／項目</th><th>牙位</th><th class="num">單價</th><th class="num">數量</th><th class="num">金額</th><th class="num">確認金額</th></tr></thead><tbody>${rows||'<tr><td colspan="7" class="hint">尚無項目</td></tr>'}</tbody></table></div>
     <div class="totals"><div><small>總金額</small><b>$${money(c.orig)}</b></div>${c.orig-c.chg?`<div class="hl"><small>變更後總金額</small><b>$${money(c.chg)}</b></div>`:''}</div>`;
 }
