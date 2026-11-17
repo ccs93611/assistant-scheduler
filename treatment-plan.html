@@ -1513,7 +1513,7 @@ function planPageIds(p){return p.opts?(p.optChosen?[p.optChosen.id]:p.opts.map(o
 function planPageHtml(p,id,n,total,tabs=''){ // tabs：預覽時放在「治療項目」標題下方的方案索引籤（列印不放）
   const row=(k,v)=>`<div><small>${k}</small><b>${esc(v||'—')}</b></div>`,ch=p.optChosen,multi=!!p.opts&&!ch;
   return `<div class="pv-c"><div class="pv-head"><b>治療計劃單</b><span class="pv-no">單號 ${esc(p.no)}</span><span class="pv-date">開立 ${esc(fmtDT(p.createdAt))}</span></div>
-    <h2>病患資料</h2><div class="pv-grid">${row('姓名',p.name)}${row('生日',p.birthday?p.birthday.replace(/-/g,'/'):'')}${row('病歷號',p.chartNo)}${row('主治醫師',p.doctor)}${row('責任助理',p.assistant)}${row('單據開立時間',fmtDT(p.createdAt))}${row('有效期限',(expiryOf(p)||'').replace(/-/g,'/'))}</div>
+    <h2>病患資料</h2><div class="pv-grid">${row('姓名',p.name)}${row('生日',p.birthday?p.birthday.replace(/-/g,'/'):'')}${row('病歷號',p.chartNo)}${row('主治醫師',p.doctor)}${row('責任助理',p.assistant)}<div></div>${row('單據開立時間',fmtDT(p.createdAt))}${row('有效期限',(expiryOf(p)||'').replace(/-/g,'/'))}</div>
     <h2>治療項目${p.opts?'－'+esc(optLabel(p,id))+(ch&&ch.id===id?'（患者選定）':''):''}</h2>${p.opts?`${tabs}<div class="opt-panel pv-book">${optRoHtml(p,id)}</div>`:optRoHtml(p,id)}${p.itemsNote?`<div class="pv-note"><small>備註</small>${esc(p.itemsNote)}</div>`:''}
     <h2>簽名</h2><div class="pv-sigs">
       <div><small>患者（或法定代理人）簽名</small><div class="pv-sig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:''}</div><small>簽名時間：${p.consent.at?esc(fmtDT(p.consent.at)):''}</small></div>
