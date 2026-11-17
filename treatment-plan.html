@@ -418,6 +418,8 @@ tfoot td{font-weight:700;background:var(--soft)}
 .sigbox img{max-height:110px;max-width:100%}
 .consent-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px} /* 簽名欄（隨畫面拉長）、簽名時間、定案：下緣切齊 */
 /* 多個方案：方案分頁（名稱＋金額），目前的方案實心、患者選定的打勾、未採用的淡化 */
+/* 「＋ 新增項目」放在項目表格下方左邊（和「調整」同一列） */
+.add-item-btn{float:left;font-weight:700}
 .opt-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px}.opt-bar .sp{flex:1}
 .opt-tab{display:inline-flex;flex-direction:column;align-items:center;line-height:1.25;padding:5px 14px;border:1.5px solid var(--accent);border-radius:10px;background:var(--panel);color:var(--accent);font-weight:700}
 .opt-tab small{font-weight:400;font-size:12px;color:var(--muted)}
@@ -1009,7 +1011,7 @@ function renderEditor(){
   </section>
 
   <section class="card">
-    <h2>治療項目${p.opts?`－${esc(optLabel(p,p.optCur))}${p.optChosen?.id===p.optCur?'（患者選定）':''}`:''}<span class="sp"></span>${IL?'':'<button class="btn-sm no-print" data-act="addItem">＋ 新增項目</button>'}</h2>
+    <h2>治療項目${p.opts?`－${esc(optLabel(p,p.optCur))}${p.optChosen?.id===p.optCur?'（患者選定）':''}`:''}</h2>
     ${optBarHtml(p,IL)}
     <div class="tbl-wrap items-wrap"><table class="items-tbl">
       <thead><tr><th class="h-no">#</th><th class="h-item">治療種類／項目</th><th class="h-teeth">牙位</th><th class="num h-unit">單價</th><th class="num h-qty">數量</th><th class="num h-orig">金額</th><th class="num h-chg">確認金額</th>${IL?'':'<th class="no-print h-del"></th>'}</tr></thead>
@@ -1024,7 +1026,7 @@ function renderEditor(){
         <td class="c-chg" data-label="確認金額"><input class="num ${discOf(it)?'changed-amt':''}" type="number" min="0" step="1" inputmode="numeric" data-k="chg" value="${it.disc!=null||it.chg!=null?chgOf(it):''}" placeholder="" ${idis}></td>
         ${IL?'':`<td class="c-del no-print"><button class="btn-sm btn-ghost btn-danger btn-x" data-k="del" title="刪除">✕</button></td>`}
       </tr>`).join('')||`<tr><td colspan="8" class="hint">尚無項目</td></tr>`}</tbody>
-      <tfoot><tr class="extra-disc"><td colspan="6" class="num">調整</td><td><input class="num ${adjOf(p)<0?'disc-amt':''}" type="number" step="1" inputmode="numeric" data-f="adj" value="${adjOf(p)||''}" placeholder="0" title="整張治療計劃另外調整的金額：負數為折扣、正數為漲價" ${idis}></td>${IL?'':'<td class="no-print"></td>'}</tr></tfoot>
+      <tfoot><tr class="extra-disc"><td colspan="6" class="num">${IL?'':'<button class="btn-sm no-print add-item-btn" data-act="addItem">＋ 新增項目</button>'}調整</td><td><input class="num ${adjOf(p)<0?'disc-amt':''}" type="number" step="1" inputmode="numeric" data-f="adj" value="${adjOf(p)||''}" placeholder="0" title="整張治療計劃另外調整的金額：負數為折扣、正數為漲價" ${idis}></td>${IL?'':'<td class="no-print"></td>'}</tr></tfoot>
     </table></div>
     <div class="totals">
       <div><small>總金額</small><b id="tOrig">$${money(c.orig)}</b></div>
