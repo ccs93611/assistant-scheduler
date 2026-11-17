@@ -1492,8 +1492,10 @@ $('#main').addEventListener('click',async e=>{
 /* ====== 預覽：給患者看，只顯示病患資料與治療項目（多個方案還沒選定時依序列出各方案；選定後只列選定的方案） ====== */
 function openPreview(p){
   const row=(k,v)=>`<div><small>${k}</small><b>${esc(v||'—')}</b></div>`;
-  const ids=p.opts?(p.optChosen?[p.optChosen.id]:p.opts.map(o=>o.id)):[p.optCur];
-  const items=ids.map(id=>`${p.opts?`<h3 class="pv-opt">${esc(optLabel(p,id))}${p.optChosen?.id===id?'（患者選定）':''}</h3>`:''}${optRoHtml(p,id)}`).join('');
+  // 多個方案：跟計劃單一樣用書頁索引籤＋翻頁，一次看一個方案（預設選定的方案或目前的方案）
+  const ch=p.optChosen;let shown=ch?ch.id:p.optCur;
+  const tabsHtml=()=>p.opts.map(o=>`<button class="opt-tab ${o.id===shown?'on':''}" data-pvopt="${o.id}"><span class="opt-name">${ch?`<span class="opt-mark ${ch.id===o.id?'ok':'no'}">${ch.id===o.id?'✔':'✕'}</span>`:''}${esc(o.label)}</span><small>$${money(optTotal(p,o.id))}</small></button>`).join('');
+  const items=p.opts?`<div class="opt-bar pv-optbar">${tabsHtml()}</div><div class="opt-panel pv-panel">${optRoHtml(p,shown)}</div>`:optRoHtml(p,p.optCur);
   modal(`<div class="pv"><div class="pv-head"><b>治療計劃單</b><span>單號 ${esc(p.no)}</span></div>
     <h2>病患資料</h2><div class="pv-grid">${row('姓名',p.name)}${row('生日',p.birthday?p.birthday.replace(/-/g,'/'):'')}${row('病歷號',p.chartNo)}${row('主治醫師',p.doctor)}${row('責任助理',p.assistant)}${row('單據開立時間',fmtDT(p.createdAt))}${row('有效期限',(expiryOf(p)||'').replace(/-/g,'/'))}</div>
     <h2>治療項目</h2>${items}${p.itemsNote?`<div class="pv-note"><small>備註</small>${esc(p.itemsNote)}</div>`:''}
@@ -1502,7 +1504,11 @@ function openPreview(p){
       ${p.optChosen?`<div><small>患者選定「${esc(optLabel(p,p.optChosen.id))}」簽名</small><div class="pv-sig"><img src="${p.optChosen.sig}" alt="選定方案簽名"></div><small>選定時間：${esc(fmtDT(p.optChosen.at))}</small></div>`:''}
     </div></div>
     <div class="acts"><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
-  (box,close)=>{box.addEventListener('click',e=>{if(e.target.closest('[data-x="close"]'))close()});
+  (box,close)=>{box.addEventListener('click',e=>{if(e.target.closest('[data-x="close"]'))close();
+      const t=e.target.closest('[data-pvopt]');if(t&&t.dataset.pvopt!==shown){ // 翻頁：往後的方案從右邊翻過來、往前的從左邊
+        const ord=id=>p.opts.findIndex(o=>o.id===id),dir=ord(t.dataset.pvopt)>ord(shown)?'next':'prev';shown=t.dataset.pvopt;
+        box.querySelector('.pv-optbar').innerHTML=tabsHtml();const pn=box.querySelector('.pv-panel');pn.innerHTML=optRoHtml(p,shown);
+        pn.classList.remove('flip-next','flip-prev');void pn.offsetWidth;pn.classList.add('flip-'+dir);fit()}});
     // 電腦：依寬度縮放（可上下捲動）；平板：寬、高都要放得下，整張 A4 一次看完、幾乎占滿畫面
     const pv=box.querySelector('.pv'),fit=()=>{pv.style.zoom=1;const w=box.clientWidth-20,tab=innerWidth<=1180;
       const h=innerHeight-12-16-(box.querySelector('.acts')?.offsetHeight||40)-10;
