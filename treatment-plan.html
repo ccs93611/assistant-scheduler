@@ -529,6 +529,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .pv-c .pv-grid b{font-size:16px}
 .pv-c .opt-ro{border-radius:8px;overflow:hidden}.pv-c .opt-ro th{background:#e3f0f0;color:var(--accent);font-size:13px}.pv-c .opt-ro tbody tr:nth-child(even) td{background:#fafcfc}
 .pv-c .totals{margin-top:8px}.pv-c .totals b{font-size:22px;color:var(--accent)}
+.pv-c .totals:has(.hl) div:not(.hl) b{color:#1d2a30} /* 同時有總金額與變更後總金額：總金額黑字，變更後總金額青綠色 */
 .pv-c .pv-note{background:#fbfaf5;border-left:4px solid #e3c77a;border-radius:6px;padding:8px 12px}
 .pv-c .pv-sig{border:1.5px dashed #b9c9cc;background:#fff;min-height:84px}
 .pv-c .opt-bar{margin-top:2px}.pv-c .pv-book{margin:0 12px 14px 0}
@@ -1519,17 +1520,24 @@ function planPageHtml(p,id,n,total,tabs=''){ // tabs：預覽時放在「治療�
       ${ch?`<div><small>患者選定「${esc(optLabel(p,ch.id))}」簽名</small><div class="pv-sig"><img src="${ch.sig}" alt="選定方案簽名"></div><small>選定時間：${esc(fmtDT(ch.at))}</small></div>`:''}
     </div></div><div class="pv-pno">${n} / ${total}</div>`;
 }
+// 多個方案：每頁的治療項目書頁設成一樣高（取最高的），翻頁或換頁時其他內容的位置、大小都不變
+function planBookHeight(p,ids){
+  if(ids.length<2)return 0;const tmp=document.createElement('div');tmp.className='pv';tmp.style.cssText='position:absolute;left:-99999px;top:0';document.body.appendChild(tmp);
+  let h=0;for(const id of ids){tmp.innerHTML=planPageHtml(p,id,1,1,'<div class="opt-bar pv-optbar"><button class="opt-tab">x<small>x</small></button></div>');const b=tmp.querySelector('.pv-book');if(b){b.style.boxSizing='border-box';h=Math.max(h,Math.ceil(b.getBoundingClientRect().height)+1)}}
+  tmp.remove();return h;
+}
+const setBookH=(el,h)=>{if(h)el.querySelectorAll('.pv-book').forEach(b=>{b.style.boxSizing='border-box';b.style.height=h+'px'})}; // 固定高度（不是最小高度），每頁完全一樣
 // 一頁的內容縮放到放進 A4（頁面高度扣掉上下留白與頁碼）
 function fitPlanPage(pg){const c=pg.querySelector('.pv-c');c.style.zoom=1;const avail=pg.clientHeight-parseFloat(getComputedStyle(pg).paddingTop)-parseFloat(getComputedStyle(pg).paddingBottom);
   if(c.offsetHeight>avail)c.style.zoom=avail/c.offsetHeight}
 /* ====== 預覽：給患者看，就是列印出來的樣子（A4）；多個方案時用書頁索引籤翻頁，一個方案一張 A4 ====== */
 function openPreview(p){
-  const ids=planPageIds(p),ch=p.optChosen;let k=0;
+  const ids=planPageIds(p),ch=p.optChosen,bookH=planBookHeight(p,ids);let k=0;
   const tabsHtml=()=>ids.length>1?`<div class="opt-bar pv-optbar no-print">${ids.map((id,i)=>`<button class="opt-tab ${i===k?'on':''}" data-pvpage="${i}"><span class="opt-name">${esc(optLabel(p,id))}</span><small>$${money(optTotal(p,id))}</small></button>`).join('')}</div>`:'';
   modal(`<div class="pv-wrap"><div class="pv">${planPageHtml(p,ids[0],1,ids.length,tabsHtml())}</div></div>
     <div class="acts"><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
   (box,close)=>{
-    const wrap=box.querySelector('.pv-wrap');
+    const wrap=box.querySelector('.pv-wrap');setBookH(wrap,bookH);
     // 電腦：依寬度縮放（可上下捲動）；平板：寬、高都放得下，整張 A4 一次看完、幾乎占滿畫面
     const fit=()=>{const pv=wrap.querySelector('.pv');fitPlanPage(pv);wrap.style.zoom=1;const w=box.clientWidth-20,tab=innerWidth<=1180;
       const h=innerHeight-12-16-(box.querySelector('.acts')?.offsetHeight||40)-10;
@@ -1538,7 +1546,7 @@ function openPreview(p){
       const t=e.target.closest('[data-pvpage]');if(t&&+t.dataset.pvpage!==k){ // 翻頁：往後的方案從右邊翻過來、往前的從左邊
         const dir=+t.dataset.pvpage>k?'next':'prev';k=+t.dataset.pvpage;
         // 只有治療項目（書頁）翻頁，其他內容不動：換上新方案的頁面內容，只對書頁播翻頁動畫
-        const pv=wrap.querySelector('.pv'),z=pv.querySelector('.pv-c').style.zoom;pv.innerHTML=planPageHtml(p,ids[k],k+1,ids.length,tabsHtml());pv.querySelector('.pv-c').style.zoom=z;
+        const pv=wrap.querySelector('.pv'),z=pv.querySelector('.pv-c').style.zoom;pv.innerHTML=planPageHtml(p,ids[k],k+1,ids.length,tabsHtml());setBookH(pv,bookH);pv.querySelector('.pv-c').style.zoom=z;
         pv.querySelector('.pv-book')?.classList.add('flip-'+dir);fit()}});
     Promise.all([...wrap.querySelectorAll('img')].map(i=>i.decode().catch(()=>{}))).then(fit);fit();
     addEventListener('resize',fit);new MutationObserver((m,o)=>{if(!box.isConnected){removeEventListener('resize',fit);o.disconnect()}}).observe(document.body,{childList:true})});
@@ -1773,9 +1781,10 @@ async function printWithInfo(ids,wtys=[],noPlan=false,p=cur()){ // noPlan：不�
   document.getElementById('tiPrint')?.remove();
   const box=document.createElement('div');box.id='tiPrint';box.className='measure';
   const page=(title,body)=>`<div class="tip-page"><h3>${esc(title)}</h3>${body}<div class="tip-disc">${esc(TI_DISCLAIMER)}</div></div>`;
-  const pids=noPlan||!p?[]:planPageIds(p);
+  const pids=noPlan||!p?[]:planPageIds(p),bookH=pids.length?planBookHeight(p,pids):0;
   box.innerHTML=pids.map((id,i)=>`<div class="tip-page pv-page">${planPageHtml(p,id,i+1,pids.length)}</div>`).join('')+ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
   (document.querySelector('.app')||document.body.lastChild).after(box); // 緊接在計劃單後面
+  setBookH(box,bookH); // 每個方案的頁面版面一樣（跟預覽相同）
   box.querySelectorAll('.tip-page:not(.pv-page)').forEach(d=>{const t=d.querySelector('.ti-body>.ti-tbl');if(!t)return;
     const p2=document.createElement('div');p2.innerHTML=page(d.querySelector('h3').textContent+'（'+(t.querySelector('h4')?.textContent||'續')+'）','<div class="ti-body"></div>');
     const pg=p2.firstElementChild;pg.querySelector('.ti-body').appendChild(t);d.after(pg)});
