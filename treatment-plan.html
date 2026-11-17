@@ -421,6 +421,32 @@ tfoot td{font-weight:700;background:var(--soft)}
 /* 「＋ 新增項目」放在項目表格下方左邊（和「調整」同一列） */
 .add-item-btn{float:left;font-weight:700}
 .opt-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px}.opt-bar .sp{flex:1}
+/* 有多個方案時：像一本書——方案分頁是書頁上方的索引籤，下方是紙張（後面疊著其他方案的紙），切換方案時有翻頁動畫 */
+.opt-bar:has(.opt-tab){align-items:flex-end;margin:0;gap:2px;padding-left:16px}.opt-bar:has(.opt-tab)>.btn-sm{margin-bottom:6px}
+.opt-bar .opt-tab{border-radius:10px 10px 0 0;border:1px solid var(--line);border-bottom:0;padding:6px 18px 5px;background:var(--soft);color:var(--muted);box-shadow:inset 0 -6px 8px -6px rgba(0,0,0,.12)}
+.opt-bar .opt-tab:hover{background:var(--panel);color:var(--accent)}
+.opt-bar .opt-tab.on{background:var(--panel);color:var(--accent);position:relative;z-index:2;margin-bottom:-1px;padding:9px 20px 7px;font-size:17px;box-shadow:0 -3px 8px rgba(0,0,0,.08);border-top:3px solid var(--accent)}
+/* 目前方案的索引籤底部兩側往外圓弧連到紙頁上緣（反向圓角），轉折比較圓潤 */
+.opt-bar .opt-tab.on::before,.opt-bar .opt-tab.on::after{content:"";position:absolute;bottom:0;width:14px;height:14px;pointer-events:none;border-bottom:1px solid #c9d3d7}
+.opt-bar .opt-tab.on::before{left:-15px;border-right:1px solid #c9d3d7;border-bottom-right-radius:14px;box-shadow:5px 5px 0 5px var(--panel)}
+.opt-bar .opt-tab.on::after{right:-15px;border-left:1px solid #c9d3d7;border-bottom-left-radius:14px;box-shadow:-5px 5px 0 5px var(--panel)}
+.opt-bar .opt-tab.on small{color:var(--accent);opacity:1;font-weight:700}
+/* 紙頁：左邊書背（裝訂陰影）、右下角折角、後面疊著兩張紙（用多層陰影畫出往右下錯開的紙邊） */
+.opt-x{color:var(--danger);font-weight:700}
+/* 選定 ✔／沒選 ✕：同樣大小、同樣位置（方案名稱左邊，同一行） */
+.opt-name{display:inline-flex;align-items:center;white-space:nowrap}
+.opt-mark{display:inline-block;width:18px;margin-right:3px;font-size:15px;font-weight:700;line-height:1;text-align:center;vertical-align:baseline}
+.opt-mark.ok{color:var(--accent)}.opt-mark.no{color:var(--danger)}
+.opt-view-note{display:inline-block;margin:0 0 8px;padding:2px 10px;border-radius:999px;background:var(--soft);color:var(--muted);font-size:13px;font-weight:700}
+.opt-panel{position:relative;border:1px solid #c9d3d7;border-radius:12px 12px 12px 6px;padding:14px 16px 16px 22px;margin:0 14px 18px 0;transform-origin:left center;
+  background:linear-gradient(315deg,var(--panel) 0 16px,#cdd7db 16px 17px,#e9eef0 17px 30px,transparent 30px),
+    linear-gradient(90deg,rgba(15,124,128,.22) 0,rgba(15,124,128,.22) 4px,rgba(0,0,0,.09) 4px,rgba(0,0,0,0) 30px),var(--panel);
+  box-shadow:6px 6px 0 -1px #fbfcfc,6px 6px 0 0 #c9d3d7,12px 12px 0 -1px #f2f5f6,12px 12px 0 0 #c9d3d7,0 14px 26px rgba(0,0,0,.14)}
+.opt-panel.flip-next{animation:optFlipNext .45s ease-out}.opt-panel.flip-prev{animation:optFlipPrev .45s ease-out}
+@keyframes optFlipNext{from{transform:perspective(1400px) rotateY(-75deg);transform-origin:left center;opacity:.2}to{transform:none;opacity:1}}
+@keyframes optFlipPrev{from{transform:perspective(1400px) rotateY(75deg);transform-origin:right center;opacity:.2}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.opt-panel.flip-next,.opt-panel.flip-prev{animation:none}}
+@media print{.opt-panel{border:0;padding:0;border-radius:0;box-shadow:none;background:none;margin:0}}
 .opt-tab{display:inline-flex;flex-direction:column;align-items:center;line-height:1.25;padding:5px 14px;border:1.5px solid var(--accent);border-radius:10px;background:var(--panel);color:var(--accent);font-weight:700}
 .opt-tab small{font-weight:400;font-size:12px;color:var(--muted)}
 .opt-tab.on{background:var(--accent);color:var(--accent-ink)}.opt-tab.on small{color:inherit;opacity:.85}
@@ -534,9 +560,13 @@ tfoot td{font-weight:700;background:var(--soft)}
 .tabs-m button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .photo-view img{max-width:100%;max-height:70vh;display:block;margin:0 auto}
 .print-only{display:none}
+.po-inline{display:none}
 /* 列印選項視窗 */
 .pp-opts{display:grid;gap:10px;margin:6px 0 4px}
 .pp-opts button{padding:14px 16px;font-size:16px;text-align:left}
+.pp-opt{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:10px;cursor:pointer;font-size:16px;color:var(--ink)}
+.pp-opt input{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--accent)}
+.pp-opt.off{opacity:.6;cursor:default}.pp-opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
 .pp-opts .hint{display:block;font-weight:400;margin-top:2px}
 .pp-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .pp-list span{padding:3px 10px;border-radius:999px;background:var(--accent-soft,#e8f4f4);color:var(--accent,#0f7c80);font-size:14px;font-weight:600}
@@ -583,11 +613,12 @@ tfoot td{font-weight:700;background:var(--soft)}
   .app{page:plan}
   main,.app main,.side-hidden .app main{padding:0 12mm!important}
   input,select{border:0;padding:0;background:none!important;appearance:none;-webkit-appearance:none}
-  .print-only{display:block}
+  .print-only{display:block}.po-inline{display:inline}
   /* 項目介紹從新的一頁開始，每項一頁（分頁設在 #tiPrint 與後面的頁，前面不能有其他東西，否則會多一張空白頁）；
      body 底下其他元素（下拉選單、彈出視窗等）列印時一律不印，避免在計劃單與項目介紹之間多出空白頁 */
   body:not(.print-modal)>:not(.app):not(#tiPrint){display:none!important}
   #tiPrint{display:block;break-before:page;page-break-before:always}.tip-page+.tip-page{break-before:page;page-break-before:always}
+  body.no-plan-print .app{display:none!important}body.no-plan-print #tiPrint{break-before:auto;page-break-before:auto} /* 只印項目介紹／保固與說明 */
   /* ---- 列印美化 ---- */
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   :root{--accent:#0f7c80;--ink:#1d2a30;--muted:#5f6f76;--line:#d5dee3}
@@ -967,7 +998,7 @@ async function leaveCheck(){
     [{label:'留在這張單',value:null,cls:'btn-primary'},{label:'仍要切換',value:'go'}]);
   return ok==='go';
 }
-async function openPlan(id,force){if(!force&&id!==curId&&!await leaveCheck())return;curId=id;renderList();renderEditor();ensureLinked(plans.get(id));if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
+async function openPlan(id,force){if(!force&&id!==curId&&!await leaveCheck())return;if(id!==curId)optView=null;curId=id;renderList();renderEditor();ensureLinked(plans.get(id));if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
 window.addEventListener('pagehide',flushPending);
 
 /* ====== 編輯畫面 ====== */
@@ -978,11 +1009,19 @@ function datalists(){
   // 雲端模式：名單來自排班系統的人員名單；本機模式：用設定裡手動輸入的名單
   return fs?dl('dlDoc',staffNames.doctor)+dl('dlAsst',staffNames.assistant):dl('dlDoc',settings.doctors)+dl('dlAsst',settings.assistants);
 }
+let optView=null,optKeep=null; // 只能查看時，書頁上正在看的方案（不存檔）；optKeep：畫面暫時換掉時，目前方案原本的項目
+// 查看其他方案：暫時把該方案的項目放進 p.items 畫出來（跟一般一樣的表格、牙位圖，但全部鎖住），畫完立刻換回來
 function renderEditor(){
+  const p=cur(),v=p&&p.opts&&optView&&optView!==p.optCur&&p.optStore?.[optView];
+  if(!v){optView=null;return renderEditorMain()}
+  const keep={items:p.items,adj:p.adj};p.items=v.items;p.adj=v.adj||0;optKeep=keep;
+  try{renderEditorMain(true)}finally{p.items=keep.items;p.adj=keep.adj;optKeep=null}
+}
+function renderEditorMain(viewing){
   const p=cur();const m=$('#main');
   if(!p){m.innerHTML='<div class="empty">從<span class="at-side">左側</span><span class="at-top">上方</span>選一張治療計劃單，或按「新增治療計劃單」。</div>';return}
   const L=p.status!=='open';const dis=L?'disabled':'';const c=calc(p);
-  const IL=L||!!p.finalized,idis=IL?'disabled':''; // 定案後治療項目與金額鎖定
+  const IL=L||!!p.finalized||!!viewing,idis=IL?'disabled':''; // 定案後治療項目與金額鎖定（查看其他方案時也鎖住）
   const prev=p.prevId&&plans.get(p.prevId),next=p.nextId&&plans.get(p.nextId);
   m.innerHTML=`<div class="sheet">
   ${datalists()}
@@ -1011,9 +1050,9 @@ function renderEditor(){
   </section>
 
   <section class="card">
-    <h2>治療項目${p.opts?`－${esc(optLabel(p,p.optCur))}${p.optChosen?.id===p.optCur?'（患者選定）':''}`:''}</h2>
+    <h2>治療項目${p.opts?(p.optChosen?`－${esc(optLabel(p,p.optCur))}${p.optChosen.id===p.optCur?'（患者選定）':''}`:`<span class="po-inline">－${esc(optLabel(p,p.optCur))}</span>`):''}</h2> <!-- 還沒選定方案：畫面上只寫「治療項目」（方案看分頁），列印時才加上方案名稱 -->
     ${optBarHtml(p,IL)}
-    <div class="tbl-wrap items-wrap"><table class="items-tbl">
+    ${p.opts?'<div class="opt-panel">':''}<div class="tbl-wrap items-wrap"><table class="items-tbl">
       <thead><tr><th class="h-no">#</th><th class="h-item">治療種類／項目</th><th class="h-teeth">牙位</th><th class="num h-unit">單價</th><th class="num h-qty">數量</th><th class="num h-orig">金額</th><th class="num h-chg">確認金額</th>${IL?'':'<th class="no-print h-del"></th>'}</tr></thead>
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         ${IL?`<td class="c-no">${i+1}</td>`:`<td class="c-no drag-handle" title="拖曳調整順序"><i>⋮⋮</i>${i+1}</td>`}
@@ -1033,7 +1072,7 @@ function renderEditor(){
       <div ${c.orig-c.chg?'':'hidden'}><small>減免合計</small><b id="tDisc" class="disc-amt">${c.orig-c.chg?'$'+money(c.orig-c.chg):''}</b></div>
       <div class="hl" ${c.orig-c.chg?'':'hidden'}><small>變更後總金額</small><b id="tChg">${c.orig-c.chg?'$'+money(c.chg):''}</b></div>
     </div>
-    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>
+    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>${p.opts?'</div>':''}
     ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已定案（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
     <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量；「確認金額」留空表示與金額相同；「調整」輸入負數為折扣、正數為漲價。</div>
   </section>
@@ -1102,6 +1141,9 @@ function renderEditor(){
     </div>
   </section>
   </div>`;
+  // 查看其他方案：書頁上方加標示，整張單其他欄位也暫時鎖住（只能看）
+  if(viewing){const pn=m.querySelector('.opt-panel');if(pn)pn.insertAdjacentHTML('afterbegin',`<div class="opt-view-note">${p.optChosen&&p.optChosen.id!==optView?'<span class="opt-x">✕</span> ':''}${esc(optLabel(p,optView))}・只能查看</div>`);
+    m.querySelectorAll('input,textarea,select,button').forEach(x=>{if(!x.closest('.opt-bar')&&!x.closest('.topbar'))x.disabled=true})}
   alignTeeth();growNotes();requestAnimationFrame(()=>growNotes());loadPhotos();applyPerms();
 }
 // 備註欄依內容自動長高，字多時換行顯示全部內容
@@ -1360,13 +1402,16 @@ $('#main').addEventListener('click',async e=>{
   if(e.target.closest('[data-ti-plan]')){window.open('treatments.html?ids='+planTiIds(p).join(','),'_blank','noopener');return}
   const op=e.target.closest('[data-open-plan]');if(op){openPlan(op.dataset.openPlan);return}
   const a=e.target.closest('[data-act]');
+  if(optView&&!(a&&['optSwitch','print'].includes(a.dataset.act)))return; // 查看其他方案時只能看
   if(a){const act=a.dataset.act,L=p.status!=='open';
     if(act==='print')printPlan(p);
     else if(act==='addItem'){p.items.push(newItem());touch();renderEditor()}
-    else if(act==='optSwitch'){const id=a.dataset.opt;if(id===p.optCur)return;
-      // 已定案、唯讀、已選定其他方案時只能查看（不切換）
-      if(L||p.finalized||!canEdit()||p.optChosen){modal(`<h3>${esc(optLabel(p,id))}${p.optChosen&&p.optChosen.id!==id?'（未採用）':''}</h3>${optRoHtml(p,id)}<div class="acts"><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,(box,close)=>box.addEventListener('click',e=>{if(e.target.closest('[data-x="close"]'))close()}));return}
-      optSwitch(p,id);touch();renderEditor()}
+    else if(act==='optSwitch'){const id=a.dataset.opt,shown=optView||p.optCur;if(id===shown)return;
+      const dir=p.opts.findIndex(o=>o.id===id)>p.opts.findIndex(o=>o.id===shown)?'next':'prev';
+      // 已定案、唯讀、已選定方案時：直接在書頁上查看其他方案（只能看，不切換資料）；點回目前的方案恢復編輯
+      if(L||p.finalized||!canEdit()||p.optChosen){optView=id===p.optCur?null:id;renderEditor()}
+      else{optSwitch(p,id);touch();renderEditor()}
+      document.querySelector('#main .opt-panel')?.classList.add('flip-'+dir)} // 翻頁：往後的方案從右邊翻過來、往前的從左邊
     else if(act==='optAdd'){await optAdd(p);touch();renderEditor()}
     else if(act==='optDel'){optDel(p);touch();renderEditor()}
     else if(act==='optChoose'){if(!p.items.some(i=>i.name)){alert('這個方案還沒有治療項目');return}await optChoose(p);touch();renderEditor()}
@@ -1445,12 +1490,12 @@ function optDel(p){
   if(p.opts.length<2){p.opts=null;p.optCur=null;p.optStore=null;p.optChosen=null} // 只剩一個方案：回到一般的單
 }
 // 方案的總金額（變更後）：目前方案直接算，其他方案用存起來的項目算
-const optTotal=(p,id)=>id===p.optCur?calc(p).chg:calc({...p,items:p.optStore[id].items,adj:p.optStore[id].adj||0}).chg;
+const optTotal=(p,id)=>id===p.optCur?calc(optKeep?{...p,items:optKeep.items,adj:optKeep.adj}:p).chg:calc({...p,items:p.optStore[id].items,adj:p.optStore[id].adj||0}).chg;
 // 方案分頁（畫面用）：各方案名稱與金額；未選定時可切換、新增、刪除、選定；選定後只能看
 function optBarHtml(p,IL){
   const ch=p.optChosen;
   if(!p.opts)return IL?'':'<div class="opt-bar no-print"><button class="btn-sm" data-act="optAdd" title="同一張單提供患者第二個方案比較">＋ 新增方案</button></div>';
-  const tabs=p.opts.map(o=>`<button class="opt-tab ${o.id===p.optCur?'on':''} ${ch&&ch.id===o.id?'chosen':''} ${ch&&ch.id!==o.id?'unused':''}" data-act="optSwitch" data-opt="${o.id}">${ch&&ch.id===o.id?'✔ ':''}${esc(o.label)}<small>$${money(optTotal(p,o.id))}</small>${ch&&ch.id!==o.id?'<small>未採用</small>':''}</button>`).join('');
+  const tabs=p.opts.map(o=>`<button class="opt-tab ${o.id===(optView||p.optCur)?'on':''} ${ch&&ch.id===o.id?'chosen':''} ${ch&&ch.id!==o.id?'unused':''}" data-act="optSwitch" data-opt="${o.id}"><span class="opt-name">${ch?`<span class="opt-mark ${ch.id===o.id?'ok':'no'}">${ch.id===o.id?'✔':'✕'}</span>`:''}${esc(o.label)}</span><small>$${money(optTotal(p,o.id))}</small></button>`).join('');
   const acts=IL?'':ch?'':`<button class="btn-sm" data-act="optAdd">＋ 新增方案</button><button class="btn-sm btn-danger" data-act="optDel">刪除此方案</button><span class="sp"></span><button class="btn-sm btn-primary" data-act="optChoose">✔ 患者選定${esc(optLabel(p,p.optCur))}</button>`;
   return `<div class="opt-bar no-print">${tabs}${acts}</div>`;
 }
@@ -1463,7 +1508,7 @@ function optRoHtml(p,id){
 }
 async function optChoose(p){
   const lbl=optLabel(p,p.optCur);
-  const s=await openSig(`患者選定「${lbl}」簽名`,null,`選定後其他方案標示為「未採用」，只能查看；之後以${lbl}定案、繳費。`);
+  const s=await openSig(`患者選定「${lbl}」簽名`,null,`選定後其他方案會打 ✕，只能查看；之後以${lbl}定案、繳費。`);
   if(!s)return;p.optChosen={id:p.optCur,sig:s,at:nowLocal()};
 }
 const PT_REQ=[['name','姓名'],['birthday','生日'],['chartNo','病歷號'],['doctor','主治醫師'],['assistant','責任助理'],['createdAt','單據開立時間']];
@@ -1616,19 +1661,23 @@ function printPlan(p){
   const noInfo='這張單的治療項目都沒有項目介紹（例如自訂項目）',noWty='這張單沒有需要保固與說明的項目（齒雕、美學貼片、牙冠、植體、植牙冠、植牙贗復體）';
   const list=ids.length?`<span class="pp-list">${ids.map(id=>`<span>${esc(TI_BY_ID[id].title)}</span>`).join('')}</span>`:'';
   const wlist=`<span class="pp-list">${wt.map(w=>`<span>${esc(w.title)}</span>`).join('')}</span>`;
-  const opt=(x,label,ok,why,more='')=>`<button data-x="${x}" ${ok?'':'disabled'}>🖨 ${label}${ok?more:`<span class="hint">${why}</span>`}</button>`;
-  modal(`<h3>列印</h3><div class="pp-opts">
-      <button data-x="plan">🖨 僅列印治療計劃單</button>
-      ${opt('info','列印治療計劃單＋項目介紹',ids.length,noInfo,`<span class="hint">將列印的項目介紹（接在治療計劃單後面）：</span>${list}`)}
-      ${opt('wty','列印治療計劃單＋保固與說明',wty,noWty,`<span class="hint">保固與說明接在治療計劃單後面（每份一張 A4）：</span>${wlist}`)}
-      ${opt('both','列印治療計劃單＋項目介紹＋保固與說明',ids.length&&wty,!ids.length?noInfo:noWty,`<span class="hint">依序印：治療計劃單 → 項目介紹 → 保固與說明（每份一張 A4）</span>${list}${wlist}`)}</div>
-    <div class="acts"><span class="sp"></span><button data-x="close">取消</button></div>`,
-  (box,close)=>box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;close();
-    if(x==='plan')setTimeout(()=>window.print(),50);else if(x==='info')printWithInfo(ids);
-    else if(x==='wty')printWithInfo([],wt);else if(x==='both')printWithInfo(ids,wt)}))}
+  // 勾選要印的部分；不論勾哪些，都依「治療計劃單 → 項目介紹 → 保固與說明」的順序印
+  const opt=(k,label,ok,why,more='')=>`<label class="pp-opt ${ok?'':'off'}"><input type="checkbox" data-k="${k}" ${ok?'checked':'disabled'}><span><b>${label}</b>${ok?more:`<span class="hint">${why}</span>`}</span></label>`;
+  modal(`<h3>列印</h3><p class="hint" style="margin:0 0 8px">勾選要列印的部分，會依「治療計劃單 → 項目介紹 → 保固與說明」的順序印出。</p><div class="pp-opts">
+      ${opt('plan','治療計劃單',true,'')}
+      ${opt('info','項目介紹',ids.length,noInfo,`<span class="hint">每項一張 A4：</span>${list}`)}
+      ${opt('wty','保固與說明',wty,noWty,`<span class="hint">每份一張 A4：</span>${wlist}`)}</div>
+    <div class="acts"><span class="sp"></span><button data-x="close">取消</button><button class="btn-primary" data-x="go">🖨 列印</button></div>`,
+  (box,close)=>{
+    const on=k=>box.querySelector(`[data-k="${k}"]`)?.checked,go=box.querySelector('[data-x="go"]');
+    box.addEventListener('change',()=>{go.disabled=!['plan','info','wty'].some(on)});
+    box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;
+      if(x==='close'){close();return}
+      const plan=on('plan'),info=on('info')?ids:[],ws=on('wty')?wt:[];close();
+      if(!info.length&&!ws.length)setTimeout(()=>window.print(),50);else printWithInfo(info,ws,!plan)})})}
 // 治療計劃單後面接著印項目介紹（與保固說明）：每項一張 A4，跟 treatments.html 的 printIds 一樣自動縮放到剛好填滿一頁；
 // 有比較表的項目把比較表拆到第二頁；保固與說明放最後，每份一張 A4；不印診所 Logo 與名稱（浮水印除外）；印完移除
-async function printWithInfo(ids,wtys=[]){
+async function printWithInfo(ids,wtys=[],noPlan=false){ // noPlan：不印治療計劃單，只印項目介紹／保固與說明
   document.getElementById('tiPrint')?.remove();
   const box=document.createElement('div');box.id='tiPrint';box.className='measure';
   const page=(title,body)=>`<div class="tip-page"><h3>${esc(title)}</h3>${body}<div class="tip-disc">${esc(TI_DISCLAIMER)}</div></div>`;
@@ -1649,7 +1698,8 @@ async function printWithInfo(ids,wtys=[]){
   box.querySelectorAll('.tip-page').forEach(d=>{const z=+d.style.zoom||1;d.style.height=(290/z).toFixed(2)+'mm';d.insertAdjacentHTML('afterbegin',wm);d.firstElementChild.style.zoom=1/z});
   await Promise.all([...box.querySelectorAll('.tip-wm img')].map(i=>i.decode().catch(()=>{})));
   box.className='';
-  const done=()=>{box.remove();removeEventListener('afterprint',done)};
+  document.body.classList.toggle('no-plan-print',noPlan);
+  const done=()=>{box.remove();document.body.classList.remove('no-plan-print');removeEventListener('afterprint',done)};
   addEventListener('afterprint',done);window.print();
 }
 
@@ -1816,7 +1866,14 @@ let measureCtx=null;
 function textW(inp,s){measureCtx=measureCtx||document.createElement('canvas').getContext('2d');measureCtx.font=getComputedStyle(inp).font;return measureCtx.measureText(s).width}
 // 欄寬在畫面排好後才確定（表格自動調整欄寬），欄寬一變就重新對齊中線
 const teethRO=typeof ResizeObserver!=='undefined'?new ResizeObserver(es=>es.forEach(e=>{const c=e.target.closest('.teeth-cell');if(c)alignTeeth(c)})):null;
+// 「＋ 新增項目」左緣跟上方項目框切齊（各種螢幕寬度的欄位位置不同，依畫面實際位置計算）
+function alignAddBtn(){
+  const b=document.querySelector('#main .add-item-btn'),box=document.querySelector('#main .c-item .combo-wrap');if(!b)return;
+  b.style.marginLeft='0';if(!box)return;
+  const d=box.getBoundingClientRect().left-b.getBoundingClientRect().left;if(d>0)b.style.marginLeft=d+'px';
+}
 function alignTeeth(cell){
+  if(!cell)requestAnimationFrame(alignAddBtn);
   const PAD=6,MAX_FS=13,MIN_FS=7;
   for(const c of cell?[cell]:document.querySelectorAll('.teeth-cell')){
     const jaws=c.querySelector('.jaws'),line=c.querySelector('.midl'),ins=[...c.querySelectorAll('[data-k="teethIn"]')];if(!jaws||!line||!ins.length)continue;
@@ -1849,6 +1906,7 @@ if(document.fonts)document.fonts.ready.then(()=>alignTeeth());
 // 列印時欄寬與字體跟畫面不同，牙位對齊與項目後面的單位是依畫面量的位置：列印前先在畫面上套用列印樣式（A4 寬）重新計算，印完恢復
 let printSim=null;
 addEventListener('beforeprint',()=>{if(printSim)return;
+  if(optView){optView=null;renderEditor()} // 列印時書頁回到目前（選定）的方案
   const css=[...document.styleSheets].flatMap(s=>{try{return [...s.cssRules]}catch(e){return []}})
     .filter(r=>r.media&&[...r.media].includes('print')).map(r=>[...r.cssRules].filter(x=>!(x instanceof CSSPageRule)).map(x=>x.cssText).join('\n')).join('\n');
   printSim=document.createElement('style');printSim.textContent=css+'\nbody{width:210mm}';document.head.appendChild(printSim);
