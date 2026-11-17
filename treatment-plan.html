@@ -501,6 +501,14 @@ tfoot td{font-weight:700;background:var(--soft)}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
 .modal{background:var(--panel);border-radius:12px;max-width:min(860px,100%);width:100%;max-height:92vh;overflow:auto;padding:18px}
 .modal{position:relative}
+/* 預覽（給患者看）：寬一點、字大一點 */
+.modal:has(.pv){max-width:min(1100px,100%)}
+.pv{font-size:16px}.pv h2{font-size:19px;color:var(--accent);margin:16px 0 8px;padding-left:8px;border-left:4px solid var(--accent)}
+.pv-head{display:flex;align-items:baseline;gap:12px;border-bottom:2.5px solid var(--accent);padding-bottom:8px}.pv-head b{font-size:24px;color:var(--accent)}.pv-head span{color:var(--muted);font-size:14px}
+.pv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px 16px}.pv-grid small,.pv-note small{display:block;color:var(--muted);font-size:13px}.pv-grid b{font-size:17px}
+.pv-sigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 20px}.pv-sigs small{display:block;color:var(--muted);font-size:13px}
+.pv-sig{border:1px solid var(--line);border-radius:8px;min-height:80px;display:flex;align-items:center;justify-content:center;margin:4px 0;background:#fff}.pv-sig img{max-height:90px;max-width:100%}
+.pv-opt{margin:14px 0 6px;font-size:17px}.pv .opt-ro{font-size:15px}.pv-note{margin-top:10px;white-space:pre-wrap}
 .modal.modal-wide{max-width:min(1280px,100%);max-height:94vh;min-height:min(80vh,760px);padding:22px 26px}
 .inc-sum{display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0 10px;font-size:14px}
 .inc-sum .inc-total{font-weight:700;color:var(--accent)}
@@ -1054,7 +1062,7 @@ function renderEditorMain(viewing){
   </section>
 
   <section class="card">
-    <h2>治療項目${p.opts?(p.optChosen?`－${esc(optLabel(p,p.optCur))}${p.optChosen.id===p.optCur?'（患者選定）':''}`:`<span class="po-inline">－${esc(optLabel(p,p.optCur))}</span>`):''}</h2> <!-- 還沒選定方案：畫面上只寫「治療項目」（方案看分頁），列印時才加上方案名稱 -->
+    <h2>治療項目${p.opts?(p.optChosen?`－${esc(optLabel(p,p.optCur))}${p.optChosen.id===p.optCur?'（患者選定）':''}`:`<span class="po-inline">－${esc(optLabel(p,p.optCur))}</span>`):''}<span class="sp"></span><button class="btn-sm no-print" data-act="preview" title="給患者看：只顯示病患資料與治療項目">👁 預覽</button></h2> <!-- 還沒選定方案：畫面上只寫「治療項目」（方案看分頁），列印時才加上方案名稱 -->
     ${optBarHtml(p,IL)}
     ${p.opts?'<div class="opt-panel">':''}<div class="tbl-wrap items-wrap"><table class="items-tbl">
       <thead><tr><th class="h-no">#</th><th class="h-item">治療種類／項目</th><th class="h-teeth">牙位</th><th class="num h-unit">單價</th><th class="num h-qty">數量</th><th class="num h-orig">金額</th><th class="num h-chg">確認金額</th>${IL?'':'<th class="no-print h-del"></th>'}</tr></thead>
@@ -1398,7 +1406,7 @@ $('#main').addEventListener('click',async e=>{
   const p=cur();if(!p)return;
   if(!canEdit()){ // 僅檢視：只允許列印、切換計劃單、看照片與簽名
     const a=e.target.closest('[data-act]'),k=e.target.closest('[data-k]')?.dataset.k;
-    if(a&&!['print','optSwitch','optSigView'].includes(a.dataset.act)){if(a.dataset.act==='consentSig'&&p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}
+    if(a&&!['print','optSwitch','optSigView','preview'].includes(a.dataset.act)){if(a.dataset.act==='consentSig'&&p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}
     if(k&&k!=='photo'){if(k==='sig'){const r=rowOf(p,e.target);if(r&&r.row.sig)showImage(r.row.sig,'患者簽名')}return}
   }
   const ti=e.target.closest('[data-ti]');if(ti){e.preventDefault();openTreatmentInfo(ti.dataset.ti);return}
@@ -1406,9 +1414,10 @@ $('#main').addEventListener('click',async e=>{
   if(e.target.closest('[data-ti-plan]')){window.open('treatments.html?ids='+planTiIds(p).join(','),'_blank','noopener');return}
   const op=e.target.closest('[data-open-plan]');if(op){openPlan(op.dataset.openPlan);return}
   const a=e.target.closest('[data-act]');
-  if(optView&&!(a&&['optSwitch','print','optChoose'].includes(a.dataset.act)))return; // 查看其他方案時只能看
+  if(optView&&!(a&&['optSwitch','print','optChoose','preview'].includes(a.dataset.act)))return; // 查看其他方案時只能看
   if(a){const act=a.dataset.act,L=p.status!=='open';
     if(act==='print')printPlan(p);
+    else if(act==='preview')openPreview(p);
     else if(act==='addItem'){p.items.push(newItem());touch();renderEditor()}
     else if(act==='optSwitch'){const id=a.dataset.opt,shown=optView||p.optCur;if(id===shown)return;
       const dir=p.opts.findIndex(o=>o.id===id)>p.opts.findIndex(o=>o.id===shown)?'next':'prev';
@@ -1472,6 +1481,21 @@ $('#main').addEventListener('click',async e=>{
 });
 
 /* 定案：治療項目與金額鎖定，之後只能用「計畫變更」另開新單 */
+/* ====== 預覽：給患者看，只顯示病患資料與治療項目（多個方案還沒選定時依序列出各方案；選定後只列選定的方案） ====== */
+function openPreview(p){
+  const row=(k,v)=>`<div><small>${k}</small><b>${esc(v||'—')}</b></div>`;
+  const ids=p.opts?(p.optChosen?[p.optChosen.id]:p.opts.map(o=>o.id)):[p.optCur];
+  const items=ids.map(id=>`${p.opts?`<h3 class="pv-opt">${esc(optLabel(p,id))}${p.optChosen?.id===id?'（患者選定）':''}</h3>`:''}${optRoHtml(p,id)}`).join('');
+  modal(`<div class="pv"><div class="pv-head"><b>治療計劃單</b><span>單號 ${esc(p.no)}</span></div>
+    <h2>病患資料</h2><div class="pv-grid">${row('姓名',p.name)}${row('生日',p.birthday?p.birthday.replace(/-/g,'/'):'')}${row('病歷號',p.chartNo)}${row('主治醫師',p.doctor)}${row('責任助理',p.assistant)}${row('單據開立時間',fmtDT(p.createdAt))}${row('有效期限',(expiryOf(p)||'').replace(/-/g,'/'))}</div>
+    <h2>治療項目</h2>${items}${p.itemsNote?`<div class="pv-note"><small>備註</small>${esc(p.itemsNote)}</div>`:''}
+    <h2>簽名</h2><div class="pv-sigs">
+      <div><small>患者（或法定代理人）簽名</small><div class="pv-sig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:'<span class="hint">尚未簽名</span>'}</div><small>簽名時間：${p.consent.at?esc(fmtDT(p.consent.at)):'—'}</small></div>
+      ${p.optChosen?`<div><small>患者選定「${esc(optLabel(p,p.optChosen.id))}」簽名</small><div class="pv-sig"><img src="${p.optChosen.sig}" alt="選定方案簽名"></div><small>選定時間：${esc(fmtDT(p.optChosen.at))}</small></div>`:''}
+    </div></div>
+    <div class="acts"><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
+  (box,close)=>box.addEventListener('click',e=>{if(e.target.closest('[data-x="close"]'))close()}));
+}
 /* ====== 多個方案（方案A／方案B…）：同一張單給患者比較，患者選定方案並簽名後才能定案 ======
    p.opts＝[{id,label}]；畫面上正在看的方案放在 p.items、p.adj（其他功能照舊只看 p.items），其他方案存在 p.optStore[id]＝{items,adj}；
    p.optChosen＝{id,sig,at}：患者選定的方案與簽名。只有一個方案時不顯示方案分頁 */
