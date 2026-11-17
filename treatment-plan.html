@@ -502,8 +502,10 @@ tfoot td{font-weight:700;background:var(--soft)}
 .modal{background:var(--panel);border-radius:12px;max-width:min(860px,100%);width:100%;max-height:92vh;overflow:auto;padding:18px}
 .modal{position:relative}
 /* 預覽（給患者看）：寬一點、字大一點 */
-.modal:has(.pv){max-width:min(1100px,100%)}
-.pv{font-size:16px}.pv h2{font-size:19px;color:var(--accent);margin:16px 0 8px;padding-left:8px;border-left:4px solid var(--accent)}
+/* 預覽視窗：灰底上放一張 A4 大小（210×297mm）的白紙，依視窗寬度整張縮放（像列印預覽），內容多時紙會往下延長 */
+.modal:has(.pv){max-width:min(860px,100%);background:#e7ecee}
+.pv{font-size:15px;background:#fff;width:210mm;min-height:297mm;box-sizing:border-box;padding:14mm 14mm;margin:0 auto 4px;box-shadow:0 2px 10px rgba(0,0,0,.15);border-radius:2px;color:#1d2a30}
+.pv{font-size:15px}.pv h2{font-size:19px;color:var(--accent);margin:16px 0 8px;padding-left:8px;border-left:4px solid var(--accent)}
 .pv-head{display:flex;align-items:baseline;gap:12px;border-bottom:2.5px solid var(--accent);padding-bottom:8px}.pv-head b{font-size:24px;color:var(--accent)}.pv-head span{color:var(--muted);font-size:14px}
 .pv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px 16px}.pv-grid small,.pv-note small{display:block;color:var(--muted);font-size:13px}.pv-grid b{font-size:17px}
 .pv-sigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 20px}.pv-sigs small{display:block;color:var(--muted);font-size:13px}
@@ -1498,7 +1500,9 @@ function openPreview(p){
       ${p.optChosen?`<div><small>患者選定「${esc(optLabel(p,p.optChosen.id))}」簽名</small><div class="pv-sig"><img src="${p.optChosen.sig}" alt="選定方案簽名"></div><small>選定時間：${esc(fmtDT(p.optChosen.at))}</small></div>`:''}
     </div></div>
     <div class="acts"><span class="sp"></span><button class="btn-primary" data-x="close">關閉</button></div>`,
-  (box,close)=>box.addEventListener('click',e=>{if(e.target.closest('[data-x="close"]'))close()}));
+  (box,close)=>{box.addEventListener('click',e=>{if(e.target.closest('[data-x="close"]'))close()});
+    const pv=box.querySelector('.pv'),fit=()=>{pv.style.zoom=1;const w=box.clientWidth-36;pv.style.zoom=Math.min(1,w/pv.offsetWidth)};fit();
+    addEventListener('resize',fit);new MutationObserver((m,o)=>{if(!box.isConnected){removeEventListener('resize',fit);o.disconnect()}}).observe(document.body,{childList:true})});
 }
 /* ====== 多個方案（方案A／方案B…）：同一張單給患者比較，患者選定方案並簽名後才能定案 ======
    p.opts＝[{id,label}]；畫面上正在看的方案放在 p.items、p.adj（其他功能照舊只看 p.items），其他方案存在 p.optStore[id]＝{items,adj}；
