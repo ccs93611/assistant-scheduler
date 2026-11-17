@@ -509,9 +509,10 @@ tfoot td{font-weight:700;background:var(--soft)}
 .pv-sigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 20px}.pv-sigs small{display:block;color:var(--muted);font-size:13px}
 .pv-sig{border:1px solid var(--line);border-radius:8px;min-height:80px;display:flex;align-items:center;justify-content:center;margin:4px 0;background:#fff}.pv-sig img{max-height:90px;max-width:100%}
 .pv-opt{margin:14px 0 6px;font-size:17px}
-.tm{display:inline-grid;grid-template-columns:16px minmax(44px,auto) minmax(44px,auto);align-items:center;font-size:14px;font-weight:700;line-height:1.5}.tm-r{display:contents} /* 上下兩排共用欄寬，中線上下對齊 */
+.tm{display:inline-grid;min-width:max-content;grid-template-columns:16px minmax(44px,max-content) minmax(44px,max-content);align-items:center;font-size:14px;font-weight:700;line-height:1.5}.tm-r{display:contents} /* 上下兩排共用欄寬，中線上下對齊 */
 .tm-r+.tm-r>*{border-top:1.5px solid var(--line)}
-.tm i{font-style:normal;font-weight:400;font-size:11px;color:var(--muted)}.tm-a{text-align:right;padding:1px 6px 1px 0;border-right:2px dashed #b9c4c9;white-space:nowrap}.tm-b{padding:1px 0 1px 6px;white-space:nowrap}.pv .opt-ro{font-size:15px}.pv-note{margin-top:10px;white-space:pre-wrap}
+.tm i{font-style:normal;font-weight:400;font-size:11px;color:var(--muted)}.tm-a{text-align:right;padding:0 6px 0 0;border-right:2px dashed #b9c4c9;white-space:nowrap}.tm-b{padding:0 0 0 6px;white-space:nowrap}
+.tm-r>*{padding-top:4px;padding-bottom:4px;min-height:30px} /* 上下高度跟計劃單上的牙位欄差不多，只縮左右 */.pv .opt-ro{font-size:15px}.pv-note{margin-top:10px;white-space:pre-wrap}
 .modal.modal-wide{max-width:min(1280px,100%);max-height:94vh;min-height:min(80vh,760px);padding:22px 26px}
 .inc-sum{display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0 10px;font-size:14px}
 .inc-sum .inc-total{font-weight:700;color:var(--accent)}
