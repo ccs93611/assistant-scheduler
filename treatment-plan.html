@@ -1052,8 +1052,8 @@ let optView=null,optKeep=null; // 只能查看時，書頁上正在看的方案�
 function renderEditor(){
   const p=cur(),v=p&&p.opts&&optView&&optView!==p.optCur&&p.optStore?.[optView];
   if(!v){optView=null;return renderEditorMain()}
-  const keep={items:p.items,adj:p.adj};p.items=v.items;p.adj=v.adj||0;optKeep=keep;
-  try{renderEditorMain(true)}finally{p.items=keep.items;p.adj=keep.adj;optKeep=null}
+  const keep={items:p.items,adj:p.adj,note:p.itemsNote};p.items=v.items;p.adj=v.adj||0;p.itemsNote=v.note||'';optKeep=keep;
+  try{renderEditorMain(true)}finally{p.items=keep.items;p.adj=keep.adj;p.itemsNote=keep.note;optKeep=null}
 }
 function renderEditorMain(viewing){
   const p=cur();const m=$('#main');
@@ -1110,7 +1110,7 @@ function renderEditorMain(viewing){
       <div ${c.orig-c.chg?'':'hidden'}><small>減免合計</small><b id="tDisc" class="disc-amt">${c.orig-c.chg?'$'+money(c.orig-c.chg):''}</b></div>
       <div class="hl" ${c.orig-c.chg?'':'hidden'}><small>變更後總金額</small><b id="tChg">${c.orig-c.chg?'$'+money(c.chg):''}</b></div>
     </div>
-    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>${p.opts?'</div>':''}
+    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':p.opts?'這個方案的補充說明（各方案分開）':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>${p.opts?'</div>':''}
     ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已確認（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
     <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量；「確認金額」留空表示與金額相同；「調整」輸入負數為折扣、正數為漲價。</div>
   </section>
@@ -1512,9 +1512,10 @@ $('#main').addEventListener('click',async e=>{
 function planPageIds(p){return p.opts?(p.optChosen?[p.optChosen.id]:p.opts.map(o=>o.id)):[p.optCur]}
 function planPageHtml(p,id,n,total,tabs=''){ // tabs：預覽時放在「治療項目」標題下方的方案索引籤（列印不放）
   const row=(k,v)=>`<div><small>${k}</small><b>${esc(v||'—')}</b></div>`,ch=p.optChosen,multi=!!p.opts&&!ch;
+  const note=id===p.optCur?p.itemsNote:p.optStore?.[id]?.note,noteHtml=note?`<div class="pv-note"><small>備註</small>${esc(note)}</div>`:''; // 各方案自己的備註（多個方案時放在書頁裡）
   return `<div class="pv-c"><div class="pv-head"><b>治療計劃單</b><span class="pv-no">單號 ${esc(p.no)}</span><span class="pv-date">開立 ${esc(fmtDT(p.createdAt))}</span></div>
     <h2>病患資料</h2><div class="pv-grid">${row('姓名',p.name)}${row('生日',p.birthday?p.birthday.replace(/-/g,'/'):'')}${row('病歷號',p.chartNo)}${row('主治醫師',p.doctor)}${row('責任助理',p.assistant)}<div></div>${row('單據開立時間',fmtDT(p.createdAt))}${row('有效期限',(expiryOf(p)||'').replace(/-/g,'/'))}</div>
-    <h2>治療項目${p.opts?'－'+esc(optLabel(p,id))+(ch&&ch.id===id?'（患者選定）':''):''}</h2>${p.opts?`${tabs}<div class="opt-panel pv-book">${optRoHtml(p,id)}</div>`:optRoHtml(p,id)}${p.itemsNote?`<div class="pv-note"><small>備註</small>${esc(p.itemsNote)}</div>`:''}
+    <h2>治療項目${p.opts?'－'+esc(optLabel(p,id))+(ch&&ch.id===id?'（患者選定）':''):''}</h2>${p.opts?`${tabs}<div class="opt-panel pv-book">${optRoHtml(p,id)}${noteHtml}</div>`:optRoHtml(p,id)+noteHtml}
     <h2>簽名</h2><div class="pv-sigs">
       <div><small>患者（或法定代理人）簽名</small><div class="pv-sig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:''}</div><small>簽名時間：${p.consent.at?esc(fmtDT(p.consent.at)):''}</small></div>
       ${ch?`<div><small>患者選定「${esc(optLabel(p,ch.id))}」簽名</small><div class="pv-sig"><img src="${ch.sig}" alt="選定方案簽名"></div><small>選定時間：${esc(fmtDT(ch.at))}</small></div>`:''}
@@ -1558,16 +1559,16 @@ const optLabel=(p,id)=>(p.opts||[]).find(o=>o.id===id)?.label||'';
 const cloneItems=items=>items.map(i=>({...i,id:uid(),teeth:[...(i.teeth||[])],pontics:[...(i.pontics||[])],bridgeTeeth:[...bridgeTeethOf(i)],bridgeGroups:(i.bridgeGroups||[]).map(g=>[...g])}));
 function optSwitch(p,id){
   if(!p.opts||id===p.optCur||!p.optStore[id])return;
-  p.optStore[p.optCur]={items:p.items,adj:adjOf(p)};
-  const s=p.optStore[id];p.items=s.items;p.adj=s.adj||0;delete p.optStore[id];p.optCur=id;
+  p.optStore[p.optCur]={items:p.items,adj:adjOf(p),note:p.itemsNote||''}; // 每個方案有自己的項目、調整金額與備註
+  const s=p.optStore[id];p.items=s.items;p.adj=s.adj||0;p.itemsNote=s.note||'';delete p.optStore[id];p.optCur=id;
 }
 async function optAdd(p){
   const how=await askDialog('新增方案',`<p>新方案要從哪裡開始？</p>`,[{label:'取消',value:null},{label:'空白方案',value:'blank'},{label:'複製目前方案',value:'copy',cls:'btn-primary'}]);
   if(!how)return;
   if(!p.opts){p.opts=[{id:'A',label:'方案A'}];p.optCur='A';p.optStore={}}
   const used=new Set(p.opts.map(o=>o.id));let id='A';while(used.has(id))id=String.fromCharCode(id.charCodeAt(0)+1);
-  const items=how==='copy'?cloneItems(p.items):[newItem()],adj=how==='copy'?adjOf(p):0;
-  p.optStore[p.optCur]={items:p.items,adj:adjOf(p)};p.items=items;p.adj=adj;p.optCur=id;p.opts.push({id,label:'方案'+id});
+  const items=how==='copy'?cloneItems(p.items):[newItem()],adj=how==='copy'?adjOf(p):0,note=how==='copy'?p.itemsNote||'':'';
+  p.optStore[p.optCur]={items:p.items,adj:adjOf(p),note:p.itemsNote||''};p.items=items;p.adj=adj;p.itemsNote=note;p.optCur=id;p.opts.push({id,label:'方案'+id});
 }
 function optDel(p){
   if(!p.opts||p.opts.length<2)return;const id=p.optCur,lbl=optLabel(p,id);
