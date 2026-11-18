@@ -439,8 +439,13 @@ tfoot td{font-weight:700;background:var(--soft)}
 .ai-btn{margin-left:6px;border-color:#7a5cc7;color:#5b3fae;background:#f4f0fd}.ai-btn:disabled{opacity:.7}
 .ai-box{margin:14px 0 4px;padding:10px 14px;border:1px solid #d9cff5;border-left:4px solid #7a5cc7;border-radius:8px;background:#faf8ff}
 .ai-h{font-weight:700;color:#5b3fae;margin-bottom:4px}.ai-h .hint{font-weight:400;margin-left:6px}.ai-stale{margin-left:8px;color:var(--warn);font-size:12px;font-weight:700}
-.ai-t{white-space:pre-wrap;line-height:1.7;font-size:14px}
-.ai-h{display:flex;flex-wrap:wrap;align-items:center;gap:2px 0}.ai-h .sp{flex:1}
+.ai-t{line-height:1.65;font-size:14px}
+.ai-sec{border:1.5px solid #b9a8ea;border-radius:8px;background:#fff;padding:6px 12px 8px;margin:8px 0}.ai-sec.ai-sum{border-color:#0f7c80;background:#f1f8f8}
+.ai-sec-h{font-weight:700;color:#5b3fae;font-size:15px;border-bottom:1px dashed #d9cff5;padding-bottom:3px;margin-bottom:4px}.ai-sum .ai-sec-h{color:#0f7c80;border-color:#b5d6d7}.ai-sec-h span{font-weight:600;color:#333;margin-left:6px}
+.ai-sub{font-weight:700;margin-top:4px;color:#333}.ai-li{padding-left:1em;text-indent:-1em}.ai-gap{height:6px}.ai-free{margin:6px 0}
+.ai-h{display:flex;flex-wrap:wrap;align-items:center;gap:2px 0;cursor:pointer;list-style:none;user-select:none}.ai-h::-webkit-details-marker{display:none}.ai-h .sp{flex:1}
+.ai-tog::after{content:'▼ 展開';font-size:12px;font-weight:700;color:#5b3fae;border:1px solid #c9bdf0;border-radius:999px;padding:1px 10px;background:#fff}.ai-box[open] .ai-tog::after{content:'▲ 收起'}
+.ai-box:not([open]) .ai-h{margin-bottom:0}.ai-tools{display:flex;justify-content:flex-end;margin:4px 0 -2px}
 .ai-ta{width:100%;box-sizing:border-box;font:inherit;font-size:14px;line-height:1.7;padding:8px 10px;border:1px solid #c9bdf0;border-radius:6px;resize:vertical;background:#fff}
 .ai-acts{display:flex;gap:6px;margin-top:6px}.ai-acts .sp{flex:1}
 /* 選定 ✔／沒選 ✕：同樣大小、同樣位置（方案名稱左邊，同一行） */
@@ -626,7 +631,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .tip-wm .wm-icon{width:115.6mm;height:95.6mm}.tip-wm .wm-icon img{width:260.2mm;margin:-7.2mm 0 0 -71.5mm}
 .tip-wm .wm-text{width:120.3mm;height:13.7mm}.tip-wm .wm-text img{width:130mm;margin:-57.8mm 0 0 -4mm}
 .tip-page>h3{margin:0 0 6px;padding-bottom:4px;border-bottom:1.5px solid #0f7c80;font-size:19px;color:#0f7c80}
-.tip-ai-no{float:right;font-size:13px;font-weight:600;color:#555;margin-top:5px}.tip-ai-t{white-space:pre-wrap;font-size:14px;line-height:1.75;margin:8px 0 12px}
+.tip-ai-no{float:right;font-size:13px;font-weight:600;color:#555;margin-top:5px}.tip-ai-t{font-size:14px;line-height:1.7;margin:8px 0 12px}.tip-ai-t .ai-sec{break-inside:avoid}
 .tip-page .ti-body{font-size:12.5px;line-height:1.5;display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
 .tip-page .ti-body>.ti-what,.tip-page .ti-body>.ti-tbl,.tip-page .ti-body>.ti-str,.tip-page .ti-body>.ti-steps,.tip-page .ti-body>.ti-fig,.tip-page .ti-body>.ti-photo,.tip-page .ti-body>.ti-note{grid-column:1/-1}
 .tip-page .ti-what{margin-bottom:6px!important}
@@ -1581,7 +1586,7 @@ async function runOptAi(p,btn){
   try{
     const r=await fetch('/api/analyze-options',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await firebase.auth().currentUser.getIdToken()},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
-    p.optAi={text:j.text,at:nowLocal(),sig:optAiSig(p)};touch();renderEditor();
+    p.optAi={text:j.text,at:nowLocal(),sig:optAiSig(p)};aiOpen.add(p.id);touch();renderEditor(); // 剛分析完自動展開
   }catch(e){alert('AI 分析失敗：'+e.message)}
   finally{if(btn.isConnected){btn.disabled=false;btn.textContent=old}}
 }
@@ -1624,8 +1629,25 @@ function optBarHtml(p,IL){
   return `<div class="opt-bar no-print">${tabs}${acts}${ai}</div>`;
 }
 // AI 分析結果：放在方案書頁下方，不蓋住方案A／B 的頁籤
+// AI 分析文字排版：每個「【方案…】」一個外框（【綜合比較】等其他標題用不同底色），框內「優點」「缺點／風險」這類短標題加粗
+function aiTextHtml(t){
+  const secs=[];let cur=null;
+  for(const ln of String(t||'').replace(/\r/g,'').split('\n')){
+    const m=ln.trim().match(/^【([^】]+)】\s*(.*)$/);
+    if(m){cur={h:m[1],sub:m[2],lines:[]};secs.push(cur);continue}
+    if(!cur){cur={h:'',lines:[]};secs.push(cur)}
+    cur.lines.push(ln)}
+  const body=ls=>{while(ls.length&&!ls[0].trim())ls.shift();while(ls.length&&!ls[ls.length-1].trim())ls.pop();
+    return ls.map(l=>{const v=l.trim();if(!v)return '<div class="ai-gap"></div>';
+      if(!/^[・•\-－*]/.test(v)&&v.length<=12&&!/[。，；]/.test(v))return `<div class="ai-sub">${esc(v.replace(/[:：]$/,''))}</div>`;
+      return `<div class="${/^[・•＊*－-]/.test(v)?'ai-li':'ai-p'}">${esc(v)}</div>`}).join('')};
+  return secs.filter(x=>x.h||x.lines.some(l=>l.trim())).map(x=>x.h?`<div class="ai-sec ${/方案/.test(x.h)?'':'ai-sum'}"><div class="ai-sec-h">${esc(x.h)}${x.sub?`<span>${esc(x.sub)}</span>`:''}</div>${body(x.lines)}</div>`:`<div class="ai-free">${body(x.lines)}</div>`).join('');
+}
+const aiOpen=new Set(); // AI 分析框目前展開的計劃單
+addEventListener('toggle',e=>{const d=e.target;if(d.matches?.('details.ai-box'))d.open?aiOpen.add(d.dataset.ai):aiOpen.delete(d.dataset.ai)},true);
 function optAiHtml(p){
-  return p.optAi?`<div class="ai-box no-print"><div class="ai-h">🤖 AI 分析優缺點<span class="hint">（僅供醫師參考，請自行判斷；${esc(fmtDT(p.optAi.at))}）</span>${p.optAi.edited?`<span class="hint">・已手動修改 ${esc(fmtDT(p.optAi.edited))}</span>`:''}${p.optAi.sig!==optAiSig(p)?'<span class="ai-stale">方案已修改，建議重新分析</span>':''}${canEdit()&&p.status==='open'&&!optView?'<span class="sp"></span><button class="btn-sm" data-act="optAiEdit">✏️ 修改</button>':''}</div><div class="ai-t">${esc(p.optAi.text)}</div></div>`:'';
+  // 可收折：平時收起；按標題展開（展開狀態只記在這次開啟的畫面，不存檔）
+  return p.optAi?`<details class="ai-box no-print" data-ai="${p.id}" ${aiOpen.has(p.id)?'open':''}><summary class="ai-h">🤖 AI 分析優缺點<span class="hint">（僅供醫師參考，請自行判斷；${esc(fmtDT(p.optAi.at))}）</span>${p.optAi.edited?`<span class="hint">・已手動修改 ${esc(fmtDT(p.optAi.edited))}</span>`:''}${p.optAi.sig!==optAiSig(p)?'<span class="ai-stale">方案已修改，建議重新分析</span>':''}<span class="sp"></span><span class="ai-tog"></span></summary>${canEdit()&&p.status==='open'&&!optView?'<div class="ai-tools"><button class="btn-sm" data-act="optAiEdit">✏️ 修改</button></div>':''}<div class="ai-t">${aiTextHtml(p.optAi.text)}</div></details>`:'';
 }
 // 其他方案的唯讀表格（列印比較用、選定後查看未採用的方案用）
 // 唯讀牙位圖（預覽、方案比較用）：上下兩排、中間虛線分左右（病人右側在中線左邊），只留需要的空間
@@ -1824,7 +1846,7 @@ async function printWithInfo(ids,wtys=[],noPlan=false,p=cur(),ai=false){ // ai�
   const box=document.createElement('div');box.id='tiPrint';box.className='measure';
   const page=(title,body)=>`<div class="tip-page"><h3>${esc(title)}</h3>${body}<div class="tip-disc">${esc(TI_DISCLAIMER)}</div></div>`;
   const pids=noPlan||!p?[]:planPageIds(p),bookH=pids.length?planBookHeight(p,pids):0;
-  box.innerHTML=pids.map((id,i)=>`<div class="tip-page pv-page">${planPageHtml(p,id,i+1,pids.length)}</div>`).join('')+(ai&&p?.optAi?`<div class="tip-page tip-ai"><h3>AI 分析優缺點<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.opts.map(o=>o.label).join('／'))}</span></h3><div class="tip-ai-t">${esc(p.optAi.text)}</div><div class="tip-disc">本分析由 AI 依各方案的治療項目自動整理（${esc(fmtDT(p.optAi.at))}），僅供參考；實際治療方式請以醫師評估與說明為準。</div></div>`:'')+ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
+  box.innerHTML=pids.map((id,i)=>`<div class="tip-page pv-page">${planPageHtml(p,id,i+1,pids.length)}</div>`).join('')+(ai&&p?.optAi?`<div class="tip-page tip-ai"><h3>AI 分析優缺點<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.opts.map(o=>o.label).join('／'))}</span></h3><div class="tip-ai-t ai-t">${aiTextHtml(p.optAi.text)}</div><div class="tip-disc">本分析由 AI 依各方案的治療項目自動整理（${esc(fmtDT(p.optAi.at))}），僅供參考；實際治療方式請以醫師評估與說明為準。</div></div>`:'')+ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
   (document.querySelector('.app')||document.body.lastChild).after(box); // 緊接在計劃單後面
   setBookH(box,bookH); // 每個方案的頁面版面一樣（跟預覽相同）
   box.querySelectorAll('.tip-page:not(.pv-page)').forEach(d=>{const t=d.querySelector('.ti-body>.ti-tbl');if(!t)return;
