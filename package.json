@@ -1,0 +1,9 @@
+{
+  "name": "shinyhi-dental",
+  "private": true,
+  "type": "module",
+  "description": "新海美學牙醫診所網站；api/ 為 Vercel 伺服器函式（治療計劃單 AI 分析）",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.10.0"
+  }
+}
