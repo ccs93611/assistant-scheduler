@@ -437,7 +437,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 /* 紙頁：左邊書背（裝訂陰影）、右下角折角、後面疊著兩張紙（用多層陰影畫出往右下錯開的紙邊） */
 .opt-x{color:var(--danger);font-weight:700}
 .ai-btn{margin-left:6px;border-color:#7a5cc7;color:#5b3fae;background:#f4f0fd}.ai-btn:disabled{opacity:.7}
-.ai-box{margin:10px 0 12px;padding:10px 14px;border:1px solid #d9cff5;border-left:4px solid #7a5cc7;border-radius:8px;background:#faf8ff}
+.ai-box{margin:14px 0 4px;padding:10px 14px;border:1px solid #d9cff5;border-left:4px solid #7a5cc7;border-radius:8px;background:#faf8ff}
 .ai-h{font-weight:700;color:#5b3fae;margin-bottom:4px}.ai-h .hint{font-weight:400;margin-left:6px}.ai-stale{margin-left:8px;color:var(--warn);font-size:12px;font-weight:700}
 .ai-t{white-space:pre-wrap;line-height:1.7;font-size:14px}
 /* 選定 ✔／沒選 ✕：同樣大小、同樣位置（方案名稱左邊，同一行） */
@@ -1116,7 +1116,7 @@ function renderEditorMain(viewing){
       <div ${c.orig-c.chg?'':'hidden'}><small>減免合計</small><b id="tDisc" class="disc-amt">${c.orig-c.chg?'$'+money(c.orig-c.chg):''}</b></div>
       <div class="hl" ${c.orig-c.chg?'':'hidden'}><small>變更後總金額</small><b id="tChg">${c.orig-c.chg?'$'+money(c.chg):''}</b></div>
     </div>
-    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':p.opts?'這個方案的補充說明（各方案分開）':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>${p.opts?'</div>':''}
+    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':p.opts?'這個方案的補充說明（各方案分開）':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>${p.opts?'</div>'+optAiHtml(p):''}
     ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已確認（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
     <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量；「確認金額」留空表示與金額相同；「調整」輸入負數為折扣、正數為漲價。</div>
   </section>
@@ -1610,8 +1610,11 @@ function optBarHtml(p,IL){
   const acts=L||ch||!canEdit()?'':p.finalized?choose:IL?'':`<button class="btn-sm" data-act="optAdd">＋ 新增方案</button><button class="btn-sm btn-danger" data-act="optDel">刪除此方案</button>${choose}`;
   // AI 分析優缺點（醫師參考用，不列印）：有兩個以上方案時可按；結果存在 p.optAi
   const ai=p.opts.length>1&&canEdit()&&!L?`<button class="btn-sm ai-btn" data-act="optAi" title="用 AI 比較各方案的優缺點（只送治療項目，不送病人資料）">🤖 AI 分析優缺點</button>`:'';
-  const res=p.optAi?`<div class="ai-box no-print"><div class="ai-h">🤖 AI 分析優缺點<span class="hint">（僅供醫師參考，請自行判斷；${esc(fmtDT(p.optAi.at))}）</span>${p.optAi.sig!==optAiSig(p)?'<span class="ai-stale">方案已修改，建議重新分析</span>':''}</div><div class="ai-t">${esc(p.optAi.text)}</div></div>`:'';
-  return `<div class="opt-bar no-print">${tabs}${acts}${ai}</div>${res}`;
+  return `<div class="opt-bar no-print">${tabs}${acts}${ai}</div>`;
+}
+// AI 分析結果：放在方案書頁下方，不蓋住方案A／B 的頁籤
+function optAiHtml(p){
+  return p.optAi?`<div class="ai-box no-print"><div class="ai-h">🤖 AI 分析優缺點<span class="hint">（僅供醫師參考，請自行判斷；${esc(fmtDT(p.optAi.at))}）</span>${p.optAi.sig!==optAiSig(p)?'<span class="ai-stale">方案已修改，建議重新分析</span>':''}</div><div class="ai-t">${esc(p.optAi.text)}</div></div>`:'';
 }
 // 其他方案的唯讀表格（列印比較用、選定後查看未採用的方案用）
 // 唯讀牙位圖（預覽、方案比較用）：上下兩排、中間虛線分左右（病人右側在中線左邊），只留需要的空間
