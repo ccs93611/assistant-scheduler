@@ -1051,7 +1051,7 @@ async function leaveCheck(){
     [{label:'留在這張單',value:null,cls:'btn-primary'},{label:'仍要切換',value:'go'}]);
   return ok==='go';
 }
-async function openPlan(id,force){if(!force&&id!==curId&&!await leaveCheck())return;if(id!==curId)optView=null;curId=id;renderList();renderEditor();ensureLinked(plans.get(id));if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
+async function openPlan(id,force){if(!force&&id!==curId&&!await leaveCheck())return;if(id!==curId){optView=null;aiOpen.clear()}curId=id;renderList();renderEditor();ensureLinked(plans.get(id));if(innerWidth<=820)$('#main').scrollIntoView({behavior:'smooth'})}
 window.addEventListener('pagehide',flushPending);
 
 /* ====== 編輯畫面 ====== */
@@ -1846,7 +1846,7 @@ async function printWithInfo(ids,wtys=[],noPlan=false,p=cur(),ai=false){ // ai�
   const box=document.createElement('div');box.id='tiPrint';box.className='measure';
   const page=(title,body)=>`<div class="tip-page"><h3>${esc(title)}</h3>${body}<div class="tip-disc">${esc(TI_DISCLAIMER)}</div></div>`;
   const pids=noPlan||!p?[]:planPageIds(p),bookH=pids.length?planBookHeight(p,pids):0;
-  box.innerHTML=pids.map((id,i)=>`<div class="tip-page pv-page">${planPageHtml(p,id,i+1,pids.length)}</div>`).join('')+(ai&&p?.optAi?`<div class="tip-page tip-ai"><h3>AI 分析優缺點<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.opts.map(o=>o.label).join('／'))}</span></h3><div class="tip-ai-t ai-t">${aiTextHtml(p.optAi.text)}</div><div class="tip-disc">本分析由 AI 依各方案的治療項目自動整理（${esc(fmtDT(p.optAi.at))}），僅供參考；實際治療方式請以醫師評估與說明為準。</div></div>`:'')+ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
+  box.innerHTML=pids.map((id,i)=>`<div class="tip-page pv-page">${planPageHtml(p,id,i+1,pids.length)}</div>`).join('')+(ai&&p?.optAi?`<div class="tip-page tip-ai"><h3>AI 分析優缺點<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.opts.map(o=>o.label).join('／'))}</span></h3><div class="tip-ai-t ai-t">${aiTextHtml(p.optAi.text)}</div><div class="tip-disc">本分析由 AI 依各方案的治療項目自動整理（${esc(fmtDT(p.optAi.at))}），<b>僅供參考；實際治療方式請以醫師評估與說明為準。</b></div></div>`:'')+ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
   (document.querySelector('.app')||document.body.lastChild).after(box); // 緊接在計劃單後面
   setBookH(box,bookH); // 每個方案的頁面版面一樣（跟預覽相同）
   box.querySelectorAll('.tip-page:not(.pv-page)').forEach(d=>{const t=d.querySelector('.ti-body>.ti-tbl');if(!t)return;
