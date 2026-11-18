@@ -420,6 +420,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .consent-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 140px;align-items:end;gap:12px} /* 簽名欄、時間、按鈕三欄固定寬度：患者簽名與選定方案簽名兩列上下對齊 */
 @media (max-width:600px){.consent-row{grid-template-columns:minmax(0,1fr) 120px}.consent-row>.consent-sig{grid-column:1/-1}}
 .consent-row>button{width:100%}
+@media (min-width:601px){.consent-row:not(:has(>button)){grid-template-columns:minmax(0,1fr) 180px}} /* 已確認後沒有按鈕：簽名欄往右延伸，不留空白 */
 /* 多個方案：方案分頁（名稱＋金額），目前的方案實心、患者選定的打勾、未採用的淡化 */
 /* 「＋ 新增項目」放在項目表格下方左邊（和「調整」同一列） */
 .add-item-btn{float:left;font-weight:700}
