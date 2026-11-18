@@ -440,6 +440,9 @@ tfoot td{font-weight:700;background:var(--soft)}
 .ai-box{margin:14px 0 4px;padding:10px 14px;border:1px solid #d9cff5;border-left:4px solid #7a5cc7;border-radius:8px;background:#faf8ff}
 .ai-h{font-weight:700;color:#5b3fae;margin-bottom:4px}.ai-h .hint{font-weight:400;margin-left:6px}.ai-stale{margin-left:8px;color:var(--warn);font-size:12px;font-weight:700}
 .ai-t{white-space:pre-wrap;line-height:1.7;font-size:14px}
+.ai-h{display:flex;flex-wrap:wrap;align-items:center;gap:2px 0}.ai-h .sp{flex:1}
+.ai-ta{width:100%;box-sizing:border-box;font:inherit;font-size:14px;line-height:1.7;padding:8px 10px;border:1px solid #c9bdf0;border-radius:6px;resize:vertical;background:#fff}
+.ai-acts{display:flex;gap:6px;margin-top:6px}.ai-acts .sp{flex:1}
 /* 選定 ✔／沒選 ✕：同樣大小、同樣位置（方案名稱左邊，同一行） */
 .opt-name{display:inline-flex;align-items:center;white-space:nowrap}
 .opt-mark{display:inline-block;width:18px;margin-right:3px;font-size:15px;font-weight:700;line-height:1;text-align:center;vertical-align:baseline}
@@ -1463,7 +1466,13 @@ $('#main').addEventListener('click',async e=>{
     else if(act==='optDel'){optDel(p);touch();renderEditor()}
     else if(act==='optChoose'){const sid=optView||p.optCur,its=sid===p.optCur?p.items:p.optStore[sid].items;if(!its.some(i=>i.name)){alert('這個方案還沒有治療項目');return}await optChoose(p);touch();renderEditor()}
     else if(act==='optUnchoose'){if(!confirm('取消選定方案？患者的選定簽名會一併刪除，需要重新選定。'))return;p.optChosen=null;touch();renderEditor()}
-    else if(act==='optAi')await runOptAi(p,a);
+    else if(act==='optAi'){if(p.optAi&&!confirm(p.optAi.edited?'重新分析會取代你手動修改過的內容，確定嗎？':'已經有 AI 分析結果，重新分析會取代目前的內容，確定嗎？'))return;await runOptAi(p,a)}
+    else if(act==='optAiEdit'){const box=a.closest('.ai-box'),t=box.querySelector('.ai-t');a.hidden=true; // 手動修改 AI 分析內容
+      t.outerHTML=`<textarea class="ai-ta" rows="12">${esc(p.optAi.text)}</textarea><div class="ai-acts"><span class="sp"></span><button class="btn-sm" data-act="optAiCancel">取消</button><button class="btn-sm btn-primary" data-act="optAiSave">儲存</button></div>`;
+      const ta=box.querySelector('.ai-ta');ta.style.height=Math.max(ta.scrollHeight+4,160)+'px';ta.focus()}
+    else if(act==='optAiCancel')renderEditor();
+    else if(act==='optAiSave'){const v=a.closest('.ai-box').querySelector('.ai-ta').value.trim();if(!v){alert('內容不能空白');return}
+      if(v!==p.optAi.text){p.optAi.text=v;p.optAi.edited=nowLocal();touch()}renderEditor()}
     else if(act==='optSigView'){showImage(p.optChosen.sig,'患者選定方案簽名')}
     else if(act==='addPayLine'){ // 同一次繳費再加一個項目（共用日期、經手助理、簽名）
       const gid=a.dataset.gid,grp=p.payments.filter(x=>payGid(x)===gid);if(!grp.length||grp[0].sig)return;
@@ -1616,7 +1625,7 @@ function optBarHtml(p,IL){
 }
 // AI 分析結果：放在方案書頁下方，不蓋住方案A／B 的頁籤
 function optAiHtml(p){
-  return p.optAi?`<div class="ai-box no-print"><div class="ai-h">🤖 AI 分析優缺點<span class="hint">（僅供醫師參考，請自行判斷；${esc(fmtDT(p.optAi.at))}）</span>${p.optAi.sig!==optAiSig(p)?'<span class="ai-stale">方案已修改，建議重新分析</span>':''}</div><div class="ai-t">${esc(p.optAi.text)}</div></div>`:'';
+  return p.optAi?`<div class="ai-box no-print"><div class="ai-h">🤖 AI 分析優缺點<span class="hint">（僅供醫師參考，請自行判斷；${esc(fmtDT(p.optAi.at))}）</span>${p.optAi.edited?`<span class="hint">・已手動修改 ${esc(fmtDT(p.optAi.edited))}</span>`:''}${p.optAi.sig!==optAiSig(p)?'<span class="ai-stale">方案已修改，建議重新分析</span>':''}${canEdit()&&p.status==='open'&&!optView?'<span class="sp"></span><button class="btn-sm" data-act="optAiEdit">✏️ 修改</button>':''}</div><div class="ai-t">${esc(p.optAi.text)}</div></div>`:'';
 }
 // 其他方案的唯讀表格（列印比較用、選定後查看未採用的方案用）
 // 唯讀牙位圖（預覽、方案比較用）：上下兩排、中間虛線分左右（病人右側在中線左邊），只留需要的空間
