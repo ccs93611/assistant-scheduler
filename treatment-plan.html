@@ -1116,9 +1116,10 @@ function renderEditorMain(viewing){
       <div ${c.orig-c.chg?'':'hidden'}><small>減免合計</small><b id="tDisc" class="disc-amt">${c.orig-c.chg?'$'+money(c.orig-c.chg):''}</b></div>
       <div class="hl" ${c.orig-c.chg?'':'hidden'}><small>變更後總金額</small><b id="tChg">${c.orig-c.chg?'$'+money(c.chg):''}</b></div>
     </div>
-    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':p.opts?'這個方案的補充說明（各方案分開）':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>${p.opts?'</div>'+optAiHtml(p):''}
+    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':p.opts?'這個方案的補充說明（各方案分開）':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>${p.opts?'</div>':''}
     ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已確認（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
     <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量；「確認金額」留空表示與金額相同；「調整」輸入負數為折扣、正數為漲價。</div>
+    ${p.opts?optAiHtml(p):''}
   </section>
   ${p.opts&&!p.optChosen?p.opts.filter(o=>o.id!==p.optCur).map(o=>`<section class="card print-only opt-print"><h2>治療項目－${esc(o.label)}</h2>${optRoHtml(p,o.id)}</section>`).join(''):''}
 
