@@ -623,6 +623,7 @@ tfoot td{font-weight:700;background:var(--soft)}
 .tip-wm .wm-icon{width:115.6mm;height:95.6mm}.tip-wm .wm-icon img{width:260.2mm;margin:-7.2mm 0 0 -71.5mm}
 .tip-wm .wm-text{width:120.3mm;height:13.7mm}.tip-wm .wm-text img{width:130mm;margin:-57.8mm 0 0 -4mm}
 .tip-page>h3{margin:0 0 6px;padding-bottom:4px;border-bottom:1.5px solid #0f7c80;font-size:19px;color:#0f7c80}
+.tip-ai-no{float:right;font-size:13px;font-weight:600;color:#555;margin-top:5px}.tip-ai-t{white-space:pre-wrap;font-size:14px;line-height:1.75;margin:8px 0 12px}
 .tip-page .ti-body{font-size:12.5px;line-height:1.5;display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
 .tip-page .ti-body>.ti-what,.tip-page .ti-body>.ti-tbl,.tip-page .ti-body>.ti-str,.tip-page .ti-body>.ti-steps,.tip-page .ti-body>.ti-fig,.tip-page .ti-body>.ti-photo,.tip-page .ti-body>.ti-note{grid-column:1/-1}
 .tip-page .ti-what{margin-bottom:6px!important}
@@ -1096,7 +1097,7 @@ function renderEditorMain(viewing){
   <section class="card">
     <h2>治療項目${p.opts?(p.optChosen?`－${esc(optLabel(p,p.optCur))}${p.optChosen.id===p.optCur?'（患者選定）':''}`:`<span class="po-inline">－${esc(optLabel(p,p.optCur))}</span>`):''}<span class="sp"></span><button class="btn-sm no-print" data-act="preview" title="給患者看：只顯示病患資料與治療項目">👁 預覽</button></h2> <!-- 還沒選定方案：畫面上只寫「治療項目」（方案看分頁），列印時才加上方案名稱 -->
     ${optBarHtml(p,IL)}
-    ${p.opts?'<div class="opt-panel">':''}<div class="tbl-wrap items-wrap"><table class="items-tbl">
+    <div class="opt-panel"><div class="tbl-wrap items-wrap"><table class="items-tbl">
       <thead><tr><th class="h-no">#</th><th class="h-item">治療種類／項目</th><th class="h-teeth">牙位</th><th class="num h-unit">單價</th><th class="num h-qty">數量</th><th class="num h-orig">金額</th><th class="num h-chg">確認金額</th>${IL?'':'<th class="no-print h-del"></th>'}</tr></thead>
       <tbody>${p.items.map((it,i)=>`<tr data-list="items" data-id="${it.id}">
         ${IL?`<td class="c-no">${i+1}</td>`:`<td class="c-no drag-handle" title="拖曳調整順序"><i>⋮⋮</i>${i+1}</td>`}
@@ -1116,7 +1117,7 @@ function renderEditorMain(viewing){
       <div ${c.orig-c.chg?'':'hidden'}><small>減免合計</small><b id="tDisc" class="disc-amt">${c.orig-c.chg?'$'+money(c.orig-c.chg):''}</b></div>
       <div class="hl" ${c.orig-c.chg?'':'hidden'}><small>變更後總金額</small><b id="tChg">${c.orig-c.chg?'$'+money(c.chg):''}</b></div>
     </div>
-    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':p.opts?'這個方案的補充說明（各方案分開）':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label>${p.opts?'</div>':''}
+    <label class="items-note">備註<textarea class="note-ta" data-f="itemsNote" rows="2" placeholder="${IL?'':p.opts?'這個方案的補充說明（各方案分開）':'整張治療計畫的補充說明'}" ${idis}>${esc(p.itemsNote||'')}</textarea></label></div>
     ${p.finalized?`<div class="banner paid" style="margin-top:10px">🔒 治療計畫已確認（${esc(fmtDT(p.finalizedAt))}），病患資料、治療項目與金額不可再更動；如需變更請用「計畫變更」。</div>`:''}
     <div class="hint no-print" ${IL?'hidden':''}>選項目會依價目表帶入單價，金額 = 單價 × 數量；「確認金額」留空表示與金額相同；「調整」輸入負數為折扣、正數為漲價。</div>
     ${p.opts?optAiHtml(p):''}
@@ -1523,7 +1524,7 @@ function planPageHtml(p,id,n,total,tabs=''){ // tabs：預覽時放在「治療�
   const note=id===p.optCur?p.itemsNote:p.optStore?.[id]?.note,noteHtml=note?`<div class="pv-note"><small>備註</small>${esc(note)}</div>`:''; // 各方案自己的備註（多個方案時放在書頁裡）
   return `<div class="pv-c"><div class="pv-head"><b>治療計劃單</b><span class="pv-no">單號 ${esc(p.no)}</span></div>
     <h2>病患資料</h2><div class="pv-grid">${row('姓名',p.name)}${row('生日',p.birthday?p.birthday.replace(/-/g,'/'):'')}${row('病歷號',p.chartNo)}${row('主治醫師',p.doctor)}${row('責任助理',p.assistant)}<div></div>${row('單據開立時間',fmtDT(p.createdAt))}${row('有效期限',(expiryOf(p)||'').replace(/-/g,'/'))}</div>
-    <h2>治療項目${p.opts?'－'+esc(optLabel(p,id))+(ch&&ch.id===id?'（患者選定）':''):''}</h2>${p.opts?`${tabs}<div class="opt-panel pv-book">${optRoHtml(p,id)}${noteHtml}</div>`:optRoHtml(p,id)+noteHtml}
+    <h2>治療項目${p.opts?'－'+esc(optLabel(p,id))+(ch&&ch.id===id?'（患者選定）':''):''}</h2>${p.opts?tabs:''}<div class="opt-panel pv-book">${optRoHtml(p,id)}${noteHtml}</div>
     <h2>簽名</h2><div class="pv-sigs">
       <div><small>患者（或法定代理人）簽名</small><div class="pv-sig">${p.consent.sig?`<img src="${p.consent.sig}" alt="患者簽名">`:''}</div><small>簽名時間：${p.consent.at?esc(fmtDT(p.consent.at)):''}</small></div>
       ${ch?`<div><small>患者選定「${esc(optLabel(p,ch.id))}」簽名</small><div class="pv-sig"><img src="${ch.sig}" alt="選定方案簽名"></div><small>選定時間：${esc(fmtDT(ch.at))}</small></div>`:''}
@@ -1792,27 +1793,29 @@ function printPlan(p){
   const wlist=`<span class="pp-list">${wt.map(w=>`<span>${esc(w.title)}</span>`).join('')}</span>`;
   // 勾選要印的部分；不論勾哪些，都依「治療計劃單 → 項目介紹 → 保固與說明」的順序印
   const opt=(k,label,ok,why,more='')=>`<label class="pp-opt ${ok?'':'off'}"><input type="checkbox" data-k="${k}" ${ok?'checked':'disabled'}><span><b>${label}</b>${ok?more:`<span class="hint">${why}</span>`}</span></label>`;
-  modal(`<h3>列印</h3><p class="hint" style="margin:0 0 8px">勾選要列印的部分，會依「治療計劃單 → 項目介紹 → 保固與說明」的順序印出。</p><div class="pp-opts">
+  modal(`<h3>列印</h3><p class="hint" style="margin:0 0 8px">勾選要列印的部分，會依「治療計劃單 → AI 分析 → 項目介紹 → 保固與說明」的順序印出。</p><div class="pp-opts">
       ${opt('plan','治療計劃單',true,'')}
+      ${p.opts&&p.optAi?`<label class="pp-opt"><input type="checkbox" data-k="ai"><span><b>AI 分析優缺點</b><span class="hint">各方案優缺點比較，一張 A4${p.optAi.sig!==optAiSig(p)?'（方案已修改，建議先重新分析）':''}</span></span></label>`:''}
       ${opt('info','項目介紹',ids.length,noInfo,`<span class="hint">每項一張 A4：</span>${list}`)}
       ${opt('wty','保固與說明',wty,noWty,`<span class="hint">每份一張 A4：</span>${wlist}`)}</div>
     <div class="acts"><span class="sp"></span><button data-x="close">取消</button><button class="btn-primary" data-x="go">🖨 列印</button></div>`,
   (box,close)=>{
     const on=k=>box.querySelector(`[data-k="${k}"]`)?.checked,go=box.querySelector('[data-x="go"]');
-    box.addEventListener('change',()=>{go.disabled=!['plan','info','wty'].some(on)});
+    box.addEventListener('change',()=>{go.disabled=!['plan','ai','info','wty'].some(on)});
     box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;
       if(x==='close'){close();return}
       const plan=on('plan'),info=on('info')?ids:[],ws=on('wty')?wt:[];close();
-      printWithInfo(info,ws,!plan,p)})})}
+      printWithInfo(info,ws,!plan,p,on('ai'))})})}
 // 治療計劃單後面接著印項目介紹（與保固說明）：每項一張 A4，跟 treatments.html 的 printIds 一樣自動縮放到剛好填滿一頁；
 // 有比較表的項目把比較表拆到第二頁；保固與說明放最後，每份一張 A4；不印診所 Logo 與名稱（浮水印除外）；印完移除
 // 列印：治療計劃單用跟預覽一樣的 A4 頁面（每個方案一張），後面接項目介紹、保固與說明；畫面上的單不印
-async function printWithInfo(ids,wtys=[],noPlan=false,p=cur()){ // noPlan：不印治療計劃單，只印項目介紹／保固與說明
+async function printWithInfo(ids,wtys=[],noPlan=false,p=cur(),ai=false){ // ai：印 AI 分析優缺點（一張 A4，接在計劃單後面）
+  // noPlan：不印治療計劃單，只印項目介紹／保固與說明
   document.getElementById('tiPrint')?.remove();
   const box=document.createElement('div');box.id='tiPrint';box.className='measure';
   const page=(title,body)=>`<div class="tip-page"><h3>${esc(title)}</h3>${body}<div class="tip-disc">${esc(TI_DISCLAIMER)}</div></div>`;
   const pids=noPlan||!p?[]:planPageIds(p),bookH=pids.length?planBookHeight(p,pids):0;
-  box.innerHTML=pids.map((id,i)=>`<div class="tip-page pv-page">${planPageHtml(p,id,i+1,pids.length)}</div>`).join('')+ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
+  box.innerHTML=pids.map((id,i)=>`<div class="tip-page pv-page">${planPageHtml(p,id,i+1,pids.length)}</div>`).join('')+(ai&&p?.optAi?`<div class="tip-page tip-ai"><h3>AI 分析優缺點<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.opts.map(o=>o.label).join('／'))}</span></h3><div class="tip-ai-t">${esc(p.optAi.text)}</div><div class="tip-disc">本分析由 AI 依各方案的治療項目自動整理（${esc(fmtDT(p.optAi.at))}），僅供參考；實際治療方式請以醫師評估與說明為準。</div></div>`:'')+ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
   (document.querySelector('.app')||document.body.lastChild).after(box); // 緊接在計劃單後面
   setBookH(box,bookH); // 每個方案的頁面版面一樣（跟預覽相同）
   box.querySelectorAll('.tip-page:not(.pv-page)').forEach(d=>{const t=d.querySelector('.ti-body>.ti-tbl');if(!t)return;
@@ -1821,7 +1824,7 @@ async function printWithInfo(ids,wtys=[],noPlan=false,p=cur()){ // noPlan：不�
   await Promise.all([...box.querySelectorAll('img')].map(i=>(i.loading='eager',i.decode().catch(()=>{}))));
   const PAGE=1050; // A4 可用高度（同 treatments.html）
   const fit=(d,z)=>{const m=(14/z).toFixed(2)+'mm';d.style.width=(210/z).toFixed(2)+'mm';d.style.padding=m+' '+m+' 0';d.style.zoom=z;return d.getBoundingClientRect().height<=(d.classList.contains('pv-page')?PAGE-45:PAGE)}; // 計劃單頁下方留頁碼的位置
-  box.querySelectorAll('.tip-page').forEach(d=>{const pv=d.classList.contains('pv-page');let lo=d.classList.contains('tip-wty')||pv?.3:.5,hi=pv?1:1.5; // 最多放大 1.5 倍；保固與說明、治療計劃單一定縮成一張（計劃單不放大）
+  box.querySelectorAll('.tip-page').forEach(d=>{const pv=d.classList.contains('pv-page');let lo=d.classList.contains('tip-wty')||pv?.3:.5,hi=pv?1:d.classList.contains('tip-ai')?1.2:1.5; // 最多放大 1.5 倍；保固與說明、治療計劃單一定縮成一張（計劃單不放大）
     if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
     fit(d,lo)});
   // 項目介紹每一頁加診所 Logo 浮水印（跟 treatments.html 相同），治療計劃單不加：頁面高度設成一頁，浮水印放在頁面正中央，縮放比例抵銷掉維持原大小
