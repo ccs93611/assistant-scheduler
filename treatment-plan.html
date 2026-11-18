@@ -399,7 +399,8 @@ textarea.item-ta{display:block;width:100%;resize:none;overflow:hidden;line-heigh
 .teeth-cell .jaw span{font-size:11px;color:var(--muted);width:14px;flex:none}
 .teeth-cell .jaws{position:relative}
 .teeth-cell .midl{position:absolute;top:2px;bottom:2px;left:50%;border-left:2px dashed var(--muted);opacity:.55;pointer-events:none}
-.teeth-cell input{flex:1;font-size:13px;padding:3px 6px}
+.teeth-cell input{flex:1;font-size:13px;padding:3px 6px;min-width:0;width:0}
+.teeth-cell .jaws{grid-template-columns:minmax(0,1fr)} /* 欄寬不受牙位文字與對齊用的左內距影響，避免對齊→欄寬變→再對齊的來回跳動（平板） */
 .teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
 .teeth-cell button{padding:3px 6px}
 .disc-amt{color:var(--warn)}
@@ -2032,7 +2033,10 @@ function midSplit(text){ // 右側文字結束的位置、左側文字開始的�
 let measureCtx=null;
 function textW(inp,s){measureCtx=measureCtx||document.createElement('canvas').getContext('2d');measureCtx.font=getComputedStyle(inp).font;return measureCtx.measureText(s).width}
 // 欄寬在畫面排好後才確定（表格自動調整欄寬），欄寬一變就重新對齊中線
-const teethRO=typeof ResizeObserver!=='undefined'?new ResizeObserver(es=>es.forEach(e=>{const c=e.target.closest('.teeth-cell');if(c)alignTeeth(c)})):null;
+// 防呆：寬度沒變不重算；短時間內又回到剛量過的寬度（來回跳動）也不重算
+const teethRO=typeof ResizeObserver!=='undefined'?new ResizeObserver(es=>es.forEach(e=>{const c=e.target.closest('.teeth-cell');if(!c)return;
+  const W=e.target.clientWidth,now=performance.now();if(Math.abs(W-(c._aw||0))<1)return;
+  c._hist=(c._hist||[]).filter(h=>now-h.t<1000);if(c._hist.some(h=>Math.abs(h.w-W)<1))return;c._hist.push({w:W,t:now});alignTeeth(c)})):null;
 // 「＋ 新增項目」左緣跟上方項目框切齊（各種螢幕寬度的欄位位置不同，依畫面實際位置計算）
 function alignAddBtn(){
   const b=document.querySelector('#main .add-item-btn'),box=document.querySelector('#main .c-item .combo-wrap');if(!b)return;
@@ -2066,6 +2070,7 @@ function alignTeeth(cell){
     ins.forEach((i,k)=>{i.style.paddingLeft=rows[k].mid!=null?Math.max(0,X-rows[k].mid)+'px':''});
     const r0=ins[0].getBoundingClientRect(),rj=jaws.getBoundingClientRect();
     line.style.left=(r0.left-rj.left+ins[0].clientLeft+X-1)+'px';
+    c._aw=W; // 這次對齊時的寬度
   }
 }
 window.addEventListener('resize',()=>alignTeeth());
