@@ -527,6 +527,26 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 
 .overlay{position:fixed; inset:0; background:rgba(15,20,17,.4); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
 .dialog{background:var(--panel); border-radius:12px; padding:20px 22px; max-width:420px; width:100%; box-shadow:var(--shadow); max-height:calc(100vh - 32px); overflow:auto;}
+.dialog.wide{max-width:960px;}
+/* 植體數量：直徑 × 長度表格 */
+/* 行與列明顯：每格都有框線、表頭（長度）與第一欄（直徑）加底色，滑過時整列與整欄一起標示 */
+table.imp-grid{width:auto; min-width:100%; font-size:.95rem;}
+table.imp-grid th,table.imp-grid td{text-align:center; white-space:nowrap; border:1px solid var(--line); padding:8px 12px;}
+table.imp-grid thead th{background:color-mix(in srgb,var(--accent) 32%,var(--panel)); color:var(--ink); font-weight:700; font-size:.9rem;}
+table.imp-grid th:first-child,table.imp-grid td:first-child{text-align:left; background:color-mix(in srgb,var(--accent) 32%,var(--panel)); color:var(--ink); font-weight:700; position:sticky; left:0; z-index:1;}
+table.imp-grid tbody tr:not(.g):nth-child(even) td:not(.x){background-color:color-mix(in srgb,var(--accent) 7%,var(--panel));}
+table.imp-grid tbody tr:not(.g):nth-child(even) td:first-child{background:color-mix(in srgb,var(--accent) 32%,var(--panel));}
+/* 滑過：整列、整欄明顯變綠，滑到的那一格最深 */
+table.imp-grid tbody tr:not(.g):hover td:not(.x),table.imp-grid td.imp-col:not(.x){background-color:color-mix(in srgb,var(--accent) 30%,var(--panel));}
+table.imp-grid tbody tr:not(.g):hover td:first-child,table.imp-grid th.imp-col{background:var(--accent); color:var(--accent-ink);}
+table.imp-grid td.imp-hit:not(.x){background:var(--accent)!important; color:var(--accent-ink)!important;}
+table.imp-grid td.imp-hit span{color:inherit!important;}
+table.imp-grid td:not(:first-child){font-size:1.05rem; font-variant-numeric:tabular-nums;}
+table.imp-grid td.x{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--line) 6px 7px);}
+table.imp-grid tr.g td{background:var(--slot); font-weight:700; font-size:.85rem; text-align:left; position:static;}
+table.imp-grid input{width:60px; text-align:center; padding:4px;}
+table.imp-grid input.chg{border-color:var(--accent); background:var(--accent-soft);}
+.imp-low{color:var(--doc); font-weight:700;} .imp-out{color:var(--warn); font-weight:700;}
 .dialog h3{margin:0 0 8px; font-size:1.05rem;}
 .dialog p{margin:0 0 12px; color:var(--sub); font-size:.86rem;}
 .dialog .opts{display:flex; flex-direction:column; gap:8px; margin:6px 0 16px;}
@@ -739,7 +759,13 @@ body.gated .shell{display:none;}
     </div>
     <button role="tab" data-tab="pay" id="payTabBtn">薪資</button>
     <button role="tab" data-tab="settings">人員名單</button>
-    <button role="tab" data-tab="cscheck" id="csTabBtn" hidden>耗材確認</button>
+    <div class="tab-grp" data-grp="耗材">
+      <button type="button" class="tab-grp-btn" aria-haspopup="menu" aria-expanded="false">耗材</button>
+      <div class="tab-menu" role="menu" hidden>
+        <button role="menuitem" data-tab="cscheck" id="csTabBtn" hidden>耗材確認</button>
+        <button role="menuitem" data-tab="implant" id="impTabBtn" hidden>植體數量</button>
+      </div>
+    </div>
   </nav>
   <div id="banner"></div>
   <main>
@@ -958,6 +984,18 @@ body.gated .shell{display:none;}
           <p class="desc" id="otRevDesc"></p>
           <div class="form-row"><div class="field"><label for="otRevSt">狀態</label><select id="otRevSt"><option value="pending">待審</option><option value="">全部</option></select></div></div>
           <div class="scroll-x"><table class="list" id="otRevTable"></table></div>
+        </div>
+      </div>
+    </section>
+    <section id="tab-implant" hidden>
+      <div class="stack">
+        <div class="card">
+          <div class="lv-title-row"><h2 style="margin:0">植體數量</h2><span class="lv-range" id="impInfo"></span><span style="flex:1"></span><button class="small" id="impInBtn">＋ 進貨</button><button class="small primary" id="impSetBtn">盤點（輸入現有數量）</button></div>
+          <p class="desc">剩餘數量＝盤點輸入的數量＋之後的進貨－之後在「耗材登記」登記使用的支數（待確認、退回、已確認都算；刪除登記會加回來）。「—」是還沒輸入過數量的規格；<span class="imp-low">橘色</span>剩 2 支以下、<span class="imp-out">紅色</span>已用完。</p>
+          <div class="form-row" id="impTabs"></div>
+          <div class="scroll-x"><table class="list imp-grid" id="impTable"></table></div>
+          <p id="impTotal" style="margin:10px 0 0;font-size:1.05rem"></p>
+          <details style="margin-top:12px"><summary class="hint" style="cursor:pointer">進貨／盤點紀錄</summary><div class="scroll-x"><table class="list" id="impLog"></table></div></details>
         </div>
       </div>
     </section>
@@ -2207,6 +2245,11 @@ function start(acc){
   if(sid)db.collection('punches').where('ot.reviewer','==',sid).onSnapshot(revTo,e=>console.warn(e));
   // 耗材確認：超級管理員看所有待確認；其他綁定人員（醫師）看自己的待確認（各月份紀錄在分頁選月份時才讀）
   const csTo=snap=>{csPend=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();};
+  // 植體數量：庫存設定與所有植體的登記紀錄（不限月份），只有耗材「管理」讀
+  if(isAdmin||appLv(acc,'cs')==='admin'){
+    db.doc('csStock/implants').onSnapshot(s=>{impStock=s.exists?s.data():{s:{},log:[]};if(prefs.tab==='implant')renderAll();},e=>console.warn('csStock',e));
+    db.collection('csItems').where('item','in',IMPLANTS).onSnapshot(snap=>{impRecs=snap.docs.map(d=>Object.assign({id:d.id},d.data()));if(prefs.tab==='implant')renderAll();},e=>console.warn('implants',e));
+  }
   if(isAdmin||appLv(acc,'cs')==='admin')db.collection('csItems').where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   else if(sid)db.collection('csItems').where('doctorId','==',sid).where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   if(sup)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
@@ -2279,7 +2322,7 @@ const viewOnlyAssistant=()=>lowPerm()&&byId(myStaffId())?.role==='assistant'; //
 const lowPerm=()=>(mode==='live'||(mode==='local'&&SIM_AS))&&['view','self'].includes(effPerm());
 function viewTabs(){
   const r=byId(myStaffId())?.role;
-  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev','cscheck']:[]),...(r!=='doctor'&&csAdmin()?['cscheck']:[])];
+  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev','cscheck']:[]),...(r!=='doctor'&&csAdmin()?['cscheck']:[]),...(csAdmin()?['implant']:[])];
 }
 // 「登記本人請假」以下的人在請假分頁只看到自己的資料：繪製時暫時只留自己的請假、家庭照顧假、事件與人員
 function withOwnData(fn){
@@ -2331,10 +2374,11 @@ function renderAll(){
   {const show=canSeeOtRev(),n=otRevList('pending').length;$('otRevTabBtn').hidden=!show;$('otRevTabBtn').textContent=n?`加班審核（${n}）`:'加班審核';if(prefs.tab==='otrev'&&!show)prefs.tab='schedule';}
   if(prefs.tab==='att'&&!canWrite&&!viewOnlyAssistant())prefs.tab='schedule';
   {const show=canSeeCs(),n=csPendList(byId(myStaffId())?.role==='doctor').length;$('csTabBtn').hidden=!show;$('csTabBtn').textContent=n?`耗材確認（${n}）`:'耗材確認';if(prefs.tab==='cscheck'&&!show)prefs.tab='schedule';}
+  {const show=csAdmin();$('impTabBtn').hidden=!show;if(prefs.tab==='implant'&&!show)prefs.tab='schedule';}
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
   document.body.classList.toggle('view-only',viewOnly());document.body.classList.toggle('low-perm',lowPerm());
   if(lowPerm()){const ok=viewTabs();document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!ok.includes(b.dataset.tab))b.hidden=true;});if(!ok.includes(prefs.tab))prefs.tab='schedule';}
-  else document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!['pay','att','otrev','cscheck'].includes(b.dataset.tab))b.hidden=false;});
+  else document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!['pay','att','otrev','cscheck','implant'].includes(b.dataset.tab))b.hidden=false;});
   // 排休抽籤：暫時只開放給超級管理員（之後要開放時拿掉這段即可）
   {const lb=document.querySelector('nav.tabs button[data-tab="lottery"]');if(!superOK()){lb.hidden=true;if(prefs.tab==='lottery')prefs.tab='schedule';}}
   // 下拉分頁群組：按鈕顯示「群組名・目前分頁」與底下各分頁括號內數字的加總（例如待審、缺證明）；底下分頁都看不到時整組隱藏
@@ -2343,7 +2387,7 @@ function renderAll(){
     g.hidden=!vis.length;btn.setAttribute('aria-selected',String(!!cur));
     const curName=cur?cur.textContent.replace(/（.*$/,''):''; // 跟群組同名的分頁（出勤）不重複顯示
     btn.innerHTML=`${esc(g.dataset.grp)}${curName&&curName!==g.dataset.grp?'・'+esc(curName):''}${badge?`（${badge}）`:''}<span class="dd-car">▾</span>`;});
-  ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','cscheck','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
+  ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','cscheck','implant','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
   if(prefs.tab==='schedule') renderSchedule(mi);
@@ -2365,6 +2409,7 @@ function renderAll(){
   if(prefs.tab==='att') renderAtt(mi);
   if(prefs.tab==='otrev') renderOtRev();
   if(prefs.tab==='cscheck') renderCs();
+  if(prefs.tab==='implant') renderImplant();
 }
 
 const otMax=()=>Number.isFinite(cfg.otMax)?cfg.otMax:3;
@@ -4905,6 +4950,8 @@ const csHtml=x=>{x=csNorm(x);const c=CS_SPEC_COLORS[x.item]?.[x.spec];const sc=x
 // 耗材「管理」權限：看所有醫師的待確認、可以取消確認（本機模式沒有模擬身分時視為管理）
 const csAdmin=()=>{if(mode==='local'&&!SIM_AS)return true;if(isAdmin&&myId)return true;const a=mode==='local'?{perm:SIM_AS[1]}:accessLinks[myStaffId()];return appLv(a,'cs')==='admin';};
 const canSeeCs=()=>byId(myStaffId())?.role==='doctor'||csAdmin();
+// 能不能進耗材登記頁（consumables.html）：耗材權限不是「無」才顯示「開啟耗材登記頁」按鈕
+const canOpenCsPage=()=>{if(csAdmin())return true;const a=mode==='local'?(SIM_AS?{perm:SIM_AS[1]}:null):accessLinks[myStaffId()];return appLv(a,'cs')!=='none';};
 let csView={doc:'',month:'',st:''},csSel=new Set(),csMonthKey='',csMonthUnsub=null;
 // mine=true：只算指定給自己的（醫師分頁標籤上的數字）
 function csPendList(mine){
@@ -4923,6 +4970,90 @@ function csSubMonth(){
   csMonthUnsub=q.onSnapshot(snap=>{csHist=snap.docs.map(d=>Object.assign({id:d.id},d.data()));if(prefs.tab==='cscheck')renderAll();},e=>console.warn(e));
 }
 const csFind=id=>(mode==='local'?csLocal().items:[...csPend,...csHist]).find(x=>x.id===id);
+// ---- 植體數量分頁：csStock/implants {s:{"耗材|規格":{n 數量, at 盤點時間}}, log:[...]} ----
+// 剩餘＝n －（建立時間晚於 at 的耗材登記支數，待確認、退回、已確認都算；刪除登記就加回來）
+// 進貨直接加到 n（at 不變）；盤點把 n 設成實際數量、at 改成現在。只有耗材「管理」看得到、改得到
+const IMPLANTS=['植體(Hiossen)','植體(Straumann BLC)','植體(Straumann BLX)'];
+// 直徑 × 長度（要和 consumables.html 的 ITEM_SPECS 一致）
+const IMP_SPECS={
+  '植體(Hiossen)':{rows:['3.2','3.5','4.0','4.5','5.0','5.5','6.0','7.0'],cols:['6','7','8.5','10','11.5','13','15'],
+    group:r=>['3.2','3.5'].includes(r)?'Mini 窄徑平台（內部六角 2.1mm）':['6.0','7.0'].includes(r)?'Ultra-Wide 寬徑平台（標準平台連接）':'Regular 標準平台（內部六角 2.5mm）',
+    valid:(r,c)=>{const d=parseFloat(r);return d<4?c!=='6':d<6?!(c==='6'&&d<5):c!=='15';}},
+  '植體(Straumann BLC)':{rows:['3.3','3.75','4.5','5.5','6.5'],cols:['6','8','10','12','14','16','18'],
+    lens:{'3.3':['8','10','12','14','16','18'],'3.75':['6','8','10','12','14','16','18'],'4.5':['6','8','10','12','14','16','18'],'5.5':['6','8','10','12','14','16'],'6.5':['6','8','10','12','14']}},
+  '植體(Straumann BLX)':{rows:['3.5','3.75','4.0','4.5','5.0','5.5','6.5'],cols:['6','8','10','12','14','16','18'],
+    lens:Object.fromEntries([['3.5',18],['3.75',18],['4.0',18],['4.5',18],['5.0',18],['5.5',16],['6.5',16]].map(([d,max])=>[d,['6','8','10','12','14','16','18'].filter(l=>Number(l)<=max)]))},
+};
+const impVal=(r,c)=>`∅${r} × ${c} mm`;
+const impOk=(M,r,c)=>M.lens?M.lens[r].includes(c):!M.valid||M.valid(r,c);
+const impKey=(it,sp)=>it+'|'+sp;
+const impShort=it=>it.replace(/^植體\(|\)$/g,'');
+let impStock={s:{},log:[]},impRecs=[],impItem=IMPLANTS[0];
+const impStockNow=()=>mode==='local'?(csLocal().stock||{s:{},log:[]}):impStock;
+const impList=()=>(mode==='local'?csLocal().items:impRecs).map(csNorm).filter(x=>IMPLANTS.includes(x.item));
+function impLeft(){
+  const S=impStockNow().s||{},left={};for(const [k,v] of Object.entries(S))left[k]=Number(v.n)||0;
+  impList().forEach(x=>{const k=impKey(x.item,x.spec),b=S[k];if(b&&(Number(x.createdAt)||0)>(Number(b.at)||0))left[k]-=Number(x.qty)||0;});
+  return left;
+}
+// 表格：cell(規格, key) 回傳格子內容；total(keys) 回傳該列合計
+function impGrid(it,cell,total){
+  const M=IMP_SPECS[it];
+  let h=`<thead><tr><th>直徑 ↓　長度 →</th>${M.cols.map(c=>`<th>${esc(c)} mm</th>`).join('')}${total?'<th>合計</th>':''}</tr></thead><tbody>`;
+  M.rows.forEach((r,i)=>{const gr=M.group?.(r);
+    if(gr&&gr!==M.group(M.rows[i-1]))h+=`<tr class="g"><td colspan="${M.cols.length+1+(total?1:0)}">${esc(gr)}</td></tr>`;
+    const keys=M.cols.filter(c=>impOk(M,r,c)).map(c=>impKey(it,impVal(r,c)));
+    h+=`<tr><td><b>∅ ${esc(r)}</b> mm</td>${M.cols.map(c=>impOk(M,r,c)?`<td>${cell(impVal(r,c),impKey(it,impVal(r,c)))}</td>`:'<td class="x"></td>').join('')}${total?`<td>${total(keys)}</td>`:''}</tr>`;});
+  return h+'</tbody>';
+}
+const impNum=n=>n===undefined?'<span class="att-mute">—</span>':`<span class="${n<=0?'imp-out':n<=2?'imp-low':''}">${n}</span>`;
+function renderImplant(){
+  const st=impStockNow(),left=impLeft(),sum=it=>Object.entries(left).filter(([k])=>k.startsWith(it+'|')).reduce((t,[,n])=>t+n,0);
+  $('impTabs').innerHTML=IMPLANTS.map(it=>`<button type="button" class="${it===impItem?'primary':''}" data-imp="${esc(it)}">${esc(impShort(it))}（共 ${sum(it)}）</button>`).join('');
+  $('impTable').innerHTML=impGrid(impItem,(sp,k)=>impNum(left[k]));
+  $('impTotal').innerHTML=`${esc(impShort(impItem))} 合計：<b>${sum(impItem)}</b> 支`;
+  const last=Math.max(0,...Object.entries(st.s||{}).filter(([k])=>k.startsWith(impItem+'|')).map(([,v])=>Number(v.at)||0));
+  $('impInfo').textContent=last?'最近盤點：'+fmtAt(last):'還沒輸入過數量';
+  const log=(st.log||[]).slice(-50).reverse();
+  $('impLog').innerHTML=log.length?'<thead><tr><th>時間</th><th>人員</th><th>動作</th><th>植體</th><th>規格</th><th class="num">數量</th></tr></thead><tbody>'+log.map(l=>`<tr><td style="white-space:nowrap">${esc(fmtAt(l.at))}</td><td>${esc(l.by||'')}</td><td>${l.a==='in'?'進貨':'盤點'}</td><td>${esc(impShort(l.item))}</td><td style="white-space:nowrap">${esc(l.spec)}</td><td class="num">${l.a==='in'?'＋'+l.n:`${l.prev??'—'} → ${l.n}`}</td></tr>`).join('')+'</tbody>':'<tbody><tr><td class="att-mute">還沒有紀錄</td></tr></tbody>';
+}
+async function impSave(mut){
+  const fix=v=>{v.s=v.s||{};v.log=v.log||[];mut(v);v.log=v.log.slice(-300);return v;};
+  if(mode==='local'){const d=csLocal();d.stock=fix(d.stock||{});localStorage.setItem(CS_LOCAL,JSON.stringify(d));renderAll();return;}
+  const ref=db.doc('csStock/implants');
+  await db.runTransaction(async t=>{const d=await t.get(ref);t.set(ref,fix(d.exists?d.data():{}));});
+}
+// mode：set＝盤點（輸入實際數量，從現在開始扣減）；in＝進貨（加到剩餘數量）
+function impOpen(kind){
+  if(!csAdmin())return;
+  const it=impItem,left=impLeft(),set=kind==='set';
+  dialog(`<h3>${set?'盤點':'進貨'}・${esc(impShort(it))}</h3>
+    <p class="hint" style="margin:0 0 10px">${set?'輸入每個規格目前實際的數量（已帶入現在的剩餘數量；空白＝不變）。儲存後從現在開始扣減登記使用的支數。':'輸入這次進貨的支數，會加到剩餘數量上；沒進貨的規格留空。'}</p>
+    <div class="scroll-x"><table class="list imp-grid">${impGrid(it,(sp,k)=>`<input type="number" min="0" step="1" inputmode="numeric" data-k="${esc(k)}" data-sp="${esc(sp)}" value="${set&&k in left?Math.max(0,left[k]):''}" aria-label="${esc(sp)}">`)}</table></div>
+    <p class="hint" data-impsum style="margin:8px 0 0;min-height:1.4em"></p>`,ov=>{
+    const c=chg(ov);if(!c.length)return;
+    if(c.some(i=>!/^\d+$/.test(i.value.trim()))){toast('數量要是 0 以上的整數。','warn');return false;}
+    const now=Date.now(),by=myDisplayName();
+    impSave(v=>c.forEach(i=>{const k=i.dataset.k,n=Number(i.value),b=v.s[k];
+      if(set){v.log.push({a:'set',item:it,spec:i.dataset.sp,n,prev:k in left?left[k]:null,at:now,by});v.s[k]={n,at:now};}
+      else{v.log.push({a:'in',item:it,spec:i.dataset.sp,n,at:now,by});v.s[k]=b?{n:(Number(b.n)||0)+n,at:b.at}:{n,at:now};}}))
+      .then(()=>toast(set?'已儲存盤點數量。':'已登記進貨。'))
+      .catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限（只有耗材「管理」可以修改，或安全規則尚未更新）':e.message),'warn');});
+  },'儲存');
+  const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
+  const ins=[...ov.querySelectorAll('input[data-k]')],orig=new Map(ins.map(i=>[i,i.value]));
+  function chg(){return ins.filter(i=>i.value.trim()!==''&&(set?i.value!==orig.get(i):Number(i.value)>0));}
+  ov.addEventListener('input',()=>{const c=chg();ins.forEach(i=>i.classList.toggle('chg',c.includes(i)));
+    ov.querySelector('[data-impsum]').textContent=c.length?(set?`修改 ${c.length} 個規格`:`進貨 ${c.length} 個規格、共 ${c.reduce((t,i)=>t+Number(i.value),0)} 支`):'';});
+  ov.querySelector('[data-ok]').focus();
+}
+// 滑過格子時，整欄（同一長度）一起標示；整列用 CSS :hover
+document.addEventListener('mouseover',e=>{const t=e.target.closest('table.imp-grid');document.querySelectorAll('.imp-col,.imp-hit').forEach(x=>x.classList.remove('imp-col','imp-hit'));if(!t)return;
+  const cell=e.target.closest('td,th');if(!cell||cell.parentElement.classList.contains('g')||cell.cellIndex<1)return;const i=cell.cellIndex;
+  t.querySelectorAll('tr:not(.g)').forEach(tr=>tr.children[i]?.classList.add('imp-col'));if(cell.tagName==='TD')cell.classList.add('imp-hit');});
+$('impTabs').addEventListener('click',e=>{const b=e.target.closest('[data-imp]');if(b){impItem=b.dataset.imp;renderAll();}});
+$('impSetBtn').addEventListener('click',()=>impOpen('set'));
+$('impInBtn').addEventListener('click',()=>impOpen('in'));
 function csRow(x,opt){
   const d=parseYmd(x.date),me=myStaffId(),mine=x.doctorId===me,r=x.review,sup=csAdmin();
   const st=x.status==='confirmed'?`<span class="att-ok">已確認</span>${r?`<br><small class="att-mute">${esc(r.byName||'')} ${esc(fmtAt(r.at))}</small>`:''}`
@@ -4945,7 +5076,7 @@ function renderCs(){
   $('csTitle').textContent=sup?'耗材確認（所有醫師）':'耗材確認';
   $('csDesc').innerHTML=(isDoc?'助理在「耗材登記」頁登記你使用的耗材，請確認是否正確；有誤請按「有誤」並寫原因，會退回給助理修改後重新送出。確認後就不能再修改。':'')
     +(sup?(isDoc?'<br>':'')+'有耗材「管理」權限可以看到所有醫師的待確認耗材，但只有醫師本人可以確認或退回；下方紀錄可以對已確認的耗材「取消確認」。':'')
-    +'<br><a class="btn" href="consumables.html" target="_blank" rel="noopener">開啟耗材登記頁 ↗</a>';
+    +(canOpenCsPage()?'<br><a class="btn" href="consumables.html" target="_blank" rel="noopener">開啟耗材登記頁 ↗</a>':'');
   // 醫師篩選：超級管理員才有
   const all=csPendList(false),ids=[...new Set([...all,...csHist].map(x=>x.doctorId))];
   $('csFilterRow').hidden=!sup;
