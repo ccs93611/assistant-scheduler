@@ -553,7 +553,10 @@ table.imp-grid td.imp-hit span{color:inherit!important;}
 table.imp-grid td:not(:first-child){font-size:1.05rem; font-variant-numeric:tabular-nums;}
 table.imp-grid td.x{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--line) 6px 7px);}
 table.imp-grid tr.g td{background:var(--slot); font-weight:700; font-size:.85rem; text-align:left; position:static;}
-table.imp-grid input{width:60px; text-align:center; padding:4px;}
+table.imp-grid input{width:46px; text-align:center; padding:4px 2px;}
+/* 盤點／進貨格子：− 數量 ＋ */
+.imp-step{display:inline-flex; align-items:center; gap:2px;}
+.imp-step button{width:26px; height:30px; padding:0; border-radius:6px; font-size:1rem; line-height:1; flex:none;}
 table.imp-grid input.chg{border-color:var(--accent); background:var(--accent-soft);}
 .imp-low{color:var(--doc); font-weight:700;} .imp-out{color:var(--warn); font-weight:700;}
 .dialog h3{margin:0 0 8px; font-size:1.05rem;}
@@ -5062,7 +5065,7 @@ function impOpen(kind){
   const it=impItem,left=impLeft(),set=kind==='set';
   dialog(`<h3>${set?'盤點':'進貨'}・${esc(impShort(it))}</h3>
     <p class="hint" style="margin:0 0 10px">${set?'輸入每個規格目前實際的數量（已帶入現在的剩餘數量）。輸入「-」代表不追蹤這個規格（列表顯示「—」，不扣減）；0 代表有追蹤但已用完。儲存後從現在開始扣減登記使用的支數。':'輸入這次進貨的支數，會加到剩餘數量上；沒進貨的規格留空。'}</p>
-    <div class="scroll-x"><table class="list imp-grid">${impGrid(it,(sp,k)=>set?`<input type="text" maxlength="4" autocomplete="off" data-k="${esc(k)}" data-sp="${esc(sp)}" value="${k in left?Math.max(0,left[k]):'-'}" aria-label="${esc(sp)}">`:`<input type="number" min="0" step="1" inputmode="numeric" data-k="${esc(k)}" data-sp="${esc(sp)}" value="" aria-label="${esc(sp)}">`)}</table></div>
+    <div class="scroll-x"><table class="list imp-grid">${impGrid(it,(sp,k)=>`<span class="imp-step"><button type="button" data-st="-1" aria-label="減少" tabindex="-1">−</button>`+(set?`<input type="text" maxlength="4" autocomplete="off" data-k="${esc(k)}" data-sp="${esc(sp)}" value="${k in left?Math.max(0,left[k]):'-'}" aria-label="${esc(sp)}">`:`<input type="number" min="0" step="1" inputmode="numeric" data-k="${esc(k)}" data-sp="${esc(sp)}" value="" aria-label="${esc(sp)}">`)+`<button type="button" data-st="1" aria-label="增加" tabindex="-1">＋</button></span>`)}</table></div>
     <p class="hint" data-impsum style="margin:8px 0 0;min-height:1.4em"></p>`,ov=>{
     const c=chg(ov);if(!c.length)return;
     if(c.some(i=>!(/^\d+$/.test(i.value.trim())||(set&&isDash(i.value))))){toast(set?'數量要是 0 以上的整數，或輸入「-」（不追蹤）。':'數量要是 0 以上的整數。','warn');return false;}
@@ -5077,6 +5080,11 @@ function impOpen(kind){
   const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
   const ins=[...ov.querySelectorAll('input[data-k]')],orig=new Map(ins.map(i=>[i,i.value]));
   function chg(){return ins.filter(i=>i.value.trim()!==''&&(set?(isDash(i.value)?!isDash(orig.get(i)):i.value.trim()!==orig.get(i)):Number(i.value)>0));}
+  ov.addEventListener('click',e=>{const b=e.target.closest('[data-st]');if(!b)return;e.stopPropagation();const i=b.parentElement.querySelector('input');
+    const v=i.value.trim(),n=/^\d+$/.test(v)?Number(v):null,d=Number(b.dataset.st);
+    if(set)i.value=n===null?(d>0?'1':v||'-'):(n+d<0?'-':String(n+d));
+    else i.value=n===null?(d>0?'1':''):(n+d<=0?'':String(n+d));
+    i.dispatchEvent(new Event('input',{bubbles:true}));});
   ov.addEventListener('input',()=>{const c=chg();ins.forEach(i=>i.classList.toggle('chg',c.includes(i)));
     ov.querySelector('[data-impsum]').textContent=c.length?(set?`修改 ${c.length} 個規格`:`進貨 ${c.length} 個規格、共 ${c.reduce((t,i)=>t+Number(i.value),0)} 支`):'';});
   ov.querySelector('[data-ok]').focus();
