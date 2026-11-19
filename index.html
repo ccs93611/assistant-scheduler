@@ -119,6 +119,8 @@ nav.tabs .tab-grp-btn .dd-car{font-size:.8em; margin-left:2px;}
 .tab-menu[hidden]{display:none;}
 nav.tabs .tab-menu button{border-radius:6px; border-bottom:none; text-align:left; padding:10px 14px;}
 nav.tabs .tab-menu button[aria-selected="true"]{background:var(--accent-soft); border-bottom:none;}
+nav.tabs .tab-menu a{display:block; border-radius:6px; padding:10px 14px; font-size:1.05rem; font-weight:600; color:color-mix(in srgb,var(--ink) 72%,transparent); text-decoration:none; white-space:nowrap;}
+nav.tabs .tab-menu a:hover{color:var(--ink); background:var(--accent-soft);}
 
 .banner{margin-top:12px; padding:9px 12px; border-radius:8px; font-size:.82rem; background:var(--slot); color:var(--sub);}
 .banner.warn{background:var(--warn-soft); color:var(--warn);}
@@ -793,6 +795,16 @@ body.gated .shell{display:none;}
       <div class="tab-menu" role="menu" hidden>
         <button role="menuitem" data-tab="cscheck" id="csTabBtn" hidden>耗材確認</button>
         <button role="menuitem" data-tab="implant" id="impTabBtn" hidden>植體數量</button>
+      </div>
+    </div>
+    <!-- 相關連結：其他頁面，點了開新視窗（各頁面自己檢查權限） -->
+    <div class="tab-grp" data-links>
+      <button type="button" class="tab-grp-btn" aria-haspopup="menu" aria-expanded="false">相關連結<span class="dd-car">▾</span></button>
+      <div class="tab-menu" role="menu" hidden>
+        <a role="menuitem" href="treatment-plan.html" target="_blank" rel="noopener">治療計劃單 ↗</a>
+        <a role="menuitem" href="treatments.html" target="_blank" rel="noopener">治療項目介紹 ↗</a>
+        <a role="menuitem" href="diseases.html" target="_blank" rel="noopener">牙科常見疾病 ↗</a>
+        <a role="menuitem" href="consumables.html" target="_blank" rel="noopener">耗材登記 ↗</a>
       </div>
     </div>
   </nav>
@@ -2412,7 +2424,7 @@ function renderAll(){
   // 排休抽籤：暫時只開放給超級管理員（之後要開放時拿掉這段即可）
   {const lb=document.querySelector('nav.tabs button[data-tab="lottery"]');if(!superOK()){lb.hidden=true;if(prefs.tab==='lottery')prefs.tab='schedule';}}
   // 下拉分頁群組：按鈕顯示「群組名・目前分頁」與底下各分頁括號內數字的加總（例如待審、缺證明）；底下分頁都看不到時整組隱藏
-  document.querySelectorAll('nav.tabs .tab-grp').forEach(g=>{const items=[...g.querySelectorAll('.tab-menu [data-tab]')],vis=items.filter(b=>!b.hidden),cur=vis.find(b=>b.dataset.tab===prefs.tab),btn=g.querySelector('.tab-grp-btn');
+  document.querySelectorAll('nav.tabs .tab-grp:not([data-links])').forEach(g=>{const items=[...g.querySelectorAll('.tab-menu [data-tab]')],vis=items.filter(b=>!b.hidden),cur=vis.find(b=>b.dataset.tab===prefs.tab),btn=g.querySelector('.tab-grp-btn');
     const badge=vis.reduce((a,b)=>a+((b.textContent.match(/（(.*)）/)||[,''])[1].match(/d+/g)||[]).reduce((x,y)=>x+Number(y),0),0);
     g.hidden=!vis.length;btn.setAttribute('aria-selected',String(!!cur));
     const curName=cur?cur.textContent.replace(/（.*$/,''):''; // 跟群組同名的分頁（出勤）不重複顯示
@@ -5067,7 +5079,7 @@ function renderImplant(){
   $('impInfo').textContent=last?'最近盤點：'+fmtAt(last):'還沒輸入過數量';
   $('impInBtn').hidden=$('impSetBtn').hidden=impLv()!=='admin';
   const log=(st.log||[]).slice(-50).reverse();
-  $('impLog').innerHTML=log.length?'<thead><tr><th>時間</th><th>人員</th><th>動作</th><th>植體</th><th>規格</th><th class="num">數量</th></tr></thead><tbody>'+log.map(l=>`<tr><td style="white-space:nowrap">${esc(fmtAt(l.at))}</td><td>${esc(l.by||'')}</td><td>${l.a==='in'?`進貨${l.date?`<br><small class="att-mute">進貨日 ${esc(l.date.replace(/-/g,'/'))}</small>`:''}`:l.a==='clear'?'盤點（不追蹤）':'盤點'}</td><td>${esc(impShort(l.item))}</td><td style="white-space:nowrap">${esc(l.spec)}</td><td class="num">${l.a==='in'?'＋'+l.n:`${l.prev??'—'} → ${l.a==='clear'?'—':l.n}`}</td></tr>`).join('')+'</tbody>':'<tbody><tr><td class="att-mute">還沒有紀錄</td></tr></tbody>';
+  $('impLog').innerHTML=log.length?'<thead><tr><th>時間</th><th>人員</th><th>動作</th><th>植體</th><th>規格</th><th class="num">數量</th></tr></thead><tbody>'+log.map(l=>`<tr><td style="white-space:nowrap">${esc(fmtAt(l.at))}</td><td>${esc(l.by||'')}</td><td>${l.a==='in'?'進貨':l.a==='clear'?'盤點（不追蹤）':'盤點'}${l.date?`<br><small class="att-mute">${l.a==='in'?'進貨日':'盤點日'} ${esc(l.date.replace(/-/g,'/'))}</small>`:''}</td><td>${esc(impShort(l.item))}</td><td style="white-space:nowrap">${esc(l.spec)}</td><td class="num">${l.a==='in'?'＋'+l.n:`${l.prev??'—'} → ${l.a==='clear'?'—':l.n}`}</td></tr>`).join('')+'</tbody>':'<tbody><tr><td class="att-mute">還沒有紀錄</td></tr></tbody>';
 }
 async function impSave(mut){
   const fix=v=>{v.s=v.s||{};v.log=v.log||[];mut(v);v.log=v.log.slice(-300);return v;};
@@ -5080,18 +5092,20 @@ const isDash=v=>/^[-－—–]$/.test(String(v||'').trim()); // 「-」＝不追
 function impOpen(kind){
   if(impLv()!=='admin')return;
   const it=impItem,left=impLeft(),set=kind==='set';
-  dialog(`<div class="imp-dlg-h"><h3 style="margin:0">${set?'盤點':'進貨'}・${esc(impShort(it))}</h3>${set?'':`<label class="imp-date">進貨日期 <input type="date" id="impInDate" value="${ymd(new Date())}" max="${ymd(new Date())}"></label>`}</div>
-    <p class="hint" style="margin:0 0 10px">${set?'輸入每個規格目前實際的數量（已帶入現在的剩餘數量）。輸入「-」代表不追蹤這個規格（列表顯示「—」，不扣減）；0 代表有追蹤但已用完。儲存後從現在開始扣減登記使用的支數。':'輸入這次進貨的支數，會加到剩餘數量上；沒進貨的規格留空。'}</p>
+  dialog(`<div class="imp-dlg-h"><h3 style="margin:0">${set?'盤點':'進貨'}・${esc(impShort(it))}</h3><label class="imp-date">${set?'盤點日期':'進貨日期'} <input type="date" id="impInDate" value="${ymd(new Date())}" max="${ymd(new Date())}"></label></div>
+    <p class="hint" style="margin:0 0 10px">${set?'輸入每個規格目前實際的數量（已帶入現在的剩餘數量）。輸入「-」代表不追蹤這個規格（列表顯示「—」，不扣減）；0 代表有追蹤但已用完。選今天＝從現在開始扣減；選之前的日期＝輸入那天結束時的數量，那天之後登記的使用支數才扣減。':'輸入這次進貨的支數，會加到剩餘數量上；沒進貨的規格留空。'}</p>
     <div class="scroll-x"><table class="list imp-grid">${impGrid(it,(sp,k)=>`<span class="imp-step">`+(set?`<input type="text" maxlength="4" autocomplete="off" data-k="${esc(k)}" data-sp="${esc(sp)}" value="${k in left?Math.max(0,left[k]):'-'}" aria-label="${esc(sp)}">`:`<input type="number" min="0" step="1" inputmode="numeric" data-k="${esc(k)}" data-sp="${esc(sp)}" value="" aria-label="${esc(sp)}">`)+`<span class="imp-arr"><button type="button" data-st="1" aria-label="增加" tabindex="-1">▲</button><button type="button" data-st="-1" aria-label="減少" tabindex="-1">▼</button></span></span>`)}</table></div>
     <p class="hint" data-impsum style="margin:8px 0 0;min-height:1.4em"></p>`,ov=>{
     const c=chg(ov);if(!c.length)return;
     if(c.some(i=>!(/^\d+$/.test(i.value.trim())||(set&&isDash(i.value))))){toast(set?'數量要是 0 以上的整數，或輸入「-」（不追蹤）。':'數量要是 0 以上的整數。','warn');return false;}
-    const inDate=set?'':(ov.querySelector('#impInDate').value||'');
-    if(!set&&!/^\d{4}-\d{2}-\d{2}$/.test(inDate)){toast('請選擇進貨日期。','warn');return false;}
+    const inDate=ov.querySelector('#impInDate').value||'',today=ymd(new Date());
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(inDate)||inDate>today){toast(`請選擇${set?'盤點':'進貨'}日期（不能是未來）。`,'warn');return false;}
     const now=Date.now(),by=myDisplayName();
+    // 盤點的起算時間：今天＝現在；之前的日期＝那天結束時（之後登記的才扣減）
+    const base=inDate===today?now:new Date(inDate+'T23:59:59.999').getTime();
     impSave(v=>c.forEach(i=>{const k=i.dataset.k,n=Number(i.value),b=v.s[k];
-      if(set&&isDash(i.value)){if(k in v.s){v.log.push({a:'clear',item:it,spec:i.dataset.sp,prev:k in left?left[k]:null,at:now,by});delete v.s[k];}}
-      else if(set){v.log.push({a:'set',item:it,spec:i.dataset.sp,n,prev:k in left?left[k]:null,at:now,by});v.s[k]={n,at:now};}
+      if(set&&isDash(i.value)){if(k in v.s){v.log.push({a:'clear',item:it,spec:i.dataset.sp,prev:k in left?left[k]:null,at:now,by,date:inDate});delete v.s[k];}}
+      else if(set){v.log.push({a:'set',item:it,spec:i.dataset.sp,n,prev:k in left?left[k]:null,at:now,by,date:inDate});v.s[k]={n,at:base};}
       else{v.log.push({a:'in',item:it,spec:i.dataset.sp,n,at:now,by,date:inDate});v.s[k]=b?{n:(Number(b.n)||0)+n,at:b.at}:{n,at:now};}}))
       .then(()=>toast(set?'已儲存盤點數量。':'已登記進貨。'))
       .catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限（只有植體數量「管理」可以修改，或安全規則尚未更新）':e.message),'warn');});
@@ -5637,7 +5651,7 @@ document.querySelectorAll('nav.tabs .tab-grp').forEach(g=>{
 document.addEventListener('click',e=>{if(!e.target.closest('nav.tabs .tab-grp'))tabMenu(null);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')tabMenu(null);});
 addEventListener('resize',()=>tabMenu(null));document.querySelector('nav.tabs').addEventListener('scroll',()=>tabMenu(null));
-document.querySelector('nav.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;tabMenu(null);if(b.dataset.tab==='holidays'&&prefs.tab!=='holidays')holScrolled=false;if(b.dataset.tab==='leave'&&prefs.tab!=='leave')leaveScrolled={assistant:false,after:false,fc:false};prefs.tab=b.dataset.tab;savePrefs();renderAll();});
+document.querySelector('nav.tabs').addEventListener('click',e=>{if(e.target.closest('.tab-menu a')){tabMenu(null);return;}const b=e.target.closest('[data-tab]');if(!b)return;tabMenu(null);if(b.dataset.tab==='holidays'&&prefs.tab!=='holidays')holScrolled=false;if(b.dataset.tab==='leave'&&prefs.tab!=='leave')leaveScrolled={assistant:false,after:false,fc:false};prefs.tab=b.dataset.tab;savePrefs();renderAll();});
 $('rangeForm').addEventListener('submit',e=>{
   e.preventDefault();const a=$('stFrom').value,b=$('stTo').value;
   if(!a||!b){toast('請選擇開始與結束日期。','warn');return;}
