@@ -725,7 +725,7 @@ body.gated .shell{display:none;}
     <div class="tab-grp" data-grp="排班表">
       <button type="button" class="tab-grp-btn" aria-haspopup="menu" aria-expanded="false">排班表</button>
       <div class="tab-menu" role="menu" hidden>
-        <button role="menuitem" data-tab="schedule">班表</button>
+        <button role="menuitem" data-tab="schedule" data-nosub>班表</button>
         <button role="menuitem" data-tab="rules">排班規則</button>
         <button role="menuitem" data-tab="stats">工時統計</button>
       </div>
@@ -2337,7 +2337,7 @@ function renderAll(){
   document.querySelectorAll('nav.tabs .tab-grp').forEach(g=>{const items=[...g.querySelectorAll('.tab-menu [data-tab]')],vis=items.filter(b=>!b.hidden),cur=vis.find(b=>b.dataset.tab===prefs.tab),btn=g.querySelector('.tab-grp-btn');
     const badge=vis.reduce((a,b)=>a+((b.textContent.match(/（(.*)）/)||[,''])[1].match(/d+/g)||[]).reduce((x,y)=>x+Number(y),0),0);
     g.hidden=!vis.length;btn.setAttribute('aria-selected',String(!!cur));
-    btn.innerHTML=`${esc(g.dataset.grp)}${cur?'・'+esc(cur.textContent.replace(/（.*$/,'')):''}${badge?`（${badge}）`:''}<span class="dd-car">▾</span>`;});
+    btn.innerHTML=`${esc(g.dataset.grp)}${cur&&!cur.hasAttribute('data-nosub')?'・'+esc(cur.textContent.replace(/（.*$/,'')):''}${badge?`（${badge}）`:''}<span class="dd-car">▾</span>`;});
   ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','cscheck','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
