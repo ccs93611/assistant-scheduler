@@ -40,6 +40,12 @@ service cloud.firestore {
     }
     function tpLv() { return appLv('tp'); }
     function csLv() { return appLv('cs'); }
+    // 植體數量（access/{Gmail}.imp：none／view／admin），沒設定＝none；擁有者＝admin；與耗材權限 cs 各自獨立
+    function impLv() {
+      return isOwner() ? 'admin'
+        : (!hasAcc() || get(accPath()).data.perm == 'suspended') ? 'none'
+        : get(accPath()).data.get('imp', 'none');
+    }
 
     // 打卡裝置（kiosk.html）：匿名登入，雙軌核准，任一成立即可：
     //   1) devices/{uid}.approved == true（以裝置代碼核准）
@@ -318,7 +324,8 @@ service cloud.firestore {
     function isCsAdmin() { return csLv() == 'admin'; }
     function isMyDoc(d) { return signedIn() && mySid() != '' && perm() != 'suspended' && d.doctorId == mySid(); }
     match /csItems/{id} {
-      allow read: if csLv() in ['view', 'edit', 'admin'] || isCsDevice() || isMyDoc(resource.data);
+      allow read: if csLv() in ['view', 'edit', 'admin'] || isCsDevice() || isMyDoc(resource.data)
+        || (impLv() in ['view', 'admin'] && resource.data.item in ['植體(Hiossen)', '植體(Straumann BLC)', '植體(Straumann BLX)']); // 植體數量：只能讀植體的登記
       allow create: if canEditCs() && request.resource.data.status == 'pending';
       allow update: if isCsAdmin()
         || (canEditCs() && resource.data.status != 'confirmed' && request.resource.data.status == 'pending')
@@ -331,8 +338,8 @@ service cloud.firestore {
     match /csConfig/{id} { allow read: if csLv() != 'none' || isCsDevice() || canView(); allow write: if isCsAdmin(); }
     // csImages 耗材圖片（登記時點「！」看）：有耗材權限或耗材認證設備都可以看；耗材「管理」可以上傳、更換、刪除
     match /csImages/{id} { allow read: if csLv() != 'none' || isCsDevice() || canView(); allow write: if isCsAdmin(); }
-    // csStock 植體數量（盤點數量、進貨紀錄）：有耗材權限或耗材認證設備都可以看；耗材「管理」可以盤點、登記進貨
-    match /csStock/{id} { allow read: if csLv() != 'none' || isCsDevice(); allow write: if isCsAdmin(); }
+    // csStock 植體數量（盤點數量、進貨紀錄）：只看植體數量權限（與耗材權限無關）；檢視以上可以看，管理可以盤點、登記進貨
+    match /csStock/{id} { allow read: if impLv() in ['view', 'admin']; allow write: if impLv() == 'admin'; }
     // csPrice 耗材單價：只有超級管理員看得到、改得到（助理、醫師與耗材管理都讀不到價格）
     match /csPrice/{id} { allow read, write: if isSuper(); }
   }
