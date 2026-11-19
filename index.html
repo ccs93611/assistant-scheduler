@@ -5563,7 +5563,15 @@ function importAttToPay(ids){
 function tabMenu(g){document.querySelectorAll('nav.tabs .tab-grp').forEach(x=>{const m=x.querySelector('.tab-menu'),b=x.querySelector('.tab-grp-btn'),open=x===g;
   if(open){const r=b.getBoundingClientRect();m.style.left=Math.max(8,Math.min(r.left,innerWidth-170))+'px';m.style.top=(r.bottom+2)+'px';}
   m.hidden=!open;b.setAttribute('aria-expanded',String(open));});}
-document.querySelectorAll('nav.tabs .tab-grp-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const g=b.closest('.tab-grp');tabMenu(g.querySelector('.tab-menu').hidden?g:null);}));
+// 滑鼠：滑過群組按鈕就自動下拉，離開按鈕與選單一小段時間後收起（中間的小縫不會關掉）；觸控：用點的開關
+let tabHoverAt=0,tabLeaveTimer=null;
+document.querySelectorAll('nav.tabs .tab-grp-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const g=b.closest('.tab-grp'),open=!g.querySelector('.tab-menu').hidden;
+  if(open&&Date.now()-tabHoverAt<600)return; // 剛被滑鼠滑開時再點一下不要收起
+  tabMenu(open?null:g);}));
+document.querySelectorAll('nav.tabs .tab-grp').forEach(g=>{
+  g.addEventListener('pointerenter',e=>{if(e.pointerType!=='mouse')return;clearTimeout(tabLeaveTimer);if(g.querySelector('.tab-menu').hidden){tabHoverAt=Date.now();tabMenu(g);}});
+  g.addEventListener('pointerleave',e=>{if(e.pointerType!=='mouse')return;clearTimeout(tabLeaveTimer);tabLeaveTimer=setTimeout(()=>{if(!g.matches(':hover'))tabMenu(null);},250);});
+});
 document.addEventListener('click',e=>{if(!e.target.closest('nav.tabs .tab-grp'))tabMenu(null);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')tabMenu(null);});
 addEventListener('resize',()=>tabMenu(null));document.querySelector('nav.tabs').addEventListener('scroll',()=>tabMenu(null));
