@@ -230,6 +230,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
       <div class="field"><label for="sTo">到</label><input type="date" id="sTo"></div>
       <div class="field"><label>&nbsp;</label><div style="display:flex;gap:4px;flex-wrap:wrap"><button type="button" class="btn-sm" data-rng="m0">本月</button><button type="button" class="btn-sm" data-rng="m1">上個月</button><button type="button" class="btn-sm" data-rng="y0">今年</button></div></div>
       <div class="field"><label for="sBy">分列方式</label><select id="sBy"><option value="item">依耗材種類</option><option value="itemDoc">依耗材種類＋醫師</option><option value="doc">依醫師</option></select></div>
+      <div class="field"><label for="sItem">耗材種類</label><select id="sItem"></select></div>
       <div class="field"><label for="sDoc">醫師</label><select id="sDoc"></select></div>
       <div class="field"><label>&nbsp;</label><button type="button" class="btn-primary" id="sGo">開始統計</button></div>
     </div>
@@ -534,6 +535,7 @@ function fillItems(extra){
   const old=[...new Set([...items.values()].map(x=>x.item))].filter(n=>n&&!list.includes(n));
   if(typeof syncItemImg==='function')syncItemImg();
   set($('#vItem'),'<option value="">全部耗材</option>'+list.map(o).join('')+old.map(o).join(''));
+  set($('#sItem'),'<option value="">全部耗材</option>'+list.map(o).join('')+old.map(o).join('')); // 耗材統計：只統計某種耗材
 }
 function afterLogin(){
   $('#gate').hidden=true;$('#me').hidden=false;
@@ -803,7 +805,7 @@ async function runStats(){
 const docName=x=>byId(x.doctorId)?.name||x.doctorName||'（未填）';
 function renderStats(){
   if(!stData){$('#stTable').innerHTML='<tbody><tr><td class="empty">選擇日期區間後按「開始統計」。</td></tr></tbody>';$('#stInfo').textContent='';$('#stDetail').hidden=true;return}
-  const by=$('#sBy').value,doc=$('#sDoc').value,data=stData.filter(x=>!doc||x.doctorId===doc);
+  const by=$('#sBy').value,doc=$('#sDoc').value,it=$('#sItem').value,data=stData.filter(x=>(!doc||x.doctorId===doc)&&(!it||x.item===it));
   // 有規格的耗材（例如 Bone screw 各長度）分開統計
   const keyOf=x=>by==='doc'?docName(x):by==='itemDoc'?itemLabel(x)+'\u0001'+docName(x):itemLabel(x);
   // 依耗材清單順序排（清單外的放後面），同耗材依規格順序，醫師依姓名
@@ -834,6 +836,7 @@ document.querySelectorAll('[data-rng]').forEach(b=>b.addEventListener('click',()
 $('#sGo').addEventListener('click',runStats);
 $('#sBy').addEventListener('change',()=>{stKey=null;renderStats()});
 $('#sDoc').addEventListener('change',()=>{stKey=null;renderStats()});
+$('#sItem').addEventListener('change',()=>{stKey=null;renderStats()});
 $('#stDetailSt').addEventListener('change',renderStats);
 $('#stDetailClose').addEventListener('click',()=>{stKey=null;renderStats()});
 $('#stTable').addEventListener('click',e=>{const b=e.target.closest('[data-stk]');if(!b)return;stKey=stKey===b.dataset.stk?null:b.dataset.stk;$('#stDetailSt').value='';renderStats();if(stKey)$('#stDetail').scrollIntoView({behavior:'smooth',block:'nearest'})});
