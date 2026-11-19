@@ -365,7 +365,7 @@ const DISEASE_INFO=[
  note:'咬合創傷本身不會造成牙周病，但如果已經有牙周病，咬合創傷會讓骨頭流失得更快，所以兩者要一起治療。'},
 
 {id:'missing',
- cases:[{label:'後牙缺牙案例',imgs:['media/missing-case-1.jpg','media/missing-case-2.jpg','media/missing-case-3.jpg']}], // 治療前全口 X 光、口內照、治療後全口 X 光
+ cases:[{label:'後牙缺牙案例',imgs:['media/missing-case-1.jpg','media/missing-case-2.jpg?v=2','media/missing-case-3.jpg']}], // 治療前全口 X 光、口內照、治療後全口 X 光
  cat:'咬合與結構異常',title:'缺牙',alias:['缺牙','掉牙','少一顆牙','拔牙後','牙齒拔掉','沒有牙齒','全口無牙','先天缺牙','植牙','假牙'],
  video:[{src:'media/missing-case-v2.mp4',cap:'影片：缺牙造成對咬牙脫位',rate:0.7},DI_VID_POST], // rate：播放速度（1 = 原速）；missing-case-v2 裁掉原始檔上下黑邊（720×1280 → 720×578），再以 AI 放大與原版各半疊合（1440×1156）
  what:'因蛀牙、牙周病、外傷拔除，或先天就少了牙齒。缺牙不只影響咀嚼和外觀，時間一久，旁邊的牙齒會倒過來、對咬的牙齒會伸長，缺牙處的骨頭也會慢慢萎縮。',
