@@ -5047,7 +5047,7 @@ function renderImplant(){
   $('impInfo').textContent=last?'最近盤點：'+fmtAt(last):'還沒輸入過數量';
   $('impInBtn').hidden=$('impSetBtn').hidden=impLv()!=='admin';
   const log=(st.log||[]).slice(-50).reverse();
-  $('impLog').innerHTML=log.length?'<thead><tr><th>時間</th><th>人員</th><th>動作</th><th>植體</th><th>規格</th><th class="num">數量</th></tr></thead><tbody>'+log.map(l=>`<tr><td style="white-space:nowrap">${esc(fmtAt(l.at))}</td><td>${esc(l.by||'')}</td><td>${l.a==='in'?'進貨':'盤點'}</td><td>${esc(impShort(l.item))}</td><td style="white-space:nowrap">${esc(l.spec)}</td><td class="num">${l.a==='in'?'＋'+l.n:`${l.prev??'—'} → ${l.n}`}</td></tr>`).join('')+'</tbody>':'<tbody><tr><td class="att-mute">還沒有紀錄</td></tr></tbody>';
+  $('impLog').innerHTML=log.length?'<thead><tr><th>時間</th><th>人員</th><th>動作</th><th>植體</th><th>規格</th><th class="num">數量</th></tr></thead><tbody>'+log.map(l=>`<tr><td style="white-space:nowrap">${esc(fmtAt(l.at))}</td><td>${esc(l.by||'')}</td><td>${l.a==='in'?'進貨':l.a==='clear'?'盤點（不追蹤）':'盤點'}</td><td>${esc(impShort(l.item))}</td><td style="white-space:nowrap">${esc(l.spec)}</td><td class="num">${l.a==='in'?'＋'+l.n:`${l.prev??'—'} → ${l.a==='clear'?'—':l.n}`}</td></tr>`).join('')+'</tbody>':'<tbody><tr><td class="att-mute">還沒有紀錄</td></tr></tbody>';
 }
 async function impSave(mut){
   const fix=v=>{v.s=v.s||{};v.log=v.log||[];mut(v);v.log=v.log.slice(-300);return v;};
@@ -5056,25 +5056,27 @@ async function impSave(mut){
   await db.runTransaction(async t=>{const d=await t.get(ref);t.set(ref,fix(d.exists?d.data():{}));});
 }
 // mode：set＝盤點（輸入實際數量，從現在開始扣減）；in＝進貨（加到剩餘數量）
+const isDash=v=>/^[-－—–]$/.test(String(v||'').trim()); // 「-」＝不追蹤這個規格
 function impOpen(kind){
   if(impLv()!=='admin')return;
   const it=impItem,left=impLeft(),set=kind==='set';
   dialog(`<h3>${set?'盤點':'進貨'}・${esc(impShort(it))}</h3>
-    <p class="hint" style="margin:0 0 10px">${set?'輸入每個規格目前實際的數量（已帶入現在的剩餘數量；空白＝不變）。儲存後從現在開始扣減登記使用的支數。':'輸入這次進貨的支數，會加到剩餘數量上；沒進貨的規格留空。'}</p>
-    <div class="scroll-x"><table class="list imp-grid">${impGrid(it,(sp,k)=>`<input type="number" min="0" step="1" inputmode="numeric" data-k="${esc(k)}" data-sp="${esc(sp)}" value="${set&&k in left?Math.max(0,left[k]):''}" aria-label="${esc(sp)}">`)}</table></div>
+    <p class="hint" style="margin:0 0 10px">${set?'輸入每個規格目前實際的數量（已帶入現在的剩餘數量）。輸入「-」代表不追蹤這個規格（列表顯示「—」，不扣減）；0 代表有追蹤但已用完。儲存後從現在開始扣減登記使用的支數。':'輸入這次進貨的支數，會加到剩餘數量上；沒進貨的規格留空。'}</p>
+    <div class="scroll-x"><table class="list imp-grid">${impGrid(it,(sp,k)=>set?`<input type="text" maxlength="4" autocomplete="off" data-k="${esc(k)}" data-sp="${esc(sp)}" value="${k in left?Math.max(0,left[k]):'-'}" aria-label="${esc(sp)}">`:`<input type="number" min="0" step="1" inputmode="numeric" data-k="${esc(k)}" data-sp="${esc(sp)}" value="" aria-label="${esc(sp)}">`)}</table></div>
     <p class="hint" data-impsum style="margin:8px 0 0;min-height:1.4em"></p>`,ov=>{
     const c=chg(ov);if(!c.length)return;
-    if(c.some(i=>!/^\d+$/.test(i.value.trim()))){toast('數量要是 0 以上的整數。','warn');return false;}
+    if(c.some(i=>!(/^\d+$/.test(i.value.trim())||(set&&isDash(i.value))))){toast(set?'數量要是 0 以上的整數，或輸入「-」（不追蹤）。':'數量要是 0 以上的整數。','warn');return false;}
     const now=Date.now(),by=myDisplayName();
     impSave(v=>c.forEach(i=>{const k=i.dataset.k,n=Number(i.value),b=v.s[k];
-      if(set){v.log.push({a:'set',item:it,spec:i.dataset.sp,n,prev:k in left?left[k]:null,at:now,by});v.s[k]={n,at:now};}
+      if(set&&isDash(i.value)){if(k in v.s){v.log.push({a:'clear',item:it,spec:i.dataset.sp,prev:k in left?left[k]:null,at:now,by});delete v.s[k];}}
+      else if(set){v.log.push({a:'set',item:it,spec:i.dataset.sp,n,prev:k in left?left[k]:null,at:now,by});v.s[k]={n,at:now};}
       else{v.log.push({a:'in',item:it,spec:i.dataset.sp,n,at:now,by});v.s[k]=b?{n:(Number(b.n)||0)+n,at:b.at}:{n,at:now};}}))
       .then(()=>toast(set?'已儲存盤點數量。':'已登記進貨。'))
       .catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限（只有植體數量「管理」可以修改，或安全規則尚未更新）':e.message),'warn');});
   },'儲存');
   const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
   const ins=[...ov.querySelectorAll('input[data-k]')],orig=new Map(ins.map(i=>[i,i.value]));
-  function chg(){return ins.filter(i=>i.value.trim()!==''&&(set?i.value!==orig.get(i):Number(i.value)>0));}
+  function chg(){return ins.filter(i=>i.value.trim()!==''&&(set?(isDash(i.value)?!isDash(orig.get(i)):i.value.trim()!==orig.get(i)):Number(i.value)>0));}
   ov.addEventListener('input',()=>{const c=chg();ins.forEach(i=>i.classList.toggle('chg',c.includes(i)));
     ov.querySelector('[data-impsum]').textContent=c.length?(set?`修改 ${c.length} 個規格`:`進貨 ${c.length} 個規格、共 ${c.reduce((t,i)=>t+Number(i.value),0)} 支`):'';});
   ov.querySelector('[data-ok]').focus();
