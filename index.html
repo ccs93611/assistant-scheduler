@@ -3005,7 +3005,7 @@ function renderStats(mi,counts){
   $('statsTable').innerHTML=`<thead><tr><th>人員</th><th>職稱</th><th class="num">早</th><th class="num">午</th><th class="num">晚</th><th class="num">總班數</th><th class="num combo">早+晚</th><th class="num combo">全天班</th><th class="num posc">主櫃</th><th class="num posc">跟診</th><th class="num posc">流動</th><th class="num">基本工時</th><th class="num" title="可排班天數 × 8 小時（可排班天數＝期間天數－週日－診所休診日－非營業日－事前請假的日子；事後請假不影響）">合理工時</th><th class="num">單日超時</th><th class="num" title="班表中以「加診」排入的診數">加診數</th><th class="num" title="單日超時＋加診數 × 3.5 小時">排班總超時</th></tr></thead><tbody>`+
     (list.length?list.map(s=>{
       const c=counts[s.id]||{total:0,day:0,eve:0,night:0,hours:0,ot:0,fullDays:0,dn:0,extra:0,pos:[0,0,0,0,0]};
-      return `<tr class="${s.active===false?'inactive':''}"><td>${esc(fullName(s))}</td><td><span class="pill${s.role==='doctor'?' doc':''}">${ROLE[s.role]}</span></td>
+      return `<tr class="${s.active===false?'inactive':''}"><td><b>${esc(fullName(s))}</b></td><td><span class="pill${s.role==='doctor'?' doc':''}">${ROLE[s.role]}</span></td>
         <td class="num">${c.day}</td><td class="num">${c.eve}</td><td class="num">${c.night}</td><td class="num"><b>${c.total}</b></td>${[c.dn,c.fullDays].map(v=>`<td class="num combo">${v||'<span style="color:var(--faint)">0</span>'}</td>`).join('')}${[0,2,3].map(pi=>`<td class="num posc">${c.pos[pi]||'<span style="color:var(--faint)">0</span>'}</td>`).join('')}
         <td class="num">${c.hours.toFixed(1)}</td><td class="num">${reasonableDays(mi,s.id).toFixed(1)}</td><td class="num">${c.ot?`<span class="pill warn">${c.ot.toFixed(1)}</span>`:'<span style="color:var(--faint)">0</span>'}</td>${(()=>{const x=Math.round((c.hours-reasonableDays(mi,s.id))*10)/10,t=Math.round((Math.max(0,x)+(c.ot||0))*10)/10;const cell=v=>v>0?`<span class="pill warn">${v.toFixed(1)}</span>`:v<0?`<span style="color:var(--faint)">${v.toFixed(1)}</span>`:'<span style="color:var(--faint)">0</span>';const ot=schedOt(c);return `<td class="num">${c.extra?`<span class="pill" style="background:var(--extra);color:var(--extra-ink)">${c.extra}</span>`:'<span style="color:var(--faint)">0</span>'}</td><td class="num" style="white-space:nowrap"><b>${ot?`<span class="pill warn">${fmtHM(ot)}</span>`:'<span style="color:var(--faint)">0</span>'}</b></td>`;})()}
         </tr>`;
@@ -3323,7 +3323,7 @@ function renderPay(mi,counts){
   const sums=COLS.map(()=>0);
   const rows=list.map(s=>{
     const p=calcPay(mi,counts,s);COLS.forEach((c,i)=>sums[i]+=Number(c.v(p,s))||0);
-    return `<tr class="${s.active===false?'inactive':''}">${payAdmin()?`<td class="pay-who">${esc(fullName(s))}${p.r.saved?'':' <span class="pill">試算</span>'}</td>`:''}`+
+    return `<tr class="${s.active===false?'inactive':''}">${payAdmin()?`<td class="pay-who"><b>${esc(fullName(s))}</b>${p.r.saved?'':' <span class="pill">試算</span>'}</td>`:''}`+
       COLS.map(c=>{const t=c.tip?c.tip(p,s):'';return `<td class="${cls(c)}"${t?` title="${esc(t)}"`:''}>${c.cell?c.cell(p,s):z(c.v(p,s))}</td>`;}).join('')+
       `<td class="pay-note">${payNoteHtml(p)}</td>${payAdmin()?`<td class="num"><button class="small" data-payedit="${s.id}">編輯</button></td>`:''}</tr>`;
   }).join('');
@@ -3383,7 +3383,7 @@ function openPayBulk(){
   dialog(`<h3>集體編輯・${mi.label} 薪資</h3>
     <p class="hint" style="margin:0 0 10px">一次填寫所有助理的薪資項目，按「儲存」只會儲存有改動的人。加減項請用各人的「編輯」。</p>
     <div class="scroll-x" style="max-height:calc(100vh - 230px);overflow:auto"><table class="list pay-bulk"><thead><tr><th>人員</th>${PAY_FIELDS.map(f=>`<th class="num">${f.label}${f.unit?`<br><small>（${f.unit}）</small>`:''}</th>`).join('')}<th class="num">實發</th><th>備註</th></tr></thead><tbody>
-    ${list.map(s=>`<tr data-pbrow="${s.id}"><td style="white-space:nowrap">${esc(fullName(s))}${recs[s.id].saved?'':' <span class="pill">試算</span>'}</td>${PAY_FIELDS.map(f=>`<td><input${f.hl?' class="hl"':''} type="number" min="0" step="1" data-pb="${f.k}" value="${recs[s.id][f.k]}" aria-label="${esc(fullName(s))} ${f.label}"></td>`).join('')}<td class="num net" data-pbnet></td><td><input type="text" class="pb-note" data-pbnote value="${esc(recs[s.id].note)}" placeholder="選填" aria-label="${esc(fullName(s))} 備註">${(a=>a?`<br><small class="pay-auto">自動：${esc(a)}</small>`:"")(calcPay(mi,counts,s,recs[s.id]).autoNote)}</td></tr>`).join('')}
+    ${list.map(s=>`<tr data-pbrow="${s.id}"><td style="white-space:nowrap"><b>${esc(fullName(s))}</b>${recs[s.id].saved?'':' <span class="pill">試算</span>'}</td>${PAY_FIELDS.map(f=>`<td><input${f.hl?' class="hl"':''} type="number" min="0" step="1" data-pb="${f.k}" value="${recs[s.id][f.k]}" aria-label="${esc(fullName(s))} ${f.label}"></td>`).join('')}<td class="num net" data-pbnet></td><td><input type="text" class="pb-note" data-pbnote value="${esc(recs[s.id].note)}" placeholder="選填" aria-label="${esc(fullName(s))} 備註">${(a=>a?`<br><small class="pay-auto">自動：${esc(a)}</small>`:"")(calcPay(mi,counts,s,recs[s.id]).autoNote)}</td></tr>`).join('')}
     </tbody></table></div>`,
     ov=>{
       const out=[];
@@ -3900,7 +3900,7 @@ function renderSettings(){
       ${P?'<td colspan="5"></td>':''}<td></td></tr>`
     :`<tr class="${s.active===false?'inactive':''}" data-srow="${s.id}">
       <td><b>${esc(s.code||'')}</b></td>
-      <td>${esc(s.name||'')||'<span style="color:var(--faint)">—</span>'}${s.active===false&&sep?`<br><small style="color:var(--sub);white-space:nowrap">到職 ${fmtD(hireOf(s.id))}・離職 ${fmtD(resignOf(s.id))}</small>`:''}</td>
+      <td>${s.name?'<b>'+esc(s.name)+'</b>':'<span style="color:var(--faint)">—</span>'}${s.active===false&&sep?`<br><small style="color:var(--sub);white-space:nowrap">到職 ${fmtD(hireOf(s.id))}・離職 ${fmtD(resignOf(s.id))}</small>`:''}</td>
       <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有超級管理員可以設定權限"'}>權限</button></td>${P?permCells(s):''}
       <td class="num" style="white-space:nowrap">${(a=>`<button class="small${a?.perm==='suspended'?' primary':''}" data-suspend${superOK()&&a?.account&&a.perm!=='super'?'':` disabled title="${!a?.account?'還沒綁定登入帳號':a.perm==='super'?'超級管理員暫時不能停權':'只有超級管理員可以停權'}"`}>${a?.perm==='suspended'?'恢復權限':'停權'}</button> `)(accessLinks[s.id])}<button class="small" data-toggle${dis}>${s.active===false?'恢復在職':'離職'}</button> <button class="small danger" data-delstaff${dis}>刪除</button></td></tr>`).join('')
       :`<tr><td colspan="${P?9:4}" class="empty">${q?`找不到符合「${esc(q)}」的${showRes?'已離職':''}${ROLE[role]}。`:showRes?`沒有已離職的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
@@ -5315,7 +5315,7 @@ function renderAtt(mi){
   const solo=lowPerm(); // 只看得到自己：不顯示人員欄與帶入薪資欄
   $('attTable').innerHTML=`<thead><tr>${solo?'':'<th>人員</th>'}<th class="num">應出勤（診）</th><th class="num">完整</th><th class="num">出勤率</th><th class="num">遲到</th><th class="num">早退</th><th class="num" title="只缺上班卡或只缺下班卡，請確認是否忘記打卡">未打卡（待確認）</th><th class="num" title="上下班卡都沒打、也沒請假">曠職（診）</th>${solo?'':'<th class="num" title="帶入薪資的遲到分鐘／早退分鐘">帶入薪資（遲到／早退分）</th>'}<th class="att-face">臉部</th></tr></thead><tbody>`+
     (ppl.length?ppl.map(s=>{const x=res[s.id].s;return `<tr class="att-row${attSel===s.id?' sel':''}" data-attsid="${esc(s.id)}">
-      ${solo?'':`<td><b>${esc(codeOf(s.id))}</b> ${esc(s.name||'')}</td>`}<td class="num">${x.due}</td><td class="num">${x.full}</td>
+      ${solo?'':`<td><b>${esc(codeOf(s.id))} ${esc(s.name||'')}</b></td>`}<td class="num">${x.due}</td><td class="num">${x.full}</td>
       <td class="num">${x.due?(x.full===x.due?`<span class="att-ok">${pct(x.full,x.due)}</span>`:`<span class="att-bad">${pct(x.full,x.due)}</span>`):'—'}</td>
       <td class="num">${bad(x.lateN,`${x.lateN} 次／${x.lateMin} 分`)}</td><td class="num">${bad(x.earlyN,`${x.earlyN} 次／${x.earlyMin} 分`)}</td>
       <td class="num" title="缺上班卡 ${x.missIn}、缺下班卡 ${x.missOut}">${bad(x.missIn+x.missOut,x.missIn+x.missOut)}</td><td class="num">${bad(x.absent,`<b>${x.absent}</b>`)}</td>
