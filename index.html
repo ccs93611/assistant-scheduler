@@ -528,6 +528,10 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .overlay{position:fixed; inset:0; background:rgba(15,20,17,.4); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
 .dialog{background:var(--panel); border-radius:12px; padding:20px 22px; max-width:420px; width:100%; box-shadow:var(--shadow); max-height:calc(100vh - 32px); overflow:auto;}
 .dialog.wide{max-width:960px;}
+.imp-dlg-h{display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:0 0 10px;}
+#impInBtn.imp-in-btn{border:2px solid var(--accent); color:var(--accent); background:var(--accent-soft); font-weight:700; padding:6px 14px;} /* 進貨：綠框淺綠底，明顯但和「盤點」區分 */
+#impInBtn.imp-in-btn:hover{background:color-mix(in srgb,var(--accent) 22%,var(--panel));}
+.imp-date{display:inline-flex; align-items:center; gap:6px; font-size:.9rem; color:var(--sub);}
 /* 人員名單權限欄：無＝淡灰、檢視＝灰底、登記／本人＝淺綠、管理＝綠、超級管理員＝深綠；虛線淡色＝未填 Gmail 的預設權限或停權中 */
 .pchip{display:inline-block; padding:2px 9px; border-radius:999px; font-size:.78rem; white-space:nowrap; border:1px solid transparent; line-height:1.4;}
 .pchip.l0{color:var(--faint);}
@@ -539,7 +543,8 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .pacct{display:inline-block; max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; font-size:.8rem; color:var(--sub);}
 /* 植體數量：直徑 × 長度表格 */
 /* 行與列明顯：每格都有框線、表頭（長度）與第一欄（直徑）加底色，滑過時整列與整欄一起標示 */
-table.imp-grid{width:auto; min-width:100%; font-size:.95rem;}
+table.imp-grid{width:auto; font-size:.95rem;} /* 不撐滿整個寬度，格子固定寬 */
+table.imp-grid thead th:not(:first-child),table.imp-grid tr:not(.g)>td:not(:first-child){width:110px; min-width:110px;}
 table.imp-grid th,table.imp-grid td{text-align:center; white-space:nowrap; border:1px solid var(--line); padding:8px 12px;}
 table.imp-grid thead th{background:color-mix(in srgb,var(--accent) 32%,var(--panel)); color:var(--ink); font-weight:700; font-size:.9rem;}
 table.imp-grid th:first-child,table.imp-grid td:first-child{text-align:left; background:color-mix(in srgb,var(--accent) 32%,var(--panel)); color:var(--ink); font-weight:700; position:sticky; left:0; z-index:1;}
@@ -550,6 +555,7 @@ table.imp-grid tbody tr:not(.g):hover td:not(.x),table.imp-grid td.imp-col:not(.
 table.imp-grid tbody tr:not(.g):hover td:first-child,table.imp-grid th.imp-col{background:var(--accent); color:var(--accent-ink);}
 table.imp-grid td.imp-hit:not(.x){background:var(--accent)!important; color:var(--accent-ink)!important;}
 table.imp-grid td.imp-hit span{color:inherit!important;}
+table.imp-grid thead th:first-child,table.imp-grid tr:not(.g)>td:first-child{padding-right:18px;} /* 直徑欄只用需要的寬度（不要用百分比，表格才不會撐滿整個寬度） */
 table.imp-grid td:not(:first-child){font-size:1.3rem; font-weight:700; font-variant-numeric:tabular-nums;}
 table.imp-grid td .att-mute{font-weight:400;} /* 「—」不用粗 */
 table.imp-grid td.x{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--line) 6px 7px);}
@@ -1013,7 +1019,7 @@ body.gated .shell{display:none;}
     <section id="tab-implant" hidden>
       <div class="stack">
         <div class="card">
-          <div class="lv-title-row"><h2 style="margin:0">植體數量</h2><span class="lv-range" id="impInfo"></span><span style="flex:1"></span><button class="small" id="impInBtn">＋ 進貨</button><button class="small primary" id="impSetBtn">盤點（輸入現有數量）</button></div>
+          <div class="lv-title-row"><h2 style="margin:0">植體數量</h2><span class="lv-range" id="impInfo"></span><button class="imp-in-btn" id="impInBtn" style="margin-left:12px">＋ 進貨</button><button class="primary" id="impSetBtn">盤點（輸入現有數量）</button></div>
           <p class="desc">剩餘數量＝盤點輸入的數量＋之後的進貨－之後在「耗材登記」登記使用的支數（待確認、退回、已確認都算；刪除登記會加回來）。「—」是還沒輸入過數量的規格；<span class="imp-low">橘色</span>剩 2 支以下、<span class="imp-out">紅色</span>已用完。</p>
           <div class="form-row" id="impTabs"></div>
           <div class="scroll-x"><table class="list imp-grid" id="impTable"></table></div>
@@ -5061,7 +5067,7 @@ function renderImplant(){
   $('impInfo').textContent=last?'最近盤點：'+fmtAt(last):'還沒輸入過數量';
   $('impInBtn').hidden=$('impSetBtn').hidden=impLv()!=='admin';
   const log=(st.log||[]).slice(-50).reverse();
-  $('impLog').innerHTML=log.length?'<thead><tr><th>時間</th><th>人員</th><th>動作</th><th>植體</th><th>規格</th><th class="num">數量</th></tr></thead><tbody>'+log.map(l=>`<tr><td style="white-space:nowrap">${esc(fmtAt(l.at))}</td><td>${esc(l.by||'')}</td><td>${l.a==='in'?'進貨':l.a==='clear'?'盤點（不追蹤）':'盤點'}</td><td>${esc(impShort(l.item))}</td><td style="white-space:nowrap">${esc(l.spec)}</td><td class="num">${l.a==='in'?'＋'+l.n:`${l.prev??'—'} → ${l.a==='clear'?'—':l.n}`}</td></tr>`).join('')+'</tbody>':'<tbody><tr><td class="att-mute">還沒有紀錄</td></tr></tbody>';
+  $('impLog').innerHTML=log.length?'<thead><tr><th>時間</th><th>人員</th><th>動作</th><th>植體</th><th>規格</th><th class="num">數量</th></tr></thead><tbody>'+log.map(l=>`<tr><td style="white-space:nowrap">${esc(fmtAt(l.at))}</td><td>${esc(l.by||'')}</td><td>${l.a==='in'?`進貨${l.date?`<br><small class="att-mute">進貨日 ${esc(l.date.replace(/-/g,'/'))}</small>`:''}`:l.a==='clear'?'盤點（不追蹤）':'盤點'}</td><td>${esc(impShort(l.item))}</td><td style="white-space:nowrap">${esc(l.spec)}</td><td class="num">${l.a==='in'?'＋'+l.n:`${l.prev??'—'} → ${l.a==='clear'?'—':l.n}`}</td></tr>`).join('')+'</tbody>':'<tbody><tr><td class="att-mute">還沒有紀錄</td></tr></tbody>';
 }
 async function impSave(mut){
   const fix=v=>{v.s=v.s||{};v.log=v.log||[];mut(v);v.log=v.log.slice(-300);return v;};
@@ -5074,17 +5080,19 @@ const isDash=v=>/^[-－—–]$/.test(String(v||'').trim()); // 「-」＝不追
 function impOpen(kind){
   if(impLv()!=='admin')return;
   const it=impItem,left=impLeft(),set=kind==='set';
-  dialog(`<h3>${set?'盤點':'進貨'}・${esc(impShort(it))}</h3>
+  dialog(`<div class="imp-dlg-h"><h3 style="margin:0">${set?'盤點':'進貨'}・${esc(impShort(it))}</h3>${set?'':`<label class="imp-date">進貨日期 <input type="date" id="impInDate" value="${ymd(new Date())}" max="${ymd(new Date())}"></label>`}</div>
     <p class="hint" style="margin:0 0 10px">${set?'輸入每個規格目前實際的數量（已帶入現在的剩餘數量）。輸入「-」代表不追蹤這個規格（列表顯示「—」，不扣減）；0 代表有追蹤但已用完。儲存後從現在開始扣減登記使用的支數。':'輸入這次進貨的支數，會加到剩餘數量上；沒進貨的規格留空。'}</p>
     <div class="scroll-x"><table class="list imp-grid">${impGrid(it,(sp,k)=>`<span class="imp-step">`+(set?`<input type="text" maxlength="4" autocomplete="off" data-k="${esc(k)}" data-sp="${esc(sp)}" value="${k in left?Math.max(0,left[k]):'-'}" aria-label="${esc(sp)}">`:`<input type="number" min="0" step="1" inputmode="numeric" data-k="${esc(k)}" data-sp="${esc(sp)}" value="" aria-label="${esc(sp)}">`)+`<span class="imp-arr"><button type="button" data-st="1" aria-label="增加" tabindex="-1">▲</button><button type="button" data-st="-1" aria-label="減少" tabindex="-1">▼</button></span></span>`)}</table></div>
     <p class="hint" data-impsum style="margin:8px 0 0;min-height:1.4em"></p>`,ov=>{
     const c=chg(ov);if(!c.length)return;
     if(c.some(i=>!(/^\d+$/.test(i.value.trim())||(set&&isDash(i.value))))){toast(set?'數量要是 0 以上的整數，或輸入「-」（不追蹤）。':'數量要是 0 以上的整數。','warn');return false;}
+    const inDate=set?'':(ov.querySelector('#impInDate').value||'');
+    if(!set&&!/^\d{4}-\d{2}-\d{2}$/.test(inDate)){toast('請選擇進貨日期。','warn');return false;}
     const now=Date.now(),by=myDisplayName();
     impSave(v=>c.forEach(i=>{const k=i.dataset.k,n=Number(i.value),b=v.s[k];
       if(set&&isDash(i.value)){if(k in v.s){v.log.push({a:'clear',item:it,spec:i.dataset.sp,prev:k in left?left[k]:null,at:now,by});delete v.s[k];}}
       else if(set){v.log.push({a:'set',item:it,spec:i.dataset.sp,n,prev:k in left?left[k]:null,at:now,by});v.s[k]={n,at:now};}
-      else{v.log.push({a:'in',item:it,spec:i.dataset.sp,n,at:now,by});v.s[k]=b?{n:(Number(b.n)||0)+n,at:b.at}:{n,at:now};}}))
+      else{v.log.push({a:'in',item:it,spec:i.dataset.sp,n,at:now,by,date:inDate});v.s[k]=b?{n:(Number(b.n)||0)+n,at:b.at}:{n,at:now};}}))
       .then(()=>toast(set?'已儲存盤點數量。':'已登記進貨。'))
       .catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限（只有植體數量「管理」可以修改，或安全規則尚未更新）':e.message),'warn');});
   },'儲存');
