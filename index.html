@@ -1195,7 +1195,7 @@ let punches=[]; // 打卡紀錄 {id,staffId,ts,date,src:'kiosk'|'manual',device,
 let faceMeta={}; // faces/{staffId} 是否已登錄臉部 {staffId:{at,n}}（特徵值本身不留在網頁）
 let devices={}; // 打卡裝置 devices/{uid}={name,approved,at,hwId?,model?}
 let csPend=[],csHist=[]; // 耗材確認：待確認（醫師＝自己的；超級管理員＝全部）、所選月份的紀錄
-let revPunches=[]; // 加班審核分頁用：醫師＝指定給自己的加班申請；超級管理員＝所有待審（不限月份）
+let revPunches=[]; // 加班審核分頁用：指定給自己（綁定的人員）審核的加班申請（不限月份）；所有人的申請在「出勤」分頁的「加班申請」
 let hwDevs={}; // 裝置編號 hw/{裝置編號}={approved,name,model,platform,at}（App 回報；核准後同一台平板換代碼也沿用）
 let kioskCfg={}; // kiosk/settings：出勤規則與裝置管理密碼
 let baselines={}; // 原始班表：baselines[YYYY-MM]={ym,at,by,weeks:{週一日期:cells}}，按「定案」時存下當月班表
@@ -2202,10 +2202,9 @@ function start(acc){
     db.collection('punches').where('staffId','==',sid).onSnapshot(snap=>{punches=snap.docs.map(d=>Object.assign({id:d.id},d.data()));ownPunchLoaded=true;renderAll();},e=>console.warn(e));
     db.doc('kiosk/rules').onSnapshot(s=>{kioskCfg=s.exists?clone(s.data()):{};renderAll();},e=>console.warn(e));
   }
-  // 加班審核：超級管理員看所有待審；其他綁定人員的帳號（醫師）看指定給自己的
+  // 加班審核：只看指定給自己（綁定的人員）審核的（超級管理員也一樣；所有人的申請在「出勤」分頁的「加班申請」）
   const revTo=snap=>{revPunches=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();};
-  if(sup)db.collection('punches').where('ot.status','==','pending').onSnapshot(revTo,e=>console.warn(e));
-  else if(sid)db.collection('punches').where('ot.reviewer','==',sid).onSnapshot(revTo,e=>console.warn(e));
+  if(sid)db.collection('punches').where('ot.reviewer','==',sid).onSnapshot(revTo,e=>console.warn(e));
   // 耗材確認：超級管理員看所有待確認；其他綁定人員（醫師）看自己的待確認（各月份紀錄在分頁選月份時才讀）
   const csTo=snap=>{csPend=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();};
   if(isAdmin||appLv(acc,'cs')==='admin')db.collection('csItems').where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
@@ -4872,20 +4871,18 @@ function otRowHtml(p){
     <td class="num">${o.status==='approved'?o.approvedMin:'—'}</td><td style="white-space:nowrap">${acts}</td></tr>`;
 }
 // ---- 加班審核分頁：醫師看指定給自己的申請；超級管理員看全部待審 ----
-// 加班審核分頁：醫師才有；看不到出勤分頁的醫師一律顯示，有管理權限的醫師在被指名為審核醫師時也顯示
+// 加班審核分頁：超級管理員一律顯示；看不到出勤分頁的醫師一律顯示，有管理權限的醫師在被指名為審核醫師時也顯示
 const otAssignedToMe=()=>{const me=myStaffId();return !!me&&(mode==='local'?punches:revPunches).some(p=>p.ot&&!p.void&&p.ot.reviewer===me);};
-const canSeeOtRev=()=>byId(myStaffId())?.role==='doctor'&&(!(canWrite||viewOnlyAssistant())||otAssignedToMe());
+const canSeeOtRev=()=>superOK()||byId(myStaffId())?.role==='doctor'&&(!(canWrite||viewOnlyAssistant())||otAssignedToMe()); // 超級管理員也看得到（審核所有待審）
 function otRevList(st){
-  const src=mode==='local'?punches:revPunches,me=myStaffId(),sup=superOK();
-  return src.filter(p=>p.ot&&!p.void&&(sup||p.ot.reviewer===me)&&(!st||p.ot.status===st))
+  const src=mode==='local'?punches:revPunches,me=myStaffId();
+  return src.filter(p=>p.ot&&!p.void&&!!me&&p.ot.reviewer===me&&(!st||p.ot.status===st))
     .sort((a,b)=>(OT_ST_ORDER[a.ot.status]??9)-(OT_ST_ORDER[b.ot.status]??9)||b.ts-a.ts);
 }
 function renderOtRev(){
-  const st=$('otRevSt').value,list=otRevList(st),sup=superOK();
-  $('otRevTitle').textContent=sup?'加班審核（所有待審）':'加班審核（指定給我的）';
-  $('otRevDesc').textContent=sup?'超級管理員可以審核所有加班申請。這裡列出所有月份的待審申請；已審核的紀錄請到「出勤」分頁查看。':'助理打下班卡申請加班時指定你為審核醫師的申請。核准時可以調整分鐘數。';
-  if(sup&&mode!=='local'&&st===''){$('otRevSt').value='pending';return renderOtRev();} // 超級管理員只載入待審
-  $('otRevSt').querySelector('option[value=""]').hidden=sup&&mode!=='local';
+  const st=$('otRevSt').value,list=otRevList(st);
+  $('otRevTitle').textContent='加班審核（指定給我的）';
+  $('otRevDesc').textContent='助理打下班卡申請加班時指定你為審核醫師的申請。核准時可以調整分鐘數。'+(superOK()?'所有人的加班申請請到「出勤」頁的「加班申請」查看。':'')+(myStaffId()?'':'（這個帳號尚未綁定人員，沒有指定給你的申請）');
   $('otRevCount').textContent=list.length?`共 ${list.length} 筆`:'';
   $('otRevTable').innerHTML='<thead><tr><th>日期</th><th>人員</th><th>下班卡</th><th class="num">申請（分）</th><th>原因</th><th>審核醫師</th><th>狀態</th><th class="num">核准（分）</th><th></th></tr></thead><tbody>'+
     (list.length?list.map(otRowHtml).join(''):`<tr><td colspan="9" class="att-mute">${st==='pending'?'目前沒有待審的加班申請':'沒有加班申請'}</td></tr>`)+'</tbody>';
