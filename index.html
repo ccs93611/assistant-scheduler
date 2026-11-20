@@ -3845,6 +3845,8 @@ function renderRulesDoc(){
       <li>助理工時盡量不超過合理工時（不得已才用加班補足）。</li>
       <li>全天班和早+晚次數盡量平均分配。</li>
       <li>同一醫師同一天，盡量由同一位助理跟診；同一位助理同一天跟診時，也盡量都跟同一位醫師。</li>
+      <li>主櫃不連貫時，由當天全天班的助理整天擔任主櫃（原本在副櫃、流動、健保或跟診都可以；不破壞醫師的跟診連貫）。</li>
+      <li>同一位助理同一天，盡量待在同一個位置（主櫃、副櫃、流動、健保），不在不同位置間來回換。</li>
       <li>條件都一樣時用固定規則決定，同樣資料每次排出的結果相同。</li>
     </ol>
     <h3>四、排完後的檢驗</h3>
@@ -4495,6 +4497,52 @@ function autoSchedule(fillOnly){
     if(changed)cks.forEach((ck,i)=>{work[wk]['L'+ck]=lks[i];});
   });
 
+  // ---- 主櫃不連貫時，由當天全天班的助理整天擔任主櫃（她原本在副櫃、流動、健保或跟診都可以，原本的主櫃換到她的位置）----
+  // 跟診的人只有在「那位醫師前後診不是由她跟」時才調走，不破壞醫師的跟診連貫
+  let fullMain2=0;
+  {const nhL=(cfg.nhOnly||[]).filter(id=>byId(id));
+  mi.dates.forEach(({wk,dow,key})=>{
+    const cks=SHIFTS.map(x=>dow+'_'+x.id);
+    const open=SHIFTS.map(x=>!closedAt(dow,x.id,key));
+    const S=[0,1,2].filter(i=>open[i]);if(S.length<2)return;
+    const cells=cks.map(ck=>cellOf(wk,ck));
+    const lks=cks.map(ck=>Array.isArray(W(wk)['L'+ck])?W(wk)['L'+ck].map(z=>z.slice()):[]);
+    const mainOf=i=>ppl(cells[i][0]).find(id=>byId(id)?.role==='assistant')||null;
+    const cur=[0,1,2].map(i=>open[i]?mainOf(i):null);
+    if(cur[S[0]]&&S.every(i=>cur[i]===cur[S[0]]))return; // 主櫃已經連貫
+    const docOf=(i,id)=>(lks[i].find(z=>z[0]===id&&cells[i][FOLLOW].includes(z[1]))||[])[1]||null;
+    const fits=(pi,id)=>id&&byId(id)?.role==='assistant'&&!isExcluded(pi,id)&&(pi!==4||!nhL.length||nhL.includes(id));
+    let best=null;
+    activeStaff('assistant').forEach(a=>{
+      const X=a.id;if(isExcluded(0,X))return;
+      const plan=[];let moves=0,follow=0;
+      for(const i of S){
+        if(cur[i]===X){plan.push({i,from:-1});continue;}
+        const p=[1,3,4,FOLLOW].find(q=>cells[i][q].includes(X));if(p===undefined)return; // 這一診沒上班
+        const old=cur[i];
+        if(old&&!fits(p,old))return; // 原本的主櫃要能去她的位置
+        if(p===FOLLOW){
+          const d=docOf(i,X);if(!d)return;
+          if((i>0&&open[i-1]&&docOf(i-1,X)===d)||(i<2&&open[i+1]&&docOf(i+1,X)===d))return; // 醫師前後診也是她跟：不調走
+          if(!old)return; // 沒有人可以接手跟診
+          follow++;
+        }
+        plan.push({i,from:p});moves++;
+      }
+      const sc=moves*10+follow;
+      if(!best||sc<best.sc)best={X,plan,sc};
+    });
+    if(!best)return;
+    best.plan.forEach(({i,from})=>{
+      if(from<0)return;const c=cells[i],X=best.X,old=cur[i];
+      c[from]=c[from].filter(v=>v!==X);
+      if(old){c[0]=c[0].map(v=>v===old?X:v);c[from].push(old);if(from===FOLLOW)lks[i]=lks[i].map(z=>z[0]===X?[old,z[1]]:z);}
+      else{const gi=c[0].indexOf(GAP);if(gi>=0)c[0].splice(gi,1);c[0].push(X);}
+    });
+    fullMain2++;
+    cks.forEach((ck,i)=>{work[wk][ck]=cells[i];work[wk]['L'+ck]=lks[i];});
+  });}
+
   // ---- 再檢查：流動缺人而副櫃有人時，把副櫃的助理調到流動 ----
   let subToFlow=0;
   mi.dates.forEach(({wk,dow,key})=>SHIFTS.forEach(sh=>{
@@ -4512,6 +4560,39 @@ function autoSchedule(fillOnly){
     if(changed)work[wk][ck]=cell;
   }));
 
+  // ---- 最後檢查：同一位助理同一天盡量待在同一個位置（主櫃、副櫃、流動、健保）----
+  // 同一診裡兩位助理互換位置，若能讓「助理＋位置」和前後診次相同的次數變多就換（不違反各崗位的排除名單與健保限定名單）
+  let posKeep=0;
+  const STAY=[0,1,3,4];
+  const nhList=(cfg.nhOnly||[]).filter(id=>byId(id));
+  const canAt=(pi,id)=>byId(id)?.role==='assistant'&&!isExcluded(pi,id)&&(pi!==4||!nhList.length||nhList.includes(id));
+  mi.dates.forEach(({wk,dow,key})=>{
+    const cks=SHIFTS.map(x=>dow+'_'+x.id);
+    const open=SHIFTS.map(x=>!closedAt(dow,x.id,key));
+    const cells=cks.map(ck=>cellOf(wk,ck));
+    const posOf=(i,id)=>i<0||i>2||!open[i]?-1:STAY.find(p=>cells[i][p].includes(id))??-1;
+    const stay=(i,id,p)=>((posOf(i-1,id)===p?1:0)+(posOf(i+1,id)===p?1:0))*(p===0?2:1); // 主櫃連貫加倍計分，不會為了副櫃、流動把主櫃拆散
+    let changed=false;
+    for(let round=0;round<4;round++){
+      let any=false;
+      [0,1,2].forEach(i=>{
+        if(!open[i])return;
+        const c=cells[i];
+        const L=[];STAY.forEach(p=>c[p].forEach(id=>{if(id!==GAP&&byId(id)?.role==='assistant')L.push([id,p]);}));
+        for(let x=0;x<L.length;x++)for(let y=x+1;y<L.length;y++){
+          const [a,pa]=L[x],[b,pb]=L[y];if(pa===pb)continue;
+          if(!canAt(pb,a)||!canAt(pa,b))continue;
+          if(stay(i,a,pb)+stay(i,b,pa)>stay(i,a,pa)+stay(i,b,pb)){
+            c[pa]=c[pa].map(v=>v===a?b:v);c[pb]=c[pb].map(v=>v===b?a:v);
+            L[x]=[a,pb];L[y]=[b,pa];any=changed=true;posKeep++;
+          }
+        }
+      });
+      if(!any)break;
+    }
+    if(changed)cks.forEach((ck,i)=>{work[wk][ck]=cells[i];});
+  });
+
   lastUndo=before;
   Object.entries(work).forEach(([wk,cells])=>store.week(wk,cells));
   // 結果以彈窗呈現：排了什麼、做了哪些調整、需要注意的地方；「復原」可還原
@@ -4520,9 +4601,11 @@ function autoSchedule(fillOnly){
     fullSwaps?`${fullSwaps} 位全天班醫師改由流動的全天班助理整天跟診`:'',
     fullMain?`${fullMain} 天的主櫃改由流動的全天班助理整天擔任`:'',
     pairMain?`${pairMain} 天的主櫃和流動互換，讓早午或午晚由同一人擔任`:'',
+    fullMain2?`${fullMain2} 天的主櫃改由當天全天班的助理整天擔任`:'',
     lastFix?`最後再調整 ${lastFix} 位醫師的跟診，讓跟診助理更連貫`:'',
     docKeep?`${docKeep} 組跟診助理互換醫師，讓同一位助理同一天盡量跟同一位醫師`:'',
-    subToFlow?`${subToFlow} 位副櫃助理調到缺人的流動`:''].filter(Boolean);
+    subToFlow?`${subToFlow} 位副櫃助理調到缺人的流動`:'',
+    posKeep?`${posKeep} 組助理互換位置，讓同一位助理同一天盡量待在同一個位置`:''].filter(Boolean);
   const warns=[shortage?`還有 ${shortage} 個缺口找不到符合規則的人員`:'',
     forcedDays.length?`為了每天至少一班而超過合理工時：${forcedDays.slice(0,6).join('、')}${forcedDays.length>6?` 等 ${forcedDays.length} 天`:''}`:'',
     missDay.length?`無法排入當天任何一班：${missDay.slice(0,8).join('、')}${missDay.length>8?` 等 ${missDay.length} 天`:''}`:'',
