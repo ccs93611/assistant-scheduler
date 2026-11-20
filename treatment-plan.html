@@ -400,7 +400,11 @@ textarea.item-ta{display:block;width:100%;resize:none;overflow:hidden;line-heigh
 .teeth-cell .jaws{position:relative}
 .teeth-cell .midl{position:absolute;top:2px;bottom:2px;left:50%;border-left:2px dashed var(--muted);opacity:.55;pointer-events:none}
 .teeth-cell input{flex:1;font-size:13px;padding:3px 6px;min-width:0;width:0}
-.teeth-cell .jaws{grid-template-columns:minmax(0,1fr)} /* 欄寬不受牙位文字與對齊用的左內距影響，避免對齊→欄寬變→再對齊的來回跳動（平板） */
+.teeth-cell .jaws{grid-template-columns:minmax(0,1fr)}
+.pt-grid label:has(>input:disabled:is([data-f=name],[data-f=birthday],[data-f=chartNo],[data-f=createdAt],[data-f=expiry])) input{pointer-events:none}
+.pt-grid label:has(>input:disabled:is([data-f=name],[data-f=birthday],[data-f=chartNo],[data-f=createdAt],[data-f=expiry])){cursor:pointer}
+.pt-grid label:has(>input:disabled:is([data-f=name],[data-f=birthday],[data-f=chartNo],[data-f=createdAt],[data-f=expiry])):hover input{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.pt-grid label:has(>input:disabled:is([data-f=name],[data-f=birthday],[data-f=chartNo],[data-f=createdAt],[data-f=expiry]))>span:first-child::after{content:' 🔍';font-size:11px;opacity:.6} /* 欄寬不受牙位文字與對齊用的左內距影響，避免對齊→欄寬變→再對齊的來回跳動（平板） */
 .teeth-cell input.bad{border-color:var(--danger);color:var(--danger)}
 .teeth-cell button{padding:3px 6px}
 .disc-amt{color:var(--warn)}
@@ -981,11 +985,21 @@ async function saveNow(p){flushPending();p.updatedAt=Date.now();try{await DB.put
 async function saveSettings(){rebuildCats();try{await DB.saveSettings()}catch(e){console.error(e);alert('價目表儲存失敗：'+(e.code==='permission-denied'?'沒有權限':e.message))}}
 
 /* ====== 列表 ====== */
+// 指定欄位搜尋：搜尋框輸入「姓名：王小明」「生日：2026-11-18」「病歷號：123」「開立：2026-10-22」「有效：2027-04-22」，找完全相同的單（日期只比年月日）
+// 鎖定的病患資料欄位點一下，會自動填入這種搜尋
+const FQ={姓名:{k:'name',v:p=>srchNorm(p.name)},生日:{k:'birthday',v:p=>p.birthday||''},病歷號:{k:'chartNo',v:p=>srchNorm(p.chartNo)},開立:{k:'createdAt',v:p=>(p.createdAt||'').slice(0,10)},有效:{k:'expiry',v:p=>expiryOf(p)||''}};
+function fieldQ(raw){const m=String(raw||'').trim().match(/^(姓名|生日|病歷號|開立|有效)[:：] *(.+)$/);if(!m)return null;
+  const f=FQ[m[1]],date=!['姓名','病歷號'].includes(m[1]),want=date?m[2].trim().split('/').join('-').slice(0,10):srchNorm(m[2]);
+  return want?{f:m[1],raw:m[2].trim(),want,date,test:p=>f.v(p)===want}:null}
+function searchField(label,val){if(!val)return;
+  $('#search').value=label+'：'+val;$('#statusFilter').value='';renderList();
+  if(document.documentElement.classList.contains('side-hidden'))setSideHidden(false);
+  $('#planList').scrollTop=0;if(innerWidth<=820)$('#search').scrollIntoView({behavior:'smooth',block:'start'})}
 function renderList(){
-  const q=$('#search').value.trim().toLowerCase(),qk=srchNorm(q),sf=$('#statusFilter').value;
+  const q=$('#search').value.trim().toLowerCase(),qk=srchNorm(q),sf=$('#statusFilter').value,fq=fieldQ($('#search').value);
   // 姓名、病歷號忽略空白與特殊字元比對；其他欄位照原本文字比對
   const hit=p=>(qk&&[p.name,p.chartNo].some(v=>srchNorm(v).includes(qk)))||[p.name,p.chartNo,p.no,p.doctor,p.assistant,...p.items.flatMap(i=>[i.name,i.cat])].some(v=>String(v||'').toLowerCase().includes(q));
-  const arr=[...plans.values()].filter(p=>(!sf||(sf==='todo'?todoOf(p).n>0:stOf(p)===sf))&&(!q||hit(p)))
+  const arr=[...plans.values()].filter(p=>(!sf||(sf==='todo'?todoOf(p).n>0:stOf(p)===sf))&&(!q||(fq?fq.test(p):hit(p))))
     .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')||b.updatedAt-a.updatedAt);
   $('#planList').innerHTML=arr.length?arr.map(p=>{const c=calc(p);return `<button class="plan-item ${p.id===curId?'on':''}" data-open="${p.id}">
     <div class="l1"><div class="nmr"><b class="nm">${esc(p.name||'（未填姓名）')}</b><span class="m">${esc(p.chartNo||'')}</span></div><span class="m big">${p.birthday?'生日 '+esc(p.birthday):''}</span></div>
@@ -1008,6 +1022,10 @@ const onOld=async e=>{const b=e.target.closest('[data-old]');if(!b)return;e.stop
 $('#planList').addEventListener('click',onOld);$('#oldWrap').addEventListener('click',onOld);
 $('#planList').addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b)openPlan(b.dataset.open)});
 $('#search').addEventListener('input',renderList);
+$('#main').addEventListener('click',e=>{const lb=e.target.closest('.pt-grid label');if(!lb)return;const i=lb.querySelector('input[data-f]');if(!i||!i.disabled)return;
+  const p=cur();if(!p)return;const k=i.dataset.f;
+  const m={name:['姓名',p.name],birthday:['生日',p.birthday],chartNo:['病歷號',p.chartNo],createdAt:['開立',(p.createdAt||'').slice(0,10)],expiry:['有效',expiryOf(p)]}[k];
+  if(m)searchField(m[0],m[1])});
 $('#statusFilter').addEventListener('change',renderList);
 $('#todoBar').addEventListener('click',()=>{const f=$('#statusFilter');f.value=f.value==='todo'?'':'todo';renderList()});
 
@@ -1100,7 +1118,7 @@ function renderEditorMain(viewing){
       <div class="dt-pair dr-pair"><label><span>主治醫師<b class="req" title="必填">*</b></span><span class="combo-wrap pp-wrap"><input data-f="doctor" data-pp="doc" autocomplete="off" placeholder="選擇醫師" value="${esc(p.doctor)}" required ${idis}></span></label>
       <label><span>責任助理<b class="req" title="必填">*</b></span><span class="combo-wrap pp-wrap"><input data-f="assistant" data-pp="asst" autocomplete="off" placeholder="選擇助理" value="${esc(p.assistant)}" required ${idis}></span></label></div>
       <div class="dt-pair"><label><span>單據開立時間<b class="req" title="必填">*</b></span><input type="datetime-local" data-f="createdAt" value="${esc(p.createdAt)}" required ${idis}></label>
-      <label><span class="exp-lbl">有效期限<b class="req" title="必填">*</b>${expMonthsSel(p,dis)}</span><input type="date" data-f="expiry" value="${esc(expiryOf(p))}" ${dis} class="${isExpired(p)&&p.status==='open'?'expired-in':''}" title="可直接選日期；清空則依左上的月數計算"></label></div>
+      <label><span class="exp-lbl">有效期限<b class="req" title="必填">*</b>${expMonthsSel(p,idis)}</span><input type="date" data-f="expiry" value="${esc(expiryOf(p))}" ${idis} class="${isExpired(p)&&p.status==='open'?'expired-in':''}" title="可直接選日期；清空則依左上的月數計算"></label></div>
     </div></div>
   </section>
 
@@ -2906,7 +2924,10 @@ async function loadMonthsBack(n){
 // 雲端搜尋舊單：姓名開頭、病歷號開頭、單號開頭
 async function searchOld(q){
   if(!fs)return 0;q=q.trim();if(!q)return 0;
-  const col=fs.collection('tpPlans');
+  const col=fs.collection('tpPlans'),fq=fieldQ(q);
+  if(fq){const qs=fq.f==='姓名'?[col.where('name','==',fq.raw),col.where('nameK','==',fq.want)]:fq.f==='病歷號'?[col.where('chartNo','==',fq.raw),col.where('chartK','==',fq.want)]
+      :fq.f==='開立'?[col.where('createdAt','>=',fq.want).where('createdAt','<=',fq.want+'T99')]:[col.where(FQ[fq.f].k,'==',fq.want)];
+    const sn=await Promise.all(qs.map(x=>x.limit(100).get()));let n=0;sn.forEach(x=>x.docs.forEach(d=>{if(addPlanDoc(d))n++}));renderList();return n}
   // 姓名、病歷號另外用去掉空白與特殊字元的欄位（nameK、chartK）找，輸入時多打空白或符號也找得到（之後存過的單才有這兩個欄位）
   const qk=srchNorm(q),ks=[['name',q],['chartNo',q],['no',q],...(qk?[['nameK',qk],['chartK',qk]]:[])];
   const snaps=await Promise.all(ks.map(([k,v])=>col.where(k,'>=',v).where(k,'<=',v+'').limit(50).get()));
