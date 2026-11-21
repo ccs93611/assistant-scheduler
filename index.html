@@ -1064,7 +1064,7 @@ body.gated .shell{display:none;}
           <div class="form-row">
             <div class="field"><label for="invQ">搜尋</label><input id="invQ" type="search" placeholder="姓名、英文名、患者編號"></div>
             <div class="field"><label for="invDoc">主治醫師</label><select id="invDoc"></select></div>
-            <div class="field"><label for="invSt">狀態</label><select id="invSt"><option value="open">進行中</option><option value="closed">已結案</option><option value="cancel">取消療程</option><option value="trad">改傳統矯正</option><option value="all">全部</option></select></div>
+            <div class="field"><label for="invSt">狀態</label><select id="invSt"><option value="pending">未完成（已取資料、未 submit／approve）</option><option value="open">進行中</option><option value="closed">已結案</option><option value="cancel">取消療程</option><option value="trad">改傳統矯正</option><option value="all">全部</option></select></div>
           </div>
           <div class="scroll-x"><table class="list inv-table" id="invTable"></table></div>
         </div>
@@ -2334,9 +2334,9 @@ function start(acc){
     db.collection('csItems').where('item','in',IMPLANTS).onSnapshot(snap=>{impRecs=snap.docs.map(d=>Object.assign({id:d.id},d.data()));if(prefs.tab==='implant')renderAll();},e=>console.warn('implants',e));
   }
   // 隱適美：有隱適美權限的人才讀
-  {const invTo=snap=>{invList=snap.docs.map(d=>Object.assign({id:d.id},d.data()));if(prefs.tab==='invis')renderAll();};
+  {const invTo=snap=>{invList=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();};
   if(!isAdmin&&acc&&acc.perm!=='suspended'&&['viewSelf','adminSelf'].includes(acc.inv)&&sid)db.collection('invis').where('doc','==',sid).onSnapshot(invTo,e=>console.warn('invis',e));}
-  if(isAdmin||(acc&&acc.perm!=='suspended'&&['view','admin'].includes(acc.inv)))db.collection('invis').onSnapshot(snap=>{invList=snap.docs.map(d=>Object.assign({id:d.id},d.data()));if(prefs.tab==='invis')renderAll();},e=>console.warn('invis',e));
+  if(isAdmin||(acc&&acc.perm!=='suspended'&&['view','admin'].includes(acc.inv)))db.collection('invis').onSnapshot(snap=>{invList=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},e=>console.warn('invis',e));
   if(isAdmin||appLv(acc,'cs')==='admin')db.collection('csItems').where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   else if(sid)db.collection('csItems').where('doctorId','==',sid).where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   if(sup)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
@@ -2465,7 +2465,7 @@ function renderAll(){
   if(prefs.tab==='att'&&!canWrite&&!viewOnlyAssistant())prefs.tab='schedule';
   {const show=canSeeCs(),n=csPendList(byId(myStaffId())?.role==='doctor').length;$('csTabBtn').hidden=!show;$('csTabBtn').textContent=n?`耗材確認（${n}）`:'耗材確認';if(prefs.tab==='cscheck'&&!show)prefs.tab='schedule';}
   {const show=impLv()!=='none';$('impTabBtn').hidden=!show;if(prefs.tab==='implant'&&!show)prefs.tab='schedule';}
-  {const show=invLv()!=='none';$('invTabBtn').hidden=!show;if(prefs.tab==='invis'&&!show)prefs.tab='schedule';}
+  {const show=invLv()!=='none',n=show?invPendCount():0;$('invTabBtn').hidden=!show;$('invTabBtn').textContent=n?`隱適美（${n}）`:'隱適美';$('invTabBtn').title=n?`${n} 位病患已取資料、還沒 submit／approve`:'';if(prefs.tab==='invis'&&!show)prefs.tab='schedule';}
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
   document.body.classList.toggle('view-only',viewOnly());document.body.classList.toggle('low-perm',lowPerm());
   if(lowPerm()){const ok=viewTabs();document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!ok.includes(b.dataset.tab))b.hidden=true;});if(!ok.includes(prefs.tab))prefs.tab='schedule';}
@@ -5185,6 +5185,10 @@ const invNext=x=>{for(let n=1;n<=invRounds(x);n++){const st=invSteps(n).find(s=>
 const invFmt=v=>v?v.replace(/-/g,'/'):'';
 const INV_ST={open:'進行中',closed:'已結案',cancel:'取消療程',trad:'改傳統矯正'};
 const invSt=x=>INV_ST[x.st]?x.st:(x.closed?'closed':'open');
+// 未完成：進行中的病患，某一次已經取資料、但 submit 或 approve 還沒填
+const invPending=x=>invSt(x)==='open'&&[...Array(invRounds(x))].some((_,i)=>{const n=i+1;return x['g'+n]&&(!x['s'+n]||!x['a'+n]);});
+// 分頁按鈕上的未完成數（只算自己看得到的病患）
+const invPendCount=()=>{if(invLv()==='none')return 0;const self=invSelf(),me=myStaffId();return invAll().filter(x=>(!self||x.doc===me)&&invPending(x)).length;};
 function renderInvis(){
   const self=invSelf(),me=myStaffId(),all=invAll().filter(x=>!self||x.doc===me);
   const docs=activeStaff('doctor');
@@ -5195,7 +5199,7 @@ function renderInvis(){
   if(document.activeElement!==$('invQ'))$('invQ').value=invView.q;
   $('invAddBtn').hidden=!invCanAdd();
   const q=invKey(invView.q);
-  const list=all.filter(x=>(invView.st==='all'||invSt(x)===invView.st)&&(self||!invView.doc||x.doc===invView.doc)
+  const list=all.filter(x=>(invView.st==='all'||(invView.st==='pending'?invPending(x):invSt(x)===invView.st))&&(self||!invView.doc||x.doc===invView.doc)
     &&(!q||[x.cn,x.en,x.chart].some(v=>invKey(v).includes(q))))
     .sort((a,b)=>(Object.keys(INV_ST).indexOf(invSt(a))-Object.keys(INV_ST).indexOf(invSt(b)))||String(a.chart||'').localeCompare(String(b.chart||''),'en',{numeric:true})||String(a.cn||'').localeCompare(String(b.cn||''),'zh-Hant'));
   $('invCount').textContent=`共 ${list.length} 位${self?'（只顯示你是主治醫師的病患）':''}`;
