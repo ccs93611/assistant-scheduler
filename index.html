@@ -121,6 +121,7 @@ nav.tabs .tab-menu button{border-radius:6px; border-bottom:none; text-align:left
 nav.tabs .tab-menu button[aria-selected="true"]{background:var(--accent-soft); border-bottom:none;}
 nav.tabs .tab-menu a{display:block; border-radius:6px; padding:10px 14px; font-size:1.05rem; font-weight:600; color:color-mix(in srgb,var(--ink) 72%,transparent); text-decoration:none; white-space:nowrap;}
 nav.tabs .tab-menu a:hover{color:var(--ink); background:var(--accent-soft);}
+nav.tabs .tab-menu a[hidden]{display:none;}
 
 .banner{margin-top:12px; padding:9px 12px; border-radius:8px; font-size:.82rem; background:var(--slot); color:var(--sub);}
 .banner.warn{background:var(--warn-soft); color:var(--warn);}
@@ -824,15 +825,15 @@ body.gated .shell{display:none;}
         <button role="menuitem" data-tab="implant" id="impTabBtn" hidden>植體數量</button>
       </div>
     </div>
-    <!-- 相關連結：其他頁面，點了開新視窗（各頁面自己檢查權限） -->
+    <!-- 相關連結：其他頁面，點了開新視窗；治療計劃單、耗材登記只顯示給有權限的人（治療項目介紹、牙科常見疾病不用登入，所有人都看得到） -->
     <button role="tab" data-tab="invis" id="invTabBtn" hidden>隱適美</button>
     <div class="tab-grp" data-links>
       <button type="button" class="tab-grp-btn" aria-haspopup="menu" aria-expanded="false">相關連結<span class="dd-car">▾</span></button>
       <div class="tab-menu" role="menu" hidden>
-        <a role="menuitem" href="treatment-plan.html" target="_blank" rel="noopener">治療計劃單 ↗</a>
+        <a role="menuitem" href="treatment-plan.html" target="_blank" rel="noopener" data-need="tp">治療計劃單 ↗</a>
         <a role="menuitem" href="treatments.html" target="_blank" rel="noopener">治療項目介紹 ↗</a>
         <a role="menuitem" href="diseases.html" target="_blank" rel="noopener">牙科常見疾病 ↗</a>
-        <a role="menuitem" href="consumables.html" target="_blank" rel="noopener">耗材登記 ↗</a>
+        <a role="menuitem" href="consumables.html" target="_blank" rel="noopener" data-need="cs">耗材登記 ↗</a>
       </div>
     </div>
   </nav>
@@ -2465,6 +2466,7 @@ function renderAll(){
   if(prefs.tab==='att'&&!canWrite&&!viewOnlyAssistant())prefs.tab='schedule';
   {const show=canSeeCs(),n=csPendList(byId(myStaffId())?.role==='doctor').length;$('csTabBtn').hidden=!show;$('csTabBtn').textContent=n?`耗材確認（${n}）`:'耗材確認';if(prefs.tab==='cscheck'&&!show)prefs.tab='schedule';}
   {const show=impLv()!=='none';$('impTabBtn').hidden=!show;if(prefs.tab==='implant'&&!show)prefs.tab='schedule';}
+  document.querySelectorAll('nav.tabs [data-links] a[data-need]').forEach(a=>{a.hidden=!(a.dataset.need==='tp'?canOpenTpPage():canOpenCsPage());});
   {const show=invLv()!=='none',n=show?invPendCount():0;$('invTabBtn').hidden=!show;$('invTabBtn').textContent=n?`隱適美（${n}）`:'隱適美';$('invTabBtn').title=n?`${n} 位病患已取資料、還沒 submit／approve`:'';if(prefs.tab==='invis'&&!show)prefs.tab='schedule';}
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
   document.body.classList.toggle('view-only',viewOnly());document.body.classList.toggle('low-perm',lowPerm());
@@ -5274,6 +5276,8 @@ $('invTable').addEventListener('change',e=>{
   const n=Object.assign({},x,{[i.dataset.invk]:i.value,updatedAt:Date.now(),updatedBy:myDisplayName()});
   invPut(n).catch(err=>{console.error(err);toast('儲存失敗：'+(err.code==='permission-denied'?'沒有權限':err.message),'warn');i.value=x[i.dataset.invk]||'';});
 });
+// 能不能進治療計劃單（treatment-plan.html）：計劃單權限不是「無」
+const canOpenTpPage=()=>{if(mode==='local'&&!SIM_AS)return true;if(isAdmin&&myId)return true;const a=mode==='local'?{perm:SIM_AS[1]}:accessLinks[myStaffId()];return appLv(a,'tp')!=='none';};
 const canOpenCsPage=()=>{if(csAdmin())return true;const a=mode==='local'?(SIM_AS?{perm:SIM_AS[1]}:null):accessLinks[myStaffId()];return appLv(a,'cs')!=='none';};
 let csView={doc:'',month:'',st:''},csSel=new Set(),csMonthKey='',csMonthUnsub=null;
 // mine=true：只算指定給自己的（醫師分頁標籤上的數字）
