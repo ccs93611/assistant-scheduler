@@ -530,6 +530,33 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .overlay{position:fixed; inset:0; background:rgba(15,20,17,.4); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
 .dialog{background:var(--panel); border-radius:12px; padding:20px 22px; max-width:420px; width:100%; box-shadow:var(--shadow); max-height:calc(100vh - 32px); overflow:auto;}
 .dialog.wide{max-width:960px;}
+/* 隱適美追蹤表：每一次（取資料、submit、approve）用左邊粗線分組，下一步黃底 */
+table.inv-table{width:auto;} /* 不撐滿，格子只用需要的寬度 */
+table.inv-table th,table.inv-table td{white-space:nowrap; vertical-align:middle;}
+table.inv-table th.inv-grp{text-align:center; border-left:2px solid var(--line); color:var(--ink); font-weight:700;}
+table.inv-table th.inv-step{text-align:center; font-size:.72rem;}
+table.inv-table .inv-first{border-left:2px solid var(--line);}
+table.inv-table td.inv-d{text-align:center; padding:3px 2px;}
+table.inv-table td.inv-d input{padding:3px 2px 3px 5px; font-size:.8rem; width:auto; background:transparent;}
+table.inv-table td.inv-next{background:color-mix(in srgb,#f5c542 28%,var(--panel));}
+.inv-next-key{background:color-mix(in srgb,#f5c542 28%,var(--panel)); padding:0 4px; border-radius:3px;}
+table.inv-table .inv-note{flex:1 1 0; width:0; min-width:0; max-width:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.8rem; color:var(--sub);} /* 總備註：姓名區第二行，太長時截斷，滑鼠移上去看全文 */
+table.inv-table tr.inv-closed td{opacity:.6;}
+table.inv-table td.inv-none{vertical-align:middle; padding:4px 8px;}
+.inv-plus{width:34px; height:34px; padding:0; border-radius:50%; font-size:1.2rem; line-height:1; border:2px dashed var(--accent); color:var(--accent); background:var(--panel); font-weight:700;}
+.inv-plus:hover{background:var(--accent-soft);}
+.inv-rnw{display:flex; gap:4px; align-items:center;}
+.inv-minus{flex:none; width:26px; height:26px; padding:0; border-radius:50%; font-size:1rem; line-height:1; color:var(--sub);}
+table.inv-table tr.inv-top td{border-bottom:none;}
+table.inv-table td.inv-stc{padding:0 10px 6px;}
+table.inv-table td.inv-stc .small{padding:1px 10px; flex:none;}
+.inv-stw{display:flex; align-items:center; gap:8px;} /* 狀態、總備註、修改（靠右，對齊主治醫師欄右側） */
+.inv-st{display:inline-block; font-size:.72rem; padding:1px 8px; border-radius:999px; font-weight:600;}
+.inv-st.open{background:var(--accent-soft); color:var(--accent);} .inv-st.closed{background:var(--chip); color:var(--sub);}
+.inv-st.cancel{background:var(--warn-soft); color:var(--warn);} .inv-st.trad{background:color-mix(in srgb,var(--doc) 18%,var(--panel)); color:var(--doc);}
+table.inv-table td.inv-rn{padding:0 4px 6px; text-align:left;}
+table.inv-table td.inv-rn input{width:100%; padding:3px 6px; font-size:.8rem; background:transparent;}
+table.inv-table tr.inv-sub td.inv-rn{font-size:.8rem; color:var(--sub); white-space:normal;}
 .imp-dlg-h{display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:0 0 10px;}
 #impInBtn.imp-in-btn{border:2px solid var(--accent); color:var(--accent); background:var(--accent-soft); font-weight:700; padding:6px 14px;} /* 進貨：綠框淺綠底，明顯但和「盤點」區分 */
 #impInBtn.imp-in-btn:hover{background:color-mix(in srgb,var(--accent) 22%,var(--panel));}
@@ -798,6 +825,7 @@ body.gated .shell{display:none;}
       </div>
     </div>
     <!-- 相關連結：其他頁面，點了開新視窗（各頁面自己檢查權限） -->
+    <button role="tab" data-tab="invis" id="invTabBtn" hidden>隱適美</button>
     <div class="tab-grp" data-links>
       <button type="button" class="tab-grp-btn" aria-haspopup="menu" aria-expanded="false">相關連結<span class="dd-car">▾</span></button>
       <div class="tab-menu" role="menu" hidden>
@@ -1025,6 +1053,20 @@ body.gated .shell{display:none;}
           <p class="desc" id="otRevDesc"></p>
           <div class="form-row"><div class="field"><label for="otRevSt">狀態</label><select id="otRevSt"><option value="pending">待審</option><option value="">全部</option></select></div></div>
           <div class="scroll-x"><table class="list" id="otRevTable"></table></div>
+        </div>
+      </div>
+    </section>
+    <section id="tab-invis" hidden>
+      <div class="stack">
+        <div class="card">
+          <div class="lv-title-row"><h2 style="margin:0">隱適美 患者追蹤</h2><span class="lv-range" id="invCount"></span><button class="primary" id="invAddBtn" style="margin-left:12px">＋ 新增病患</button></div>
+          <p class="desc">每位病患記錄每一次的取資料、submit、approve 日期（空白＝還沒做），一開始只有第 1 次，按「＋」加下一次；<span class="inv-next-key">黃底</span>是下一個要做的步驟。日期與每一次的備註（第二行）可以直接在表格裡修改，改完自動儲存。</p>
+          <div class="form-row">
+            <div class="field"><label for="invQ">搜尋</label><input id="invQ" type="search" placeholder="姓名、英文名、患者編號"></div>
+            <div class="field"><label for="invDoc">主治醫師</label><select id="invDoc"></select></div>
+            <div class="field"><label for="invSt">狀態</label><select id="invSt"><option value="open">進行中</option><option value="closed">已結案</option><option value="cancel">取消療程</option><option value="trad">改傳統矯正</option><option value="all">全部</option></select></div>
+          </div>
+          <div class="scroll-x"><table class="list inv-table" id="invTable"></table></div>
         </div>
       </div>
     </section>
@@ -2145,7 +2187,7 @@ const store={
     if(!db){saveLocal();return;}
     return queue('link/'+id,async()=>{
       if(old&&old!==obj?.account)await db.doc('access/'+old).delete();
-      if(obj)await db.doc('access/'+obj.account).set(Object.assign({staffId:id,perm:obj.perm},obj.prevPerm?{prevPerm:obj.prevPerm}:{},obj.tp?{tp:obj.tp}:{},obj.cs?{cs:obj.cs}:{},obj.imp&&obj.imp!=='none'?{imp:obj.imp}:{}));
+      if(obj)await db.doc('access/'+obj.account).set(Object.assign({staffId:id,perm:obj.perm},obj.prevPerm?{prevPerm:obj.prevPerm}:{},obj.tp?{tp:obj.tp}:{},obj.cs?{cs:obj.cs}:{},obj.imp&&obj.imp!=='none'?{imp:obj.imp}:{},obj.inv&&obj.inv!=='none'?{inv:obj.inv}:{}));
     });
   },
   async delPriv(id){
@@ -2237,7 +2279,7 @@ async function boot(){
 }
 function start(acc){
   const email=myId;
-  if(acc)accessLinks={[acc.staffId]:{account:email,perm:acc.perm,tp:acc.tp||null,cs:acc.cs||null,imp:acc.imp||null}};
+  if(acc)accessLinks={[acc.staffId]:{account:email,perm:acc.perm,tp:acc.tp||null,cs:acc.cs||null,imp:acc.imp||null,inv:acc.inv||null}};
   const perm=isAdmin?'super':acc.perm, sup=perm==='super', mng=sup||perm==='manage', sid=acc?.staffId;
   let loaded={staff:false,weeks:false,leaves:false,cfg:false,fc:false};
   const done=k=>{loaded[k]=true;if(Object.values(loaded).every(Boolean))mode='live';renderAll();};
@@ -2266,7 +2308,7 @@ function start(acc){
   const recheck=d=>{if(isAdmin)return;if(!d||d.perm!==acc.perm||d.staffId!==acc.staffId)location.reload();};
   if(sup){
     db.collection('data/private/people').onSnapshot(snap=>{privateInfo=docsTo(snap);staff.forEach(s=>{if(privateInfo[s.id]?.birthday)syncBirthMonth(s.id,privateInfo[s.id].birthday);});renderAll();},e=>console.warn(e));
-    db.collection('access').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();if(v.staffId)m[v.staffId]={account:d.id,perm:v.perm,prevPerm:v.prevPerm||null,tp:v.tp||null,cs:v.cs||null,imp:v.imp||null};if(d.id===email)recheck(v);});if(!isAdmin&&!snap.docs.some(d=>d.id===email))recheck(null);accessLinks=m;renderAll();},e=>console.warn(e));
+    db.collection('access').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();if(v.staffId)m[v.staffId]={account:d.id,perm:v.perm,prevPerm:v.prevPerm||null,tp:v.tp||null,cs:v.cs||null,imp:v.imp||null,inv:v.inv||null};if(d.id===email)recheck(v);});if(!isAdmin&&!snap.docs.some(d=>d.id===email))recheck(null);accessLinks=m;renderAll();},e=>console.warn(e));
   }else db.doc('access/'+email).onSnapshot(s=>recheck(s.exists?s.data():null),e=>console.warn(e));
   if(mng){
     db.collection('faces').onSnapshot(snap=>{const m={};snap.docs.forEach(d=>{const v=d.data();m[d.id]={at:v.at,n:v.n};});faceMeta=m;renderAll();},e=>console.warn(e));
@@ -2291,6 +2333,10 @@ function start(acc){
     db.doc('csStock/implants').onSnapshot(s=>{impStock=s.exists?s.data():{s:{},log:[]};if(prefs.tab==='implant')renderAll();},e=>console.warn('csStock',e));
     db.collection('csItems').where('item','in',IMPLANTS).onSnapshot(snap=>{impRecs=snap.docs.map(d=>Object.assign({id:d.id},d.data()));if(prefs.tab==='implant')renderAll();},e=>console.warn('implants',e));
   }
+  // 隱適美：有隱適美權限的人才讀
+  {const invTo=snap=>{invList=snap.docs.map(d=>Object.assign({id:d.id},d.data()));if(prefs.tab==='invis')renderAll();};
+  if(!isAdmin&&acc&&acc.perm!=='suspended'&&['viewSelf','adminSelf'].includes(acc.inv)&&sid)db.collection('invis').where('doc','==',sid).onSnapshot(invTo,e=>console.warn('invis',e));}
+  if(isAdmin||(acc&&acc.perm!=='suspended'&&['view','admin'].includes(acc.inv)))db.collection('invis').onSnapshot(snap=>{invList=snap.docs.map(d=>Object.assign({id:d.id},d.data()));if(prefs.tab==='invis')renderAll();},e=>console.warn('invis',e));
   if(isAdmin||appLv(acc,'cs')==='admin')db.collection('csItems').where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   else if(sid)db.collection('csItems').where('doctorId','==',sid).where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   if(sup)db.collection('pay').onSnapshot(snap=>{pay=docsTo(snap);renderAll();},e=>console.warn(e));
@@ -2354,6 +2400,8 @@ const appLv=(acc,k)=>!acc||acc.perm==='suspended'?'none':(acc[k]||(acc.perm==='v
 const APP_LV={
   tp:{none:['無','看不到治療計劃單。'],view:['檢視','只能查看計劃單，不能修改。'],edit:['編輯','可以開單、編輯、記錄治療、繳費與收據，只能刪除填寫中的單。'],admin:['管理','編輯＋價目表、抽成、統計、收入、刪除任何計劃單、設備認證、資料備份、雲端讀取。']},
   imp:{none:['無','看不到「植體數量」分頁。'],view:['檢視','可以查看植體剩餘數量與進貨／盤點紀錄。'],admin:['管理','檢視＋盤點（輸入現有數量）、登記進貨。']}, // 與耗材權限各自獨立
+  inv:{none:['無','看不到「隱適美」分頁。'],viewSelf:['檢視自己','只看得到自己是主治醫師的病患，不能修改。'],view:['檢視全部','看得到所有病患，不能修改。'],
+    adminSelf:['管理自己','只看得到、也只能新增與修改自己是主治醫師的病患。'],admin:['管理全部','所有病患都可以新增、修改、刪除，填寫各步驟日期。']}, // 與其他權限各自獨立；助理只用 none／view／admin（名稱見 INV_ASST）
   cs:{none:['無','不能進入耗材登記頁。'],view:['檢視','可以查看登記紀錄與統計，不能登記。'],edit:['登記','可以登記耗材，修改或刪除還沒確認的紀錄。'],admin:['管理','登記＋設定耗材種類、刪除已確認的紀錄；在「耗材確認」分頁看所有醫師並可取消確認。']},
 };
 // 僅檢視：助理只看班表、自己的請假、自己的出勤、自己的薪資；醫師只看班表、自己的請假、待自己審核的加班；未綁定人員只看班表
@@ -2364,7 +2412,7 @@ const viewOnlyAssistant=()=>lowPerm()&&byId(myStaffId())?.role==='assistant'; //
 const lowPerm=()=>(mode==='live'||(mode==='local'&&SIM_AS))&&['view','self'].includes(effPerm());
 function viewTabs(){
   const r=byId(myStaffId())?.role;
-  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev','cscheck']:[]),...(r!=='doctor'&&csAdmin()?['cscheck']:[]),...(impLv()!=='none'?['implant']:[])];
+  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev','cscheck']:[]),...(r!=='doctor'&&csAdmin()?['cscheck']:[]),...(impLv()!=='none'?['implant']:[]),...(invLv()!=='none'?['invis']:[])];
 }
 // 「登記本人請假」以下的人在請假分頁只看到自己的資料：繪製時暫時只留自己的請假、家庭照顧假、事件與人員
 function withOwnData(fn){
@@ -2417,10 +2465,11 @@ function renderAll(){
   if(prefs.tab==='att'&&!canWrite&&!viewOnlyAssistant())prefs.tab='schedule';
   {const show=canSeeCs(),n=csPendList(byId(myStaffId())?.role==='doctor').length;$('csTabBtn').hidden=!show;$('csTabBtn').textContent=n?`耗材確認（${n}）`:'耗材確認';if(prefs.tab==='cscheck'&&!show)prefs.tab='schedule';}
   {const show=impLv()!=='none';$('impTabBtn').hidden=!show;if(prefs.tab==='implant'&&!show)prefs.tab='schedule';}
+  {const show=invLv()!=='none';$('invTabBtn').hidden=!show;if(prefs.tab==='invis'&&!show)prefs.tab='schedule';}
   document.querySelectorAll('nav.tabs button').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.tab===prefs.tab)));
   document.body.classList.toggle('view-only',viewOnly());document.body.classList.toggle('low-perm',lowPerm());
   if(lowPerm()){const ok=viewTabs();document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!ok.includes(b.dataset.tab))b.hidden=true;});if(!ok.includes(prefs.tab))prefs.tab='schedule';}
-  else document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!['pay','att','otrev','cscheck','implant'].includes(b.dataset.tab))b.hidden=false;});
+  else document.querySelectorAll('nav.tabs button[data-tab]').forEach(b=>{if(!['pay','att','otrev','cscheck','implant','invis'].includes(b.dataset.tab))b.hidden=false;});
   // 排休抽籤：暫時只開放給超級管理員（之後要開放時拿掉這段即可）
   {const lb=document.querySelector('nav.tabs button[data-tab="lottery"]');if(!superOK()){lb.hidden=true;if(prefs.tab==='lottery')prefs.tab='schedule';}}
   // 下拉分頁群組：按鈕顯示「群組名・目前分頁」與底下各分頁括號內數字的加總（例如待審、缺證明）；底下分頁都看不到時整組隱藏
@@ -2431,7 +2480,7 @@ function renderAll(){
     // 只有一項看得到時不用下拉：按鈕直接顯示那一頁的名稱（含括號數字），點了就切過去
     g.classList.toggle('single',vis.length===1);btn.setAttribute('aria-haspopup',vis.length===1?'false':'menu');
     btn.innerHTML=vis.length===1?esc(vis[0].textContent):`${esc(g.dataset.grp)}${curName&&curName!==g.dataset.grp?'・'+esc(curName):''}${badge?`（${badge}）`:''}<span class="dd-car">▾</span>`;});
-  ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','cscheck','implant','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
+  ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','cscheck','implant','invis','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
   if(prefs.tab==='schedule') renderSchedule(mi);
@@ -2454,6 +2503,7 @@ function renderAll(){
   if(prefs.tab==='otrev') renderOtRev();
   if(prefs.tab==='cscheck') renderCs();
   if(prefs.tab==='implant') renderImplant();
+  if(prefs.tab==='invis') renderInvis();
 }
 
 const otMax=()=>Number.isFinite(cfg.otMax)?cfg.otMax:3;
@@ -3892,10 +3942,10 @@ function permCells(s){
   const a=accessLinks[s.id],pre=!a?.account&&s.permPreset?s.permPreset:null,src=a?.account?a:pre,susp=a?.perm==='suspended';
   const acct=a?.account?(susp?`<span class="att-bad" title="${esc(a.account)}">已停權</span>`:`<span class="pacct" title="${esc(a.account)}">${esc(a.account)}</span>`)
     :pre?'<span class="att-mute" title="填入 Gmail 後套用右邊這組權限">未填 Gmail</span>':'<span class="att-mute">未設定</span>';
-  if(!src)return `<td>${acct}</td>`+'<td><span class="pchip l0">—</span></td>'.repeat(4);
+  if(!src)return `<td>${acct}</td>`+'<td><span class="pchip l0">—</span></td>'.repeat(5);
   const eff=susp?Object.assign({},src,{perm:src.prevPerm||'view'}):src,dim=pre||susp?' pre':'';
-  const chip=(lv,label)=>`<span class="pchip l${lv}${dim}">${esc(label)}</span>`,p=PERMS[eff.perm]?eff.perm:'view',imp=APP_LV.imp[eff.imp]?eff.imp:'none';
-  return `<td>${acct}</td><td>${chip(PLV.perm[p]??1,PERMS[p])}</td>`+['tp','cs'].map(k=>{const v=appLv(eff,k);return `<td>${chip(PLV.app[v]??0,APP_LV[k][v]?.[0]||'無')}</td>`;}).join('')+`<td>${chip(PLV.app[imp],APP_LV.imp[imp][0])}</td>`;
+  const chip=(lv,label)=>`<span class="pchip l${lv}${dim}">${esc(label)}</span>`,p=PERMS[eff.perm]?eff.perm:'view',imp=APP_LV.imp[eff.imp]?eff.imp:'none',inv=invOptsFor(s.role)[eff.inv]?eff.inv:'none';
+  return `<td>${acct}</td><td>${chip(PLV.perm[p]??1,PERMS[p])}</td>`+['tp','cs'].map(k=>{const v=appLv(eff,k);return `<td>${chip(PLV.app[v]??0,APP_LV[k][v]?.[0]||'無')}</td>`;}).join('')+`<td>${chip(PLV.app[imp],APP_LV.imp[imp][0])}</td><td>${chip({none:0,viewSelf:1,view:1,adminSelf:2,admin:3}[inv]??0,invLabel(s.role,inv))}</td>`;
 }
 function renderSettings(){
   const dis=canWrite?'':' disabled';
@@ -3912,18 +3962,18 @@ function renderSettings(){
     if(sep){const n=staff.filter(x=>x.role===role&&x.active===false).length;const b=document.querySelector(`[data-resigned="${role}"]`);b.textContent=showRes?'返回在職名單':`查看已離職人員（${n}）`;b.classList.toggle('primary',showRes);}
     const list=staff.filter(x=>x.role===role&&(!sep||(x.active===false)===showRes)&&(!q||(x.code||'').toLowerCase().includes(q)||(x.name||'').toLowerCase().includes(q))).sort((a,b)=>((a.active===false)-(b.active===false))||(st.key==='name'?(!a.name&&!b.name?cmpCode(a,b):(!a.name)-(!b.name)||cmpName(a,b)*st.dir||cmpCode(a,b)):cmpCode(a,b)*st.dir));
     const sth=(key,label)=>`<button type="button" class="th-btn${st.key===key?' on':''}" data-stsort="${key}" data-role="${role}" aria-label="依${label}排序">${label}<span>${st.key===key?(st.dir>0?'▲':'▼'):'↕'}</span></button>`;
-    $('staffTable-'+role).innerHTML=`<thead><tr><th style="width:90px">${sth('code','代號')}</th><th>${sth('name','姓名')}</th><th>狀態</th>${P?'<th>登入帳號</th><th>排班休假</th><th>治療計劃單</th><th>耗材</th><th>植體數量</th>':''}<th></th></tr></thead><tbody>`+
+    $('staffTable-'+role).innerHTML=`<thead><tr><th style="width:90px">${sth('code','代號')}</th><th>${sth('name','姓名')}</th><th>狀態</th>${P?'<th>登入帳號</th><th>排班休假</th><th>治療計劃單</th><th>耗材</th><th>植體數量</th><th>隱適美</th>':''}<th></th></tr></thead><tbody>`+
     (list.length?list.map(s=>editingStaff===s.id?`<tr data-srow="${s.id}" data-editing>
       <td><input data-f="code" value="${esc(s.code||'')}" aria-label="代號"></td>
       <td><input data-f="name" value="${esc(s.name||'')}" placeholder="選填" aria-label="姓名"></td>
       <td style="white-space:nowrap"><button class="small primary" data-staffsave>儲存</button> <button class="small" data-staffcancel>取消</button></td>
-      ${P?'<td colspan="5"></td>':''}<td></td></tr>`
+      ${P?'<td colspan="6"></td>':''}<td></td></tr>`
     :`<tr class="${s.active===false?'inactive':''}" data-srow="${s.id}">
       <td><b>${esc(s.code||'')}</b></td>
       <td>${s.name?'<b>'+esc(s.name)+'</b>':'<span style="color:var(--faint)">—</span>'}${s.active===false&&sep?`<br><small style="color:var(--sub);white-space:nowrap">到職 ${fmtD(hireOf(s.id))}・離職 ${fmtD(resignOf(s.id))}</small>`:''}</td>
       <td style="white-space:nowrap"><button class="small" data-staffedit${dis}>修改</button> <button class="small" data-staffpriv${superOK()?'':' disabled title="只有超級管理員可以查看個資"'}>個資</button> <button class="small" data-staffperm${superOK()?'':' disabled title="只有超級管理員可以設定權限"'}>權限</button></td>${P?permCells(s):''}
       <td class="num" style="white-space:nowrap">${(a=>`<button class="small${a?.perm==='suspended'?' primary':''}" data-suspend${superOK()&&a?.account&&a.perm!=='super'?'':` disabled title="${!a?.account?'還沒綁定登入帳號':a.perm==='super'?'超級管理員暫時不能停權':'只有超級管理員可以停權'}"`}>${a?.perm==='suspended'?'恢復權限':'停權'}</button> `)(accessLinks[s.id])}<button class="small" data-toggle${dis}>${s.active===false?'恢復在職':'離職'}</button> <button class="small danger" data-delstaff${dis}>刪除</button></td></tr>`).join('')
-      :`<tr><td colspan="${P?9:4}" class="empty">${q?`找不到符合「${esc(q)}」的${showRes?'已離職':''}${ROLE[role]}。`:showRes?`沒有已離職的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
+      :`<tr><td colspan="${P?10:4}" class="empty">${q?`找不到符合「${esc(q)}」的${showRes?'已離職':''}${ROLE[role]}。`:showRes?`沒有已離職的${ROLE[role]}。`:`還沒有${ROLE[role]}，先用上方表單新增。`}</td></tr>`)+'</tbody>';
     {const max=role==='assistant'?10:role==='doctor'?8:6;/* 醫師名單一次顯示 8 人 */const n=limitRows($('staffScroll-'+role),max);$('staffHint-'+role).hidden=n<=max;}
   });
 
@@ -4869,18 +4919,21 @@ async function openPerm(s){
     ${s.role==='doctor'?'<p class="desc">醫師確認或退回自己的耗材不受耗材權限影響（排班休假系統至少要「僅檢視」才能進入「耗材確認」分頁）。</p>':''}
     <h4 class="pm-h">植體數量</h4>
     <div class="opts two">${Object.entries(APP_LV.imp).map(([k,[l,d]])=>`<label><input type="radio" name="pmImp" value="${k}"${(APP_LV.imp[curEff.imp]?curEff.imp:'none')===k?' checked':''}><span>${l}<small>${d}</small></span></label>`).join('')}</div>
-    <p class="desc">植體數量與耗材系統的權限各自獨立。排班休假系統至少要「僅檢視」才看得到「植體數量」分頁。</p>`,
+    <p class="desc">植體數量與耗材系統的權限各自獨立。排班休假系統至少要「僅檢視」才看得到「植體數量」分頁。</p>
+    <h4 class="pm-h">隱適美</h4>
+    <div class="opts two">${Object.entries(invOptsFor(s.role)).map(([k,[l,d]])=>`<label><input type="radio" name="pmInv" value="${k}"${(invOptsFor(s.role)[curEff.inv]?curEff.inv:'none')===k?' checked':''}><span>${l}<small>${d}</small></span></label>`).join('')}</div>
+    <p class="desc">隱適美清單含病患個資，權限與其他系統各自獨立。排班休假系統至少要「僅檢視」才看得到「隱適美」分頁。</p>`,
     ov=>{
-      const perm=ov.querySelector('input[name=pm]:checked').value,tp=ov.querySelector('input[name=pmTp]:checked').value,cs=ov.querySelector('input[name=pmCs]:checked').value,imp=ov.querySelector('input[name=pmImp]:checked').value;
+      const perm=ov.querySelector('input[name=pm]:checked').value,tp=ov.querySelector('input[name=pmTp]:checked').value,cs=ov.querySelector('input[name=pmCs]:checked').value,imp=ov.querySelector('input[name=pmImp]:checked').value,inv=ov.querySelector('input[name=pmInv]:checked').value;
       const account=ov.querySelector('#pmEmail').value.trim().toLowerCase();
       if(!account){ // 沒有 Gmail：存成預設權限
         if(cur.account)store.link(s.id,null);
-        store.staff(Object.assign(clone(s),{permPreset:{perm,tp,cs,imp}}));
-        toast(`${cur.account?'已解除綁定，':''}已預先設定 ${codeOf(s.id)} 的權限（排班 ${PERMS[perm]}、治療計劃單 ${APP_LV.tp[tp][0]}、耗材 ${APP_LV.cs[cs][0]}、植體數量 ${APP_LV.imp[imp][0]}），填入 Gmail 後生效。`);return;}
+        store.staff(Object.assign(clone(s),{permPreset:{perm,tp,cs,imp,inv}}));
+        toast(`${cur.account?'已解除綁定，':''}已預先設定 ${codeOf(s.id)} 的權限（排班 ${PERMS[perm]}、治療計劃單 ${APP_LV.tp[tp][0]}、耗材 ${APP_LV.cs[cs][0]}、植體數量 ${APP_LV.imp[imp][0]}、隱適美 ${invLabel(s.role,inv)}），填入 Gmail 後生效。`);return;}
       if(!/^[^@\s\/]+@[^@\s\/]+\.[^@\s\/]+$/.test(account)){toast('Gmail 格式不正確。','warn');return false;}
       const other=Object.entries(accessLinks).find(([sid,v])=>sid!==s.id&&v&&v.account===account);
       if(other){toast(`這個帳號已經綁定給 ${codeOf(other[0])}，請先解除。`,'warn');return false;}
-      store.link(s.id,{account,perm,tp,cs,imp});if(s.permPreset){const n=clone(s);delete n.permPreset;store.staff(n);}toast(`已設定 ${codeOf(s.id)} 的權限：排班 ${PERMS[perm]}、治療計劃單 ${APP_LV.tp[tp][0]}、耗材 ${APP_LV.cs[cs][0]}、植體數量 ${APP_LV.imp[imp][0]}。`);
+      store.link(s.id,{account,perm,tp,cs,imp,inv});if(s.permPreset){const n=clone(s);delete n.permPreset;store.staff(n);}toast(`已設定 ${codeOf(s.id)} 的權限：排班 ${PERMS[perm]}、治療計劃單 ${APP_LV.tp[tp][0]}、耗材 ${APP_LV.cs[cs][0]}、植體數量 ${APP_LV.imp[imp][0]}、隱適美 ${invLabel(s.role,inv)}。`);
     },'儲存');
   const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');
   ov.querySelector('#pmEmail').focus();
@@ -5097,6 +5150,126 @@ const canSeeCs=()=>byId(myStaffId())?.role==='doctor'||csAdmin();
 const impLv=()=>{if(mode==='local'&&!SIM_AS)return 'admin';if(isAdmin&&myId)return 'admin';const a=mode==='local'?(SIM_AS?{perm:SIM_AS[1],imp:(/[?&]imp=(view|admin)/.exec(location.search)||[])[1]}:null):accessLinks[myStaffId()];
   return a&&a.perm!=='suspended'&&APP_LV.imp[a.imp]?a.imp:'none';};
 // 能不能進耗材登記頁（consumables.html）：耗材權限不是「無」才顯示「開啟耗材登記頁」按鈕
+// ---- 隱適美：患者追蹤清單（invis/{id}）----
+// 欄位：cn 中文名、en 英文名、birth 生日、chart 患者編號、doc 主治醫師、note 備註、closed 已結案、
+//       st 狀態（open 進行中、closed 已結案、cancel 取消療程、trad 改傳統矯正；舊資料只有 closed 布林值）
+//       g{n} s{n} a{n}＝第 n 次的取資料、submit、approve 日期（YYYY-MM-DD，空白＝還沒做）；n{n}＝第 n 次的備註；nr＝目前有幾次（按「＋」加一次）
+// 權限 access/{Gmail}.inv：none／view／admin（沒設定＝none），與其他權限各自獨立；系統擁有者一律 admin。本機模擬身分可以加 &inv=view 或 &inv=admin 測試
+const INV_STEP3=[['g','取資料'],['s','submit'],['a','approve']];
+const invSteps=n=>INV_STEP3.map(([p,l])=>({k:p+n,l,n})); // 第 n 次的三個步驟
+const invRounds=x=>{let m=Math.max(1,Number(x.nr)||1);for(let n=m+1;n<=30;n++)if(['g','s','a','n'].some(p=>x[p+n]))m=n;return m;}; // 這位病患目前有幾次
+const invLv=()=>{if(mode==='local'&&!SIM_AS)return 'admin';if(isAdmin&&myId)return 'admin';const a=mode==='local'?(SIM_AS?{perm:SIM_AS[1],inv:(/[?&]inv=(viewSelf|adminSelf|view|admin)/.exec(location.search)||[])[1]}:null):accessLinks[myStaffId()];
+  const v=a&&a.perm!=='suspended'&&APP_LV.inv[a.inv]?a.inv:'none';
+  return /Self$/.test(v)&&byId(myStaffId())?.role!=='doctor'?'none':v;}; // 「自己」只適用醫師
+// 助理（與其他非醫師）的隱適美權限只有 無／檢視／管理
+const INV_ASST={none:APP_LV.inv.none,view:['檢視','看得到所有病患，不能修改。'],admin:['管理','所有病患都可以新增、修改、刪除，填寫各步驟日期。']};
+const invOptsFor=role=>role==='doctor'?APP_LV.inv:INV_ASST;
+const invLabel=(role,v)=>(invOptsFor(role)[v]||APP_LV.inv[v]||APP_LV.inv.none)[0];
+const invSelf=()=>/Self$/.test(invLv()); // 只看自己是主治醫師的病患
+const invCanAdd=()=>['admin','adminSelf'].includes(invLv());
+const invCanEd=x=>invLv()==='admin'||(invLv()==='adminSelf'&&!!x&&x.doc===myStaffId());
+let invList=[],invView={q:'',doc:'',st:'open'};
+const INV_LOCAL=LOCAL_KEY+'_invis';
+const invLocal=()=>{try{return JSON.parse(localStorage.getItem(INV_LOCAL)||'[]');}catch(e){return [];}};
+const invAll=()=>mode==='local'?invLocal():invList;
+async function invPut(x){
+  if(mode==='local'){const L=invLocal().filter(y=>y.id!==x.id);L.push(x);localStorage.setItem(INV_LOCAL,JSON.stringify(L));renderAll();return;}
+  const {id,...data}=x;await db.doc('invis/'+id).set(data);
+}
+async function invDel(id){
+  if(mode==='local'){localStorage.setItem(INV_LOCAL,JSON.stringify(invLocal().filter(y=>y.id!==id)));renderAll();return;}
+  await db.doc('invis/'+id).delete();
+}
+const invKey=v=>String(v??'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,''); // 搜尋忽略空白與符號
+const invNext=x=>{for(let n=1;n<=invRounds(x);n++){const st=invSteps(n).find(s=>!x[s.k]);if(st)return st.k;}return null;}; // 下一個要做的步驟
+const invFmt=v=>v?v.replace(/-/g,'/'):'';
+const INV_ST={open:'進行中',closed:'已結案',cancel:'取消療程',trad:'改傳統矯正'};
+const invSt=x=>INV_ST[x.st]?x.st:(x.closed?'closed':'open');
+function renderInvis(){
+  const self=invSelf(),me=myStaffId(),all=invAll().filter(x=>!self||x.doc===me);
+  const docs=activeStaff('doctor');
+  {const sel=$('invDoc'),v=invView.doc;const used=[...new Set(all.map(x=>x.doc).filter(Boolean))];
+    const opts='<option value="">全部醫師</option>'+[...new Set([...docs.map(d=>d.id),...used])].filter(id=>byId(id)).map(id=>`<option value="${esc(id)}">${esc(fullName(byId(id)))}</option>`).join('');
+    if(sel.innerHTML!==opts)sel.innerHTML=opts;sel.value=v;sel.closest('.field').hidden=self;}
+  $('invSt').value=invView.st;
+  if(document.activeElement!==$('invQ'))$('invQ').value=invView.q;
+  $('invAddBtn').hidden=!invCanAdd();
+  const q=invKey(invView.q);
+  const list=all.filter(x=>(invView.st==='all'||invSt(x)===invView.st)&&(self||!invView.doc||x.doc===invView.doc)
+    &&(!q||[x.cn,x.en,x.chart].some(v=>invKey(v).includes(q))))
+    .sort((a,b)=>(Object.keys(INV_ST).indexOf(invSt(a))-Object.keys(INV_ST).indexOf(invSt(b)))||String(a.chart||'').localeCompare(String(b.chart||''),'en',{numeric:true})||String(a.cn||'').localeCompare(String(b.cn||''),'zh-Hant'));
+  $('invCount').textContent=`共 ${list.length} 位${self?'（只顯示你是主治醫師的病患）':''}`;
+  // 表頭的次數＝清單裡最多的次數；次數較少的病患，後面的格子留白，「＋」放在下一次的位置；次數最多的病患，「＋」放在最後一欄
+  const maxR=Math.max(1,...list.map(invRounds)),RN=[...Array(maxR)].map((_,i)=>i+1),plusCol=list.some(x=>invCanEd(x)&&invRounds(x)===maxR);
+  const head=`<thead><tr><th rowspan="2">中文名</th><th rowspan="2">英文名</th><th rowspan="2">生日</th><th rowspan="2">患者編號</th><th rowspan="2">主治醫師</th>${RN.map(n=>`<th colspan="3" class="inv-grp">第 ${n} 次</th>`).join('')}${plusCol?'<th rowspan="2" class="inv-first"></th>':''}</tr>
+    <tr>${RN.flatMap(invSteps).map(s=>`<th class="inv-step${s.k[0]==='g'?' inv-first':''}">${s.l}</th>`).join('')}</tr></thead>`;
+  const plus=n=>`<button type="button" class="inv-plus" data-invplus title="加第 ${n} 次" aria-label="加第 ${n} 次">＋</button>`;
+  const row=x=>{const ed=invCanEd(x),st=invSt(x),nx=st!=='open'?null:invNext(x),nr=invRounds(x),mine=RN.filter(n=>n<=nr);
+    const R=' rowspan="2"',cls=st!=='open'?' inv-closed':'';
+    // 沒有的次數：下一次放「＋」（管理才有），其餘留白；兩行合併成一格
+    const rest=RN.filter(n=>n>nr).map((n,i)=>`<td colspan="3"${R} class="inv-first inv-none">${ed&&!i?plus(n):''}</td>`).join('')+(plusCol?`<td${R} class="inv-first inv-none">${ed&&nr===maxR?plus(nr+1):''}</td>`:'');
+    return `<tr data-inv="${esc(x.id)}" class="inv-top${cls}"><td><b>${esc(x.cn||'')}</b></td><td>${esc(x.en||'')}</td><td style="white-space:nowrap">${esc(invFmt(x.birth))}</td><td style="white-space:nowrap">${esc(x.chart||'')}</td><td style="white-space:nowrap">${x.doc&&byId(x.doc)?esc(fullName(byId(x.doc))):'<span class="att-mute">—</span>'}</td>`+
+      mine.flatMap(invSteps).map(s=>`<td class="inv-d${s.k[0]==='g'?' inv-first':''}${nx===s.k?' inv-next':''}"${nx===s.k?' title="下一步"':''}>${ed?`<input type="date" data-invk="${s.k}" value="${esc(x[s.k]||'')}" aria-label="第 ${s.n} 次 ${s.l}">`:(x[s.k]?esc(invFmt(x[s.k])):'<span class="att-mute">—</span>')}</td>`).join('')+rest+
+      `</tr>`+
+      `<tr data-inv="${esc(x.id)}" class="inv-sub${cls}"><td colspan="5" class="inv-stc"><div class="inv-stw"><span class="inv-st ${st}">${INV_ST[st]}</span><span class="inv-note"${x.note?` title="${esc(x.note)}"`:''}>${esc(x.note||'')}</span>${ed?'<button class="small" data-invedit>修改</button>':''}</div></td>${mine.map(n=>`<td colspan="3" class="inv-first inv-rn">${ed?`<div class="inv-rnw"><input type="text" data-invk="n${n}" value="${esc(x['n'+n]||'')}" placeholder="第 ${n} 次備註" aria-label="第 ${n} 次備註">${n===nr&&n>1&&!['g','s','a','n'].some(p=>x[p+n])?`<button type="button" class="inv-minus" data-invminus title="移除第 ${n} 次（還沒填任何資料）" aria-label="移除第 ${n} 次">−</button>`:''}</div>`:(x['n'+n]?esc(x['n'+n]):'<span class="att-mute">—</span>')}</td>`).join('')}</tr>`;};
+  $('invTable').innerHTML=head+'<tbody>'+(list.length?list.map(row).join(''):`<tr><td colspan="${5+maxR*3+(plusCol?1:0)}" class="att-mute">${all.length?'沒有符合條件的病患':self?'目前沒有你是主治醫師的病患':'還沒有病患'+(invCanAdd()?'，按「＋ 新增病患」開始建立':'')}</td></tr>`)+'</tbody>';
+}
+// 新增／修改病患基本資料（日期直接在表格裡填）
+function invOpen(x){
+  if(x?!invCanEd(x):!invCanAdd())return;
+  const isNew=!x;x=x||{};
+  const selfOnly=invLv()==='adminSelf',me=myStaffId();
+  const docs=selfOnly?[byId(me)].filter(Boolean):activeStaff('doctor');if(isNew&&selfOnly)x={doc:me};
+  dialog(`<h3>${isNew?'新增病患':'修改病患'}</h3>
+    <div class="form-row">
+      <div class="field"><label for="ivCn">中文名 <span class="att-bad">*</span></label><input id="ivCn" value="${esc(x.cn||'')}"></div>
+      <div class="field"><label for="ivEn">英文名 <span class="att-bad">*</span></label><input id="ivEn" value="${esc(x.en||'')}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label for="ivBirth">生日 <span class="att-bad">*</span></label><input id="ivBirth" type="date" value="${esc(x.birth||'')}"></div>
+      <div class="field"><label for="ivChart">患者編號</label><input id="ivChart" value="${esc(x.chart||'')}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label for="ivDoc">主治醫師 <span class="att-bad">*</span></label><select id="ivDoc"${selfOnly?' disabled':''}>${selfOnly?'':'<option value="">請選擇</option>'}${[...docs,...(x.doc&&byId(x.doc)&&!docs.some(d=>d.id===x.doc)?[byId(x.doc)]:[])].map(d=>`<option value="${esc(d.id)}"${d.id===x.doc?' selected':''}>${esc(fullName(d))}</option>`).join('')}</select></div>
+      <div class="field"><label for="ivSt">狀態</label><select id="ivSt">${Object.entries(INV_ST).map(([k,l])=>`<option value="${k}"${(isNew?'open':invSt(x))===k?' selected':''}>${l}</option>`).join('')}</select></div>
+    </div>
+    <div class="field"><label for="ivNote">備註</label><textarea id="ivNote" rows="3">${esc(x.note||'')}</textarea></div>
+    ${isNew?'':'<p style="margin:10px 0 0"><button type="button" class="small danger" data-invdel>刪除這位病患</button></p>'}`,ov=>{
+    const g=id=>ov.querySelector(id).value.trim();
+    const cn=g('#ivCn'),chart=g('#ivChart');
+    // 必填：中文名、英文名、生日、主治醫師（患者編號選填）
+    const miss=[['中文名',cn],['英文名',g('#ivEn')],['生日',g('#ivBirth')],['主治醫師',selfOnly?me:g('#ivDoc')]].filter(([,v])=>!v).map(([l])=>l);
+    if(miss.length){toast(miss.join('、')+' 必填。','warn');return false;}
+    if(chart&&invAll().some(y=>y.id&&y.id!==x.id&&invKey(y.chart)===invKey(chart))){toast(`患者編號 ${chart} 已經在清單裡。`,'warn');return false;}
+    const now=Date.now(),by=myDisplayName();
+    const n=Object.assign({},x,{id:x.id||uid('iv'),cn,en:g('#ivEn'),birth:g('#ivBirth'),chart,doc:selfOnly?me:g('#ivDoc'),note:g('#ivNote'),st:g('#ivSt'),closed:g('#ivSt')!=='open',updatedAt:now,updatedBy:by},isNew?{createdAt:now,createdBy:by}:{});
+    invPut(n).then(()=>toast(isNew?'已新增病患。':'已儲存。')).catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限（只有隱適美「管理」可以修改，或安全規則尚未更新）':e.message),'warn');});
+  },isNew?'新增':'儲存');
+  const ov=document.querySelector('.overlay:last-of-type');
+  ov.querySelector('[data-invdel]')?.addEventListener('click',()=>{
+    dialog(`<h3>刪除病患</h3><p>刪除 <b>${esc(x.cn||'')}</b>（${esc(x.chart||'')}）的追蹤資料？刪除後無法復原；療程結束建議改成「已結案」。</p>`,()=>{
+      ov.remove();invDel(x.id).then(()=>toast('已刪除。')).catch(e=>{console.error(e);toast('刪除失敗：'+e.message,'warn');});},'刪除',true);
+  });
+  ov.querySelector('#ivCn').focus();
+}
+$('invAddBtn').addEventListener('click',()=>invOpen(null));
+$('invQ').addEventListener('input',e=>{invView.q=e.target.value;renderAll();});
+$('invDoc').addEventListener('change',e=>{invView.doc=e.target.value;renderAll();});
+$('invSt').addEventListener('change',e=>{invView.st=e.target.value;renderAll();});
+$('invTable').addEventListener('click',e=>{
+  if(e.target.closest('[data-invplus]')){const x=invAll().find(y=>y.id===e.target.closest('[data-inv]').dataset.inv);if(!x||!invCanEd(x))return;
+    invPut(Object.assign({},x,{nr:invRounds(x)+1,updatedAt:Date.now(),updatedBy:myDisplayName()})).catch(err=>{console.error(err);toast('儲存失敗：'+(err.code==='permission-denied'?'沒有權限':err.message),'warn');});return;}
+  if(e.target.closest('[data-invminus]')){const x=invAll().find(y=>y.id===e.target.closest('[data-inv]').dataset.inv);if(!x||!invCanEd(x))return;const nr=invRounds(x);
+    if(nr<=1||['g','s','a','n'].some(p=>x[p+nr]))return; // 只能移除最後一次、而且是空白的
+    invPut(Object.assign({},x,{nr:nr-1,updatedAt:Date.now(),updatedBy:myDisplayName()})).catch(err=>{console.error(err);toast('儲存失敗：'+err.message,'warn');});return;}
+  if(!e.target.closest('[data-invedit]'))return;const id=e.target.closest('[data-inv]').dataset.inv;invOpen(invAll().find(x=>x.id===id));});
+// 表格裡直接改日期（改完馬上存）
+$('invTable').addEventListener('change',e=>{
+  const i=e.target.closest('[data-invk]');if(!i)return;
+  const x=invAll().find(y=>y.id===i.closest('[data-inv]').dataset.inv);if(!x||!invCanEd(x))return;
+  const n=Object.assign({},x,{[i.dataset.invk]:i.value,updatedAt:Date.now(),updatedBy:myDisplayName()});
+  invPut(n).catch(err=>{console.error(err);toast('儲存失敗：'+(err.code==='permission-denied'?'沒有權限':err.message),'warn');i.value=x[i.dataset.invk]||'';});
+});
 const canOpenCsPage=()=>{if(csAdmin())return true;const a=mode==='local'?(SIM_AS?{perm:SIM_AS[1]}:null):accessLinks[myStaffId()];return appLv(a,'cs')!=='none';};
 let csView={doc:'',month:'',st:''},csSel=new Set(),csMonthKey='',csMonthUnsub=null;
 // mine=true：只算指定給自己的（醫師分頁標籤上的數字）
@@ -6737,8 +6910,8 @@ document.querySelectorAll('.staff-table').forEach(tb=>tb.addEventListener('click
   if(e.target.closest('[data-suspend]')){
     // 停權：保留帳號綁定，權限改為 suspended（記下原本的權限，恢復時還原）
     const a=accessLinks[s.id];if(!superOK()||!a?.account||a.perm==='super')return; // 超級管理員暫時不能停權
-    if(a.perm==='suspended'){store.link(s.id,{account:a.account,perm:a.prevPerm||'view',tp:a.tp,cs:a.cs,imp:a.imp});toast(`已恢復 ${codeOf(s.id)} 的權限（${PERMS[a.prevPerm||'view']}）。`);return;}
-    dialog(`<h3>停權 ${esc(fullName(s))}？</h3><p>停權後 ${esc(a.account)} 將無法登入系統，人員資料與班表都會保留。之後可以按「恢復權限」還原成原本的權限（${PERMS[a.perm]||PERMS.view}）。</p>`,()=>{store.link(s.id,{account:a.account,perm:'suspended',prevPerm:a.perm||'view',tp:a.tp,cs:a.cs,imp:a.imp});toast(`已停權 ${codeOf(s.id)}。`);},'停權',true);
+    if(a.perm==='suspended'){store.link(s.id,{account:a.account,perm:a.prevPerm||'view',tp:a.tp,cs:a.cs,imp:a.imp,inv:a.inv});toast(`已恢復 ${codeOf(s.id)} 的權限（${PERMS[a.prevPerm||'view']}）。`);return;}
+    dialog(`<h3>停權 ${esc(fullName(s))}？</h3><p>停權後 ${esc(a.account)} 將無法登入系統，人員資料與班表都會保留。之後可以按「恢復權限」還原成原本的權限（${PERMS[a.perm]||PERMS.view}）。</p>`,()=>{store.link(s.id,{account:a.account,perm:'suspended',prevPerm:a.perm||'view',tp:a.tp,cs:a.cs,imp:a.imp,inv:a.inv});toast(`已停權 ${codeOf(s.id)}。`);},'停權',true);
     return;
   }
   if(e.target.closest('[data-toggle]')){

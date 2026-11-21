@@ -41,6 +41,12 @@ service cloud.firestore {
     function tpLv() { return appLv('tp'); }
     function csLv() { return appLv('cs'); }
     // 植體數量（access/{Gmail}.imp：none／view／admin），沒設定＝none；擁有者＝admin；與耗材權限 cs 各自獨立
+    // 隱適美（access/{Gmail}.inv：none／viewSelf／view／adminSelf／admin），沒設定＝none；擁有者＝admin；與其他權限各自獨立
+    function invLv() {
+      return isOwner() ? 'admin'
+        : (!hasAcc() || get(accPath()).data.perm == 'suspended') ? 'none'
+        : get(accPath()).data.get('inv', 'none');
+    }
     function impLv() {
       return isOwner() ? 'admin'
         : (!hasAcc() || get(accPath()).data.perm == 'suspended') ? 'none'
@@ -339,6 +345,15 @@ service cloud.firestore {
     // csImages 耗材圖片（登記時點「！」看）：有耗材權限或耗材認證設備都可以看；耗材「管理」可以上傳、更換、刪除
     match /csImages/{id} { allow read: if csLv() != 'none' || isCsDevice() || canView(); allow write: if isCsAdmin(); }
     // csStock 植體數量（盤點數量、進貨紀錄）：只看植體數量權限（與耗材權限無關）；檢視以上可以看，管理可以盤點、登記進貨
+    // invis 隱適美患者追蹤（病患個資），權限看 invLv()：
+    //   view 檢視全部、admin 管理全部；醫師另有 viewSelf 檢視自己、adminSelf 管理自己（只限自己是主治醫師 doc 的病患）
+    function invMine(d) { return signedIn() && mySid() != '' && d.doc == mySid(); }
+    match /invis/{id} {
+      allow read: if invLv() in ['view', 'admin'] || (invLv() in ['viewSelf', 'adminSelf'] && invMine(resource.data));
+      allow create: if invLv() == 'admin' || (invLv() == 'adminSelf' && invMine(request.resource.data));
+      allow update: if invLv() == 'admin' || (invLv() == 'adminSelf' && invMine(resource.data) && invMine(request.resource.data));
+      allow delete: if invLv() == 'admin' || (invLv() == 'adminSelf' && invMine(resource.data));
+    }
     match /csStock/{id} { allow read: if impLv() in ['view', 'admin']; allow write: if impLv() == 'admin'; }
     // csPrice 耗材單價：只有超級管理員看得到、改得到（助理、醫師與耗材管理都讀不到價格）
     match /csPrice/{id} { allow read, write: if isSuper(); }
