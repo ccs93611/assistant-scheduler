@@ -329,6 +329,9 @@ const TREATMENT_INFO=[
  care:['支架包覆在假牙內部，外觀看不到','依正式假牙的清潔方式保養','定期回診檢查螺絲與假牙狀況']},
 /* ---------- 顯微治療 ---------- */
 {id:'micro-rct',cat:'顯微治療',title:'顯微根管治療',items:['顯微根管-單根','顯微根管-多根'],
+ table:{title:'成功率',nw:[1],head:['治療方式','成功率','說明'],rows:[
+  ['一般根管治療','約 60%～70%','主要仰賴肉眼、X 光影像與手感，遇到細微分岔或死角時較難徹底清創。'],
+  ['顯微根管治療','**約 90% 以上**','顯微高倍率放大與照明，更容易辨識細微根管開口、鈣化阻塞或可見裂紋，降低殘留感染與復發風險。']]},
  pics:{src:'media/micro-rct-source.webp',w:1672,h:941,rows:[
   [{x:50,y:111,w:467,h:299,cap:'評估感染，確認治療範圍'},{x:578,y:111,w:514,h:299,cap:'橡皮障隔離，顯微鏡下開髓'},{x:1154,y:111,w:467,h:299,cap:'清創塑形，完成根管封填'}],
   [{x:36,y:493,w:505,h:363,cap:'橡皮障隔離，保護治療區域'},{x:584,y:493,w:503,h:363,cap:'機器清理並塑形根管'},{x:1130,y:493,w:505,h:363,cap:'GP 封填完成，開口可見橘色 GP'}]]},
@@ -588,7 +591,7 @@ function tiTableHtml(t){
   const em=x=>tiEsc(x).replace(/\*\*(.+?)\*\*/g,bc).replace(/__(.+?)__/g,'<b>$1</b>'); // __粗體__ 不用紅字
   const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
   return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="tiTog(this)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+cell(h)+'</th>').join('')}</tr></thead><tbody>${
-    t.rows.map(r=>'<tr>'+r.map((c,k)=>(k===t.hl?'<td class="hl">':'<td>')+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table>${t.foot?`<ul class="ti-tbl-foot">${t.foot.map(x=>`<li>${em(x)}</li>`).join('')}</ul>`:''}${t.pics?`<div class="ti-tbl-pics">${t.pics.map(p=>`<figure${p.marks?' class="mk"':''}><div class="pw"><img src="${tiEsc(p.src)}" alt="${tiEsc(p.cap)}" loading="lazy"${t.picsAr?` style="aspect-ratio:${t.picsAr}"`:''}>${p.marks?`<svg viewBox="0 0 ${p.w} ${p.h}" aria-hidden="true"><defs><marker id="tiah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#e5484d"/></marker></defs>${p.marks.map(m=>`<line x1="${m.tail[0]}" y1="${m.tail[1]}" x2="${m.tip[0]}" y2="${m.tip[1]}" stroke="#e5484d" stroke-width="${(p.w/70).toFixed(1)}" marker-end="url(#tiah)"/>`).join('')}</svg>${p.marks.map(m=>`<span class="lb" style="top:${(m.tail[1]/p.h*100).toFixed(1)}%">${tiEsc(m.label)}${m.sub?`<small>${tiEsc(m.sub)}</small>`:''}</span>`).join('')}`:''}</div><figcaption>${cell(p.cap,true)}</figcaption></figure>`).join('')}</div>`:''}</div></div>`}
+    t.rows.map(r=>'<tr>'+r.map((c,k)=>'<td'+(k===t.hl?' class="hl"':'')+((t.nw||[]).includes(k)?' style="white-space:nowrap"':'')+'>'+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table>${t.foot?`<ul class="ti-tbl-foot">${t.foot.map(x=>`<li>${em(x)}</li>`).join('')}</ul>`:''}${t.pics?`<div class="ti-tbl-pics">${t.pics.map(p=>`<figure${p.marks?' class="mk"':''}><div class="pw"><img src="${tiEsc(p.src)}" alt="${tiEsc(p.cap)}" loading="lazy"${t.picsAr?` style="aspect-ratio:${t.picsAr}"`:''}>${p.marks?`<svg viewBox="0 0 ${p.w} ${p.h}" aria-hidden="true"><defs><marker id="tiah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#e5484d"/></marker></defs>${p.marks.map(m=>`<line x1="${m.tail[0]}" y1="${m.tail[1]}" x2="${m.tip[0]}" y2="${m.tip[1]}" stroke="#e5484d" stroke-width="${(p.w/70).toFixed(1)}" marker-end="url(#tiah)"/>`).join('')}</svg>${p.marks.map(m=>`<span class="lb" style="top:${(m.tail[1]/p.h*100).toFixed(1)}%">${tiEsc(m.label)}${m.sub?`<small>${tiEsc(m.sub)}</small>`:''}</span>`).join('')}`:''}</div><figcaption>${cell(p.cap,true)}</figcaption></figure>`).join('')}</div>`:''}</div></div>`}
 /* 圖片比較（例如齒槽骨保存術有做／沒做）：預設收起來，點「📊 標題」展開；每段一個小標籤，下面是從圖裁出的照片 */
 function tiCmpHtml(c){
   // 從圖裁出一塊（CSS 背景定位），跟 tiStepsHtml 的裁切方式相同
