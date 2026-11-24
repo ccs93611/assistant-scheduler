@@ -531,6 +531,30 @@ table.list{border-collapse:collapse; width:100%; font-size:.85rem;}
 .overlay{position:fixed; inset:0; background:rgba(15,20,17,.4); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
 .dialog{background:var(--panel); border-radius:12px; padding:20px 22px; max-width:420px; width:100%; box-shadow:var(--shadow); max-height:calc(100vh - 32px); overflow:auto;}
 .dialog.wide{max-width:960px;}
+/* 工作安排表 */
+table.duty-table{border-collapse:collapse; font-size:.8rem; width:auto;}
+table.duty-table th,table.duty-table td{border:1px solid var(--line); padding:4px 3px; text-align:center; white-space:nowrap;}
+table.duty-table thead th{background:var(--slot); font-weight:700; color:var(--ink);}
+table.duty-table th.duty-d{min-width:38px;} table.duty-table th.duty-d small{display:block; font-weight:400; color:var(--sub); font-size:.7rem;}
+table.duty-table th.duty-sat{color:var(--accent);}
+table.duty-table .duty-off{background:color-mix(in srgb,#808080 35%,var(--panel));}
+table.duty-table th.duty-grp{background:var(--slot); padding:4px 6px; font-weight:700; color:var(--ink); vertical-align:middle;}
+table.duty-table th.duty-grp span{writing-mode:vertical-rl; letter-spacing:.2em;}
+table.duty-table th.duty-name{text-align:left; font-weight:600; color:var(--ink); white-space:normal; min-width:150px; max-width:240px; background:var(--panel);}
+table.duty-table th.duty-name small{display:block; font-weight:400; color:var(--sub); font-size:.7rem;}
+table.duty-table tr.duty-last td,table.duty-table tr.duty-last th{border-bottom:2px solid var(--sub);}
+table.duty-table tr.duty-c-blue td:not(.duty-off),table.duty-table tr.duty-c-blue th.duty-name{background:color-mix(in srgb,#5b8fd6 16%,var(--panel));}
+table.duty-table tr.duty-c-orange td:not(.duty-off),table.duty-table tr.duty-c-orange th.duty-name{background:color-mix(in srgb,#f0a050 18%,var(--panel));}
+table.duty-table tr.duty-c-yellow td:not(.duty-off),table.duty-table tr.duty-c-yellow th.duty-name{background:color-mix(in srgb,#f5d020 32%,var(--panel));}
+table.duty-table td.duty-cell{font-weight:600; min-width:38px;}
+table.duty-table td.duty-ed{cursor:pointer;} table.duty-table td.duty-ed:hover{outline:2px solid var(--accent); outline-offset:-2px;}
+.duty-me{background:var(--accent); color:var(--accent-ink); border-radius:3px; padding:0 2px; font-weight:700;}
+.duty-pick{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:6px;}
+.duty-pk{text-align:left;} .duty-pk.sug{border:2px solid var(--ok);} .duty-pk.on{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+.duty-key{border:2px solid var(--ok); border-radius:4px; padding:0 4px;}
+.duty-pk.off{background:color-mix(in srgb,#808080 18%,var(--panel)); color:var(--faint); border-style:dashed;} .duty-pk.off small{display:block; font-size:.7rem;}
+.duty-pk.off:disabled{cursor:not-allowed; opacity:.75;} .duty-pk.off.on{background:var(--warn-soft); color:var(--warn); border-color:var(--warn);}
+.duty-offkey{background:color-mix(in srgb,#808080 18%,var(--panel)); border:1px dashed var(--sub); border-radius:4px; padding:0 4px;}
 /* 隱適美追蹤表：每一次（取資料、submit、approve）用左邊粗線分組，下一步黃底 */
 table.inv-table{width:auto;} /* 不撐滿，格子只用需要的寬度 */
 table.inv-table th,table.inv-table td{white-space:nowrap; vertical-align:middle;}
@@ -812,6 +836,7 @@ body.gated .shell{display:none;}
         <button role="menuitem" data-tab="schedule">班表</button>
         <button role="menuitem" data-tab="rules">排班規則</button>
         <button role="menuitem" data-tab="stats">工時統計</button>
+        <button role="menuitem" data-tab="duty">工作安排</button>
       </div>
     </div>
     <div class="tab-grp" data-grp="出勤">
@@ -1029,6 +1054,16 @@ body.gated .shell{display:none;}
       </div>
     </section>
 
+    <section id="tab-duty" hidden>
+      <div class="stack">
+        <div class="card">
+          <div class="lv-title-row"><button type="button" class="small" id="dutyPrev" aria-label="上個月">◀</button><h2 id="dutyTitle" style="margin:0">工作安排</h2><button type="button" class="small" id="dutyNext" aria-label="下個月">▶</button>
+            <button class="primary" id="dutyAutoBtn" style="margin-left:12px">自動分配</button><button id="dutyEditBtn">編輯項目</button><span class="lv-range" id="dutyInfo"></span></div>
+          <p class="desc">每天的清潔與開關機工作由誰負責。「自動分配」依班表：開診前給當天有早班的助理、收診後給當天有晚班的助理（那天沒有晚班時給最後一班），輪流平均分配；點格子可以手動修改（開診前只能選有早班的人，其他工作當天有上班就能選）。灰色是休診日；<span class="duty-me">粗體底色</span>是你自己。</p>
+          <div class="scroll-x"><table class="duty-table" id="dutyTable"></table></div>
+        </div>
+      </div>
+    </section>
     <section id="tab-stats" hidden>
       <div class="stack">
         <div class="card">
@@ -2342,6 +2377,8 @@ function start(acc){
   // 隱適美：有隱適美權限的人才讀
   {const invTo=snap=>{invList=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();};
   if(!isAdmin&&acc&&acc.perm!=='suspended'&&['viewSelf','adminSelf'].includes(acc.inv)&&sid)db.collection('invis').where('doc','==',sid).onSnapshot(invTo,e=>console.warn('invis',e));}
+  // 工作安排：每個月一份，所有人都讀
+  db.collection('duty').onSnapshot(snap=>{dutyData={};snap.docs.forEach(d=>dutyData[d.id]=d.data());if(prefs.tab==='duty')renderAll();},e=>console.warn('duty',e));
   if(isAdmin||(acc&&acc.perm!=='suspended'&&['view','admin'].includes(acc.inv)))db.collection('invis').onSnapshot(snap=>{invList=snap.docs.map(d=>Object.assign({id:d.id},d.data()));renderAll();},e=>console.warn('invis',e));
   if(isAdmin||appLv(acc,'cs')==='admin')db.collection('csItems').where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
   else if(sid)db.collection('csItems').where('doctorId','==',sid).where('status','==','pending').onSnapshot(csTo,e=>console.warn(e));
@@ -2418,7 +2455,7 @@ const viewOnlyAssistant=()=>lowPerm()&&byId(myStaffId())?.role==='assistant'; //
 const lowPerm=()=>(mode==='live'||(mode==='local'&&SIM_AS))&&['view','self'].includes(effPerm());
 function viewTabs(){
   const r=byId(myStaffId())?.role;
-  return ['schedule',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev','cscheck']:[]),...(r!=='doctor'&&csAdmin()?['cscheck']:[]),...(impLv()!=='none'?['implant']:[]),...(invLv()!=='none'?['invis']:[])];
+  return ['schedule','duty',...(r==='assistant'?['att','leave','pay','lottery']:[]),...(r==='doctor'?['docleave','otrev','cscheck']:[]),...(r!=='doctor'&&csAdmin()?['cscheck']:[]),...(impLv()!=='none'?['implant']:[]),...(invLv()!=='none'?['invis']:[])];
 }
 // 「登記本人請假」以下的人在請假分頁只看到自己的資料：繪製時暫時只留自己的請假、家庭照顧假、事件與人員
 function withOwnData(fn){
@@ -2487,7 +2524,7 @@ function renderAll(){
     // 只有一項看得到時不用下拉：按鈕直接顯示那一頁的名稱（含括號數字），點了就切過去
     g.classList.toggle('single',vis.length===1);btn.setAttribute('aria-haspopup',vis.length===1?'false':'menu');
     btn.innerHTML=vis.length===1?esc(vis[0].textContent):`${esc(g.dataset.grp)}${curName&&curName!==g.dataset.grp?'・'+esc(curName):''}${badge?`（${badge}）`:''}<span class="dd-car">▾</span>`;});
-  ['schedule','docleave','leave','lottery','holidays','stats','att','otrev','cscheck','implant','invis','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
+  ['schedule','docleave','leave','lottery','holidays','stats','duty','att','otrev','cscheck','implant','invis','pay','settings','rules'].forEach(t=>$('tab-'+t).hidden=t!==prefs.tab);
   const counts=monthCounts(mi);
   renderPool(counts,mi);
   if(prefs.tab==='schedule') renderSchedule(mi);
@@ -2511,6 +2548,7 @@ function renderAll(){
   if(prefs.tab==='cscheck') renderCs();
   if(prefs.tab==='implant') renderImplant();
   if(prefs.tab==='invis') renderInvis();
+  if(prefs.tab==='duty') renderDuty(mi);
 }
 
 const otMax=()=>Number.isFinite(cfg.otMax)?cfg.otMax:3;
@@ -5157,6 +5195,134 @@ const canSeeCs=()=>byId(myStaffId())?.role==='doctor'||csAdmin();
 const impLv=()=>{if(mode==='local'&&!SIM_AS)return 'admin';if(isAdmin&&myId)return 'admin';const a=mode==='local'?(SIM_AS?{perm:SIM_AS[1],imp:(/[?&]imp=(view|admin)/.exec(location.search)||[])[1]}:null):accessLinks[myStaffId()];
   return a&&a.perm!=='suspended'&&APP_LV.imp[a.imp]?a.imp:'none';};
 // 能不能進耗材登記頁（consumables.html）：耗材權限不是「無」才顯示「開啟耗材登記頁」按鈕
+// ---- 工作安排（排班表 ▾ 工作安排）：每天的清潔、開關機等工作由誰負責 ----
+// 工作項目存在 cfg.dutyTasks（排班設定）；每個月的分配存在 duty/{YYYY-MM}.a：{'項目id|日': [人員id…]}
+// 項目：{id, name, g 分組 pre 開診前／open 開診後／post 收診後, n 每格人數, freq 0＝每天、k＝每週 k 次, full 優先給當天上最多班的人, color 底色}
+const DUTY_GROUPS=[['pre','開診前'],['open','開診後'],['post','收診後工作']];
+const DUTY_COLORS={'':'無',blue:'藍',orange:'橘',yellow:'黃'};
+const DUTY_DEFAULT=[
+  {id:'dt1',name:'打掃門口',g:'pre',n:2,freq:0},{id:'dt2',name:'整理諮詢室跟模型',g:'pre',n:2,freq:0},{id:'dt3',name:'倒垃圾',g:'pre',n:2,freq:0,color:'yellow'},
+  {id:'dt4',name:'擦大門玻璃',g:'pre',n:1,freq:1,color:'blue'},{id:'dt5',name:'集油棉和吸唾管清潔',g:'pre',n:1,freq:1,color:'blue'},{id:'dt6',name:'清石膏沉澱箱',g:'pre',n:2,freq:1,color:'blue'},
+  {id:'dt7',name:'Call 牙統 P3 回診',g:'open',n:1,freq:0},{id:'dt8',name:'午晚診坐櫃台',g:'open',n:1,freq:0},
+  {id:'dt9',name:'打掃廁所',g:'post',n:1,freq:0},{id:'dt10',name:'收集垃圾',g:'post',n:1,freq:0},
+  {id:'dt11',name:'設備關機（燈、空調、空壓機、X光機、吸唾機、RO機）',g:'post',n:1,freq:0},{id:'dt12',name:'診療椅、電腦關機、管線消毒、放氣、拆膠膜',g:'post',n:1,freq:0},
+  {id:'dt13',name:'掃地',g:'post',n:1,freq:2,color:'orange'},{id:'dt14',name:'二樓整理',g:'post',n:1,freq:0,full:true},
+  {id:'dt15',name:'拖地',g:'post',n:1,freq:1,color:'orange'},{id:'dt16',name:'擦拭（架子、桌面、玻璃）',g:'post',n:1,freq:3,color:'orange'},
+];
+const dutyTasks=()=>Array.isArray(cfg.dutyTasks)?cfg.dutyTasks:DUTY_DEFAULT;
+let dutyData={};
+const DUTY_LOCAL=LOCAL_KEY+'_duty';
+const dutyGet=ym=>{if(mode==='local'){try{return (JSON.parse(localStorage.getItem(DUTY_LOCAL)||'{}')[ym])||{};}catch(e){return {};}}return dutyData[ym]||{};};
+async function dutySave(ym,a){
+  const v={a,updatedAt:Date.now(),updatedBy:myDisplayName()};
+  if(mode==='local'){let m={};try{m=JSON.parse(localStorage.getItem(DUTY_LOCAL)||'{}');}catch(e){}m[ym]=v;localStorage.setItem(DUTY_LOCAL,JSON.stringify(m));renderAll();return;}
+  dutyData[ym]=v;renderAll();await db.doc('duty/'+ym).set(v);
+}
+const dutyOff=x=>SHIFTS.every(sh=>closedAt(x.dow,sh.id,x.key)); // 整天休診
+// 當天的助理：all 有上班的、pre 早班的（早班休診時用第一個開診班別）、post 晚班的（晚班休診時用最後一個開診班別，例如週六）、cnt 每人當天班數
+function dutyPeople(x){
+  const per=SHIFTS.map(sh=>{if(closedAt(x.dow,sh.id,x.key))return null;const c=(weeks[x.wk]||{})[x.dow+'_'+sh.id];
+    return Array.isArray(c)?[...new Set(c.flatMap(a=>Array.isArray(a)?a:[]).filter(id=>byId(id)?.role==='assistant'))]:[];});
+  const open=per.map((p,i)=>p?i:-1).filter(i=>i>=0),cnt={};
+  open.forEach(i=>per[i].forEach(id=>cnt[id]=(cnt[id]||0)+1));
+  return {all:Object.keys(cnt),pre:open.length?per[open[0]]:[],post:open.length?per[open[open.length-1]]:[],cnt};
+}
+// 每週 k 次的項目：在那一週有開診的日子裡平均挑 k 天
+function dutyDays(t,mi){
+  const days=mi.dates.filter(x=>!dutyOff(x));if(!t.freq)return days;
+  const byWk={};days.forEach(x=>(byWk[x.wk]=byWk[x.wk]||[]).push(x));
+  return Object.values(byWk).flatMap(L=>{const k=Math.min(t.freq,L.length),pick=new Set();for(let i=0;i<k;i++)pick.add(Math.min(L.length-1,Math.round((i+0.5)*L.length/k-0.5)));return [...pick].map(i=>L[i]);});
+}
+// 自動分配：開診前給當天第一班、收診後給當天最後一班、開診後給當天有上班的；「優先全天」的項目先給當天上最多班的人；
+// 其餘依「當天已經分到幾件 → 這個項目本月做過幾次 → 本月總件數」最少的優先，輪流平均
+function dutyAuto(all){
+  const mi=monthInfo(),tasks=dutyTasks(),a=all?{}:clone(dutyGet(mi.ym).a||{});
+  const total={},per={},day={};
+  const add=(tid,d,id)=>{total[id]=(total[id]||0)+1;per[tid+'|'+id]=(per[tid+'|'+id]||0)+1;day[d+'|'+id]=(day[d+'|'+id]||0)+1;};
+  Object.entries(a).forEach(([k,ids])=>{const [tid,d]=k.split('|');(ids||[]).forEach(id=>add(tid,d,id));});
+  const h=s=>{let x=0;for(const c of s)x=(x*31+c.charCodeAt(0))|0;return (x>>>0)%97/1000;};
+  let filled=0,short=0;
+  tasks.forEach(t=>dutyDays(t,mi).forEach(x=>{
+    const d=x.d.getDate(),k=t.id+'|'+d;if((a[k]||[]).length)return;
+    const P=dutyPeople(x),pool=t.g==='pre'?P.pre:t.g==='post'?P.post:P.all;
+    if(!pool.length){short++;return;}
+    const score=id=>(t.full?-(P.cnt[id]||0)*10000:0)+(day[d+'|'+id]||0)*100+(per[t.id+'|'+id]||0)*10+(total[id]||0)+h(id+k);
+    const pick=[...pool].sort((p,q)=>score(p)-score(q)).slice(0,Math.max(1,t.n||1));
+    a[k]=pick;pick.forEach(id=>add(t.id,d,id));filled++;
+  }));
+  dutySave(mi.ym,a).then(()=>toast(`已自動分配 ${filled} 格${short?`（${short} 格當天沒有符合的助理，留空）`:''}。`)).catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限（只有排班管理以上可以修改，或安全規則尚未更新）':e.message),'warn');});
+}
+function renderDuty(mi){
+  const tasks=dutyTasks(),a=dutyGet(mi.ym).a||{},me=myStaffId(),ed=canWrite;
+  $('dutyTitle').textContent=`${mi.label} 工作安排`;
+  $('dutyAutoBtn').hidden=$('dutyEditBtn').hidden=!ed;
+  const meta=dutyGet(mi.ym);$('dutyInfo').textContent=meta.updatedAt?`最後修改：${meta.updatedBy||''} ${fmtAt(meta.updatedAt)}`:'';
+  const head=`<thead><tr><th colspan="2" class="duty-item">項目</th>${mi.dates.map(x=>`<th class="duty-d${dutyOff(x)?' duty-off':''}${x.dow===5?' duty-sat':''}">${x.d.getDate()}<small>${DAYS[x.dow]}</small></th>`).join('')}</tr></thead>`;
+  const body=DUTY_GROUPS.map(([g,gl])=>{const L=tasks.filter(t=>(t.g||'pre')===g);if(!L.length)return '';
+    return L.map((t,i)=>`<tr class="duty-row${t.color?' duty-c-'+t.color:''}${i===L.length-1?' duty-last':''}">${i?'':`<th rowspan="${L.length}" class="duty-grp"><span>${esc(gl)}</span></th>`}<th class="duty-name">${esc(t.name)}${t.freq?`<small>每週 ${t.freq} 次</small>`:''}</th>`+
+      mi.dates.map(x=>{if(dutyOff(x))return '<td class="duty-off"></td>';const ids=a[t.id+'|'+x.d.getDate()]||[];
+        return `<td class="duty-cell${ed?' duty-ed':''}" data-duty="${esc(t.id)}|${x.d.getDate()}" data-date="${x.key}">${ids.map(id=>`<span class="${id===me?'duty-me':''}">${esc(byId(id)?.code||'?')}</span>`).join('.')}</td>`;}).join('')+'</tr>').join('');}).join('');
+  $('dutyTable').innerHTML=head+'<tbody>'+(body||`<tr><td class="att-mute" colspan="${mi.dates.length+2}">還沒有工作項目${ed?'，按「編輯項目」新增':''}</td></tr>`)+'</tbody>';
+}
+// 點格子：選這一天這個項目的負責人（可以多選）；當天有上班的人標綠框
+function dutyCellEdit(td){
+  if(!canWrite)return;
+  const [tid,d]=td.dataset.duty.split('|'),t=dutyTasks().find(x=>x.id===tid);if(!t)return;
+  const mi=monthInfo(),x=mi.dates.find(z=>z.key===td.dataset.date),P=dutyPeople(x),cur=new Set((dutyGet(mi.ym).a||{})[td.dataset.duty]||[]);
+  const pool=t.g==='pre'?P.pre:t.g==='post'?P.post:P.all;
+  dialog(`<h3>${esc(t.name)}・${x.d.getMonth()+1}/${x.d.getDate()}（${DAYS[x.dow]}）</h3>
+    <p class="hint" style="margin:0 0 10px">點選負責的助理（可以多選，再點一次取消）。<span class="duty-key">綠框</span>是建議人選（${t.g==='pre'?'當天有早班':t.g==='post'?'當天有晚班':'當天有上班'}）；<span class="duty-offkey">灰色</span>不能選（${t.g==='pre'?'開診前的工作要有早班':'當天沒有上班'}）。</p>
+    <div class="duty-pick">${activeStaff('assistant').map(s=>{const work=(t.g==='pre'?P.pre:P.all).includes(s.id),on=cur.has(s.id),why=P.all.includes(s.id)?'沒有早班':'未上班'; // 開診前限早班；收診後、開診後當天有上班就能選（綠框＝建議人選）；不能選的人已經被分配時可以點掉
+      return `<button type="button" class="duty-pk${on?' on':''}${pool.includes(s.id)?' sug':''}${work?'':' off'}" data-pk="${esc(s.id)}"${!work&&!on?' disabled':''}${work?'':` title="${why}"`}><b>${esc(s.code||'')}</b> ${esc(s.name||'')}${work?'':`<small>${why}</small>`}</button>`;}).join('')}</div>`,ov=>{
+    const ids=[...ov.querySelectorAll('.duty-pk.on')].map(b=>b.dataset.pk);
+    if(ov.querySelector('.duty-pk.on.off')){toast(t.g==='pre'?'有選到當天沒有早班的人，請先取消。':'有選到當天沒有上班的人，請先取消。','warn');return false;}
+    const a=clone(dutyGet(mi.ym).a||{});if(ids.length)a[td.dataset.duty]=ids;else delete a[td.dataset.duty];
+    dutySave(mi.ym,a).catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限':e.message),'warn');});
+  },'儲存');
+  const ov=document.querySelector('.overlay:last-of-type');
+  ov.addEventListener('click',e=>{const b=e.target.closest('[data-pk]');if(!b||b.disabled)return;b.classList.toggle('on');if(b.classList.contains('off')&&!b.classList.contains('on'))b.disabled=true;});
+}
+// 編輯工作項目：名稱、分組、每格人數、頻率、優先全天、底色、順序
+function dutyEditTasks(){
+  if(!canWrite)return;
+  let L=clone(dutyTasks());
+  const row=(t,i)=>`<tr data-i="${i}"><td><input data-f="name" value="${esc(t.name)}" style="width:100%;min-width:180px"></td>
+    <td><select data-f="g">${DUTY_GROUPS.map(([k,l])=>`<option value="${k}"${(t.g||'pre')===k?' selected':''}>${l}</option>`).join('')}</select></td>
+    <td><input data-f="n" type="number" min="1" max="5" value="${t.n||1}" style="width:56px"></td>
+    <td><select data-f="freq">${[0,1,2,3,4,5].map(k=>`<option value="${k}"${(t.freq||0)===k?' selected':''}>${k?`每週 ${k} 次`:'每天'}</option>`).join('')}</select></td>
+    <td style="text-align:center"><input data-f="full" type="checkbox"${t.full?' checked':''} title="優先給當天上最多班的人"></td>
+    <td><select data-f="color">${Object.entries(DUTY_COLORS).map(([k,l])=>`<option value="${k}"${(t.color||'')===k?' selected':''}>${l}</option>`).join('')}</select></td>
+    <td style="white-space:nowrap"><button type="button" class="small" data-mv="-1" title="上移">↑</button> <button type="button" class="small" data-mv="1" title="下移">↓</button> <button type="button" class="small danger" data-del title="刪除">刪除</button></td></tr>`;
+  const draw=ov=>{ov.querySelector('#dutyTaskBody').innerHTML=L.map(row).join('');};
+  const grab=ov=>{ov.querySelectorAll('#dutyTaskBody tr').forEach(tr=>{const t=L[+tr.dataset.i];tr.querySelectorAll('[data-f]').forEach(el=>{const f=el.dataset.f;t[f]=el.type==='checkbox'?el.checked:(f==='n'||f==='freq')?Math.max(f==='n'?1:0,Number(el.value)||0):el.value.trim();});});};
+  dialog(`<h3>編輯工作項目</h3>
+    <p class="hint" style="margin:0 0 8px">開診前＝當天有早班的助理、收診後＝當天有晚班的助理（那天沒有晚班時用最後一班）、開診後＝當天有上班的助理；自動分配依這個規則。手動選人時，開診前只能選有早班的人，其他工作當天有上班就能選。「優先全天」：優先給當天上最多班的人。刪除項目後，該項目已分配的紀錄不再顯示。</p>
+    <div class="scroll-x"><table class="list"><thead><tr><th>項目</th><th>分組</th><th>每格人數</th><th>頻率</th><th>優先全天</th><th>底色</th><th></th></tr></thead><tbody id="dutyTaskBody"></tbody></table></div>
+    <p style="margin:8px 0 0"><button type="button" class="small" data-addtask>＋ 新增項目</button> <button type="button" class="small" data-resettask>恢復成預設項目</button></p>`,ov=>{
+    grab(ov);if(L.some(t=>!t.name)){toast('項目名稱不能空白。','warn');return false;}
+    store.cfg(Object.assign({},cfg,{dutyTasks:L}));toast('已更新工作項目。');
+  },'儲存');
+  const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').classList.add('wide');draw(ov);
+  ov.addEventListener('click',e=>{
+    if(e.target.closest('[data-addtask]')){grab(ov);L.push({id:uid('dt'),name:'新項目',g:'post',n:1,freq:0});draw(ov);return;}
+    if(e.target.closest('[data-resettask]')){L=clone(DUTY_DEFAULT);draw(ov);return;}
+    const tr=e.target.closest('#dutyTaskBody tr');if(!tr)return;const i=+tr.dataset.i;
+    if(e.target.closest('[data-del]')){grab(ov);L.splice(i,1);draw(ov);return;}
+    const mv=e.target.closest('[data-mv]');if(mv){grab(ov);const j=i+Number(mv.dataset.mv);if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];draw(ov);}
+  });
+}
+$('dutyTable').addEventListener('click',e=>{const td=e.target.closest('td.duty-ed');if(td)dutyCellEdit(td);});
+$('dutyEditBtn').addEventListener('click',dutyEditTasks);
+$('dutyAutoBtn').addEventListener('click',()=>{
+  if(!canWrite)return;const mi=monthInfo();
+  dialog(`<h3>自動分配・${mi.label}</h3><p>依班表分配：開診前的工作給當天有早班的助理、收診後給當天有晚班的助理（那天沒有晚班時給最後一班）、開診後給當天有上班的助理；「優先全天」的項目先給當天上最多班的人；其餘輪流平均分配。</p>
+    <div class="opts"><label><input type="radio" name="dutyMode" value="fill" checked><span>只補空格<small>保留已經填好的格子，只分配空的</small></span></label>
+    <label><input type="radio" name="dutyMode" value="all"><span>整月重新分配<small>清掉這個月所有格子後重新分配</small></span></label></div>`,ov=>{
+    dutyAuto(ov.querySelector('input[name=dutyMode]:checked').value==='all');
+  },'開始分配');
+});
+$('dutyPrev').addEventListener('click',()=>{prefs.monthOffset--;savePrefs();renderAll();});
+$('dutyNext').addEventListener('click',()=>{prefs.monthOffset++;savePrefs();renderAll();});
 // ---- 隱適美：患者追蹤清單（invis/{id}）----
 // 欄位：cn 中文名、en 英文名、birth 生日、chart 患者編號、doc 主治醫師、note 備註、closed 已結案、
 //       st 狀態（open 進行中、closed 已結案、cancel 取消療程、trad 改傳統矯正；舊資料只有 closed 布林值）

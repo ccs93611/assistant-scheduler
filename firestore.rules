@@ -162,6 +162,8 @@ service cloud.firestore {
       allow write: if canManage();
     }
     match /config/{id}     { allow read: if canView(); allow write: if canManage(); }
+    // duty 工作安排（每月一份）：所有人可看，排班管理以上可改
+    match /duty/{ym}       { allow read: if canView(); allow write: if canManage(); }
 
     // 請假、家庭照顧假：排班管理以上可改所有人；一般助理只能新增/變更/刪除自己的
     // 請假／休假：助理、醫師自己登記的只能是待審申請（status 'pending'），由排班管理以上核准（拿掉 status）或退回（'rejected'）；
