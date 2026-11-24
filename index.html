@@ -1061,7 +1061,7 @@ body.gated .shell{display:none;}
       <div class="stack">
         <div class="card">
           <div class="lv-title-row"><h2 style="margin:0">隱適美 患者追蹤</h2><span class="lv-range" id="invCount"></span><button class="primary" id="invAddBtn" style="margin-left:12px">＋ 新增病患</button></div>
-          <p class="desc">每位病患記錄每一次的取資料、submit、approve 日期（空白＝還沒做），一開始只有第 1 次，按「＋」加下一次；<span class="inv-next-key">黃底</span>是下一個要做的步驟。日期與每一次的備註（第二行）可以直接在表格裡修改，改完自動儲存。</p>
+          <p class="desc">每位病患記錄每一次的取資料、submit、approve 日期（空白＝還沒做），一開始只有「首次」，按「＋」加下一次（AA1、AA2、AA3…）；<span class="inv-next-key">黃底</span>是下一個要做的步驟。日期與每一次的備註（第二行）可以直接在表格裡修改，改完自動儲存。</p>
           <div class="form-row">
             <div class="field"><label for="invQ">搜尋</label><input id="invQ" type="search" placeholder="姓名、英文名、患者編號"></div>
             <div class="field"><label for="invDoc">主治醫師</label><select id="invDoc"></select></div>
@@ -5155,9 +5155,11 @@ const impLv=()=>{if(mode==='local'&&!SIM_AS)return 'admin';if(isAdmin&&myId)retu
 // ---- 隱適美：患者追蹤清單（invis/{id}）----
 // 欄位：cn 中文名、en 英文名、birth 生日、chart 患者編號、doc 主治醫師、note 備註、closed 已結案、
 //       st 狀態（open 進行中、closed 已結案、cancel 取消療程、trad 改傳統矯正；舊資料只有 closed 布林值）
-//       g{n} s{n} a{n}＝第 n 次的取資料、submit、approve 日期（YYYY-MM-DD，空白＝還沒做）；n{n}＝第 n 次的備註；nr＝目前有幾次（按「＋」加一次）
+//       g{n} s{n} a{n}＝第 n 次（畫面名稱：首次、AA1、AA2…）的取資料、submit、approve 日期（YYYY-MM-DD，空白＝還沒做）；n{n}＝第 n 次的備註；nr＝目前有幾次（按「＋」加一次）
 // 權限 access/{Gmail}.inv：none／view／admin（沒設定＝none），與其他權限各自獨立；系統擁有者一律 admin。本機模擬身分可以加 &inv=view 或 &inv=admin 測試
 const INV_STEP3=[['g','取資料'],['s','submit'],['a','approve']];
+// 每一次的名稱：第 1 次＝首次，第 2 次起＝AA1、AA2、AA3…
+const invRName=n=>n<=1?'首次':'AA'+(n-1);
 const invSteps=n=>INV_STEP3.map(([p,l])=>({k:p+n,l,n})); // 第 n 次的三個步驟
 const invRounds=x=>{let m=Math.max(1,Number(x.nr)||1);for(let n=m+1;n<=30;n++)if(['g','s','a','n'].some(p=>x[p+n]))m=n;return m;}; // 這位病患目前有幾次
 const invLv=()=>{if(mode==='local'&&!SIM_AS)return 'admin';if(isAdmin&&myId)return 'admin';const a=mode==='local'?(SIM_AS?{perm:SIM_AS[1],inv:(/[?&]inv=(viewSelf|adminSelf|view|admin)/.exec(location.search)||[])[1]}:null):accessLinks[myStaffId()];
@@ -5207,17 +5209,17 @@ function renderInvis(){
   $('invCount').textContent=`共 ${list.length} 位${self?'（只顯示你是主治醫師的病患）':''}`;
   // 表頭的次數＝清單裡最多的次數；次數較少的病患，後面的格子留白，「＋」放在下一次的位置；次數最多的病患，「＋」放在最後一欄
   const maxR=Math.max(1,...list.map(invRounds)),RN=[...Array(maxR)].map((_,i)=>i+1),plusCol=list.some(x=>invCanEd(x)&&invRounds(x)===maxR);
-  const head=`<thead><tr><th rowspan="2">中文名</th><th rowspan="2">英文名</th><th rowspan="2">生日</th><th rowspan="2">患者編號</th><th rowspan="2">主治醫師</th>${RN.map(n=>`<th colspan="3" class="inv-grp">第 ${n} 次</th>`).join('')}${plusCol?'<th rowspan="2" class="inv-first"></th>':''}</tr>
+  const head=`<thead><tr><th rowspan="2">中文名</th><th rowspan="2">英文名</th><th rowspan="2">生日</th><th rowspan="2">患者編號</th><th rowspan="2">主治醫師</th>${RN.map(n=>`<th colspan="3" class="inv-grp">${invRName(n)}</th>`).join('')}${plusCol?'<th rowspan="2" class="inv-first"></th>':''}</tr>
     <tr>${RN.flatMap(invSteps).map(s=>`<th class="inv-step${s.k[0]==='g'?' inv-first':''}">${s.l}</th>`).join('')}</tr></thead>`;
-  const plus=n=>`<button type="button" class="inv-plus" data-invplus title="加第 ${n} 次" aria-label="加第 ${n} 次">＋</button>`;
+  const plus=n=>`<button type="button" class="inv-plus" data-invplus title="加 ${invRName(n)}" aria-label="加 ${invRName(n)}">＋</button>`;
   const row=x=>{const ed=invCanEd(x),st=invSt(x),nx=st!=='open'?null:invNext(x),nr=invRounds(x),mine=RN.filter(n=>n<=nr);
     const R=' rowspan="2"',cls=st!=='open'?' inv-closed':'';
     // 沒有的次數：下一次放「＋」（管理才有），其餘留白；兩行合併成一格
     const rest=RN.filter(n=>n>nr).map((n,i)=>`<td colspan="3"${R} class="inv-first inv-none">${ed&&!i?plus(n):''}</td>`).join('')+(plusCol?`<td${R} class="inv-first inv-none">${ed&&nr===maxR?plus(nr+1):''}</td>`:'');
     return `<tr data-inv="${esc(x.id)}" class="inv-top${cls}"><td><b>${esc(x.cn||'')}</b></td><td>${esc(x.en||'')}</td><td style="white-space:nowrap">${esc(invFmt(x.birth))}</td><td style="white-space:nowrap">${esc(x.chart||'')}</td><td style="white-space:nowrap">${x.doc&&byId(x.doc)?esc(fullName(byId(x.doc))):'<span class="att-mute">—</span>'}</td>`+
-      mine.flatMap(invSteps).map(s=>`<td class="inv-d${s.k[0]==='g'?' inv-first':''}${nx===s.k?' inv-next':''}"${nx===s.k?' title="下一步"':''}>${ed?`<input type="date" data-invk="${s.k}" value="${esc(x[s.k]||'')}" aria-label="第 ${s.n} 次 ${s.l}">`:(x[s.k]?esc(invFmt(x[s.k])):'<span class="att-mute">—</span>')}</td>`).join('')+rest+
+      mine.flatMap(invSteps).map(s=>`<td class="inv-d${s.k[0]==='g'?' inv-first':''}${nx===s.k?' inv-next':''}"${nx===s.k?' title="下一步"':''}>${ed?`<input type="date" data-invk="${s.k}" value="${esc(x[s.k]||'')}" aria-label="${invRName(s.n)} ${s.l}">`:(x[s.k]?esc(invFmt(x[s.k])):'<span class="att-mute">—</span>')}</td>`).join('')+rest+
       `</tr>`+
-      `<tr data-inv="${esc(x.id)}" class="inv-sub${cls}"><td colspan="5" class="inv-stc"><div class="inv-stw"><span class="inv-st ${st}">${INV_ST[st]}</span><span class="inv-note"${x.note?` title="${esc(x.note)}"`:''}>${esc(x.note||'')}</span>${ed?'<button class="small" data-invedit>修改</button>':''}</div></td>${mine.map(n=>`<td colspan="3" class="inv-first inv-rn">${ed?`<div class="inv-rnw"><input type="text" data-invk="n${n}" value="${esc(x['n'+n]||'')}" placeholder="第 ${n} 次備註" aria-label="第 ${n} 次備註">${n===nr&&n>1&&!['g','s','a','n'].some(p=>x[p+n])?`<button type="button" class="inv-minus" data-invminus title="移除第 ${n} 次（還沒填任何資料）" aria-label="移除第 ${n} 次">−</button>`:''}</div>`:(x['n'+n]?esc(x['n'+n]):'<span class="att-mute">—</span>')}</td>`).join('')}</tr>`;};
+      `<tr data-inv="${esc(x.id)}" class="inv-sub${cls}"><td colspan="5" class="inv-stc"><div class="inv-stw"><span class="inv-st ${st}">${INV_ST[st]}</span><span class="inv-note"${x.note?` title="${esc(x.note)}"`:''}>${esc(x.note||'')}</span>${ed?'<button class="small" data-invedit>修改</button>':''}</div></td>${mine.map(n=>`<td colspan="3" class="inv-first inv-rn">${ed?`<div class="inv-rnw"><input type="text" data-invk="n${n}" value="${esc(x['n'+n]||'')}" placeholder="${invRName(n)} 備註" aria-label="${invRName(n)} 備註">${n===nr&&n>1&&!['g','s','a','n'].some(p=>x[p+n])?`<button type="button" class="inv-minus" data-invminus title="移除 ${invRName(n)}（還沒填任何資料）" aria-label="移除 ${invRName(n)}">−</button>`:''}</div>`:(x['n'+n]?esc(x['n'+n]):'<span class="att-mute">—</span>')}</td>`).join('')}</tr>`;};
   $('invTable').innerHTML=head+'<tbody>'+(list.length?list.map(row).join(''):`<tr><td colspan="${5+maxR*3+(plusCol?1:0)}" class="att-mute">${all.length?'沒有符合條件的病患':self?'目前沒有你是主治醫師的病患':'還沒有病患'+(invCanAdd()?'，按「＋ 新增病患」開始建立':'')}</td></tr>`)+'</tbody>';
 }
 // 新增／修改病患基本資料（日期直接在表格裡填）
