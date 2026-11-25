@@ -115,6 +115,8 @@ footer.disc{font-size:12px;color:var(--muted);margin-top:28px;text-align:center}
 @media print{.di-vbtn,.di-vpop{display:none!important}}
 /* 案例照片彈窗：點照片放大時最高 600 px（例如根尖周炎的 X 光、手術照都是 700×600），橫長的全口 X 光可以比較寬，螢幕放不下才縮小；不用共用彈窗「至少 1600 px」的放大方式 */
 .ti-pop.di-case.full img{width:auto;height:auto;max-width:100%;max-height:600px;margin:0 auto 12px}
+.ti-pop.di-one.full img{width:auto;height:auto;max-width:100%;max-height:none;margin:0 auto} /* 示意圖彈窗放大：原尺寸 */
+.di-photo img{cursor:zoom-in}
 .di-y{color:#f2c94c}@media print{.di-y{color:#9a6b00}} /* 比較表裡 ==文字== 的黃字強調 */
 .di-links a.di{border-style:dashed;border-color:var(--warn);color:var(--warn)}.di-links a.di:hover{background:var(--warn);color:var(--accent-ink)}
 
@@ -257,6 +259,7 @@ function stageFlowHtml(label,stages,tr,otherLabel){
 function bodyHtml(e){
   return `<div class="ti-body">
     <p class="ti-what">${tiEsc(e.what)}</p>
+    ${e.photo?`<figure class="ti-photo di-photo"><img src="${tiEsc(e.photo.src)}" alt="${tiEsc(e.photo.alt||e.title)}" loading="lazy" width="${e.photo.w||''}" height="${e.photo.h||''}"></figure>`:''}
     ${e.video||e.cases?`<div class="di-vbtn">${[].concat(e.video||[]).map(x=>`<button type="button" class="ti-str-btn ti-tbl-btn" data-video="${tiEsc(x.src)}" data-cap="${tiEsc(x.cap||'')}" data-rate="${x.rate||1}">🎬 ${tiEsc(x.cap||'案例影片')}</button>`).join('')}${
       (e.cases||[]).map(c=>`<button type="button" class="ti-str-btn ti-tbl-btn" data-case="${tiEsc(c.imgs.join('|'))}" data-alt="${tiEsc(e.title+'・'+c.label)}">📷 ${tiEsc(c.label)}</button>`).join('')}</div>`:''}
     ${box('di-first','🚑 緊急處理',e.first)}
@@ -316,6 +319,7 @@ function printIds(ids){
 $('#q').addEventListener('input',filter);
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;cat=b.dataset.cat;filter();scrollTo({top:0})});
 $('#list').addEventListener('click',e=>{const p=e.target.closest('[data-print]');if(p)printIds([p.dataset.print]);
+  const dp=e.target.closest('.di-photo img');if(dp){e.stopPropagation();tiPop(dp.getAttribute('src'),dp.alt);document.getElementById('tiPop')?.classList.add('di-one');return} // 示意圖：彈窗先顯示整張，點圖改為原尺寸（不用共用彈窗的 1600 px 放大）
   const cb=e.target.closest('[data-case]');if(cb){tiPop(cb.dataset.case,cb.dataset.alt);document.getElementById('tiPop')?.classList.add('di-case')} // 案例照片：沿用治療介紹的圖片彈窗（多張上下排列，點圖放大，可列印）；加 di-case 讓放大時用原尺寸
   const vb=e.target.closest('[data-video]');if(vb)openVideo(vb.dataset.video,vb.dataset.cap,+vb.dataset.rate||1)});
 // 案例影片彈窗（原生控制列）；rate＝播放速度
