@@ -5538,7 +5538,7 @@ function invNoteOpen(x,k='note'){
 }
 // ---------- 隱適美：從 Invisalign 官網同步進度 ----------
 // 做法：使用者在書籤列放一個「新海：讀取隱適美」書籤；登入隱適美官網後在病患清單頁按下，
-// 書籤會讀取每位病患的病例頁（只讀），開啟本系統的視窗並用 postMessage 把資料傳過來，
+// 書籤會讀取每位病患的病例頁（只讀），讀完使用者按按鈕開啟本系統的視窗，用 postMessage 把資料傳過來，
 // 本系統列出跟系統不同的地方，勾選確認後才寫入。不需要存任何隱適美帳號密碼。
 const INV_SITE='https://vip.invisalign.com';
 // 書籤裡執行的程式（在隱適美官網上跑；用 toString() 轉成書籤）。只能用自己的參數，不能用本檔其他函式。
@@ -5546,14 +5546,17 @@ async function invScraper(ORIGIN){
   const SITE='https://vip.invisalign.com';
   if(location.origin!==SITE){alert('請先到隱適美官網（vip.invisalign.com）登入，打開病患清單（Patients）後再按這個書籤。');return;}
   if(!/\/patients\.action/.test(location.pathname)){location.href='/v3/auth/patients.action#pagination.page=1&pagination.perPage=100';alert('已切到病患清單，等清單出現後請再按一次書籤。');return;}
-  const W=window.open(ORIGIN+'/#invsync','xinhai_invsync');
-  const box=document.createElement('div');
-  box.style.cssText='position:fixed;z-index:2147483647;top:12px;right:12px;background:#2f5d50;color:#fff;padding:12px 16px;border-radius:10px;font:14px/1.5 sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:340px';
+  if(document.getElementById('xinhai-sync-box'))return; // 已經在讀了
+  // 讀取期間留在官網這個分頁（清單要畫面在前景才會載入），畫面中間顯示進度；讀完按按鈕再開新海系統
+  const box=document.createElement('div');box.id='xinhai-sync-box';
+  box.style.cssText='position:fixed;z-index:2147483647;inset:0;background:rgba(15,20,17,.45);display:flex;align-items:center;justify-content:center;font:15px/1.6 sans-serif';
+  box.innerHTML='<div style="background:#fff;color:#1d2b25;border-radius:14px;padding:22px 26px;width:min(420px,90vw);box-shadow:0 8px 30px rgba(0,0,0,.3);text-align:center"><div style="font-size:19px;font-weight:700;margin-bottom:6px">新海：讀取隱適美</div><div data-t style="font-weight:700;margin:10px 0 4px"></div><div style="height:8px;background:#e6ebe8;border-radius:4px;overflow:hidden;margin:10px 0"><div data-bar style="height:100%;width:0;background:#2f5d50;transition:width .3s"></div></div><div data-d style="color:#5b6b64;font-size:13px">請留在這個分頁、不用操作，約 1～2 分鐘。</div><div data-act style="margin-top:14px"></div></div>';
   document.body.appendChild(box);
-  const say=t=>{box.textContent='新海同步：'+t;try{if(W&&!W.closed)W.postMessage({type:'xinhai-invsync-progress',text:t},ORIGIN);}catch(e){}}; // 進度也顯示在新海系統的視窗
+  const $q=k=>box.querySelector('['+k+']');
+  const say=(t,pct)=>{$q('data-t').textContent=t;if(pct!=null)$q('data-bar').style.width=Math.round(pct)+'%';};
+  const btn=(label,fn,primary)=>{const b=document.createElement('button');b.textContent=label;b.style.cssText='margin:0 4px;padding:8px 16px;border-radius:8px;font:inherit;font-weight:700;cursor:pointer;border:1px solid #2f5d50;'+(primary?'background:#2f5d50;color:#fff':'background:#fff;color:#2f5d50');b.onclick=fn;$q('data-act').appendChild(b);return b;};
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  if(!W){say('瀏覽器擋住了彈出視窗，請允許 vip.invisalign.com 開啟彈出視窗後再按一次書籤。');setTimeout(()=>box.remove(),20000);return;}
-  // 病患清單畫面（React）上每張卡片帶有病患資料
+  // 病患清單畫面（React）上每張卡片帶有病患資料；載入中的灰色佔位卡片（PL-2-0…）不算
   const cards=()=>{const P=[];[...document.querySelectorAll('*')].filter(e=>e.shadowRoot).forEach(e=>e.shadowRoot.querySelectorAll('[class*=Card-patientWrapper]').forEach(c=>{
     const k=Object.keys(c).find(k=>k.startsWith('__reactFiber'));let f=k&&c[k];
     for(let i=0;i<8&&f;i++){const p=f.memoizedProps&&f.memoizedProps.patient;if(p){if(/^\d+$/.test(String(p.id))&&/^\d+$/.test(String(p.patientId)))P.push({id:String(p.id),pid:String(p.patientId),name:String(p.name||''),status:String((p.status&&p.status.label)||'')});break;}f=f.return;}}));return P;};
@@ -5562,13 +5565,13 @@ async function invScraper(ORIGIN){
     // 進行中的清單＋「已封存」（Archived）的清單都讀
     for(const [pre,lab] of [['','病患清單'],['filters%5B0%5D.id=ARCHIVED&filters%5B0%5D.categoryId=uncategorized&','已封存病患']])
     for(let pg=1;pg<=20;pg++){
-      location.hash=pre+'pagination.page='+pg+'&pagination.perPage=100';say('讀取'+lab+'第 '+pg+' 頁…');
-      let got=[];for(let t=0;t<60;t++){await sleep(500);got=cards();if(got.some(p=>!all.has(p.id)))break;} // 最多等 30 秒讓清單載入（已封存清單有時比較慢）
+      location.hash=pre+'pagination.page='+pg+'&pagination.perPage=100';say('讀取'+lab+'第 '+pg+' 頁…',lab==='病患清單'?3:8);
+      let got=[];for(let t=0;t<60;t++){await sleep(500);got=cards();if(got.some(p=>!all.has(p.id)))break;} // 最多等 30 秒讓清單載入
       const fresh=got.filter(p=>p.id&&p.pid&&!all.has(p.id));fresh.forEach(p=>all.set(p.id,p));
       if(got.length<100||!fresh.length)break;
     }
     location.hash='pagination.page=1&pagination.perPage=100';
-    if(!all.size){say('找不到病患清單，請確認在「Patients」頁、清單已經顯示後再按一次。');setTimeout(()=>box.remove(),20000);return;}
+    if(!all.size){say('找不到病患清單，請確認在「Patients」頁、清單已經顯示後再按一次。');btn('關閉',()=>box.remove());return;}
     const L=[...all.values()];let done=0;
     const strip=h=>h.replace(/<(script|style)\b[\s\S]*?<\/\1>|<!-{2}[\s\S]*?-{2}>/g,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ');
     const one=async p=>{
@@ -5579,17 +5582,24 @@ async function invScraper(ORIGIN){
         // 病例頁的時間軸（新的在前）：送出處方、approve、出貨
         p.ev=[...t.matchAll(/(\d\d\/\d\d\/\d{4}) (Prescription submitted|Flex Rx submitted|ClinCheck treatment plan approved|Aligners shipped)/g)].map(m=>[m[1],m[2]]);
       }catch(e){p.err=String(e&&e.message||e);}
-      done++;say('讀取病例 '+done+'/'+L.length+'…');};
+      done++;say('讀取病例 '+done+'/'+L.length+'…',10+done/L.length*88);};
     for(let i=0;i<L.length;i+=4)await Promise.all(L.slice(i,i+4).map(one));
-    say('讀取完成，傳送到新海系統…');
+    const errs=L.filter(p=>p.err).length;
+    say('讀取完成：'+L.length+' 位病患'+(errs?'（'+errs+' 位讀取失敗）':''),100);
+    $q('data-d').textContent='按下面的按鈕開啟新海系統，確認要更新的項目。';
     const data={type:'xinhai-invsync',v:1,at:Date.now(),patients:L};
-    let ok=false;const onMsg=e=>{if(e.origin===ORIGIN&&e.data&&e.data.type==='xinhai-invsync-ok')ok=true;};
-    window.addEventListener('message',onMsg);
-    for(let t=0;t<120&&!ok;t++){try{if(!W.closed)W.postMessage(data,ORIGIN);}catch(e){}await sleep(1000);}
-    window.removeEventListener('message',onMsg);
-    box.textContent='新海同步：'+(ok?'已傳送 '+L.length+' 位病患，請到新海系統的視窗確認要更新的項目。':'傳送失敗：新海系統的視窗沒有回應。請確認新海系統已登入，再按一次書籤。'); // 只顯示在官網，不再傳給新海系統
-    setTimeout(()=>box.remove(),ok?8000:20000);
-  }catch(e){say('發生錯誤：'+(e&&e.message||e));setTimeout(()=>box.remove(),20000);}
+    const send=async()=>{
+      const W=window.open(ORIGIN+'/#invsync','xinhai_invsync'); // 使用者按按鈕才開，不會被擋
+      if(!W){$q('data-d').textContent='瀏覽器擋住了彈出視窗，請允許 vip.invisalign.com 開啟彈出視窗後再按一次。';return;}
+      $q('data-d').textContent='傳送中…';
+      let ok=false;const onMsg=e=>{if(e.origin===ORIGIN&&e.data&&e.data.type==='xinhai-invsync-ok')ok=true;};
+      window.addEventListener('message',onMsg);
+      for(let t=0;t<120&&!ok;t++){try{if(!W.closed)W.postMessage(data,ORIGIN);}catch(e){}await sleep(1000);}
+      window.removeEventListener('message',onMsg);
+      $q('data-d').textContent=ok?'已傳送到新海系統，請到新海系統的視窗確認。這個視窗可以關閉了。':'新海系統的視窗沒有回應。請確認新海系統已登入，再按一次「開啟新海系統」。';
+    };
+    btn('開啟新海系統確認',send,true);btn('關閉',()=>box.remove());
+  }catch(e){say('發生錯誤：'+(e&&e.message||e));btn('關閉',()=>box.remove());}
 }
 const invBookmarklet=()=>'javascript:'+encodeURIComponent('('+invScraper.toString()+')('+JSON.stringify(location.origin)+');void 0');
 const invDmy=s=>/^\d\d\/\d\d\/\d{4}$/.test(s||'')?s.split('/').reverse().join('-'):''; // dd/mm/yyyy → yyyy-mm-dd
@@ -5715,7 +5725,7 @@ $('invSyncBtn').addEventListener('click',()=>{
     <ol class="isync-steps">
       <li>把下面的綠色按鈕<b>拖曳到瀏覽器的書籤列</b>（只要做一次；看不到書籤列請按 Ctrl＋Shift＋B）。</li>
       <li>到隱適美官網登入，打開「Patients」病患清單。</li>
-      <li>按書籤列上的「新海：讀取隱適美」。它會讀取每位病患的病例頁（約 1～2 分鐘，只讀不改官網），並開啟本系統的視窗。</li>
+      <li>按書籤列上的「新海：讀取隱適美」。官網畫面中間會顯示讀取進度（約 1～2 分鐘，只讀不改官網，<b>請留在官網分頁</b>）；讀完按「開啟新海系統確認」。</li>
       <li>本系統會列出 submit、approve、首次出貨、方案、End time 跟官網不一樣的地方，勾選確認後才會更新。</li>
     </ol>
     <p style="text-align:center;margin:14px 0 4px"><a class="isync-bm" href="${esc(invBookmarklet())}" title="拖曳到書籤列">新海：讀取隱適美</a></p>
