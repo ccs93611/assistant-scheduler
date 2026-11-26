@@ -5563,7 +5563,7 @@ async function invScraper(ORIGIN){
     for(const [pre,lab] of [['','病患清單'],['filters%5B0%5D.id=ARCHIVED&filters%5B0%5D.categoryId=uncategorized&','已封存病患']])
     for(let pg=1;pg<=20;pg++){
       location.hash=pre+'pagination.page='+pg+'&pagination.perPage=100';say('讀取'+lab+'第 '+pg+' 頁…');
-      let got=[];for(let t=0;t<30;t++){await sleep(500);got=cards();if(got.some(p=>!all.has(p.id)))break;}
+      let got=[];for(let t=0;t<60;t++){await sleep(500);got=cards();if(got.some(p=>!all.has(p.id)))break;} // 最多等 30 秒讓清單載入（已封存清單有時比較慢）
       const fresh=got.filter(p=>p.id&&p.pid&&!all.has(p.id));fresh.forEach(p=>all.set(p.id,p));
       if(got.length<100||!fresh.length)break;
     }
@@ -5587,7 +5587,7 @@ async function invScraper(ORIGIN){
     window.addEventListener('message',onMsg);
     for(let t=0;t<120&&!ok;t++){try{if(!W.closed)W.postMessage(data,ORIGIN);}catch(e){}await sleep(1000);}
     window.removeEventListener('message',onMsg);
-    say(ok?'已傳送 '+L.length+' 位病患，請到新海系統的視窗確認要更新的項目。':'傳送失敗：新海系統的視窗沒有回應。請確認新海系統已登入，再按一次書籤。');
+    box.textContent='新海同步：'+(ok?'已傳送 '+L.length+' 位病患，請到新海系統的視窗確認要更新的項目。':'傳送失敗：新海系統的視窗沒有回應。請確認新海系統已登入，再按一次書籤。'); // 只顯示在官網，不再傳給新海系統
     setTimeout(()=>box.remove(),ok?8000:20000);
   }catch(e){say('發生錯誤：'+(e&&e.message||e));setTimeout(()=>box.remove(),20000);}
 }
@@ -5694,7 +5694,7 @@ invSyncStart();window.addEventListener('hashchange',invSyncStart); // 同一個�
 // 接收書籤傳來的資料（只接受隱適美官網送來的）
 let invSyncData=null,invSyncTries=0;
 window.addEventListener('message',e=>{
-  if(e.origin===INV_SITE&&e.data&&e.data.type==='xinhai-invsync-progress'){if(!invSyncGot)invSyncWait(String(e.data.text||'').slice(0,200));return;}
+  if(e.origin===INV_SITE&&e.data&&e.data.type==='xinhai-invsync-progress'){const t=String(e.data.text||'').slice(0,200);if(!invSyncGot&&!/^(已傳送|傳送失敗)/.test(t))invSyncWait(t);return;} // 讀完之後（或舊版書籤最後送來的「已傳送」）不再打開進度視窗
   if(e.origin!==INV_SITE||!e.data||e.data.type!=='xinhai-invsync'||!Array.isArray(e.data.patients))return;
   invSyncGot=true;invSyncWait(null);
   try{e.source&&e.source.postMessage({type:'xinhai-invsync-ok'},INV_SITE);}catch(err){}
