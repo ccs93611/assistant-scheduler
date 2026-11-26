@@ -614,7 +614,11 @@ table.isync td:last-child{white-space:normal;}
 .isync-wt{font-weight:700; font-size:1rem; margin:10px 0 6px; min-height:1.5em;}
 .isync-spin{width:34px; height:34px; margin:10px auto 0; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:isyncSpin .9s linear infinite;}
 @keyframes isyncSpin{to{transform:rotate(360deg);}}
-.isync-info{color:var(--warn); align-items:center; flex-wrap:wrap;} .isync-opt{margin-left:10px; white-space:nowrap; font-size:.8rem; color:var(--ink); cursor:pointer;} a.isync-opt{color:var(--accent); text-decoration:underline;} .isync-v{font-style:normal; white-space:nowrap;} .isync-info span{color:var(--warn); white-space:nowrap;} .isync-info b{color:var(--warn);}
+.isync-info{margin:4px 0 8px; line-height:1.6;} .isync-iv{color:var(--warn); white-space:nowrap;} .isync-iv b{color:var(--warn);}
+.isync-k{display:inline-block; min-width:4.5em; color:var(--warn);}
+.isync-acts{display:flex; align-items:center; gap:16px; padding-left:4.5em; margin-top:2px;}
+label.isync-opt{display:inline-flex; align-items:center; gap:4px; margin:0; font-size:.8rem; font-weight:400; color:var(--ink); cursor:pointer; white-space:nowrap;} label.isync-opt input{margin:0; width:auto;}
+a.isync-opt{font-size:.8rem; color:var(--accent); text-decoration:underline; white-space:nowrap;}
 .isync-steps{padding-left:1.3em; margin:8px 0; line-height:1.7; font-size:.9rem;}
 .isync-bm{display:inline-block; padding:8px 18px; border-radius:8px; background:var(--accent); color:#fff; font-weight:700; text-decoration:none; cursor:grab;}
 table.inv-table th.inv-subh{padding:2px 10px; font-size:.72rem;}
@@ -5676,7 +5680,7 @@ function invSyncOpen(data){
   const {ch,miss}=invSyncDiff(data.patients);
   const at=new Date(data.at),hm=`${at.getHours()}:${String(at.getMinutes()).padStart(2,'0')}`;
   const nMain=ch.filter(c=>c.lines.length).length,nInfo=ch.filter(c=>c.info.length).length;
-  const rows=ch.map((c,i)=>`<tr><td>${c.lines.length?`<input type="checkbox" data-isi="${i}" checked aria-label="更新 ${esc(c.cn)} 的日期">`:''}</td><td><b>${esc(c.cn)}</b>${c.upd.nr!==undefined?`<div class="isync-tag">次數 ${c.ourN}→${c.upd.nr}</div>`:''}</td><td>${c.lines.filter(l=>l.k!=='nr').map(l=>`<div class="isync-l"><span>${esc(l.l)}</span><s class="att-mute">${esc(l.o)}</s> → <b>${esc(l.v)}</b></div>`).join('')}${c.info.map(f=>`<div class="isync-l isync-info"><span>${esc(f.l)}</span><em class="isync-v">系統 <b>${esc(f.o)}</b>／官網 <b>${esc(f.v)}</b></em><label class="isync-opt"><input type="checkbox" data-isx="${i}:${f.k}" aria-label="把 ${esc(c.cn)} 的${f.l}改成官網的"> 改系統</label>${/^\d+$/.test(c.pid||'')?`<a class="isync-opt" href="${INV_SITE}/v3/auth/patient/editPatient.action?patientId=${c.pid}" target="_blank" rel="noopener" title="在新分頁打開這位病患在隱適美官網的修改頁面">到官網改</a>`:''}</div>`).join('')}</td></tr>`).join('');
+  const rows=ch.map((c,i)=>`<tr><td>${c.lines.length?`<input type="checkbox" data-isi="${i}" checked aria-label="更新 ${esc(c.cn)} 的日期">`:''}</td><td><b>${esc(c.cn)}</b>${c.upd.nr!==undefined?`<div class="isync-tag">次數 ${c.ourN}→${c.upd.nr}</div>`:''}</td><td>${c.lines.filter(l=>l.k!=='nr').map(l=>`<div class="isync-l"><span>${esc(l.l)}</span><s class="att-mute">${esc(l.o)}</s> → <b>${esc(l.v)}</b></div>`).join('')}${c.info.map(f=>`<div class="isync-info"><div class="isync-iv"><span class="isync-k">${esc(f.l)}</span>系統 <b>${esc(f.o)}</b>／官網 <b>${esc(f.v)}</b></div><div class="isync-acts"><label class="isync-opt"><input type="checkbox" data-isx="${i}:${f.k}" aria-label="把 ${esc(c.cn)} 的${f.l}改成官網的">改系統</label>${/^\d+$/.test(c.pid||'')?`<a class="isync-opt" href="${INV_SITE}/v3/auth/patient/editPatient.action?patientId=${c.pid}" target="_blank" rel="noopener" title="在新分頁打開這位病患在隱適美官網的修改頁面">到官網改</a>`:''}</div></div>`).join('')}</td></tr>`).join('');
   const errs=data.patients.filter(p=>p.err).length;
   dialog(`<h3>從 Invisalign 同步</h3>
     <p class="desc">讀到 ${data.patients.length} 位病患（${hm}）。${nMain?`${nMain} 位病患的日期跟官網不一樣，勾選的會<b>以官網為主</b>更新（次數對不起來時，會照官網重新排列每一次；取資料日期與每次的備註跟著對應的那一次移動，對不到的舊紀錄寫進總備註）。`:'所有日期、次數、方案、End time 都跟官網一致。'}${nInfo?`<br>${nInfo} 位病患的<b>生日或英文名</b>跟官網不一樣（橘色），官網也可能填錯，預設不更新，可以勾「改系統」改成官網的值，或點「到官網改」在新分頁打開那位病患的官網修改頁面。`:''}</p>
