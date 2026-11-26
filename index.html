@@ -5687,13 +5687,16 @@ function invSyncWait(text){
   clearTimeout(invSyncWaitTimer); // 3 分鐘都沒有新消息：多半是官網分頁被關掉或出錯
   invSyncWaitTimer=setTimeout(()=>{const t=w.querySelector('.isync-wt');if(t)t.textContent='已經 3 分鐘沒有收到隱適美官網的進度。請切到隱適美官網的分頁看右上角的訊息；若分頁已關閉，請重新按一次書籤。';},180000);
 }
-if(location.hash==='#invsync'){invSyncWait('等待隱適美官網開始傳送資料…');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}
+// invSyncGot：這一輪已經收到資料（之後官網送來的「已傳送」等訊息不再打開進度視窗）
+let invSyncGot=false;
+const invSyncStart=()=>{if(location.hash!=='#invsync')return;invSyncGot=false;invSyncWait('等待隱適美官網開始傳送資料…');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}};
+invSyncStart();window.addEventListener('hashchange',invSyncStart); // 同一個視窗再按一次書籤時只會換網址的 #，不會重新載入
 // 接收書籤傳來的資料（只接受隱適美官網送來的）
 let invSyncData=null,invSyncTries=0;
 window.addEventListener('message',e=>{
-  if(e.origin===INV_SITE&&e.data&&e.data.type==='xinhai-invsync-progress'){invSyncWait(String(e.data.text||'').slice(0,200));return;}
+  if(e.origin===INV_SITE&&e.data&&e.data.type==='xinhai-invsync-progress'){if(!invSyncGot)invSyncWait(String(e.data.text||'').slice(0,200));return;}
   if(e.origin!==INV_SITE||!e.data||e.data.type!=='xinhai-invsync'||!Array.isArray(e.data.patients))return;
-  invSyncWait(null);
+  invSyncGot=true;invSyncWait(null);
   try{e.source&&e.source.postMessage({type:'xinhai-invsync-ok'},INV_SITE);}catch(err){}
   if(invSyncData&&invSyncData.at===e.data.at)return; // 書籤會重送，同一批只處理一次
   invSyncData=e.data;invSyncTries=0;invSyncTry();
