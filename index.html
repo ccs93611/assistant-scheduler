@@ -614,6 +614,7 @@ table.isync td:last-child{white-space:normal;}
 .isync-wt{font-weight:700; font-size:1rem; margin:10px 0 6px; min-height:1.5em;}
 .isync-spin{width:34px; height:34px; margin:10px auto 0; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:isyncSpin .9s linear infinite;}
 @keyframes isyncSpin{to{transform:rotate(360deg);}}
+.isync-info{color:var(--warn); align-items:center; flex-wrap:wrap;} .isync-opt{margin-left:10px; white-space:nowrap; font-size:.8rem; color:var(--ink); cursor:pointer;} a.isync-opt{color:var(--accent); text-decoration:underline;} .isync-v{font-style:normal; white-space:nowrap;} .isync-info span{color:var(--warn); white-space:nowrap;} .isync-info b{color:var(--warn);}
 .isync-steps{padding-left:1.3em; margin:8px 0; line-height:1.7; font-size:.9rem;}
 .isync-bm{display:inline-block; padding:8px 18px; border-radius:8px; background:var(--accent); color:#fff; font-weight:700; text-decoration:none; cursor:grab;}
 table.inv-table th.inv-subh{padding:2px 10px; font-size:.72rem;}
@@ -5656,35 +5657,44 @@ function invSyncPlan(x,p){
   Object.keys(nw).forEach(k=>{const old=k==='nr'?nr:(x[k]||'');if(String(old)===String(nw[k]))delete nw[k];else lines.push({k,l:label(k),o:show(k,old),v:show(k,nw[k])});});
   const ord=k=>k==='nr'?0:/^[gsapn]\d+$/.test(k)?(+k.slice(1))*10+'gsapn'.indexOf(k[0])+1:1e6+['ship','plan','end','note'].indexOf(k);
   lines.sort((a,b)=>ord(a.k)-ord(b.k));
-  return {upd:nw,lines,siteN:R.length,ourN:nr};
+  // 生日、英文名跟官網不一樣：另外列出（官網也可能填錯，預設不勾，勾選才更新）
+  const info=[];
+  const dob=invDmy(p.dob);if(dob&&dob!==(x.birth||''))info.push({k:'birth',l:'生日',o:x.birth?invFmt(x.birth):'（空白）',v:invFmt(dob),val:dob});
+  const nk=v=>String(v||'').toUpperCase().replace(/[^A-Z]/g,''); // 英文名比對忽略大小寫、空白與符號
+  if(p.name&&nk(p.name)!==nk(x.en))info.push({k:'en',l:'英文名',o:x.en||'（空白）',v:p.name,val:p.name});
+  return {upd:nw,lines,info,siteN:R.length,ourN:nr};
 }
 function invSyncDiff(site){
   const byChart=new Map();invAll().forEach(x=>{const k=invKey(x.chart);if(k)byChart.set(k,x);});
   const ch=[],miss=[];
   // 只算真的病例編號（官網清單載入中的佔位卡片 PL-2-0… 不算）
   site.filter(p=>/^\d+$/.test(String(p.id||''))).forEach(p=>{const x=byChart.get(invKey(p.id));if(!x){miss.push(p);return;}if(p.err||!invCanEd(x))return;
-    const r=invSyncPlan(x,p);if(r.lines.length)ch.push(Object.assign({id:x.id,cn:x.cn||p.name},r));});
+    const r=invSyncPlan(x,p);if(r.lines.length||r.info.length)ch.push(Object.assign({id:x.id,cn:x.cn||p.name,pid:String(p.pid||'')},r));});
   return {ch,miss};
 }
 function invSyncOpen(data){
   const {ch,miss}=invSyncDiff(data.patients);
   const at=new Date(data.at),hm=`${at.getHours()}:${String(at.getMinutes()).padStart(2,'0')}`;
-  const rows=ch.map((c,i)=>`<tr><td><input type="checkbox" data-isi="${i}" checked aria-label="更新 ${esc(c.cn)}"></td><td><b>${esc(c.cn)}</b>${c.upd.nr!==undefined?`<div class="isync-tag">次數 ${c.ourN}→${c.upd.nr}</div>`:''}</td><td>${c.lines.filter(l=>l.k!=='nr').map(l=>`<div class="isync-l"><span>${esc(l.l)}</span><s class="att-mute">${esc(l.o)}</s> → <b>${esc(l.v)}</b></div>`).join('')}</td></tr>`).join('');
+  const nMain=ch.filter(c=>c.lines.length).length,nInfo=ch.filter(c=>c.info.length).length;
+  const rows=ch.map((c,i)=>`<tr><td>${c.lines.length?`<input type="checkbox" data-isi="${i}" checked aria-label="更新 ${esc(c.cn)} 的日期">`:''}</td><td><b>${esc(c.cn)}</b>${c.upd.nr!==undefined?`<div class="isync-tag">次數 ${c.ourN}→${c.upd.nr}</div>`:''}</td><td>${c.lines.filter(l=>l.k!=='nr').map(l=>`<div class="isync-l"><span>${esc(l.l)}</span><s class="att-mute">${esc(l.o)}</s> → <b>${esc(l.v)}</b></div>`).join('')}${c.info.map(f=>`<div class="isync-l isync-info"><span>${esc(f.l)}</span><em class="isync-v">系統 <b>${esc(f.o)}</b>／官網 <b>${esc(f.v)}</b></em><label class="isync-opt"><input type="checkbox" data-isx="${i}:${f.k}" aria-label="把 ${esc(c.cn)} 的${f.l}改成官網的"> 改系統</label>${/^\d+$/.test(c.pid||'')?`<a class="isync-opt" href="${INV_SITE}/v3/auth/patient/editPatient.action?patientId=${c.pid}" target="_blank" rel="noopener" title="在新分頁打開這位病患在隱適美官網的修改頁面">到官網改</a>`:''}</div>`).join('')}</td></tr>`).join('');
   const errs=data.patients.filter(p=>p.err).length;
   dialog(`<h3>從 Invisalign 同步</h3>
-    <p class="desc">讀到 ${data.patients.length} 位病患（${hm}）。${ch.length?`${ch.length} 位病患跟官網不一樣，勾選的會<b>以官網為主</b>更新（次數對不起來時，會照官網重新排列每一次；取資料日期與每次的備註跟著對應的那一次移動，對不到的舊紀錄寫進總備註）：`:'所有日期、次數、方案、End time 都跟官網一致，不用更新。'}</p>
-    ${ch.length?`<div class="isync-wrap"><table class="list isync"><thead><tr><th><input type="checkbox" data-isall checked aria-label="全選"></th><th>病患</th><th>變更（系統 → 官網）</th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
+    <p class="desc">讀到 ${data.patients.length} 位病患（${hm}）。${nMain?`${nMain} 位病患的日期跟官網不一樣，勾選的會<b>以官網為主</b>更新（次數對不起來時，會照官網重新排列每一次；取資料日期與每次的備註跟著對應的那一次移動，對不到的舊紀錄寫進總備註）。`:'所有日期、次數、方案、End time 都跟官網一致。'}${nInfo?`<br>${nInfo} 位病患的<b>生日或英文名</b>跟官網不一樣（橘色），官網也可能填錯，預設不更新，可以勾「改系統」改成官網的值，或點「到官網改」在新分頁打開那位病患的官網修改頁面。`:''}</p>
+    ${ch.length?`<div class="isync-wrap"><table class="list isync"><thead><tr><th>${nMain?'<input type="checkbox" data-isall checked aria-label="全選日期變更">':''}</th><th>病患</th><th>變更（系統 → 官網）</th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
     ${miss.length?`<p class="desc" style="margin-top:12px">官網有、系統沒有（依患者編號比對）的病患 ${miss.length} 位，需要的話請用「＋ 新增病患」加入：<br>${miss.map(p=>`${esc(p.name)}（${esc(p.id)}，${esc(p.status||'')}）`).join('、')}</p>`:''}
     ${errs?`<p class="desc att-bad">有 ${errs} 位病患的病例頁讀取失敗，這次略過。</p>`:''}`,ov=>{
     if(!ch.length)return;
-    const sel=[...ov.querySelectorAll('[data-isi]')].filter(i=>i.checked).map(i=>ch[+i.dataset.isi]);
-    if(!sel.length){toast('沒有勾選任何病患。','warn');return false;}
-    const now=Date.now(),who=myDisplayName();
-    sel.forEach(c=>{const x=invAll().find(y=>y.id===c.id);if(!x)return;
-      const n=Object.assign({},x,c.upd,{updatedAt:now,updatedBy:who});Object.keys(n).forEach(k=>{if(/^[gsapn]\d+$/.test(k)&&!n[k])delete n[k];}); // 清空的欄位直接拿掉
+    const sel=new Set([...ov.querySelectorAll('[data-isi]')].filter(i=>i.checked).map(i=>+i.dataset.isi));
+    const xs=[...ov.querySelectorAll('[data-isx]')].filter(i=>i.checked).map(i=>i.dataset.isx.split(':'));
+    if(!sel.size&&!xs.length){toast('沒有勾選任何項目。','warn');return false;}
+    const now=Date.now(),who=myDisplayName(),touched=new Set([...sel,...xs.map(([i])=>+i)]);
+    touched.forEach(i=>{const c=ch[i],x=invAll().find(y=>y.id===c.id);if(!x)return;
+      const n=Object.assign({},x,sel.has(i)?c.upd:{},{updatedAt:now,updatedBy:who});
+      xs.filter(([j])=>+j===i).forEach(([,k])=>{const f=c.info.find(z=>z.k===k);if(f)n[k]=f.val;});
+      Object.keys(n).forEach(k=>{if(/^[gsapn]\d+$/.test(k)&&!n[k])delete n[k];}); // 清空的欄位直接拿掉
       invPut(n).catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限':e.message),'warn');});});
-    toast(`已依官網更新 ${sel.length} 位病患。`);
-  },ch.length?'更新勾選的病患':'關閉',false,ch.length?'取消':null);
+    toast(`已依官網更新 ${touched.size} 位病患。`);
+  },ch.length?'更新勾選的項目':'關閉',false,ch.length?'取消':null);
   const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').style.maxWidth='760px';
   ov.querySelector('[data-isall]')?.addEventListener('change',e=>ov.querySelectorAll('[data-isi]').forEach(i=>{i.checked=e.target.checked;}));
 }
