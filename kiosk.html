@@ -391,7 +391,7 @@ function firebaseSource(){
     if(day!==curDay){if(daySub)daySub();curDay=day;todays=[];daySub=db.collection('punches').where('date','==',day).onSnapshot(s=>{todays=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(p=>!p.void);renderRecent();},e=>console.warn(e));}
   }
   function startData(){
-    subs.push(db.collection('staff').onSnapshot(s=>{staff=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderRecent();},onErr));
+    subs.push(db.collection('staff').onSnapshot(s=>{staff=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(x=>x.role!=='clinic');renderRecent();},onErr)); // 診所帳號不打卡
     subs.push(db.collection('faces').onSnapshot(s=>{const m={};s.docs.forEach(d=>{const v=d.data();try{m[d.id]=Object.assign({},v,{vecs:JSON.parse(v.emb||'[]')});}catch(e){}});faces=m;},onErr));
     subs.push(db.doc('kiosk/settings').onSnapshot(s=>{settings=Object.assign({},DEFAULTS,s.exists?s.data():{});if(!sel)renderPick();},onErr));
     watchDay();clearInterval(dayTimer);dayTimer=setInterval(watchDay,30*1000);
@@ -472,7 +472,7 @@ function localSource(){
   const write=fn=>{const d=read(KIOSK);fn(d);localStorage.setItem(KIOSK,JSON.stringify(d));};
   function load(){
     const r=read(ROSTER),k=read(KIOSK),now=new Date();
-    staff=r.staff||[];weekCells=(r.weeks||{})[ymd(mondayOf(now))]||{};
+    staff=(r.staff||[]).filter(x=>x.role!=='clinic');weekCells=(r.weeks||{})[ymd(mondayOf(now))]||{};
     faces={};Object.entries(k.faces||{}).forEach(([sid,v])=>{try{faces[sid]=Object.assign({},v,{vecs:JSON.parse(v.emb||'[]')});}catch(e){}});
     settings=Object.assign({},DEFAULTS,k.settings||{});if(!sel)renderPick();
     todays=(k.punches||[]).filter(p=>p.date===ymd(now)&&!p.void);

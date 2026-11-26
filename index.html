@@ -1269,6 +1269,17 @@ body.gated .shell{display:none;}
           <div class="hol-scroll" id="staffScroll-assistant"><table class="list staff-table" id="staffTable-assistant"></table></div>
           <p class="hint" id="staffHint-assistant" hidden>上下捲動可查看其他助理。</p>
         </div>
+        <div class="card">
+          <h2>診所帳號</h2>
+          <p class="desc">診所公用的登入帳號（例如櫃台電腦），不是某一位員工。不會排進班表，也不會出現在出勤、薪資、工時統計與打卡機；按「權限」填入登入用的 Gmail 並設定可以使用哪些系統。</p>
+          <form class="form-row staff-form" data-role="clinic" style="margin-bottom:14px">
+            <div class="field" style="width:90px"><label for="nsCode-clinic">代號</label><input id="nsCode-clinic" data-n="code" required placeholder="C1"></div>
+            <div class="field" style="width:140px"><label for="nsName-clinic">名稱</label><input id="nsName-clinic" data-n="name" placeholder="例如：櫃台"></div>
+            <button class="primary" type="submit" data-w>新增診所帳號</button>
+          </form>
+          <div class="hol-scroll" id="staffScroll-clinic"><table class="list staff-table" id="staffTable-clinic"></table></div>
+          <p class="hint" id="staffHint-clinic" hidden>上下捲動可查看其他診所帳號。</p>
+        </div>
 
       </div>
     </section>
@@ -1328,7 +1339,7 @@ const POS=[
   {label:'流動',role:'assistant'},{label:'健保',role:'assistant'},
 ];
 const DAYS=['一','二','三','四','五','六','日'];
-const ROLE={doctor:'醫師',assistant:'助理',manager:'管理人員'};
+const ROLE={doctor:'醫師',assistant:'助理',manager:'管理人員',clinic:'診所帳號'}; // clinic：診所公用的登入帳號（例如櫃台電腦），不排班、不打卡
 const DEFAULT_CFG={need:[1,0,0,0,0], maxPerDay:2, closed:{}};
 // 本機模式的儲存位置；網址 ?local=名稱（非 1）時使用獨立的一份，方便多人／自動測試互不干擾
 const LOCAL_KEY='clinic_roster_local_v1'+((/[?&]local=([\w-]+)/.exec(location.search)||[])[1]&&!/[?&]local=1(\b|&|$)/.test(location.search)?'_'+/[?&]local=([\w-]+)/.exec(location.search)[1]:'');
@@ -1421,7 +1432,7 @@ function removeOne(a,id){if(id!==GAP)return a.filter(x=>x!==id);const i=a.indexO
 const codeOf=id=>{if(id===GAP)return '缺口';const s=byId(id);return s?(s.code||s.name||'?'):'?';};
 const fullName=s=>s?[s.code,s.name].filter(Boolean).join(' '):'（已刪除）';
 const activeStaff=role=>staff.filter(s=>s.active!==false&&(!role||s.role===role)).sort(sortStaff);
-function sortStaff(a,b){if(a.role!==b.role){const o={manager:0,doctor:1,assistant:2};return (o[a.role]??3)-(o[b.role]??3);}return (a.code||a.name||'').localeCompare(b.code||b.name||'','zh-Hant',{numeric:true});}
+function sortStaff(a,b){if(a.role!==b.role){const o={manager:0,doctor:1,assistant:2,clinic:3};return (o[a.role]??3)-(o[b.role]??3);}return (a.code||a.name||'').localeCompare(b.code||b.name||'','zh-Hant',{numeric:true});}
 const isClosed=(dow,sh)=>!!(cfg.closed&&cfg.closed[dow+'_'+sh]);
 const holidayOf=date=>cfg.holidays&&cfg.holidays[date]||null;
 const closedAt=(dow,sh,date)=>isClosed(dow,sh)||!!holidayOf(date);
@@ -4007,13 +4018,13 @@ function renderSettings(){
   const active=document.activeElement;
   if(active&&active.closest&&active.closest('.staff-table,#needRow,#openMatrix,#maxPerDay,#holTable')&&active.tagName==='INPUT'&&active.type!=='checkbox') return; // avoid clobbering typing
   const P=superOK(); // 權限各欄只有超級管理員看得到（其他人讀不到大家的權限）
-  ['manager','doctor','assistant'].forEach(role=>{
+  ['manager','doctor','assistant','clinic'].forEach(role=>{
     const st=stSorts[role];
     const cmpCode=(a,b)=>(a.code||'').localeCompare(b.code||'','en',{numeric:true,sensitivity:'base'});
     const cmpName=(a,b)=>(!a.name)-(!b.name)||(a.name||'').localeCompare(b.name||'','zh-Hant');
     const q=role==='assistant'?($('staffSearch-assistant').value||'').trim().toLowerCase():'';
     // 醫師、助理：預設只列在職；按「查看已離職人員」改列已離職
-    const sep=role!=='manager',showRes=sep&&showResigned[role];
+    const sep=role!=='manager'&&role!=='clinic',showRes=sep&&showResigned[role]; // 管理人員、診所帳號不分在職／離職
     if(sep){const n=staff.filter(x=>x.role===role&&x.active===false).length;const b=document.querySelector(`[data-resigned="${role}"]`);b.textContent=showRes?'返回在職名單':`查看已離職人員（${n}）`;b.classList.toggle('primary',showRes);}
     const list=staff.filter(x=>x.role===role&&(!sep||(x.active===false)===showRes)&&(!q||(x.code||'').toLowerCase().includes(q)||(x.name||'').toLowerCase().includes(q))).sort((a,b)=>((a.active===false)-(b.active===false))||(st.key==='name'?(!a.name&&!b.name?cmpCode(a,b):(!a.name)-(!b.name)||cmpName(a,b)*st.dir||cmpCode(a,b)):cmpCode(a,b)*st.dir));
     const sth=(key,label)=>`<button type="button" class="th-btn${st.key===key?' on':''}" data-stsort="${key}" data-role="${role}" aria-label="依${label}排序">${label}<span>${st.key===key?(st.dir>0?'▲':'▼'):'↕'}</span></button>`;
@@ -5963,7 +5974,7 @@ $('tab-att').addEventListener('click',e=>{
     const [dk,shId,k]=pa.dataset.padd.split('|'),sh=SHIFTS.find(x=>x.id===shId),def=sh?shiftSpan(sh)[k==='out'?1:0]:null;
     const t=def!=null?`${pad(Math.floor(def/60))}:${pad(def%60)}`:'';
     const selOpts=`<option value="">依時間自動判斷</option>`+SHIFTS.flatMap(s=>['in','out'].map(x=>`<option value="${s.id}|${x}"${sh&&s.id===sh.id&&x===k?' selected':''}>${s.name}${x==='in'?'上班卡':'下班卡'}</option>`)).join('');
-    const people=staff.filter(x=>x.active!==false&&x.role!=='manager').sort(sortStaff);
+    const people=staff.filter(x=>x.active!==false&&x.role!=='manager'&&x.role!=='clinic').sort(sortStaff);
     dialog(`<h3>補登打卡${pickWho?'':'・'+esc(fullName(byId(attSel)))}</h3>
       ${pickWho?`<div class="field"><label>人員</label><select id="paWho"><option value="">請選擇…</option>${people.map(x=>`<option value="${esc(x.id)}"${x.id===who0?' selected':''}>${esc(fullName(x))}</option>`).join('')}</select></div>`:''}
       <div class="form-row"><div class="field"><label>日期</label><input type="date" id="paDate" value="${esc(dk||ymd(new Date()))}"></div><div class="field"><label>時間</label><input type="time" id="paTime" value="${t}"></div><div class="field"><label>班別</label><select id="paSel">${selOpts}</select></div></div>
@@ -7154,7 +7165,7 @@ $('otMax').addEventListener('change',e=>{const n=clone(cfg);const v=parseFloat(e
 $('maxPerDay').addEventListener('change',e=>{const n=clone(cfg);n.maxPerDay=Math.max(1,Math.min(3,Number(e.target.value)||2));e.target.blur();store.cfg(n);toast('已儲存。');});
 const HOL_ROWS=10;
 let leaveScrolled={assistant:false,after:false,fc:false};
-let stSorts={manager:{key:'code',dir:1},doctor:{key:'code',dir:1},assistant:{key:'code',dir:1}};
+let stSorts={manager:{key:'code',dir:1},doctor:{key:'code',dir:1},assistant:{key:'code',dir:1},clinic:{key:'code',dir:1}};
 // 列表的查看期間（lv＝助理請假，fc＝家庭照顧假，mk＝事假補診，dc＝醫師請假，yl＝年度假別統計，只能切換年份）：mode 月／年；at 為查看的月份第一天（YYYY-MM-01）；
 // base 是設定時上方的月份，上方月份改變就回到跟著上方月份
 let lvDocScrollTop=false; // 醫師請假切換期間後捲回列表頂端
