@@ -610,6 +610,10 @@ table.isync thead th{position:sticky; top:0; background:var(--panel); z-index:1;
 .isync-tag{display:inline-block; font-size:.7rem; color:var(--warn); background:var(--warn-soft); border-radius:4px; padding:0 5px; margin-top:2px;}
 .isync-l{display:flex; gap:6px; align-items:baseline; line-height:1.6;} .isync-l span{min-width:7.5em; color:var(--sub);}
 table.isync td:last-child{white-space:normal;}
+.isync-wait{z-index:60;} .isync-wait .dialog{text-align:center;}
+.isync-wt{font-weight:700; font-size:1rem; margin:10px 0 6px; min-height:1.5em;}
+.isync-spin{width:34px; height:34px; margin:10px auto 0; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:isyncSpin .9s linear infinite;}
+@keyframes isyncSpin{to{transform:rotate(360deg);}}
 .isync-steps{padding-left:1.3em; margin:8px 0; line-height:1.7; font-size:.9rem;}
 .isync-bm{display:inline-block; padding:8px 18px; border-radius:8px; background:var(--accent); color:#fff; font-weight:700; text-decoration:none; cursor:grab;}
 table.inv-table th.inv-subh{padding:2px 10px; font-size:.72rem;}
@@ -5546,7 +5550,7 @@ async function invScraper(ORIGIN){
   const box=document.createElement('div');
   box.style.cssText='position:fixed;z-index:2147483647;top:12px;right:12px;background:#2f5d50;color:#fff;padding:12px 16px;border-radius:10px;font:14px/1.5 sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:340px';
   document.body.appendChild(box);
-  const say=t=>{box.textContent='新海同步：'+t;};
+  const say=t=>{box.textContent='新海同步：'+t;try{if(W&&!W.closed)W.postMessage({type:'xinhai-invsync-progress',text:t},ORIGIN);}catch(e){}}; // 進度也顯示在新海系統的視窗
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   if(!W){say('瀏覽器擋住了彈出視窗，請允許 vip.invisalign.com 開啟彈出視窗後再按一次書籤。');setTimeout(()=>box.remove(),20000);return;}
   // 病患清單畫面（React）上每張卡片帶有病患資料
@@ -5669,10 +5673,27 @@ function invSyncOpen(data){
   const ov=document.querySelector('.overlay:last-of-type');ov.querySelector('.dialog').style.maxWidth='760px';
   ov.querySelector('[data-isall]')?.addEventListener('change',e=>ov.querySelectorAll('[data-isi]').forEach(i=>{i.checked=e.target.checked;}));
 }
+// 同步進行中的提示（書籤打開本系統後，在官網讀資料的這 1～2 分鐘顯示目前進度）
+let invSyncWaitTimer=null;
+function invSyncWait(text){
+  let w=document.getElementById('invSyncWait');
+  if(text===null){if(w)w.remove();clearTimeout(invSyncWaitTimer);return;}
+  if(!w){w=document.createElement('div');w.id='invSyncWait';w.className='overlay isync-wait';w.setAttribute('role','status');w.setAttribute('aria-live','polite');
+    w.innerHTML=`<div class="dialog"><h3>正在從隱適美官網同步</h3><div class="isync-spin" aria-hidden="true"></div><p class="isync-wt"></p>
+      <p class="desc">資料是在<b>隱適美官網的分頁</b>裡讀取的，請不要關閉那個分頁，也不用操作，讀完會自動在這裡列出要更新的項目（約 1～2 分鐘）。</p>
+      <div class="acts"><button type="button" data-x>先關閉這個提示</button></div></div>`;
+    w.querySelector('[data-x]').addEventListener('click',()=>invSyncWait(null));document.body.appendChild(w);}
+  w.querySelector('.isync-wt').textContent=text;
+  clearTimeout(invSyncWaitTimer); // 3 分鐘都沒有新消息：多半是官網分頁被關掉或出錯
+  invSyncWaitTimer=setTimeout(()=>{const t=w.querySelector('.isync-wt');if(t)t.textContent='已經 3 分鐘沒有收到隱適美官網的進度。請切到隱適美官網的分頁看右上角的訊息；若分頁已關閉，請重新按一次書籤。';},180000);
+}
+if(location.hash==='#invsync'){invSyncWait('等待隱適美官網開始傳送資料…');try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}
 // 接收書籤傳來的資料（只接受隱適美官網送來的）
 let invSyncData=null,invSyncTries=0;
 window.addEventListener('message',e=>{
+  if(e.origin===INV_SITE&&e.data&&e.data.type==='xinhai-invsync-progress'){invSyncWait(String(e.data.text||'').slice(0,200));return;}
   if(e.origin!==INV_SITE||!e.data||e.data.type!=='xinhai-invsync'||!Array.isArray(e.data.patients))return;
+  invSyncWait(null);
   try{e.source&&e.source.postMessage({type:'xinhai-invsync-ok'},INV_SITE);}catch(err){}
   if(invSyncData&&invSyncData.at===e.data.at)return; // 書籤會重送，同一批只處理一次
   invSyncData=e.data;invSyncTries=0;invSyncTry();
