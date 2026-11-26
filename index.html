@@ -5444,12 +5444,17 @@ function renderInvis(){
       `</tr>`+
       `<tr data-inv="${esc(x.id)}" class="inv-sub${hasN?' inv-hasn':''}${cls}"><td colspan="5" class="inv-stc"><div class="inv-stw"><span class="inv-c-st"><span class="inv-st ${st}">${INV_ST[st]}</span></span><span class="inv-end inv-c-ship" title="首次出貨日期"><b>${x.ship?esc(invFmt(x.ship)):'—'}</b></span><span class="inv-end inv-c-plan" title="${esc(invPlanL(x.plan)||'方案（保固年限）')}"><b>${x.plan?esc(invPlanL(x.plan)):'—'}</b></span><span class="inv-end inv-c-end" title="End time：首次出貨日期＋方案年限（在「修改」裡改）"><b>${x.end?esc(invFmt(x.end)):'—'}</b></span><span class="inv-gap"></span>${ed?'<button class="small" data-invedit>修改</button><button class="small" data-invnote>新增備註</button>':''}</div></td>${mine.map(n=>`<td colspan="3" class="inv-first inv-rn">${ed?`<div class="inv-rnw"><input type="text" data-invk="n${n}" value="${esc(x['n'+n]||'')}" placeholder="${invRName(n)} 備註" aria-label="${invRName(n)} 備註">${n===nr&&n>1&&!['g','s','a','n'].some(p=>x[p+n])?`<button type="button" class="inv-minus" data-invminus title="移除 ${invRName(n)}（還沒填任何資料）" aria-label="移除 ${invRName(n)}">−</button>`:''}</div>`:(x['n'+n]?esc(x['n'+n]):'<span class="att-mute">—</span>')}</td>`).join('')}</tr>`+
       (hasN?`<tr data-inv="${esc(x.id)}" class="inv-nrow${cls}"><td colspan="5" class="inv-note"><span class="inv-note-l">備註</span>${esc(x.note)}</td>${mine.map(()=>'<td colspan="3" class="inv-first"></td>').join('')}</tr>`:'');};
-  requestAnimationFrame(()=>{const r=$('invTable').querySelector('thead tr');if(r)$('invWrap').style.setProperty('--inv-h1',r.getBoundingClientRect().height+'px');});
+  requestAnimationFrame(()=>{const r=$('invTable').querySelector('thead tr');if(r)$('invWrap').style.setProperty('--inv-h1',r.getBoundingClientRect().height+'px');invFit();});
   // 重新繪製前記住游標在哪一格，畫完放回去（Tab 到下一格時不會跳掉）
   const fa=document.activeElement,fk=fa&&fa.closest&&fa.closest('#invTable')&&fa.dataset.invk?[fa.closest('[data-inv]').dataset.inv,fa.dataset.invk,fa.value,fa.selectionStart]:null;
   $('invTable').innerHTML=head+'<tbody>'+(list.length?list.map(row).join(''):`<tr><td colspan="${5+maxR*3+(plusCol?1:0)}" class="att-mute">${all.length?'沒有符合條件的病患':self?'目前沒有你是主治醫師的病患':'還沒有病患'+(invCanAdd()?'，按「＋ 新增病患」開始建立':'')}</td></tr>`)+'</tbody>';
   if(fk){const el=$('invTable').querySelector(`[data-inv="${CSS.escape(fk[0])}"] [data-invk="${fk[1]}"]`);if(el){if(el.value!==fk[2]&&document.activeElement===document.body)el.value=fk[2];el.focus();try{el.setSelectionRange(fk[3],fk[3]);}catch(e){}}}
 }
+// 表格框的高度：從框的上緣到視窗底部，橫向捲動軸才會留在畫面內
+function invFit(){const w=$('invWrap');if(!w||!w.offsetParent)return;const top=w.getBoundingClientRect().top+window.scrollY;
+  w.style.maxHeight=Math.max(260,Math.floor(window.innerHeight-top-28))+'px';}
+window.addEventListener('resize',()=>invFit());
+document.addEventListener('click',e=>{if(e.target.closest('[data-tab="invis"]'))setTimeout(invFit,0);}); // 切到隱適美分頁時重新計算
 // 新增／修改病患基本資料（日期直接在表格裡填）
 function invOpen(x){
   if(x?!invCanEd(x):!invCanAdd())return;
