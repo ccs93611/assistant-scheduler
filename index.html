@@ -590,7 +590,8 @@ table.inv-table td.inv-stc .small{padding:1px 10px; flex:none;}
 .inv-end{display:inline-flex; align-items:center; gap:3px; font-size:.72rem; color:var(--sub); flex:none;}
 .inv-end input{padding:2px 3px 2px 4px; font-size:.78rem; width:7.6em; font-weight:700; background:transparent;}
 .inv-end input::-webkit-calendar-picker-indicator{width:10px; height:10px; padding:0; margin:0 0 0 2px; opacity:.6; cursor:pointer;}
-.inv-end b{font-size:.8rem; color:var(--ink);} /* 狀態、總備註、修改（靠右，對齊主治醫師欄右側） */
+.inv-end b{font-size:.8rem; color:var(--ink);}
+.inv-end select{padding:2px 2px; font-size:.78rem; font-weight:700; background:transparent; width:auto;} /* 狀態、總備註、修改（靠右，對齊主治醫師欄右側） */
 .inv-st{display:inline-block; font-size:.72rem; padding:1px 8px; border-radius:999px; font-weight:600;}
 .inv-st.open{background:var(--accent-soft); color:var(--accent);} .inv-st.closed{background:var(--chip); color:var(--sub);}
 .inv-st.cancel{background:var(--warn-soft); color:var(--warn);} .inv-st.trad{background:color-mix(in srgb,var(--doc) 18%,var(--panel)); color:var(--doc);}
@@ -5346,7 +5347,8 @@ $('dutyPrev').addEventListener('click',()=>{prefs.monthOffset--;savePrefs();rend
 $('dutyNext').addEventListener('click',()=>{prefs.monthOffset++;savePrefs();renderAll();});
 // ---- 隱適美：患者追蹤清單（invis/{id}）----
 // 欄位：cn 中文名、en 英文名、birth 生日、chart 患者編號、doc 主治醫師、note 備註、closed 已結案、
-//       end End time（合約到期日，YYYY-MM-DD）
+//       ship 首次出貨日期（YYYY-MM-DD）、plan 方案（comp／mod，見 INV_PLAN）
+//       end End time（合約到期日，YYYY-MM-DD；預設＝首次出貨＋方案年限）
 //       st 狀態（open 進行中、closed 已結案、cancel 取消療程、trad 改傳統矯正；舊資料只有 closed 布林值）
 //       g{n} s{n} a{n}＝第 n 次（畫面名稱：首次、AA1、AA2…）的取資料、submit、approve 日期（YYYY-MM-DD，空白＝還沒做）；n{n}＝第 n 次的備註；nr＝目前有幾次（按「＋」加一次）
 // 權限 access/{Gmail}.inv：none／view／admin（沒設定＝none），與其他權限各自獨立；系統擁有者一律 admin。本機模擬身分可以加 &inv=view 或 &inv=admin 測試
@@ -5385,6 +5387,12 @@ const invKey=v=>String(v??'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p
 const invNext=x=>{for(let n=1;n<=invRounds(x);n++){const st=invSteps(n).find(s=>!x[s.k]);if(st)return st.k;}return null;}; // 下一個要做的步驟
 const invFmt=v=>v?v.replace(/-/g,'/'):'';
 const INV_ST={open:'進行中',closed:'已結案',cancel:'取消療程',trad:'改傳統矯正'};
+// 方案與年限：End time＝首次出貨日期＋n 年（Invisalign 網站上的 Treatment Expiration／Coverage End Date）
+// m＝月數（依診所 Invisalign 帳號裡各方案實際的到期日整理）
+const INV_PLAN={comp:{l:'Comprehensive',m:60},comp3:{l:'Comprehensive',m:36},mod:{l:'Moderate',m:24},lite:{l:'Lite',m:12},first:{l:'Invisalign First - Comprehensive',m:18}};
+const invPlanL=k=>INV_PLAN[k]?`${INV_PLAN[k].l}(+${INV_PLAN[k].m/12}年)`:'';
+const invAutoEnd=(ship,plan)=>{if(!ship||!INV_PLAN[plan])return '';const [y,m,d]=ship.split('-').map(Number),mm=m-1+INV_PLAN[plan].m;const t=new Date(y,mm,d);if(t.getMonth()!==((mm%12)+12)%12)t.setDate(0); // 超過月底（例如 2/29）→ 該月最後一天
+  return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;};
 const invSt=x=>INV_ST[x.st]?x.st:(x.closed?'closed':'open');
 // 未完成：進行中的病患，某一次已經取資料、但 submit 或 approve 還沒填
 const invPending=x=>invSt(x)==='open'&&[...Array(invRounds(x))].some((_,i)=>{const n=i+1;return x['g'+n]&&(!x['s'+n]||!x['a'+n]);});
@@ -5419,7 +5427,7 @@ function renderInvis(){
     return `<tr data-inv="${esc(x.id)}" class="inv-top${cls}"><td><b>${esc(x.cn||'')}</b></td><td>${esc(x.en||'')}</td><td style="white-space:nowrap">${esc(invFmt(x.birth))}</td><td style="white-space:nowrap">${esc(x.chart||'')}</td><td style="white-space:nowrap">${x.doc&&byId(x.doc)?esc(fullName(byId(x.doc))):'<span class="att-mute">—</span>'}</td>`+
       mine.flatMap(invSteps).map(s=>`<td class="inv-d${s.k[0]==='g'?' inv-first':''}${nx===s.k?' inv-next':''}"${nx===s.k?' title="下一步"':''}>${ed?`<input type="date" data-invk="${s.k}" value="${esc(x[s.k]||'')}" aria-label="${invRName(s.n)} ${s.l}">`:(x[s.k]?esc(invFmt(x[s.k])):'<span class="att-mute">—</span>')}</td>`).join('')+rest+
       `</tr>`+
-      `<tr data-inv="${esc(x.id)}" class="inv-sub${cls}"><td colspan="5" class="inv-stc"><div class="inv-stw"><span class="inv-st ${st}">${INV_ST[st]}</span><span class="inv-end" title="End time：合約到期日">End time${ed?`<input type="date" data-invk="end" value="${esc(x.end||'')}" aria-label="End time（合約到期日）">`:`<b>${x.end?esc(invFmt(x.end)):'—'}</b>`}</span><span class="inv-note"${x.note?` title="${esc(x.note)}"`:''}>${esc(x.note||'')}</span>${ed?'<button class="small" data-invedit>修改</button>':''}</div></td>${mine.map(n=>`<td colspan="3" class="inv-first inv-rn">${ed?`<div class="inv-rnw"><input type="text" data-invk="n${n}" value="${esc(x['n'+n]||'')}" placeholder="${invRName(n)} 備註" aria-label="${invRName(n)} 備註">${n===nr&&n>1&&!['g','s','a','n'].some(p=>x[p+n])?`<button type="button" class="inv-minus" data-invminus title="移除 ${invRName(n)}（還沒填任何資料）" aria-label="移除 ${invRName(n)}">−</button>`:''}</div>`:(x['n'+n]?esc(x['n'+n]):'<span class="att-mute">—</span>')}</td>`).join('')}</tr>`;};
+      `<tr data-inv="${esc(x.id)}" class="inv-sub${cls}"><td colspan="5" class="inv-stc"><div class="inv-stw"><span class="inv-st ${st}">${INV_ST[st]}</span><span class="inv-end" title="首次出貨日期">首次出貨${ed?`<input type="date" data-invk="ship" value="${esc(x.ship||'')}" aria-label="首次出貨日期">`:`<b>${x.ship?esc(invFmt(x.ship)):'—'}</b>`}</span><span class="inv-end" title="方案（保固年限）">方案${ed?`<select data-invk="plan" aria-label="方案"><option value="">—</option>${Object.keys(INV_PLAN).map(k=>`<option value="${k}"${x.plan===k?' selected':''}>${invPlanL(k)}</option>`).join('')}</select>`:`<b>${x.plan?esc(invPlanL(x.plan)):'—'}</b>`}</span><span class="inv-end" title="End time：首次出貨日期＋方案年限（可手動修改）">End time${ed?`<input type="date" data-invk="end" value="${esc(x.end||'')}" aria-label="End time（合約到期日）">`:`<b>${x.end?esc(invFmt(x.end)):'—'}</b>`}</span><span class="inv-note"${x.note?` title="${esc(x.note)}"`:''}>${esc(x.note||'')}</span>${ed?'<button class="small" data-invedit>修改</button>':''}</div></td>${mine.map(n=>`<td colspan="3" class="inv-first inv-rn">${ed?`<div class="inv-rnw"><input type="text" data-invk="n${n}" value="${esc(x['n'+n]||'')}" placeholder="${invRName(n)} 備註" aria-label="${invRName(n)} 備註">${n===nr&&n>1&&!['g','s','a','n'].some(p=>x[p+n])?`<button type="button" class="inv-minus" data-invminus title="移除 ${invRName(n)}（還沒填任何資料）" aria-label="移除 ${invRName(n)}">−</button>`:''}</div>`:(x['n'+n]?esc(x['n'+n]):'<span class="att-mute">—</span>')}</td>`).join('')}</tr>`;};
   requestAnimationFrame(()=>{const r=$('invTable').querySelector('thead tr');if(r)$('invWrap').style.setProperty('--inv-h1',r.getBoundingClientRect().height+'px');});
   // 重新繪製前記住游標在哪一格，畫完放回去（Tab 到下一格時不會跳掉）
   const fa=document.activeElement,fk=fa&&fa.closest&&fa.closest('#invTable')&&fa.dataset.invk?[fa.closest('[data-inv]').dataset.inv,fa.dataset.invk,fa.value,fa.selectionStart]:null;
@@ -5446,6 +5454,10 @@ function invOpen(x){
       <div class="field"><label for="ivSt">狀態</label><select id="ivSt">${Object.entries(INV_ST).map(([k,l])=>`<option value="${k}"${(isNew?'open':invSt(x))===k?' selected':''}>${l}</option>`).join('')}</select></div>
     </div>
     <div class="form-row">
+      <div class="field"><label for="ivShip">首次出貨日期</label><input id="ivShip" type="date" value="${esc(x.ship||'')}"></div>
+      <div class="field"><label for="ivPlan">方案</label><select id="ivPlan"><option value="">—</option>${Object.keys(INV_PLAN).map(k=>`<option value="${k}"${x.plan===k?' selected':''}>${invPlanL(k)}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
       <div class="field"><label for="ivEnd">End time（合約到期日）</label><input id="ivEnd" type="date" value="${esc(x.end||'')}"></div>
     </div>
     <div class="field"><label for="ivNote">備註</label><textarea id="ivNote" rows="3">${esc(x.note||'')}</textarea></div>
@@ -5457,7 +5469,7 @@ function invOpen(x){
     if(miss.length){toast(miss.join('、')+' 必填。','warn');return false;}
     if(chart&&invAll().some(y=>y.id&&y.id!==x.id&&invKey(y.chart)===invKey(chart))){toast(`患者編號 ${chart} 已經在清單裡。`,'warn');return false;}
     const now=Date.now(),by=myDisplayName();
-    const n=Object.assign({},x,{id:x.id||uid('iv'),cn,en:g('#ivEn'),birth:g('#ivBirth'),chart,doc:selfOnly?me:g('#ivDoc'),note:g('#ivNote'),end:g('#ivEnd'),st:g('#ivSt'),closed:g('#ivSt')!=='open',updatedAt:now,updatedBy:by},isNew?{createdAt:now,createdBy:by}:{});
+    const n=Object.assign({},x,{id:x.id||uid('iv'),cn,en:g('#ivEn'),birth:g('#ivBirth'),chart,doc:selfOnly?me:g('#ivDoc'),note:g('#ivNote'),ship:g('#ivShip'),plan:g('#ivPlan'),end:g('#ivEnd')||invAutoEnd(g('#ivShip'),g('#ivPlan')),st:g('#ivSt'),closed:g('#ivSt')!=='open',updatedAt:now,updatedBy:by},isNew?{createdAt:now,createdBy:by}:{});
     invPut(n).then(()=>toast(isNew?'已新增病患。':'已儲存。')).catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限（只有隱適美「管理」可以修改，或安全規則尚未更新）':e.message),'warn');});
   },isNew?'新增':'儲存');
   const ov=document.querySelector('.overlay:last-of-type');
@@ -5465,6 +5477,8 @@ function invOpen(x){
     dialog(`<h3>刪除病患</h3><p>刪除 <b>${esc(x.cn||'')}</b>（${esc(x.chart||'')}）的追蹤資料？刪除後無法復原；療程結束建議改成「已結案」。</p>`,()=>{
       ov.remove();invDel(x.id).then(()=>toast('已刪除。')).catch(e=>{console.error(e);toast('刪除失敗：'+e.message,'warn');});},'刪除',true);
   });
+  {const upd=()=>{const e2=invAutoEnd(ov.querySelector('#ivShip').value,ov.querySelector('#ivPlan').value);if(e2)ov.querySelector('#ivEnd').value=e2;};
+    ov.querySelector('#ivShip').addEventListener('change',upd);ov.querySelector('#ivPlan').addEventListener('change',upd);}
   ov.querySelector('#ivCn').focus();
 }
 $('invAddBtn').addEventListener('click',()=>invOpen(null));
@@ -5486,6 +5500,7 @@ $('invTable').addEventListener('change',e=>{
   const v=i.value;
   if((x[i.dataset.invk]||'')===v)return;
   const n=Object.assign({},x,{[i.dataset.invk]:v,updatedAt:Date.now(),updatedBy:myDisplayName()});
+  if(i.dataset.invk==='ship'||i.dataset.invk==='plan'){const e2=invAutoEnd(n.ship,n.plan);if(e2)n.end=e2;} // 首次出貨＋方案年限＝End time
   invPut(n).catch(err=>{console.error(err);toast('儲存失敗：'+(err.code==='permission-denied'?'沒有權限':err.message),'warn');i.value=x[i.dataset.invk]||'';});
 });
 // 能不能進治療計劃單（treatment-plan.html）：計劃單權限不是「無」
