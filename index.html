@@ -5561,9 +5561,14 @@ async function invScraper(ORIGIN){
     const k=Object.keys(c).find(k=>k.startsWith('__reactFiber'));let f=k&&c[k];
     for(let i=0;i<8&&f;i++){const p=f.memoizedProps&&f.memoizedProps.patient;if(p){if(/^\d+$/.test(String(p.id))&&/^\d+$/.test(String(p.patientId)))P.push({id:String(p.id),pid:String(p.patientId),name:String(p.name||''),status:String((p.status&&p.status.label)||'')});break;}f=f.return;}}));return P;};
   try{
+    // 先選要讀哪些：只讀進行中，或連「已封存」（Archived）一起讀（封存的比較少變動，可以略過以節省時間）
+    say('要讀取哪些病患？');$q('data-d').textContent='「已封存」是官網已結束或取消、移到封存的病患。';
+    const withArch=await new Promise(res=>{btn('只讀進行中',()=>res(false),true);btn('包含已封存',()=>res(true));btn('取消',()=>{box.remove();res(null);});});
+    if(withArch===null)return;
+    $q('data-act').innerHTML='';$q('data-d').textContent='請留在這個分頁、不用操作，約 1～2 分鐘。';
     const all=new Map();
-    // 進行中的清單＋「已封存」（Archived）的清單都讀
-    for(const [pre,lab] of [['','病患清單'],['filters%5B0%5D.id=ARCHIVED&filters%5B0%5D.categoryId=uncategorized&','已封存病患']])
+    const lists=[['','病患清單']];if(withArch)lists.push(['filters%5B0%5D.id=ARCHIVED&filters%5B0%5D.categoryId=uncategorized&','已封存病患']);
+    for(const [pre,lab] of lists)
     for(let pg=1;pg<=20;pg++){
       location.hash=pre+'pagination.page='+pg+'&pagination.perPage=100';say('讀取'+lab+'第 '+pg+' 頁…',lab==='病患清單'?3:8);
       let got=[];for(let t=0;t<60;t++){await sleep(500);got=cards();if(got.some(p=>!all.has(p.id)))break;} // 最多等 30 秒讓清單載入
@@ -5725,7 +5730,7 @@ $('invSyncBtn').addEventListener('click',()=>{
     <ol class="isync-steps">
       <li>把下面的綠色按鈕<b>拖曳到瀏覽器的書籤列</b>（只要做一次；看不到書籤列請按 Ctrl＋Shift＋B）。</li>
       <li>到隱適美官網登入，打開「Patients」病患清單。</li>
-      <li>按書籤列上的「新海：讀取隱適美」。官網畫面中間會顯示讀取進度（約 1～2 分鐘，只讀不改官網，<b>請留在官網分頁</b>）；讀完按「開啟新海系統確認」。</li>
+      <li>按書籤列上的「新海：讀取隱適美」，選「只讀進行中」或「包含已封存」。官網畫面中間會顯示讀取進度（約 1～2 分鐘，只讀不改官網，<b>請留在官網分頁</b>）；讀完按「開啟新海系統確認」。</li>
       <li>本系統會列出 submit、approve、首次出貨、方案、End time 跟官網不一樣的地方，勾選確認後才會更新。</li>
     </ol>
     <p style="text-align:center;margin:14px 0 4px"><a class="isync-bm" href="${esc(invBookmarklet())}" title="拖曳到書籤列">新海：讀取隱適美</a></p>
