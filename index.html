@@ -5552,7 +5552,7 @@ async function invScraper(ORIGIN){
   // 病患清單畫面（React）上每張卡片帶有病患資料
   const cards=()=>{const P=[];[...document.querySelectorAll('*')].filter(e=>e.shadowRoot).forEach(e=>e.shadowRoot.querySelectorAll('[class*=Card-patientWrapper]').forEach(c=>{
     const k=Object.keys(c).find(k=>k.startsWith('__reactFiber'));let f=k&&c[k];
-    for(let i=0;i<8&&f;i++){const p=f.memoizedProps&&f.memoizedProps.patient;if(p){P.push({id:String(p.id||''),pid:String(p.patientId||''),name:String(p.name||''),status:String((p.status&&p.status.label)||'')});break;}f=f.return;}}));return P;};
+    for(let i=0;i<8&&f;i++){const p=f.memoizedProps&&f.memoizedProps.patient;if(p){if(/^\d+$/.test(String(p.id))&&/^\d+$/.test(String(p.patientId)))P.push({id:String(p.id),pid:String(p.patientId),name:String(p.name||''),status:String((p.status&&p.status.label)||'')});break;}f=f.return;}}));return P;};
   try{
     const all=new Map();
     // 進行中的清單＋「已封存」（Archived）的清單都讀
@@ -5642,7 +5642,8 @@ function invSyncPlan(x,p){
 function invSyncDiff(site){
   const byChart=new Map();invAll().forEach(x=>{const k=invKey(x.chart);if(k)byChart.set(k,x);});
   const ch=[],miss=[];
-  site.forEach(p=>{const x=byChart.get(invKey(p.id));if(!x){miss.push(p);return;}if(p.err||!invCanEd(x))return;
+  // 只算真的病例編號（官網清單載入中的佔位卡片 PL-2-0… 不算）
+  site.filter(p=>/^\d+$/.test(String(p.id||''))).forEach(p=>{const x=byChart.get(invKey(p.id));if(!x){miss.push(p);return;}if(p.err||!invCanEd(x))return;
     const r=invSyncPlan(x,p);if(r.lines.length)ch.push(Object.assign({id:x.id,cn:x.cn||p.name},r));});
   return {ch,miss};
 }
