@@ -5555,8 +5555,10 @@ async function invScraper(ORIGIN){
     for(let i=0;i<8&&f;i++){const p=f.memoizedProps&&f.memoizedProps.patient;if(p){P.push({id:String(p.id||''),pid:String(p.patientId||''),name:String(p.name||''),status:String((p.status&&p.status.label)||'')});break;}f=f.return;}}));return P;};
   try{
     const all=new Map();
+    // 進行中的清單＋「已封存」（Archived）的清單都讀
+    for(const [pre,lab] of [['','病患清單'],['filters%5B0%5D.id=ARCHIVED&filters%5B0%5D.categoryId=uncategorized&','已封存病患']])
     for(let pg=1;pg<=20;pg++){
-      location.hash='pagination.page='+pg+'&pagination.perPage=100';say('讀取病患清單第 '+pg+' 頁…');
+      location.hash=pre+'pagination.page='+pg+'&pagination.perPage=100';say('讀取'+lab+'第 '+pg+' 頁…');
       let got=[];for(let t=0;t<30;t++){await sleep(500);got=cards();if(got.some(p=>!all.has(p.id)))break;}
       const fresh=got.filter(p=>p.id&&p.pid&&!all.has(p.id));fresh.forEach(p=>all.set(p.id,p));
       if(got.length<100||!fresh.length)break;
