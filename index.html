@@ -572,7 +572,11 @@ table.inv-table td.inv-d input::-webkit-calendar-picker-indicator:hover{opacity:
 .inv-wrap table.inv-table thead tr:nth-child(2) th{top:var(--inv-h1,34px);}
 table.inv-table td.inv-next{background:color-mix(in srgb,#f5c542 28%,var(--panel));}
 .inv-next-key{background:color-mix(in srgb,#f5c542 28%,var(--panel)); padding:0 4px; border-radius:3px;}
-table.inv-table .inv-note{flex:1 1 0; width:0; min-width:0; max-width:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.8rem; color:var(--sub);} /* 總備註：姓名區第二行，太長時截斷，滑鼠移上去看全文 */
+.inv-gap{flex:1 1 auto;}
+table.inv-table td.inv-note{padding:0 10px 8px; font-size:.8rem; color:var(--ink); white-space:normal; text-align:left; line-height:1.5;}
+.inv-note-l{display:inline-block; font-size:.7rem; color:var(--sub); background:var(--chip); border-radius:4px; padding:0 6px; margin-right:6px;}
+table.inv-table tr.inv-sub.inv-hasn td{border-bottom:none;}
+table.inv-table tr.inv-nrow td{border-bottom:1px solid var(--line);} /* 總備註：姓名區第二行，太長時截斷，滑鼠移上去看全文 */
 table.inv-table tr.inv-closed td{opacity:.6;}
 /* 英文名、生日、日期加粗 */
 table.inv-table tr.inv-top td:nth-child(2),table.inv-table tr.inv-top td:nth-child(3),table.inv-table td.inv-d,table.inv-table td.inv-d input{font-weight:700;}
@@ -585,13 +589,24 @@ table.inv-table td.inv-none{vertical-align:middle; padding:4px 8px;}
 .inv-minus{flex:none; width:26px; height:26px; padding:0; border-radius:50%; font-size:1rem; line-height:1; color:var(--sub);}
 table.inv-table tr.inv-top td{border-bottom:none;}
 table.inv-table td.inv-stc{padding:0 10px 6px;}
-table.inv-table td.inv-stc .small{padding:1px 10px; flex:none;}
-.inv-stw{display:flex; align-items:center; gap:8px;}
-.inv-end{display:inline-flex; align-items:center; gap:3px; font-size:.72rem; color:var(--sub); flex:none;}
-.inv-end input{padding:2px 3px 2px 4px; font-size:.78rem; width:7.6em; font-weight:700; background:transparent;}
+table.inv-table td.inv-stc .small{padding:1px 6px; font-size:.72rem; flex:none;}
+table.inv-table td.inv-stc .small+.small{margin-left:-2px;}
+.inv-stw{display:flex; align-items:center; gap:6px;}
+.inv-end{display:inline-flex; align-items:center; justify-content:center; gap:3px; font-size:.72rem; color:var(--sub); flex:none;}
+.inv-end input{padding:2px 3px 2px 4px; font-size:.78rem; width:100%; font-weight:700; background:transparent;}
+.inv-c-st,.inv-c-ship,.inv-c-plan,.inv-c-end{flex:none; box-sizing:border-box; text-align:center;}
+/* 姓名區：表頭標題與下方欄位置中對齊 */
+table.inv-table thead tr:first-child th:nth-child(-n+5),table.inv-table tr.inv-top td:nth-child(-n+5){text-align:center;}
+/* 患者編號與主治醫師之間多留空間，第二行放得下「修改」「新增備註」兩個按鈕 */
+table.inv-table thead tr:first-child th:nth-child(5),table.inv-table tr.inv-top td:nth-child(5){padding-left:56px;}
+.inv-c-st{width:4.4rem;} .inv-c-ship,.inv-c-end{width:5.4rem;} .inv-c-plan{width:9.2rem;}
+.inv-c-st .inv-st{display:block; text-align:center; padding:1px 4px;}
+table.inv-table th.inv-subh{padding:2px 10px; font-size:.72rem;}
+table.inv-table th.inv-subh .inv-c-st,table.inv-table th.inv-subh .inv-c-ship,table.inv-table th.inv-subh .inv-c-plan,table.inv-table th.inv-subh .inv-c-end{font-size:.72rem;}
 .inv-end input::-webkit-calendar-picker-indicator{width:10px; height:10px; padding:0; margin:0 0 0 2px; opacity:.6; cursor:pointer;}
 .inv-end b{font-size:.8rem; color:var(--ink);}
-.inv-end select{padding:2px 2px; font-size:.78rem; font-weight:700; background:transparent; width:auto;} /* 狀態、總備註、修改（靠右，對齊主治醫師欄右側） */
+.inv-end select{padding:2px 2px; font-size:.78rem; font-weight:700; background:transparent; width:100%; text-overflow:ellipsis;}
+.inv-end b{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:2px 0; font-size:.8rem; font-weight:400;} /* 狀態、總備註、修改（靠右，對齊主治醫師欄右側） */
 .inv-st{display:inline-block; font-size:.72rem; padding:1px 8px; border-radius:999px; font-weight:600;}
 .inv-st.open{background:var(--accent-soft); color:var(--accent);} .inv-st.closed{background:var(--chip); color:var(--sub);}
 .inv-st.cancel{background:var(--warn-soft); color:var(--warn);} .inv-st.trad{background:color-mix(in srgb,var(--doc) 18%,var(--panel)); color:var(--doc);}
@@ -5369,7 +5384,7 @@ const invCanAdd=()=>['admin','adminSelf'].includes(invLv());
 const invCanEd=x=>invLv()==='admin'||(invLv()==='adminSelf'&&!!x&&x.doc===myStaffId());
 let invList=[],invView={q:'',doc:'',st:'open',sort:null}; // sort：{k 欄位, dir 1 遞增／-1 遞減}；null＝預設（狀態 → 患者編號 → 中文名）
 // 排序用的值：姓名依中文排序、英文名與患者編號依字母數字、主治醫師依代號、生日與各步驟依日期；沒有值的一律排在最後
-const invSortVal=(x,k)=>k==='doc'?(byId(x.doc)?.code||''):String(x[k]??'');
+const invSortVal=(x,k)=>k==='doc'?(byId(x.doc)?.code||''):k==='plan'?invPlanL(x.plan):String(x[k]??'');
 function invCmp(k,dir){const loc=k==='cn'?'zh-Hant':'en';return (a,b)=>{const va=invSortVal(a,k),vb=invSortVal(b,k);
   if(!va||!vb)return (!va)-(!vb);return va.localeCompare(vb,loc,{numeric:true,sensitivity:'base'})*dir;};}
 const INV_LOCAL=LOCAL_KEY+'_invis';
@@ -5417,17 +5432,18 @@ function renderInvis(){
   $('invCount').textContent=`共 ${list.length} 位${self?'（只顯示你是主治醫師的病患）':''}`;
   // 表頭的次數＝清單裡最多的次數；次數較少的病患，後面的格子留白，「＋」放在下一次的位置；次數最多的病患，「＋」放在最後一欄
   const maxR=Math.max(1,...list.map(invRounds)),RN=[...Array(maxR)].map((_,i)=>i+1),plusCol=list.some(x=>invCanEd(x)&&invRounds(x)===maxR);
-  const head=`<thead><tr><th rowspan="2">${sb('cn','中文名')}</th><th rowspan="2">${sb('en','英文名')}</th><th rowspan="2">${sb('birth','生日')}</th><th rowspan="2">${sb('chart','患者編號')}</th><th rowspan="2">${sb('doc','主治醫師')}</th>${RN.map(n=>`<th colspan="3" class="inv-grp">${invRName(n)}</th>`).join('')}${plusCol?'<th rowspan="2" class="inv-first"></th>':''}</tr>
-    <tr>${RN.flatMap(invSteps).map(s=>`<th class="inv-step${s.k[0]==='g'?' inv-first':''}">${sb(s.k,s.l)}</th>`).join('')}</tr></thead>`;
+  const head=`<thead><tr><th>${sb('cn','中文名')}</th><th>${sb('en','英文名')}</th><th>${sb('birth','生日')}</th><th>${sb('chart','患者編號')}</th><th>${sb('doc','主治醫師')}</th>${RN.map(n=>`<th colspan="3" class="inv-grp">${invRName(n)}</th>`).join('')}${plusCol?'<th rowspan="2" class="inv-first"></th>':''}</tr>
+    <tr><th colspan="5" class="inv-subh"><div class="inv-stw"><span class="inv-c-st"></span><span class="inv-c-ship">${sb('ship','首次出貨')}</span><span class="inv-c-plan">${sb('plan','方案')}</span><span class="inv-c-end">${sb('end','End time')}</span></div></th>${RN.flatMap(invSteps).map(s=>`<th class="inv-step${s.k[0]==='g'?' inv-first':''}">${sb(s.k,s.l)}</th>`).join('')}</tr></thead>`;
   const plus=n=>`<button type="button" class="inv-plus" data-invplus title="加 ${invRName(n)}" aria-label="加 ${invRName(n)}">＋</button>`;
   const row=(x,idx)=>{const ed=invCanEd(x),st=invSt(x),nx=st!=='open'?null:invNext(x),nr=invRounds(x),mine=RN.filter(n=>n<=nr);
-    const R=' rowspan="2"',cls=(st!=='open'?' inv-closed':'')+(idx%2?' inv-alt':''); // 每位病患交錯底色（兩行一起）
+    const hasN=!!x.note,R=` rowspan="${hasN?3:2}"`,cls=(st!=='open'?' inv-closed':'')+(idx%2?' inv-alt':''); // 每位病患交錯底色（兩行一起）
     // 沒有的次數：下一次放「＋」（管理才有），其餘留白；兩行合併成一格
     const rest=RN.filter(n=>n>nr).map((n,i)=>`<td colspan="3"${R} class="inv-first inv-none">${ed&&!i?plus(n):''}</td>`).join('')+(plusCol?`<td${R} class="inv-first inv-none">${ed&&nr===maxR?plus(nr+1):''}</td>`:'');
     return `<tr data-inv="${esc(x.id)}" class="inv-top${cls}"><td><b>${esc(x.cn||'')}</b></td><td>${esc(x.en||'')}</td><td style="white-space:nowrap">${esc(invFmt(x.birth))}</td><td style="white-space:nowrap">${esc(x.chart||'')}</td><td style="white-space:nowrap">${x.doc&&byId(x.doc)?esc(fullName(byId(x.doc))):'<span class="att-mute">—</span>'}</td>`+
       mine.flatMap(invSteps).map(s=>`<td class="inv-d${s.k[0]==='g'?' inv-first':''}${nx===s.k?' inv-next':''}"${nx===s.k?' title="下一步"':''}>${ed?`<input type="date" data-invk="${s.k}" value="${esc(x[s.k]||'')}" aria-label="${invRName(s.n)} ${s.l}">`:(x[s.k]?esc(invFmt(x[s.k])):'<span class="att-mute">—</span>')}</td>`).join('')+rest+
       `</tr>`+
-      `<tr data-inv="${esc(x.id)}" class="inv-sub${cls}"><td colspan="5" class="inv-stc"><div class="inv-stw"><span class="inv-st ${st}">${INV_ST[st]}</span><span class="inv-end" title="首次出貨日期">首次出貨${ed?`<input type="date" data-invk="ship" value="${esc(x.ship||'')}" aria-label="首次出貨日期">`:`<b>${x.ship?esc(invFmt(x.ship)):'—'}</b>`}</span><span class="inv-end" title="方案（保固年限）">方案${ed?`<select data-invk="plan" aria-label="方案"><option value="">—</option>${Object.keys(INV_PLAN).map(k=>`<option value="${k}"${x.plan===k?' selected':''}>${invPlanL(k)}</option>`).join('')}</select>`:`<b>${x.plan?esc(invPlanL(x.plan)):'—'}</b>`}</span><span class="inv-end" title="End time：首次出貨日期＋方案年限（可手動修改）">End time${ed?`<input type="date" data-invk="end" value="${esc(x.end||'')}" aria-label="End time（合約到期日）">`:`<b>${x.end?esc(invFmt(x.end)):'—'}</b>`}</span><span class="inv-note"${x.note?` title="${esc(x.note)}"`:''}>${esc(x.note||'')}</span>${ed?'<button class="small" data-invedit>修改</button>':''}</div></td>${mine.map(n=>`<td colspan="3" class="inv-first inv-rn">${ed?`<div class="inv-rnw"><input type="text" data-invk="n${n}" value="${esc(x['n'+n]||'')}" placeholder="${invRName(n)} 備註" aria-label="${invRName(n)} 備註">${n===nr&&n>1&&!['g','s','a','n'].some(p=>x[p+n])?`<button type="button" class="inv-minus" data-invminus title="移除 ${invRName(n)}（還沒填任何資料）" aria-label="移除 ${invRName(n)}">−</button>`:''}</div>`:(x['n'+n]?esc(x['n'+n]):'<span class="att-mute">—</span>')}</td>`).join('')}</tr>`;};
+      `<tr data-inv="${esc(x.id)}" class="inv-sub${hasN?' inv-hasn':''}${cls}"><td colspan="5" class="inv-stc"><div class="inv-stw"><span class="inv-c-st"><span class="inv-st ${st}">${INV_ST[st]}</span></span><span class="inv-end inv-c-ship" title="首次出貨日期"><b>${x.ship?esc(invFmt(x.ship)):'—'}</b></span><span class="inv-end inv-c-plan" title="${esc(invPlanL(x.plan)||'方案（保固年限）')}"><b>${x.plan?esc(invPlanL(x.plan)):'—'}</b></span><span class="inv-end inv-c-end" title="End time：首次出貨日期＋方案年限（在「修改」裡改）"><b>${x.end?esc(invFmt(x.end)):'—'}</b></span><span class="inv-gap"></span>${ed?'<button class="small" data-invedit>修改</button><button class="small" data-invnote>新增備註</button>':''}</div></td>${mine.map(n=>`<td colspan="3" class="inv-first inv-rn">${ed?`<div class="inv-rnw"><input type="text" data-invk="n${n}" value="${esc(x['n'+n]||'')}" placeholder="${invRName(n)} 備註" aria-label="${invRName(n)} 備註">${n===nr&&n>1&&!['g','s','a','n'].some(p=>x[p+n])?`<button type="button" class="inv-minus" data-invminus title="移除 ${invRName(n)}（還沒填任何資料）" aria-label="移除 ${invRName(n)}">−</button>`:''}</div>`:(x['n'+n]?esc(x['n'+n]):'<span class="att-mute">—</span>')}</td>`).join('')}</tr>`+
+      (hasN?`<tr data-inv="${esc(x.id)}" class="inv-nrow${cls}"><td colspan="5" class="inv-note"><span class="inv-note-l">備註</span>${esc(x.note)}</td>${mine.map(()=>'<td colspan="3" class="inv-first"></td>').join('')}</tr>`:'');};
   requestAnimationFrame(()=>{const r=$('invTable').querySelector('thead tr');if(r)$('invWrap').style.setProperty('--inv-h1',r.getBoundingClientRect().height+'px');});
   // 重新繪製前記住游標在哪一格，畫完放回去（Tab 到下一格時不會跳掉）
   const fa=document.activeElement,fk=fa&&fa.closest&&fa.closest('#invTable')&&fa.dataset.invk?[fa.closest('[data-inv]').dataset.inv,fa.dataset.invk,fa.value,fa.selectionStart]:null;
@@ -5460,7 +5476,6 @@ function invOpen(x){
     <div class="form-row">
       <div class="field"><label for="ivEnd">End time（合約到期日）</label><input id="ivEnd" type="date" value="${esc(x.end||'')}"></div>
     </div>
-    <div class="field"><label for="ivNote">備註</label><textarea id="ivNote" rows="3">${esc(x.note||'')}</textarea></div>
     ${isNew?'':'<p style="margin:10px 0 0"><button type="button" class="small danger" data-invdel>刪除這位病患</button></p>'}`,ov=>{
     const g=id=>ov.querySelector(id).value.trim();
     const cn=g('#ivCn'),chart=g('#ivChart');
@@ -5469,7 +5484,7 @@ function invOpen(x){
     if(miss.length){toast(miss.join('、')+' 必填。','warn');return false;}
     if(chart&&invAll().some(y=>y.id&&y.id!==x.id&&invKey(y.chart)===invKey(chart))){toast(`患者編號 ${chart} 已經在清單裡。`,'warn');return false;}
     const now=Date.now(),by=myDisplayName();
-    const n=Object.assign({},x,{id:x.id||uid('iv'),cn,en:g('#ivEn'),birth:g('#ivBirth'),chart,doc:selfOnly?me:g('#ivDoc'),note:g('#ivNote'),ship:g('#ivShip'),plan:g('#ivPlan'),end:g('#ivEnd')||invAutoEnd(g('#ivShip'),g('#ivPlan')),st:g('#ivSt'),closed:g('#ivSt')!=='open',updatedAt:now,updatedBy:by},isNew?{createdAt:now,createdBy:by}:{});
+    const n=Object.assign({},x,{id:x.id||uid('iv'),cn,en:g('#ivEn'),birth:g('#ivBirth'),chart,doc:selfOnly?me:g('#ivDoc'),ship:g('#ivShip'),plan:g('#ivPlan'),end:g('#ivEnd')||invAutoEnd(g('#ivShip'),g('#ivPlan')),st:g('#ivSt'),closed:g('#ivSt')!=='open',updatedAt:now,updatedBy:by},isNew?{createdAt:now,createdBy:by}:{});
     invPut(n).then(()=>toast(isNew?'已新增病患。':'已儲存。')).catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限（只有隱適美「管理」可以修改，或安全規則尚未更新）':e.message),'warn');});
   },isNew?'新增':'儲存');
   const ov=document.querySelector('.overlay:last-of-type');
@@ -5480,6 +5495,15 @@ function invOpen(x){
   {const upd=()=>{const e2=invAutoEnd(ov.querySelector('#ivShip').value,ov.querySelector('#ivPlan').value);if(e2)ov.querySelector('#ivEnd').value=e2;};
     ov.querySelector('#ivShip').addEventListener('change',upd);ov.querySelector('#ivPlan').addEventListener('change',upd);}
   ov.querySelector('#ivCn').focus();
+}
+// 病患總備註（顯示在姓名區第三行）
+function invNoteOpen(x){
+  dialog(`<h3>備註：${esc(x.cn||'')}</h3>
+    <div class="field"><label for="ivNote2">備註（清空後儲存＝刪除備註）</label><textarea id="ivNote2" rows="4">${esc(x.note||'')}</textarea></div>`,ov=>{
+    const v=ov.querySelector('#ivNote2').value.trim();if(v===(x.note||''))return;
+    invPut(Object.assign({},x,{note:v,updatedAt:Date.now(),updatedBy:myDisplayName()})).then(()=>toast('已儲存備註。')).catch(e=>{console.error(e);toast('儲存失敗：'+(e.code==='permission-denied'?'沒有權限':e.message),'warn');});
+  },'儲存');
+  const t=document.querySelector('.overlay:last-of-type #ivNote2');t.focus();t.setSelectionRange(t.value.length,t.value.length);
 }
 $('invAddBtn').addEventListener('click',()=>invOpen(null));
 $('invQ').addEventListener('input',e=>{invView.q=e.target.value;renderAll();});
@@ -5492,6 +5516,7 @@ $('invTable').addEventListener('click',e=>{
   if(e.target.closest('[data-invminus]')){const x=invAll().find(y=>y.id===e.target.closest('[data-inv]').dataset.inv);if(!x||!invCanEd(x))return;const nr=invRounds(x);
     if(nr<=1||['g','s','a','n'].some(p=>x[p+nr]))return; // 只能移除最後一次、而且是空白的
     invPut(Object.assign({},x,{nr:nr-1,updatedAt:Date.now(),updatedBy:myDisplayName()})).catch(err=>{console.error(err);toast('儲存失敗：'+err.message,'warn');});return;}
+  if(e.target.closest('[data-invnote]')){const x=invAll().find(y=>y.id===e.target.closest('[data-inv]').dataset.inv);if(!x||!invCanEd(x))return;invNoteOpen(x);return;}
   if(!e.target.closest('[data-invedit]'))return;const id=e.target.closest('[data-inv]').dataset.inv;invOpen(invAll().find(x=>x.id===id));});
 // 表格裡直接改日期（改完馬上存）
 $('invTable').addEventListener('change',e=>{
@@ -5500,7 +5525,6 @@ $('invTable').addEventListener('change',e=>{
   const v=i.value;
   if((x[i.dataset.invk]||'')===v)return;
   const n=Object.assign({},x,{[i.dataset.invk]:v,updatedAt:Date.now(),updatedBy:myDisplayName()});
-  if(i.dataset.invk==='ship'||i.dataset.invk==='plan'){const e2=invAutoEnd(n.ship,n.plan);if(e2)n.end=e2;} // 首次出貨＋方案年限＝End time
   invPut(n).catch(err=>{console.error(err);toast('儲存失敗：'+(err.code==='permission-denied'?'沒有權限':err.message),'warn');i.value=x[i.dataset.invk]||'';});
 });
 // 能不能進治療計劃單（treatment-plan.html）：計劃單權限不是「無」
