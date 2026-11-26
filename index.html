@@ -5647,7 +5647,7 @@ function invSyncDiff(site){
 function invSyncOpen(data){
   const {ch,miss}=invSyncDiff(data.patients);
   const at=new Date(data.at),hm=`${at.getHours()}:${String(at.getMinutes()).padStart(2,'0')}`;
-  const rows=ch.map((c,i)=>`<tr><td><input type="checkbox" data-isi="${i}" checked aria-label="更新 ${esc(c.cn)}"></td><td><b>${esc(c.cn)}</b>${c.siteN!==c.ourN&&c.siteN?`<div class="isync-tag">次數 ${c.ourN}→${c.siteN}</div>`:''}</td><td>${c.lines.filter(l=>l.k!=='nr').map(l=>`<div class="isync-l"><span>${esc(l.l)}</span><s class="att-mute">${esc(l.o)}</s> → <b>${esc(l.v)}</b></div>`).join('')}</td></tr>`).join('');
+  const rows=ch.map((c,i)=>`<tr><td><input type="checkbox" data-isi="${i}" checked aria-label="更新 ${esc(c.cn)}"></td><td><b>${esc(c.cn)}</b>${c.upd.nr!==undefined?`<div class="isync-tag">次數 ${c.ourN}→${c.upd.nr}</div>`:''}</td><td>${c.lines.filter(l=>l.k!=='nr').map(l=>`<div class="isync-l"><span>${esc(l.l)}</span><s class="att-mute">${esc(l.o)}</s> → <b>${esc(l.v)}</b></div>`).join('')}</td></tr>`).join('');
   const errs=data.patients.filter(p=>p.err).length;
   dialog(`<h3>從 Invisalign 同步</h3>
     <p class="desc">讀到 ${data.patients.length} 位病患（${hm}）。${ch.length?`${ch.length} 位病患跟官網不一樣，勾選的會<b>以官網為主</b>更新（次數對不起來時，會照官網重新排列每一次；取資料日期與每次的備註跟著對應的那一次移動，對不到的舊紀錄寫進總備註）：`:'所有日期、次數、方案、End time 都跟官網一致，不用更新。'}</p>
