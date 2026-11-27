@@ -46,6 +46,13 @@ const TI_ALLX_WEIGHT={title:'假牙重量與配戴感比較',head:['比較項目
   ['估計單顎總重量','**10～15 公克**','**25～35 公克**','**50～75 公克**'],
   ['物理密度與結構','密度約 1.2 g/cm³，純高密度樹脂，無內部金屬。','內部骨架是輕量化的支架（4.5 g/cm³），外部套上單顆二氧化鋯。','密度高達 6.0 g/cm³，整座假牙由整塊全瓷數位研磨而成。'],
   ['嘴巴整體的配戴體感','最輕！','**最均衡！**有扎實感但不會過重，多數患者適應最快。','**最沉重！**份量感十足，初期會有嘴裡含著鵝卵石的感覺。']]};
+/* 全瓷冠與金屬瓷牙比較（GC、E.max、Cercon 三種全瓷冠共用） */
+const TI_PFM_CMP={title:'全瓷冠與金屬瓷牙比較',picsAr:'1000/667',pics:[{src:'media/crown-vs-pfm.png',cap:'左：全瓷冠　右：金屬瓷牙（內層為金屬）'}],head:['比較項目','全瓷冠（二矽酸鋰、二氧化鋯）','金屬瓷牙'],rows:[
+  ['材質結構','純高強度陶瓷，完全不含金屬','內層金屬基底，外層燒附陶瓷'],
+  ['美觀透光性','透光度與色澤接近真牙，自然擬真','較死白、不透光，視覺較不自然'],
+  ['牙齦影響','不會染黑牙齦，邊緣自然乾淨','易釋放金屬離子，隨時間產生牙齦黑線'],
+  ['生物相容性','極佳，幾乎不會引起過敏反應','較差，部分人可能出現金屬過敏或紅腫'],
+  ['耐用與風險','強度高（尤其二氧化鋯），一體成型不易崩裂','外層瓷粉易剝落崩瓷']]};
 const TREATMENT_INFO=[
 /* ---------- 固定式贗復 ---------- */
 {id:'dsd',cat:'固定式贗復',title:'DSD 數位微笑設計',items:['DSD數位微笑設計'],photo:{src:'media/dsd.webp',alt:'DSD 數位微笑設計：依臉部中線、牙齒比例與微笑曲線設計每顆牙齒的外形'},
@@ -120,6 +127,7 @@ const TREATMENT_INFO=[
  time:'配戴到正式假牙完成，約數週至數月。',
  care:['臨時假牙較不堅固，避免咬硬、黏的食物（麻糬、牛軋糖、口香糖）','用牙線時從側邊抽出，不要往上拉','若鬆脫請保留並儘快回診重新黏上']},
 {id:'crown-cercon',cat:'固定式贗復',strength:'zr',title:'德國 Cercon 全鋯冠',items:['德國Cercon全鋯冠-前牙','德國Cercon全鋯冠-後牙'],old:['Crown氧化鋯-前牙','Crown氧化鋯-後牙','德國 Cercon全鋯冠-前牙','德國 Cercon全鋯冠-後牙'],
+ table:TI_PFM_CMP,
  about:{label:'牙橋',icon:'🌉',scale:0.7,src:'media/cercon-bridge.webp',alt:'牙橋：磨小缺牙兩側的牙齒當支柱，套上連在一起的全鋯牙冠，補起中間缺的牙'},
  pics:{src:'media/crown-cercon-source.webp',w:1536,h:1024,rows:[
   [{x:60,y:117,w:445,h:262,cap:'1. 舊有全瓷冠\n舊全瓷冠已有磨損、變色或邊緣不密合'},{x:556,y:117,w:427,h:262,cap:'2. 拆除舊假牙\n拆除舊全瓷冠，評估牙齒狀況'},{x:1039,y:117,w:438,h:262,cap:'3. 修型磨邊緣\n修磨牙齒，製作全鋯冠所需的牙體形態'}],
@@ -130,7 +138,7 @@ const TREATMENT_INFO=[
  time:'約 2～3 次，前後約 1～3 週。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','仍要確實刷牙、使用牙線']},
 {id:'crown-gc',cat:'固定式贗復',strength:'gc',title:'日本 GC Initial LiSi Block 全瓷冠',items:['日本GC Initial LiSi Block全瓷冠-前牙','日本GC Initial LiSi Block全瓷冠-後牙'],
- table:TI_GC_EMAX,
+ table:[TI_GC_EMAX,TI_PFM_CMP],
  pics:{src:'media/crown-gc-source.webp',w:1536,h:1024,rows:[
   [{x:61,y:116,w:444,h:252,cap:'1. 術前評估\n下顎第一小臼齒因蛀牙或舊補綴物造成結構缺損，影響咀嚼功能'},{x:554,y:116,w:427,h:252,cap:'2. 牙齒修磨\n依 GC 全瓷冠的設計需求，修磨牙齒取得適當的外形與空間'},{x:1032,y:116,w:443,h:252,cap:'3. 比色確認\n進行牙齒比色，選擇最適合的 GC 全瓷冠顏色'}],
   [{x:237,y:538,w:548,h:270,cap:'4. GC 全瓷冠製作\n以 GC 全瓷材料製作正式假牙，具備良好的美觀性與生物相容性'},{x:840,y:538,w:635,h:270,cap:'5. 裝戴正式全瓷冠\n裝戴 GC 全瓷冠，確認咬合與邊緣密合，恢復牙齒外形、咀嚼功能與美觀'}]]},
@@ -140,7 +148,7 @@ const TREATMENT_INFO=[
  time:'約 1～2 次，部分可當日完成。',
  care:['治療後幾天可能對冷熱敏感，通常會慢慢改善','仍要確實刷牙、使用牙線','避免咬冰塊、骨頭等硬物；有磨牙習慣建議配戴咬合板']},
 {id:'crown-emax',cat:'固定式贗復',strength:'emax',title:'列支敦斯登 E.max 全瓷冠',items:['列支敦斯登E.max全瓷冠-前牙','列支敦斯登E.max全瓷冠-後牙'],old:['Crown全瓷-前牙','Crown全瓷-後牙'],
- table:TI_GC_EMAX,
+ table:[TI_GC_EMAX,TI_PFM_CMP],
  pics:{src:'media/crown-emax-source.webp',w:1536,h:1024,rows:[
   [{x:62,y:117,w:444,h:253,cap:'1. 術前評估\n前牙因外傷或齲齒造成缺損、變色，影響美觀與功能'},{x:555,y:117,w:425,h:253,cap:'2. 牙齒修磨\n修磨牙齒，製作適合 E.max 全瓷冠的牙體形態'},{x:1035,y:117,w:441,h:253,cap:'3. 數位口掃取模\n以數位口掃取得牙齒資料，進行 E.max 全瓷冠數位設計與製作'}],
   [{x:236,y:539,w:551,h:271,cap:'4. E.max 全瓷冠製作\n以 E.max 全瓷材料製作正式假牙，顏色與形態比對自然牙'},{x:842,y:539,w:634,h:271,cap:'5. 裝戴正式全瓷冠\n裝戴 E.max 全瓷冠，恢復牙齒外形、美觀與功能'}]]},
@@ -749,13 +757,13 @@ const TI_CSS=`
   body.pop-print .ti-pop img:last-of-type{break-after:auto}
   body.pop-print .ti-pop.mkp .ti-tbl-pics{margin-top:15mm;font-size:16px}body.pop-print .ti-pop.mkp figure.mk{width:120mm}body.pop-print .ti-pop.mkp img{width:100%;max-width:none;margin:0}body.pop-print .ti-pop.mkp img.raw{display:none!important}body.pop-print .ti-pop.mkp .ti-tbl-pics{display:flex!important}}
 .ti-tbl-pics{display:flex;gap:12px;justify-content:center;margin:12px 0 2px}
-.ti-tbl-pics figure{margin:0;flex:0 1 312px;min-width:0;text-align:center}
+.ti-tbl-pics figure:only-child{flex-basis:520px}.ti-tbl-pics figure{margin:0;flex:0 1 312px;min-width:0;text-align:center}
 .ti-tbl-pics .pw{position:relative}.ti-tbl-pics .pw svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .ti-tbl-pics figure.mk{margin-right:8.5em} /* 右側留空間放箭頭標籤 */
 .ti-tbl-pics .lb{position:absolute;left:calc(100% + 1.3em);width:7.5em;transform:translateY(-.75em);text-align:left;color:#e5484d;font-weight:700;font-size:.9em;line-height:1.35}.ti-tbl-pics .lb small{display:block;font-weight:400;font-size:.85em;color:var(--muted)}
 .ti-tbl-pics img{width:100%;height:auto;aspect-ratio:413/459;object-fit:cover;border-radius:10px;display:block}
 .ti-tbl-pics figcaption{font-size:.88em;line-height:1.45;margin-top:6px;color:var(--muted)}.ti-tbl-pics figcaption b{color:var(--ink);display:block}
-@media (max-width:640px){.ti-tbl-pics{flex-direction:column;align-items:flex-start;position:sticky;left:0;width:min(100%,calc(100vw - 64px))}.ti-tbl-pics figure,.ti-tbl-pics figure.mk{flex:none;width:calc(100% - 9em);max-width:312px;margin:0}} /* 手機：照片上下排，右側留給箭頭標籤 */
+@media (max-width:640px){.ti-tbl-pics{flex-direction:column;align-items:flex-start;position:sticky;left:0;width:min(100%,calc(100vw - 64px))}.ti-tbl-pics figure{flex:none;width:100%;max-width:312px;margin:0}.ti-tbl-pics:has(.mk) figure{width:calc(100% - 9em)}.ti-tbl-pics figure:only-child{max-width:none}} /* 手機：照片上下排，右側留給箭頭標籤 */
 @media print{.ti-tbl-pics{break-inside:avoid}.ti-tbl-pics figure{flex-basis:71.5mm}}
 .ti-tbl-foot{margin:8px 0 2px;padding-left:1.2em;font-size:.92em;line-height:1.6}.ti-tbl-foot li{margin:2px 0}
 .ti-tbl-btn{order:0}
