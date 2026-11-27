@@ -780,7 +780,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 
 <script src="js/treatment-info.js?v=240"></script>
 <script src="js/treatment-figs.js?v=14"></script>
-<script src="js/ceph.js?v=3"></script>
+<script src="js/ceph.js?v=7"></script>
 <script>
 'use strict';
 /* ====== 治療項目 ====== */
@@ -1778,7 +1778,7 @@ const tiOf=it=>it&&it.name&&!it.custom?tiFind(it.name):null;
 function catTagHtml(it){if(!it.name)return '&nbsp;';const e=tiOf(it);
   return esc(it.custom?'自訂項目':it.cat)+(e?`<button type="button" class="ti-btn" data-ti="${e.id}" title="治療介紹（可給病人看、列印）">ⓘ 介紹</button>`:'')
     +((w=>w?`<button type="button" class="ti-btn" data-wty="${w.id}" title="${esc(w.title)}（可給病人看、列印）">🛡 保固</button>`:'')(wtyOf(it)))
-    +(it.name==='LH日式矯正分析'&&!it.custom?`<button type="button" class="ti-btn ceph-btn" data-ceph="1" title="上傳側顱 X 光，AI 先標點、醫師確認後自動做 Steiner 角度分析">📐 側顱分析${cur()?.ceph?' ✓':''}</button>`:'')}
+    +(it.name==='LH日式矯正分析'&&!it.custom?`<button type="button" class="ti-btn ceph-btn" data-ceph="1" title="上傳側顱 X 光，AI 先標點、醫師確認後自動做 Polygon 角度分析">📐 側顱分析${cur()?.ceph?' ✓':''}</button>`:'')}
 /* ====== 保固說明（項目旁的「🛡 保固」）：齒雕、美學貼片、牙冠／植體、植牙冠、植牙贗復體 ====== */
 const WARRANTY_ITEMS={
   crown:['日本GC Initial LiSi Block齒雕','日本GC Initial LiSi Block美學貼片','列支敦斯登E.max美學貼片',
@@ -1861,7 +1861,7 @@ function printPlan(p){
   modal(`<h3>列印</h3><p class="hint" style="margin:0 0 8px">勾選要列印的部分，會依「治療計劃單 → AI 分析 → 項目介紹 → 保固與說明」的順序印出。</p><div class="pp-opts">
       ${opt('plan','治療計劃單',true,'')}
       ${p.opts&&p.optAi?`<label class="pp-opt"><input type="checkbox" data-k="ai"><span><b>AI 分析優缺點</b><span class="hint">各方案優缺點比較，一張 A4${p.optAi.sig!==optAiSig(p)?'（方案已修改，建議先重新分析）':''}</span></span></label>`:''}
-      ${p.ceph?`<label class="pp-opt"><input type="checkbox" data-k="ceph"><span><b>側顱分析（Steiner）</b><span class="hint">描線圖與角度，一張 A4</span></span></label>`:''}
+      ${p.ceph?`<label class="pp-opt"><input type="checkbox" data-k="ceph"><span><b>側顱分析（Polygon）</b><span class="hint">描線圖與角度，一張 A4</span></span></label>`:''}
       ${opt('info','項目介紹',ids.length,noInfo,`<span class="hint">每項一張 A4：</span>${list}`)}
       ${opt('wty','保固與說明',wty,noWty,`<span class="hint">每份一張 A4：</span>${wlist}`)}</div>
     <div class="acts"><span class="sp"></span><button data-x="close">取消</button><button class="btn-primary" data-x="go">🖨 列印</button></div>`,

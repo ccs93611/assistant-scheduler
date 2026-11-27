@@ -1,6 +1,7 @@
-/* ====== 側顱 X 光 Steiner 分析（治療計劃單「LH日式矯正分析」項目旁的「📐 側顱分析」） ======
-   流程：上傳側顱 X 光原圖 → 🤖 AI 先標點（也可以不用，全部自己點）→ 醫師在原圖上拖曳修正 → 自動算 Steiner 角度 → 儲存
-   儲存只存縮小圖（tpFiles）與每個點的相對位置（0～1），不存原圖；只算角度，不需要比例尺
+/* ====== 側顱 X 光分析（治療計劃單「LH日式矯正分析」項目旁的「📐 側顱分析」） ======
+   分析項目：Polygon（Downs／Northwestern 項目，日本人常模，照 LH 的 Polygon 表）＋ Steiner 補充
+   流程：上傳側顱 X 光原圖 → 🤖 AI 先標點（也可以不用，全部自己點）→ 醫師在原圖上拖曳修正 → 自動算角度、畫 Polygon 圖 → 儲存
+   儲存只存縮小圖（tpFiles）與每個點的相對位置（0～1），不存原圖；只算角度（mm 項目需要比例尺，目前不計算）
    p.ceph = {img: 縮小圖檔案編號（本機測試為 dataURL）, w, h: 標點時影像的寬高（算角度用的長寬比）, pts:{S:[x,y],…}, ai: 有沒有用 AI 標點, at, by}
    用到 treatment-plan.html 的 modal、esc、cur、touch、renderEditor、DB、fs、firebase、nowLocal、fmtDT、me、canEdit、isPhotoData */
 
@@ -8,10 +9,15 @@
 const CEPH_PTS=[
   ['S','S 蝶鞍點','Sella：蝶鞍輪廓的中心'],
   ['N','N 鼻根點','Nasion：額鼻縫最前點'],
+  ['Po','Po 耳點','Porion：外耳道最上點（定 FH 平面）'],
+  ['Or','Or 眶點','Orbitale：眼眶下緣最低點（定 FH 平面）'],
   ['A','A 點','上顎前緣最凹處（Subspinale）'],
   ['B','B 點','下顎前緣最凹處（Supramentale）'],
-  ['Go','Go 下顎角點','Gonion：下顎角最外下點'],
+  ['Pog','Pog 頦前點','Pogonion：頦部最前點'],
   ['Gn','Gn 頦頂點','Gnathion：頦部最前下點'],
+  ['Me','Me 頦下點','Menton：頦部最下點'],
+  ['Go','Go 下顎角點','Gonion：下顎角最外下點'],
+  ['Ar','Ar 關節點','Articulare：下顎枝後緣與顱底下緣的交點'],
   ['U1T','上門牙切緣','最前方上顎正中門牙的切端'],
   ['U1A','上門牙根尖','同一顆上門牙的根尖'],
   ['L1T','下門牙切緣','最前方下顎正中門牙的切端'],
@@ -19,20 +25,44 @@ const CEPH_PTS=[
   ['Mo','大臼齒咬合點','上下第一大臼齒咬合接觸處（定咬合平面）'],
 ];
 // 描線（OP＝上下門牙切緣的中點，與 Mo 連成咬合平面）
-const CEPH_LINES=[['S','N'],['N','A'],['N','B'],['Go','Gn'],['U1A','U1T'],['L1A','L1T'],['Mo','OP']];
-// Steiner 角度與參考值（平均 ± 標準差；超出範圍標 ↑↓）
-const CEPH_NORM=[
-  {k:'SNA',label:'SNA',mean:82,sd:2,desc:'上顎相對顱底的前後位置'},
-  {k:'SNB',label:'SNB',mean:80,sd:2,desc:'下顎相對顱底的前後位置'},
-  {k:'ANB',label:'ANB',mean:2,sd:2,desc:'上下顎前後關係（大：暴牙傾向；小或負：戽斗傾向）'},
-  {k:'U1NA',label:'U1–NA',mean:22,sd:5,desc:'上門牙相對 NA 線的傾斜'},
-  {k:'L1NB',label:'L1–NB',mean:25,sd:5,desc:'下門牙相對 NB 線的傾斜'},
-  {k:'U1L1',label:'U1–L1',mean:130,sd:6,desc:'上下門牙夾角'},
-  {k:'OccSN',label:'Occ–SN',mean:14,sd:3,desc:'咬合平面相對 SN 的角度'},
-  {k:'GoGnSN',label:'GoGn–SN',mean:32,sd:5,desc:'下顎平面角（大：長臉傾向；小：短臉傾向）'},
+const CEPH_LINES=[['S','N'],['Po','Or'],['N','Pog'],['N','A'],['N','B'],['A','Pog'],['Go','Me'],['Ar','Go'],['S','Gn'],['U1A','U1T'],['L1A','L1T'],['Mo','OP']];
+// 分析項目（平均 ± 標準差；超出 ±1 SD 標 ↑↓）。poly：畫在 Polygon 圖上的組；unit 'mm' 的項目需要比例尺，目前不計算
+const CEPH_GROUPS=[
+  {poly:true,items:[
+    {k:'Facial',label:'Facial angle',zh:'顏面角（FH－N-Pog）',mean:84.83,sd:3.05},
+    {k:'Convex',label:'Convexity',zh:'顏面突度（N-A-Pog）',mean:7.58,sd:4.95},
+    {k:'ABpl',label:'A-B plane',zh:'AB 平面角（AB－N-Pog）',mean:-4.81,sd:3.50},
+    {k:'MP',label:'Mandibular plane',zh:'下顎平面角（FH－Go-Me）',mean:28.81,sd:5.23},
+    {k:'Yax',label:'Y-axis',zh:'Y 軸角（FH－S-Gn）',mean:65.38,sd:5.63}]},
+  {poly:true,items:[
+    {k:'OccFH',label:'Occlusal plane',zh:'咬合平面角（FH－咬合平面）',mean:11.42,sd:3.64},
+    {k:'U1L1',label:'Interincisal',zh:'上下門牙夾角',mean:124.09,sd:7.63},
+    {k:'L1Occ',label:'L-1 to Occlusal',zh:'下門牙－咬合平面',mean:23.84,sd:5.28},
+    {k:'IMPA',label:'L-1 to Mandibular',zh:'下門牙－下顎平面（IMPA）',mean:96.33,sd:5.78},
+    {k:'U1AP',label:'U-1 to A-P plane',zh:'上門牙切緣到 A-Pog 線',mean:8.92,sd:1.88,unit:'mm'},
+    {k:'FMIA',label:'FMIA',zh:'FH－下門牙',mean:54.63,sd:6.47}]},
+  {poly:true,items:[
+    {k:'FHSN',label:'FH to SN plane',zh:'FH－SN 平面',mean:6.19,sd:2.89}]},
+  {poly:true,items:[
+    {k:'SNA',label:'SNA',zh:'上顎相對顱底的前後位置',mean:82.32,sd:3.45},
+    {k:'SNB',label:'SNB',zh:'下顎相對顱底的前後位置',mean:78.90,sd:3.45},
+    {k:'ANB',label:'SNA-SNB diff.',zh:'ANB：上下顎前後關係',mean:3.39,sd:1.77},
+    {k:'U1NP',label:'U-1 to N-P plane',zh:'上門牙切緣到 N-Pog 線',mean:11.74,sd:2.73,unit:'mm'}]},
+  {poly:true,items:[
+    {k:'U1FH',label:'U-1 to FH plane',zh:'上門牙－FH',mean:111.13,sd:5.54},
+    {k:'U1SN',label:'U-1 to SN plane',zh:'上門牙－SN',mean:104.54,sd:5.55}]},
+  {poly:true,items:[
+    {k:'Gonial',label:'Gonial angle',zh:'下顎角（Ar-Go-Me）',mean:122.23,sd:4.61},
+    {k:'Ramus',label:'Ramus inclination',zh:'下顎枝傾斜（FH－Ar-Go）',mean:87.07,sd:4.40}]},
+  {poly:false,title:'Steiner 補充',items:[
+    {k:'U1NA',label:'U1–NA',zh:'上門牙相對 NA 線',mean:22,sd:5},
+    {k:'L1NB',label:'L1–NB',zh:'下門牙相對 NB 線',mean:25,sd:5},
+    {k:'OccSN',label:'Occ–SN',zh:'咬合平面－SN',mean:14,sd:3},
+    {k:'GoGnSN',label:'GoGn–SN',zh:'下顎平面－SN',mean:32,sd:5}]},
 ];
+const CEPH_NORM=CEPH_GROUPS.flatMap(g=>g.items);
 
-// 依點的位置算角度（c={w,h,pts}；點是 0～1 相對位置，先換回像素才算得出正確角度）
+// 依點的位置算角度（c={w,h,pts}；點是 0～1 相對位置，先換回像素才算得出正確角度；臉朝左或朝右都可以，前方由 Po→Or 決定）
 function cephCalc(c){
   const P=k=>{if(k==='OP'){const a=P('U1T'),b=P('L1T');return a&&b?[(a[0]+b[0])/2,(a[1]+b[1])/2]:null}
     const v=c&&c.pts&&c.pts[k];return v?[v[0]*c.w,v[1]*c.h]:null};
@@ -40,20 +70,55 @@ function cephCalc(c){
   const ab=(u,v)=>{const n=Math.hypot(u[0],u[1])*Math.hypot(v[0],v[1]);return n?Math.acos(Math.max(-1,Math.min(1,(u[0]*v[0]+u[1]*v[1])/n)))*180/Math.PI:null}; // 兩向量夾角
   const la=(u,v)=>{const a=ab(u,v);return a==null?null:a>90?180-a:a}; // 兩條線的夾角（銳角）
   const has=(...ks)=>ks.every(k=>P(k));const r={};
+  // 前方：有 Po、Or 用 FH 的方向；沒有就用 S→N
+  const ant=has('Po','Or')?V(P('Po'),P('Or')):has('S','N')?V(P('S'),P('N')):null;
+  // 點 X 在 a-b 線的前方多少（沿著前方、垂直於線的方向；正＝前方）
+  const fwd=(X,a,b)=>{if(!ant)return 0;const d=V(a,b),L=Math.hypot(d[0],d[1]);if(!L)return 0;let n=[-d[1]/L,d[0]/L];if(n[0]*ant[0]+n[1]*ant[1]<0)n=[-n[0],-n[1]];const w=V(a,X);return w[0]*n[0]+w[1]*n[1]};
+  const FHp=has('Po','Or')?V(P('Or'),P('Po')):null; // FH 往後的方向
+  // Polygon
+  if(FHp&&has('N','Pog'))r.Facial=ab(FHp,V(P('N'),P('Pog')));
+  if(has('N','A','Pog')){const a=ab(V(P('A'),P('N')),V(P('A'),P('Pog')));r.Convex=(180-a)*(fwd(P('A'),P('N'),P('Pog'))>=0?1:-1)}
+  if(has('A','B','N','Pog')){const a=la(V(P('A'),P('B')),V(P('N'),P('Pog')));r.ABpl=a*(fwd(P('B'),P('N'),P('Pog'))<fwd(P('A'),P('N'),P('Pog'))?-1:1)}
+  if(FHp&&has('Go','Me'))r.MP=la(FHp,V(P('Go'),P('Me')));
+  if(FHp&&has('S','Gn'))r.Yax=ab([-FHp[0],-FHp[1]],V(P('S'),P('Gn')));
+  if(FHp&&has('Mo','OP'))r.OccFH=la(FHp,V(P('Mo'),P('OP')));
+  if(has('U1A','U1T','L1A','L1T'))r.U1L1=ab(V(P('U1T'),P('U1A')),V(P('L1T'),P('L1A')));
+  if(has('L1A','L1T','Mo','OP'))r.L1Occ=90-ab(V(P('L1A'),P('L1T')),V(P('Mo'),P('OP')));
+  if(has('L1A','L1T','Go','Me'))r.IMPA=ab(V(P('L1A'),P('L1T')),V(P('Me'),P('Go')));
+  if(r.MP!=null&&r.IMPA!=null)r.FMIA=180-r.MP-r.IMPA;
+  if(FHp&&has('S','N'))r.FHSN=la(FHp,V(P('S'),P('N')));
   if(has('S','N','A'))r.SNA=ab(V(P('N'),P('S')),V(P('N'),P('A')));
   if(has('S','N','B'))r.SNB=ab(V(P('N'),P('S')),V(P('N'),P('B')));
   if(r.SNA!=null&&r.SNB!=null)r.ANB=r.SNA-r.SNB;
+  if(FHp&&has('U1A','U1T'))r.U1FH=ab(V(P('U1A'),P('U1T')),FHp);
+  if(has('U1A','U1T','S','N'))r.U1SN=ab(V(P('U1A'),P('U1T')),V(P('N'),P('S')));
+  if(has('Ar','Go','Me'))r.Gonial=ab(V(P('Go'),P('Ar')),V(P('Go'),P('Me')));
+  if(FHp&&has('Ar','Go'))r.Ramus=ab(V(P('Go'),P('Ar')),FHp);
+  // Steiner 補充
   if(has('U1A','U1T','N','A'))r.U1NA=la(V(P('U1A'),P('U1T')),V(P('N'),P('A')));
   if(has('L1A','L1T','N','B'))r.L1NB=la(V(P('L1A'),P('L1T')),V(P('N'),P('B')));
-  if(has('U1A','U1T','L1A','L1T'))r.U1L1=ab(V(P('U1T'),P('U1A')),V(P('L1T'),P('L1A')));
   if(has('Mo','OP','S','N'))r.OccSN=la(V(P('Mo'),P('OP')),V(P('S'),P('N')));
   if(has('Go','Gn','S','N'))r.GoGnSN=la(V(P('Go'),P('Gn')),V(P('S'),P('N')));
   return r;
 }
 const cephFlag=(n,v)=>v==null?'':v>n.mean+n.sd?'hi':v<n.mean-n.sd?'lo':'ok';
+const cephFmt=(n,v)=>v==null?(n.unit==='mm'?'需比例尺':'—'):v.toFixed(1)+(n.unit==='mm'?' mm':'°');
 function cephTableHtml(c){const r=cephCalc(c);
-  return `<table class="ceph-tbl"><thead><tr><th>項目</th><th>測量值</th><th>參考值</th><th></th></tr></thead><tbody>${CEPH_NORM.map(n=>{const v=r[n.k],f=cephFlag(n,v);
-    return `<tr class="${f}"><td><b>${esc(n.label)}</b><small>${esc(n.desc)}</small></td><td class="num">${v==null?'—':v.toFixed(1)+'°'}</td><td class="num">${n.mean}° ± ${n.sd}</td><td class="fl">${f==='hi'?'↑ 偏大':f==='lo'?'↓ 偏小':v==null?'':'正常'}</td></tr>`}).join('')}</tbody></table>`}
+  return `<table class="ceph-tbl"><thead><tr><th>項目</th><th>測量值</th><th>Mean</th><th>S.D.</th><th></th></tr></thead>${CEPH_GROUPS.map(g=>`<tbody>${g.title?`<tr class="gh"><th colspan="5">${esc(g.title)}</th></tr>`:''}${g.items.map(n=>{const v=r[n.k],f=cephFlag(n,v);
+    return `<tr class="${f}"><td><b>${esc(n.label)}</b><small>${esc(n.zh)}</small></td><td class="num">${cephFmt(n,v)}</td><td class="num">${n.mean}</td><td class="num">${n.sd}</td><td class="fl">${f==='hi'?'↑':f==='lo'?'↓':''}</td></tr>`}).join('')}</tbody>`).join('')}</table>`}
+// Polygon 圖：中線＝平均值；細線＝±1 SD 範圍；粗線＝測量值（橫軸單位為度，每組上下兩端回到中線）
+function cephPolygonSvg(c){const r=cephCalc(c),W=300,CX=W/2,K=4.6,ROW=26,GAP=18;let y=10;const env=[],val=[],rows=[];
+  for(const g of CEPH_GROUPS.filter(g=>g.poly)){const y0=y;env.push([[CX,y0]]);val.push([[CX,y0]]);y+=ROW*0.6;
+    for(const n of g.items){const v=r[n.k],x=v==null?CX:Math.max(4,Math.min(W-4,CX+(v-n.mean)*K));
+      env[env.length-1].unshift([CX-n.sd*K,y]);env[env.length-1].push([CX+n.sd*K,y]);val[val.length-1].push([x,y]);rows.push(y);y+=ROW}
+    y+=-ROW+ROW*0.6;env[env.length-1].unshift([CX,y]);env[env.length-1].push([CX,y]);val[val.length-1].push([CX,y]);y+=GAP}
+  const H=y;const pl=a=>a.map(p=>p.map(Math.round).join(',')).join(' ');
+  const grid=[-30,-20,-10,10,20,30].map(d=>`<line class="gd" x1="${CX+d*K}" y1="0" x2="${CX+d*K}" y2="${H}"/>`).join('');
+  return `<svg class="ceph-poly" viewBox="0 0 ${W} ${H}" aria-label="Polygon">${grid}<rect class="fr" x="0" y="0" width="${W}" height="${H}"/>
+    ${env.map(e=>`<polygon class="env" points="${pl(e)}"/>`).join('')}<line class="mid" x1="${CX}" y1="0" x2="${CX}" y2="${H}"/>
+    ${val.map(v=>`<polyline class="val" points="${pl(v)}"/>`).join('')}</svg>`}
+// Polygon 表＋圖（左表右圖，列印與畫面共用）
+function cephPolyHtml(c){return `<div class="ceph-pg"><div>${cephTableHtml(c)}</div><div class="ceph-pg-fig"><div class="hint">Polygon（中線＝平均，細線＝±1 SD）</div>${cephPolygonSvg(c)}</div></div>`}
 // 描線圖（列印用）：SVG 疊在縮小圖上
 function cephSvg(c){const W=1000,H=Math.round(1000*c.h/c.w);
   const P=k=>{if(k==='OP'){const a=P('U1T'),b=P('L1T');return a&&b?[(a[0]+b[0])/2,(a[1]+b[1])/2]:null}const v=c.pts[k];return v?[v[0]*W,v[1]*H]:null};
@@ -62,9 +127,9 @@ function cephSvg(c){const W=1000,H=Math.round(1000*c.h/c.w);
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><g class="l">${ln}</g><g class="p">${pt}</g></svg>`}
 // 列印頁（一張 A4）：img 傳入縮小圖的 dataURL
 function cephPrintHtml(p,img){const c=p.ceph;
-  return `<div class="tip-page tip-ceph"><h3>側顱分析（Steiner）<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.name||'')}</span></h3>
-    <div class="ceph-pr"><div class="ceph-pr-img"><img src="${img}" alt="側顱 X 光">${cephSvg(c)}</div>${cephTableHtml(c)}</div>
-    <div class="tip-disc">標記點${c.ai?'由 AI 初步標記，':''}經醫師確認（${esc(fmtDT(c.at))}）。<b>角度數值僅供診斷參考，實際治療方式請以醫師評估與說明為準。</b></div></div>`}
+  return `<div class="tip-page tip-ceph"><h3>側顱分析（Polygon）<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.name||'')}</span></h3>
+    <div class="ceph-pr"><div class="ceph-pr-img"><img src="${img}" alt="側顱 X 光">${cephSvg(c)}</div>${cephPolyHtml(c)}</div>
+    <div class="tip-disc">標記點${c.ai?'由 AI 初步標記，':''}經醫師確認（${esc(fmtDT(c.at))}）；常模為日本人 Polygon 標準值，mm 項目需比例尺未計算。<b>角度數值僅供診斷參考，實際治療方式請以醫師評估與說明為準。</b></div></div>`}
 
 // 讀圖：File 或網址 → Image
 const cephLoadImg=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>bad(new Error('影像讀取失敗'));i.src=src});
@@ -77,7 +142,7 @@ async function openCeph(p){
   const edit=canEdit()&&p.status==='open';
   const st={img:null,fresh:false,pts:JSON.parse(JSON.stringify(p.ceph?.pts||{})),ai:!!p.ceph?.ai,sel:null,dirty:false,bright:100,contrast:100};
   st.sel=(CEPH_PTS.find(([k])=>!st.pts[k])||CEPH_PTS[0])[0];
-  await modal(`<h3>📐 側顱分析（Steiner，只算角度）</h3>
+  await modal(`<h3>📐 側顱分析（Polygon，只算角度）</h3>
     <div class="ceph">
       <div class="ceph-stage"><canvas></canvas><canvas class="ceph-loupe" width="150" height="150" hidden></canvas>
         <div class="ceph-empty">${edit?'按右邊「📁 上傳側顱 X 光」選擇影像（JPEG／PNG）':'尚未上傳影像'}</div>
@@ -123,7 +188,7 @@ async function openCeph(p){
       const placed=CEPH_PTS.filter(([k])=>st.pts[k]).length;
       box.querySelector('.ceph-list').innerHTML=`<div class="hint">標記點 ${placed} / ${CEPH_PTS.length}${edit?'　點選下面的點，再點圖上的位置；也可以直接拖曳圖上的點':''}</div>`+
         CEPH_PTS.map(([k,n,d])=>`<button class="cp ${k===st.sel?'on':''} ${st.pts[k]?'done':''}" data-k="${k}"><span class="dot"></span><b>${esc(n)}</b><small>${esc(d)}</small></button>`).join('');
-      box.querySelector('.ceph-res').innerHTML=cephTableHtml({w:st.img?IW():p.ceph?.w||1,h:st.img?IH():p.ceph?.h||1,pts:st.pts});
+      box.querySelector('.ceph-res').innerHTML=cephPolyHtml({w:st.img?IW():p.ceph?.w||1,h:st.img?IH():p.ceph?.h||1,pts:st.pts});
     }
     const nextSel=()=>{const n=CEPH_PTS.find(([k])=>!st.pts[k]);if(n)st.sel=n[0]};
     const setImg=(img,fresh)=>{st.img=img;st.fresh=fresh;fit();renderSide()};
@@ -236,5 +301,14 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .ceph-pr-img svg{position:absolute;inset:0;width:100%;height:100%}
 .ceph-pr-img .l line{stroke:#3fd4c8;stroke-width:3}.ceph-pr-img .p circle{fill:#ff4d4f;stroke:#fff;stroke-width:2}
 .ceph-pr-img .p text{fill:#fff;font:bold 26px sans-serif;paint-order:stroke;stroke:#000;stroke-width:5px}
-.tip-ceph .ceph-tbl{font-size:12px}
+.ceph-tbl tr.gh th{background:var(--soft,#f3f5f6);font-size:12px;padding:3px 6px}
+.ceph-tbl tbody+tbody tr:first-child td{border-top:2px solid var(--line,#ccc)}
+.ceph-pg{display:grid;grid-template-columns:1fr;gap:8px}.ceph-pg-fig .hint{font-size:11px;margin-bottom:2px}
+.ceph-poly{width:100%;height:auto;display:block;background:#fff}.ceph-side .ceph-poly{max-width:240px;margin:0 auto}
+.ceph-poly .fr{fill:none;stroke:#bbb}.ceph-poly .gd{stroke:#ddd;stroke-dasharray:2 3}.ceph-poly .mid{stroke:#000;stroke-width:2}
+.ceph-poly .env{fill:none;stroke:#555;stroke-width:1}.ceph-poly .val{fill:none;stroke:#000;stroke-width:2.6;stroke-linejoin:round}
+.tip-ceph .ceph-tbl{font-size:11px}.tip-ceph .ceph-tbl td,.tip-ceph .ceph-tbl th{padding:2px 5px}
+.tip-ceph .ceph-pg{grid-template-columns:1.3fr 1fr;align-items:start}
+.tip-ceph .ceph-pr{text-align:center}.tip-ceph .ceph-pr>.ceph-pg{text-align:left}
+.tip-ceph .ceph-pr-img{display:inline-block;vertical-align:top;justify-self:center}.tip-ceph .ceph-pr-img img{width:auto;height:88mm;max-width:180mm;object-fit:contain}
 </style>`);

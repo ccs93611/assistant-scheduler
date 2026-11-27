@@ -1,4 +1,4 @@
-// 側顱分析「🤖 AI 標點」：把側顱 X 光（只有影像，不含病人姓名、生日、病歷號）交給 Claude，回傳 Steiner 分析要用的標記點大概位置。
+// 側顱分析「🤖 AI 標點」：把側顱 X 光（只有影像，不含病人姓名、生日、病歷號）交給 Claude，回傳 側顱分析（Polygon／Steiner）要用的標記點大概位置。
 // AI 標的位置只是起點，醫師一定要在畫面上確認、拖曳修正後才計算角度。
 // 金鑰放在 Vercel 環境變數 ANTHROPIC_API_KEY；只有登入治療計劃單的人（Firebase 帳號或認證設備）才能呼叫。
 import Anthropic from "@anthropic-ai/sdk";
@@ -8,14 +8,19 @@ export const config = { maxDuration: 120 }; // Vercel 請求上限 4.5 MB：網�
 const FIREBASE_WEB_KEY = "AIzaSyDVLHhcdtHGhcP3MpZZooCsx12faOZGkr4"; // 治療計劃單網頁用的公開金鑰，只用來確認登入身分
 const client = new Anthropic();
 
-// 要標的點（跟 js/ceph.js 的 CEPH_PTS 一致）
+// 要標的點（跟 js/ceph.js 的 CEPH_PTS 一致（共 16 點））
 const POINTS = {
   S: "Sella：蝶鞍（sella turcica）輪廓的幾何中心",
   N: "Nasion：額骨與鼻骨交接（額鼻縫）最前方的點",
+  Po: "Porion：外耳道（耳桿影像或解剖外耳道）的最上點",
+  Or: "Orbitale：眼眶下緣的最低點",
   A: "A point（Subspinale）：前鼻棘到上顎齒槽嵴之間，上顎前緣輪廓最凹的點",
   B: "B point（Supramentale）：下顎齒槽嵴到頦前點之間，下顎前緣輪廓最凹的點",
-  Go: "Gonion：下顎角最外下方的點（下顎枝後緣與下顎下緣切線夾角的二等分線與下顎角輪廓的交點）",
+  Pog: "Pogonion：頦部骨輪廓最前方的點",
   Gn: "Gnathion：頦部骨輪廓最前方與最下方之間的中點",
+  Me: "Menton：頦部聯合骨輪廓最下方的點",
+  Go: "Gonion：下顎角最外下方的點（下顎枝後緣與下顎下緣切線夾角的二等分線與下顎角輪廓的交點）",
+  Ar: "Articulare：下顎枝後緣（髁突後緣）與顱底下緣影像的交點",
   U1T: "最前方上顎正中門牙的切端（切緣尖）",
   U1A: "同一顆上顎正中門牙的根尖",
   L1T: "最前方下顎正中門牙的切端（切緣尖）",
