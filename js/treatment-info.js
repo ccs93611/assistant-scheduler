@@ -47,7 +47,7 @@ const TI_ALLX_WEIGHT={title:'假牙重量與配戴感比較',head:['比較項目
   ['物理密度與結構','密度約 1.2 g/cm³，純高密度樹脂，無內部金屬。','內部骨架是輕量化的支架（4.5 g/cm³），外部套上單顆二氧化鋯。','密度高達 6.0 g/cm³，整座假牙由整塊全瓷數位研磨而成。'],
   ['嘴巴整體的配戴體感','最輕！','**最均衡！**有扎實感但不會過重，多數患者適應最快。','**最沉重！**份量感十足，初期會有嘴裡含著鵝卵石的感覺。']]};
 /* 全瓷冠與金屬瓷牙比較（GC、E.max、Cercon 三種全瓷冠共用） */
-const TI_PFM_CMP={title:'全瓷冠與金屬瓷牙比較',picsAr:'1000/667',pics:[{src:'media/crown-vs-pfm.png',cap:'左：全瓷冠　右：金屬瓷牙（內層為金屬）'}],head:['比較項目','全瓷冠（二矽酸鋰、二氧化鋯）','金屬瓷牙'],rows:[
+const TI_PFM_CMP={title:'全瓷冠與金屬瓷牙比較',win:1,picsAr:'1000/667',pics:[{src:'media/crown-vs-pfm.png',cap:'左：全瓷冠　右：金屬瓷牙（內層為金屬）'}],head:['比較項目','全瓷冠（二矽酸鋰、二氧化鋯）','金屬瓷牙'],rows:[
   ['材質結構','純高強度陶瓷，完全不含金屬','內層金屬基底，外層燒附陶瓷'],
   ['美觀透光性','透光度與色澤接近真牙，自然擬真','較死白、不透光，視覺較不自然'],
   ['牙齦影響','不會染黑牙齦，邊緣自然乾淨','易釋放金屬離子，隨時間產生牙齦黑線'],
@@ -281,6 +281,7 @@ const TREATMENT_INFO=[
  care:['術後 2～3 天可能腫脹，前 48 小時冰敷，避免熱敷','術後一週避免抽菸、喝酒、劇烈運動','依醫囑服藥，約 7～14 天回診拆線','植牙不會蛀牙，但會得「植體周圍炎」：要確實清潔並每 3～6 個月回診檢查','有糖尿病、骨質疏鬆用藥、抗凝血藥物等請事先告知醫師'],
  note:'醫師會依骨量、部位、咬合與預算，與您討論適合的植體。前牙與後牙因美觀需求與咬合力不同，治療內容與費用也不同。'},
 {id:'implant-crown',cat:'植牙式贗復',title:'德國 Cercon 全鋯植牙冠',items:['德國Cercon全鋯植牙冠-前牙','德國Cercon全鋯植牙冠-後牙'],old:['植牙全鋯冠-前牙','植牙全鋯冠-後牙'],
+ table:TI_PFM_CMP,
  about:{label:'植牙牙橋',icon:'🌉',scale:0.7,src:'media/implant-bridge.webp',alt:'植牙牙橋：以兩支植體當支柱，鎖上連在一起的全鋯牙橋，補起多顆缺牙'},
  photo:{src:'media/implant-crown.png',printScale:0.7,alt:'全鋯植牙冠：氧化鋯牙冠連接金色基台，以螺絲鎖在植體上'},
  what:'使用德國 Cercon 氧化鋯製作裝在植體上的牙冠。不含金屬，顏色自然，強度（Flexural Strength）最高可達 1200 MPa、耐咬、不易崩瓷。依需要以螺絲固定或黏著固定。',
@@ -599,7 +600,7 @@ function tiTableHtml(t){
   const em=x=>tiEsc(x).replace(/\*\*(.+?)\*\*/g,bc).replace(/__(.+?)__/g,'<b>$1</b>'); // __粗體__ 不用紅字
   const cell=(c,b)=>{const[a,...m]=String(c).split('\n');return (b?`<b>${em(a)}</b>`:em(a))+m.map(x=>'<br><small>'+em(x)+'</small>').join('')};
   return `<div class="ti-sec ti-tbl"><button type="button" class="ti-str-btn ti-tbl-btn" onclick="tiTog(this)">📊 ${tiEsc(t.title)}</button><div class="ti-tbl-wrap" hidden><table><thead><tr>${t.head.map(h=>'<th>'+cell(h)+'</th>').join('')}</tr></thead><tbody>${
-    t.rows.map(r=>'<tr>'+r.map((c,k)=>'<td'+(k===t.hl?' class="hl"':'')+((t.nw||[]).includes(k)?' style="white-space:nowrap"':'')+'>'+cell(c,k===0)+'</td>').join('')+'</tr>').join('')}</tbody></table>${t.foot?`<ul class="ti-tbl-foot">${t.foot.map(x=>`<li>${em(x)}</li>`).join('')}</ul>`:''}${t.pics?`<div class="ti-tbl-pics">${t.pics.map(p=>`<figure${p.marks?' class="mk"':''}><div class="pw"><img src="${tiEsc(p.src)}" alt="${tiEsc(p.cap)}" loading="lazy"${t.picsAr?` style="aspect-ratio:${t.picsAr}"`:''}>${p.marks?`<svg viewBox="0 0 ${p.w} ${p.h}" aria-hidden="true"><defs><marker id="tiah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#e5484d"/></marker></defs>${p.marks.map(m=>`<line x1="${m.tail[0]}" y1="${m.tail[1]}" x2="${m.tip[0]}" y2="${m.tip[1]}" stroke="#e5484d" stroke-width="${(p.w/70).toFixed(1)}" marker-end="url(#tiah)"/>`).join('')}</svg>${p.marks.map(m=>`<span class="lb" style="top:${(m.tail[1]/p.h*100).toFixed(1)}%">${tiEsc(m.label)}${m.sub?`<small>${tiEsc(m.sub)}</small>`:''}</span>`).join('')}`:''}</div><figcaption>${cell(p.cap,true)}</figcaption></figure>`).join('')}</div>`:''}</div></div>`}
+    t.rows.map(r=>'<tr>'+r.map((c,k)=>'<td'+(k===t.hl?' class="hl"':'')+((t.nw||[]).includes(k)?' style="white-space:nowrap"':'')+'>'+cell(c,k===0)+(k===t.win?'<span class="ti-win">勝</span>':'')+'</td>').join('')+'</tr>').join('')}</tbody></table>${t.foot?`<ul class="ti-tbl-foot">${t.foot.map(x=>`<li>${em(x)}</li>`).join('')}</ul>`:''}${t.pics?`<div class="ti-tbl-pics">${t.pics.map(p=>`<figure${p.marks?' class="mk"':''}><div class="pw"><img src="${tiEsc(p.src)}" alt="${tiEsc(p.cap)}" loading="lazy"${t.picsAr?` style="aspect-ratio:${t.picsAr}"`:''}>${p.marks?`<svg viewBox="0 0 ${p.w} ${p.h}" aria-hidden="true"><defs><marker id="tiah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="#e5484d"/></marker></defs>${p.marks.map(m=>`<line x1="${m.tail[0]}" y1="${m.tail[1]}" x2="${m.tip[0]}" y2="${m.tip[1]}" stroke="#e5484d" stroke-width="${(p.w/70).toFixed(1)}" marker-end="url(#tiah)"/>`).join('')}</svg>${p.marks.map(m=>`<span class="lb" style="top:${(m.tail[1]/p.h*100).toFixed(1)}%">${tiEsc(m.label)}${m.sub?`<small>${tiEsc(m.sub)}</small>`:''}</span>`).join('')}`:''}</div><figcaption>${cell(p.cap,true)}</figcaption></figure>`).join('')}</div>`:''}</div></div>`}
 /* 圖片比較（例如齒槽骨保存術有做／沒做）：預設收起來，點「📊 標題」展開；每段一個小標籤，下面是從圖裁出的照片 */
 function tiCmpHtml(c){
   // 從圖裁出一塊（CSS 背景定位），跟 tiStepsHtml 的裁切方式相同
@@ -765,6 +766,7 @@ const TI_CSS=`
 .ti-tbl-pics figcaption{font-size:.88em;line-height:1.45;margin-top:6px;color:var(--muted)}.ti-tbl-pics figcaption b{color:var(--ink);display:block}
 @media (max-width:640px){.ti-tbl-pics{flex-direction:column;align-items:flex-start;position:sticky;left:0;width:min(100%,calc(100vw - 64px))}.ti-tbl-pics figure{flex:none;width:100%;max-width:312px;margin:0}.ti-tbl-pics:has(.mk) figure{width:calc(100% - 9em)}.ti-tbl-pics figure:only-child{max-width:none}} /* 手機：照片上下排，右側留給箭頭標籤 */
 @media print{.ti-tbl-pics{break-inside:avoid}.ti-tbl-pics figure{flex-basis:71.5mm}}
+.ti-win{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;margin-left:6px;border-radius:50%;background:#f5c542;color:#1a1a1a;font-size:.8em;font-weight:800;vertical-align:.1em}@media print{.ti-win{background:#a86b00;color:#fff}} /* win：該欄每格句尾加「勝」 */
 .ti-tbl-foot{margin:8px 0 2px;padding-left:1.2em;font-size:.92em;line-height:1.6}.ti-tbl-foot li{margin:2px 0}
 .ti-tbl-btn{order:0}
 .ti-cmps .ti-str,.ti-cmps .ti-tbl-wrap,.ti-cmps .ti-cmp-wrap,.ti-cmps .ti-terms-wrap{order:1;flex:0 0 100%;min-width:0;margin:4px 0 0}
