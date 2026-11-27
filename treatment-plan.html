@@ -780,6 +780,7 @@ window.OWNER_EMAILS = ['ccs93611@gmail.com']; // 要和 index.html、firestore.r
 
 <script src="js/treatment-info.js?v=240"></script>
 <script src="js/treatment-figs.js?v=14"></script>
+<script src="js/ceph.js?v=3"></script>
 <script>
 'use strict';
 /* ====== 治療項目 ====== */
@@ -906,12 +907,14 @@ const DB={
     if(!fs){await LocalDB.put(p);return}
     // 還沒上傳的照片（dataURL）先存到 tpFiles，計劃單只留檔案編號
     for(const r of p.receipts||[])for(let i=0;i<r.photos.length;i++)if(isPhotoData(r.photos[i]))r.photos[i]=await DB.putFile(r.photos[i],p.id);
+    if(p.ceph&&isPhotoData(p.ceph.img))p.ceph.img=await DB.putFile(p.ceph.img,p.id); // 側顱分析縮小圖（備份匯入時）
     // finalized、status 另外存成欄位，讓安全規則判斷能不能刪除
     await fs.doc('tpPlans/'+p.id).set({json:JSON.stringify(p),finalized:!!p.finalized,status:p.status||'open',updatedAt:p.updatedAt||Date.now(),by:me,...idxFields(p)});
   },
   async del(p){
     if(!fs){await LocalDB.del(p.id);return}
     for(const r of p.receipts||[])for(const ph of r.photos)if(!isPhotoData(ph))fs.doc('tpFiles/'+ph).delete().catch(()=>{});
+    if(p.ceph&&p.ceph.img&&!isPhotoData(p.ceph.img))fs.doc('tpFiles/'+p.ceph.img).delete().catch(()=>{});
     await fs.doc('tpPlans/'+p.id).delete();
   },
   async putFile(data,planId){
@@ -1475,6 +1478,7 @@ $('#main').addEventListener('change',e=>{
 /* 點擊 */
 $('#main').addEventListener('click',async e=>{
   const p=cur();if(!p)return;
+  if(e.target.closest('[data-ceph]')){e.preventDefault();openCeph(p);return} // 側顱分析（js/ceph.js；僅檢視也能看）
   if(!canEdit()){ // 僅檢視：只允許列印、切換計劃單、看照片與簽名
     const a=e.target.closest('[data-act]'),k=e.target.closest('[data-k]')?.dataset.k;
     if(a&&!['print','optSwitch','optSigView','preview'].includes(a.dataset.act)){if(a.dataset.act==='consentSig'&&p.consent.sig)showImage(p.consent.sig,'患者同意治療計畫簽名');return}
@@ -1773,7 +1777,8 @@ document.head.insertAdjacentHTML('beforeend',`<style>${TI_CSS}</style>`);
 const tiOf=it=>it&&it.name&&!it.custom?tiFind(it.name):null;
 function catTagHtml(it){if(!it.name)return '&nbsp;';const e=tiOf(it);
   return esc(it.custom?'自訂項目':it.cat)+(e?`<button type="button" class="ti-btn" data-ti="${e.id}" title="治療介紹（可給病人看、列印）">ⓘ 介紹</button>`:'')
-    +((w=>w?`<button type="button" class="ti-btn" data-wty="${w.id}" title="${esc(w.title)}（可給病人看、列印）">🛡 保固</button>`:'')(wtyOf(it)))}
+    +((w=>w?`<button type="button" class="ti-btn" data-wty="${w.id}" title="${esc(w.title)}（可給病人看、列印）">🛡 保固</button>`:'')(wtyOf(it)))
+    +(it.name==='LH日式矯正分析'&&!it.custom?`<button type="button" class="ti-btn ceph-btn" data-ceph="1" title="上傳側顱 X 光，AI 先標點、醫師確認後自動做 Steiner 角度分析">📐 側顱分析${cur()?.ceph?' ✓':''}</button>`:'')}
 /* ====== 保固說明（項目旁的「🛡 保固」）：齒雕、美學貼片、牙冠／植體、植牙冠、植牙贗復體 ====== */
 const WARRANTY_ITEMS={
   crown:['日本GC Initial LiSi Block齒雕','日本GC Initial LiSi Block美學貼片','列支敦斯登E.max美學貼片',
@@ -1856,26 +1861,28 @@ function printPlan(p){
   modal(`<h3>列印</h3><p class="hint" style="margin:0 0 8px">勾選要列印的部分，會依「治療計劃單 → AI 分析 → 項目介紹 → 保固與說明」的順序印出。</p><div class="pp-opts">
       ${opt('plan','治療計劃單',true,'')}
       ${p.opts&&p.optAi?`<label class="pp-opt"><input type="checkbox" data-k="ai"><span><b>AI 分析優缺點</b><span class="hint">各方案優缺點比較，一張 A4${p.optAi.sig!==optAiSig(p)?'（方案已修改，建議先重新分析）':''}</span></span></label>`:''}
+      ${p.ceph?`<label class="pp-opt"><input type="checkbox" data-k="ceph"><span><b>側顱分析（Steiner）</b><span class="hint">描線圖與角度，一張 A4</span></span></label>`:''}
       ${opt('info','項目介紹',ids.length,noInfo,`<span class="hint">每項一張 A4：</span>${list}`)}
       ${opt('wty','保固與說明',wty,noWty,`<span class="hint">每份一張 A4：</span>${wlist}`)}</div>
     <div class="acts"><span class="sp"></span><button data-x="close">取消</button><button class="btn-primary" data-x="go">🖨 列印</button></div>`,
   (box,close)=>{
     const on=k=>box.querySelector(`[data-k="${k}"]`)?.checked,go=box.querySelector('[data-x="go"]');
-    box.addEventListener('change',()=>{go.disabled=!['plan','ai','info','wty'].some(on)});
+    box.addEventListener('change',()=>{go.disabled=!['plan','ai','ceph','info','wty'].some(on)});
     box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;
       if(x==='close'){close();return}
       const plan=on('plan'),info=on('info')?ids:[],ws=on('wty')?wt:[];close();
-      printWithInfo(info,ws,!plan,p,on('ai'))})})}
+      printWithInfo(info,ws,!plan,p,on('ai'),on('ceph'))})})}
 // 治療計劃單後面接著印項目介紹（與保固說明）：每項一張 A4，跟 treatments.html 的 printIds 一樣自動縮放到剛好填滿一頁；
 // 有比較表的項目把比較表拆到第二頁；保固與說明放最後，每份一張 A4；不印診所 Logo 與名稱（浮水印除外）；印完移除
 // 列印：治療計劃單用跟預覽一樣的 A4 頁面（每個方案一張），後面接項目介紹、保固與說明；畫面上的單不印
-async function printWithInfo(ids,wtys=[],noPlan=false,p=cur(),ai=false){ // ai：印 AI 分析優缺點（一張 A4，接在計劃單後面）
+async function printWithInfo(ids,wtys=[],noPlan=false,p=cur(),ai=false,ceph=false){ // ceph：印側顱分析
+  let cephImg='';if(ceph&&p?.ceph){try{cephImg=await DB.getFile(p.ceph.img)}catch(e){alert('側顱影像讀取失敗')}} // ai：印 AI 分析優缺點（一張 A4，接在計劃單後面）
   // noPlan：不印治療計劃單，只印項目介紹／保固與說明
   document.getElementById('tiPrint')?.remove();
   const box=document.createElement('div');box.id='tiPrint';box.className='measure';
   const page=(title,body)=>`<div class="tip-page"><h3>${esc(title)}</h3>${body}<div class="tip-disc">${esc(TI_DISCLAIMER)}</div></div>`;
   const pids=noPlan||!p?[]:planPageIds(p),bookH=pids.length?planBookHeight(p,pids):0;
-  box.innerHTML=pids.map((id,i)=>`<div class="tip-page pv-page">${planPageHtml(p,id,i+1,pids.length)}</div>`).join('')+(ai&&p?.optAi?`<div class="tip-page tip-ai"><h3>AI 分析優缺點<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.opts.map(o=>o.label).join('／'))}</span></h3><div class="tip-ai-t ai-t">${aiTextHtml(p.optAi.text)}</div><div class="tip-disc">本分析由 AI 依各方案的治療項目自動整理（${esc(fmtDT(p.optAi.at))}），<b>僅供參考；實際治療方式請以醫師評估與說明為準。</b></div></div>`:'')+ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
+  box.innerHTML=pids.map((id,i)=>`<div class="tip-page pv-page">${planPageHtml(p,id,i+1,pids.length)}</div>`).join('')+(ai&&p?.optAi?`<div class="tip-page tip-ai"><h3>AI 分析優缺點<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.opts.map(o=>o.label).join('／'))}</span></h3><div class="tip-ai-t ai-t">${aiTextHtml(p.optAi.text)}</div><div class="tip-disc">本分析由 AI 依各方案的治療項目自動整理（${esc(fmtDT(p.optAi.at))}），<b>僅供參考；實際治療方式請以醫師評估與說明為準。</b></div></div>`:'')+(cephImg?cephPrintHtml(p,cephImg):'')+ids.map(id=>TI_BY_ID[id]).filter(Boolean).map(e=>page(e.title,tiBodyHtml(e))).join('')+wtys.map(w=>`<div class="tip-page tip-wty">${w.doc}</div>`).join('');
   (document.querySelector('.app')||document.body.lastChild).after(box); // 緊接在計劃單後面
   setBookH(box,bookH); // 每個方案的頁面版面一樣（跟預覽相同）
   box.querySelectorAll('.tip-page:not(.pv-page)').forEach(d=>{const t=d.querySelector('.ti-body>.ti-tbl');if(!t)return;
@@ -1884,7 +1891,7 @@ async function printWithInfo(ids,wtys=[],noPlan=false,p=cur(),ai=false){ // ai�
   await Promise.all([...box.querySelectorAll('img')].map(i=>(i.loading='eager',i.decode().catch(()=>{}))));
   const PAGE=1050; // A4 可用高度（同 treatments.html）
   const fit=(d,z)=>{const m=(14/z).toFixed(2)+'mm';d.style.width=(210/z).toFixed(2)+'mm';d.style.padding=m+' '+m+' 0';d.style.zoom=z;return d.getBoundingClientRect().height<=(d.classList.contains('pv-page')?PAGE-45:PAGE)}; // 計劃單頁下方留頁碼的位置
-  box.querySelectorAll('.tip-page').forEach(d=>{const pv=d.classList.contains('pv-page');let lo=d.classList.contains('tip-wty')||pv?.3:.5,hi=pv?1:d.classList.contains('tip-ai')?1.2:1.5; // 最多放大 1.5 倍；保固與說明、治療計劃單一定縮成一張（計劃單不放大）
+  box.querySelectorAll('.tip-page').forEach(d=>{const pv=d.classList.contains('pv-page');let lo=d.classList.contains('tip-wty')||pv?.3:.5,hi=pv||d.classList.contains('tip-ceph')?1:d.classList.contains('tip-ai')?1.2:1.5; // 最多放大 1.5 倍；保固與說明、治療計劃單一定縮成一張（計劃單不放大）
     if(fit(d,hi))lo=hi;else for(let k=0;k<9;k++){const m=(lo+hi)/2;if(fit(d,m))lo=m;else hi=m}
     fit(d,lo)});
   // 項目介紹每一頁加診所 Logo 浮水印（跟 treatments.html 相同），治療計劃單不加：頁面高度設成一頁，浮水印放在頁面正中央，縮放比例抵銷掉維持原大小
@@ -2712,7 +2719,7 @@ function openSettings(tab){
 async function exportBackup(){
   // 備份檔把雲端照片一併放進去（換電腦或匯入本機模式都看得到）
   const list=JSON.parse(JSON.stringify([...plans.values()]));
-  try{for(const p of list)for(const r of p.receipts||[])for(let i=0;i<r.photos.length;i++)r.photos[i]=await DB.getFile(r.photos[i])}catch(e){alert('讀取照片失敗，備份檔可能缺少部分照片')}
+  try{for(const p of list)for(const r of p.receipts||[])for(let i=0;i<r.photos.length;i++)r.photos[i]=await DB.getFile(r.photos[i]);for(const p of list)if(p.ceph&&p.ceph.img)p.ceph.img=await DB.getFile(p.ceph.img)}catch(e){alert('讀取照片失敗，備份檔可能缺少部分照片')}
   const data={app:'xinhai-treatment-plan',version:1,exportedAt:new Date().toISOString(),settings,plans:list};
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));
   a.download=`治療計劃單備份_${today()}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
