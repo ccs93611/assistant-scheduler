@@ -59,6 +59,19 @@ const CEPH_GROUPS=[
     {k:'GoGnSN',label:'GoGn–SN',zh:'下顎平面－SN',mean:32,sd:5}]},
 ];
 const CEPH_NORM=CEPH_GROUPS.flatMap(g=>g.items);
+// 每個項目用到的線（數值分析點選項目時，在 X 光上用紅線標出）
+const CEPH_HL={Facial:'Po-Or N-Pog',Convex:'N-A A-Pog',ABpl:'A-B N-Pog',MP:'Po-Or Go-Me',Yax:'Po-Or S-Gn',OccFH:'Po-Or Mo-OP',
+  U1L1:'U1A-U1T L1A-L1T',L1Occ:'L1A-L1T Mo-OP',IMPA:'L1A-L1T Go-Me',FMIA:'Po-Or L1A-L1T Go-Me',FHSN:'Po-Or S-N',
+  SNA:'S-N N-A',SNB:'S-N N-B',ANB:'N-A N-B',U1FH:'U1A-U1T Po-Or',U1SN:'U1A-U1T S-N',Gonial:'Ar-Go Go-Me',Ramus:'Ar-Go Po-Or',
+  U1NA:'U1A-U1T N-A',L1NB:'L1A-L1T N-B',OccSN:'Mo-OP S-N',GoGnSN:'Go-Gn S-N'};
+// 紅線的線段（0～1 相對座標）：兩條線時延長到交點，看得出夾角；其他情況各自前後延長一點
+function cephHlSegs(k,P){const ls=(CEPH_HL[k]||'').split(' ').filter(Boolean).map(x=>x.split('-').map(P));if(ls.some(([a,b])=>!a||!b))return {segs:[],x:null};
+  const ext=([a,b],t)=>[[a[0]-(b[0]-a[0])*t,a[1]-(b[1]-a[1])*t],[b[0]+(b[0]-a[0])*t,b[1]+(b[1]-a[1])*t]];
+  if(ls.length===2){const [[p1,p2],[p3,p4]]=ls,d=(p2[0]-p1[0])*(p4[1]-p3[1])-(p2[1]-p1[1])*(p4[0]-p3[0]);
+    if(Math.abs(d)>1e-9){const t=((p3[0]-p1[0])*(p4[1]-p3[1])-(p3[1]-p1[1])*(p4[0]-p3[0]))/d,X=[p1[0]+t*(p2[0]-p1[0]),p1[1]+t*(p2[1]-p1[1])];
+      if(X[0]>-0.3&&X[0]<1.3&&X[1]>-0.3&&X[1]<1.3){const far=(a,b)=>Math.hypot(a[0]-X[0],a[1]-X[1])>Math.hypot(b[0]-X[0],b[1]-X[1])?a:b; // 從離交點較遠的那端畫到交點
+        return {segs:ls.map(([a,b])=>[far(a,b),X]),x:X}}}}
+  return {segs:ls.map(l=>ext(l,0.15)),x:null}}
 
 // 依點的位置算角度（c={w,h,pts}；點是 0～1 相對位置，先換回像素才算得出正確角度；臉朝左或朝右都可以，前方由 Po→Or 決定）
 function cephCalc(c){
@@ -103,7 +116,7 @@ const cephFlag=(n,v)=>v==null?'':v>n.mean+n.sd?'hi':v<n.mean-n.sd?'lo':'ok';
 const cephFmt=(n,v)=>v==null?(n.unit==='mm'?'需比例尺':'—'):v.toFixed(1)+(n.unit==='mm'?' mm':'°');
 function cephTableHtml(c){const r=cephCalc(c);
   return `<table class="ceph-tbl"><thead><tr><th>項目</th><th class="num">測量值</th><th class="num">Mean</th><th class="num">S.D.</th><th></th></tr></thead>${CEPH_GROUPS.map(g=>`<tbody>${g.title?`<tr class="gh"><th colspan="5">${esc(g.title)}</th></tr>`:''}${g.items.map(n=>{const v=r[n.k],f=cephFlag(n,v);
-    return `<tr class="${f}"><td><b>${esc(n.label)}</b><small>${esc(n.zh)}</small></td><td class="num">${cephFmt(n,v)}</td><td class="num">${n.mean}</td><td class="num">${n.sd}</td><td class="fl">${f==='hi'?'↑':f==='lo'?'↓':''}</td></tr>`}).join('')}</tbody>`).join('')}</table>`}
+    return `<tr class="${f}" data-hl="${n.k}" title="點一下在 X 光上用紅線標出"><td><b>${esc(n.label)}</b><small>${esc(n.zh)}</small></td><td class="num">${cephFmt(n,v)}</td><td class="num">${n.mean}</td><td class="num">${n.sd}</td><td class="fl">${f==='hi'?'↑':f==='lo'?'↓':''}</td></tr>`}).join('')}</tbody>`).join('')}</table>`}
 // Polygon 圖：中線＝平均值；細線＝±1 SD 範圍；粗線＝測量值（橫軸單位為度，每組上下兩端回到中線）
 function cephPolygonSvg(c){const r=cephCalc(c),W=300,CX=W/2,K=4.6,ROW=26,GAP=18;let y=10;const env=[],val=[],rows=[];
   for(const g of CEPH_GROUPS.filter(g=>g.poly)){const y0=y;env.push([[CX,y0]]);val.push([[CX,y0]]);y+=ROW*0.6;
@@ -173,10 +186,17 @@ async function openCeph(p){
       ctx.filter=`brightness(${st.bright}%) contrast(${st.contrast}%)`;ctx.drawImage(st.img,view.x,view.y,IW()*view.s,IH()*view.s);ctx.filter='none';
       ctx.lineWidth=1.5;ctx.strokeStyle='rgba(80,220,210,.9)';
       for(const [a,b] of CEPH_LINES){const p=P(a),q=P(b);if(!p||!q)continue;const [x1,y1]=toScr(p),[x2,y2]=toScr(q);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}
+      if(st.hl){const {segs,x}=cephHlSegs(st.hl,P); // 點選的項目：紅線
+        ctx.save();ctx.strokeStyle='#ff2d2d';ctx.lineWidth=3;ctx.lineCap='round';ctx.shadowColor='rgba(0,0,0,.7)';ctx.shadowBlur=3;
+        for(const [a,b] of segs){const [x1,y1]=toScr(a),[x2,y2]=toScr(b);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}
+        ctx.restore()}
       ctx.font='bold 13px sans-serif';
       for(const [k] of CEPH_PTS){const v=st.pts[k];if(!v)continue;const [x,y]=toScr(v),on=k===st.sel;
         ctx.beginPath();ctx.arc(x,y,on?7:5,0,7);ctx.fillStyle=on?'#ffd54a':'#ff4d4f';ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#fff';ctx.stroke();
         ctx.fillStyle=on?'#ffd54a':'#fff';ctx.strokeStyle='rgba(0,0,0,.8)';ctx.lineWidth=3;ctx.strokeText(k,x+9,y-8);ctx.fillText(k,x+9,y-8)}
+      if(st.hl){const v=cephCalc({w:IW(),h:IH(),pts:st.pts})[st.hl],n=CEPH_NORM.find(n=>n.k===st.hl); // 點選項目的名稱與角度：放在畫面左上角，不擋到點
+        if(v!=null){const t=n.label+'  '+v.toFixed(1)+'°';ctx.font='bold 16px sans-serif';const w=ctx.measureText(t).width;
+          ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(8,8,w+20,30);ctx.strokeStyle='#ff2d2d';ctx.lineWidth=2;ctx.strokeRect(8,8,w+20,30);ctx.fillStyle='#ff6b6b';ctx.fillText(t,18,29)}}
     }
     function loupe(sx,sy){if(!st.img){lp.hidden=true;return}lp.hidden=false;
       lp.style.left=sx<stage.clientWidth/2?'auto':'8px';lp.style.right=sx<stage.clientWidth/2?'8px':'auto'; // 放在手指的另一邊
@@ -189,6 +209,7 @@ async function openCeph(p){
       box.querySelector('.ceph-list').innerHTML=`<div class="hint">標記點 ${placed} / ${CEPH_PTS.length}${edit?'　點選清單中的點，再點圖上的位置；也可以直接拖曳圖上的點':''}</div>`+
         CEPH_PTS.map(([k,n,d])=>`<button class="cp ${k===st.sel?'on':''} ${st.pts[k]?'done':''}" data-k="${k}"><span class="dot"></span><b>${esc(n)}</b><small>${esc(d)}</small></button>`).join('');
       box.querySelector('.ceph-res').innerHTML=cephPolyHtml({w:st.img?IW():p.ceph?.w||1,h:st.img?IH():p.ceph?.h||1,pts:st.pts});
+      if(st.hl)box.querySelector(`tr[data-hl="${st.hl}"]`)?.classList.add('sel');
     }
     // 右邊分成「點位標注」「數值分析」兩頁；點都標完的分析預設打開數值分析
     const setTab=t=>{box.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));box.querySelectorAll('[data-pane]').forEach(x=>x.hidden=x.dataset.pane!==t)};
@@ -237,6 +258,7 @@ async function openCeph(p){
 
     box.addEventListener('click',async e=>{
       const tb=e.target.closest('[data-tab]');if(tb){setTab(tb.dataset.tab);return}
+      const hr=e.target.closest('tr[data-hl]');if(hr){st.hl=st.hl===hr.dataset.hl?null:hr.dataset.hl;renderSide();draw();return} // 點項目：紅線標出；再點一次取消
       const cp=e.target.closest('.cp');if(cp){st.sel=cp.dataset.k;renderSide();draw();return}
       const c=e.target.closest('[data-c]')?.dataset.c;if(!c)return;
       if(c==='zin'||c==='zout'){zoomAt(c==='zin'?1.3:1/1.3,stage.clientWidth/2,stage.clientHeight/2);return}
@@ -297,7 +319,7 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .ceph-list .cp small{grid-column:2;color:var(--muted);font-size:10.5px;line-height:1.3}.ceph-list .cp b{font-size:12.5px}
 .ceph-list .cp .dot{grid-row:1/3;align-self:center;width:10px;height:10px;border-radius:50%;border:2px solid #ff4d4f}
 .ceph-list .cp.done .dot{background:#ff4d4f}.ceph-list .cp.on{border-color:#e0a800;background:#fffbe6;box-shadow:inset 0 0 0 1px #e0a800}.ceph-list .cp.on .dot{border-color:#e0a800}.ceph-list .cp.on.done .dot{background:#ffd54a}
-.ceph-tbl{width:100%;border-collapse:collapse;font-size:13px}.ceph-side .ceph-tbl{font-size:12px}.ceph-side .ceph-tbl th,.ceph-side .ceph-tbl td{padding:3px 4px}
+.ceph-tbl{width:100%;border-collapse:collapse;font-size:13px}.ceph-side .ceph-tbl tr[data-hl]{cursor:pointer}.ceph-side .ceph-tbl tr[data-hl]:hover td{background:#fff5f5}.ceph-side .ceph-tbl tr.sel td{background:#ffe3e3}.ceph-side .ceph-tbl tr.sel td:first-child{box-shadow:inset 4px 0 0 #ff2d2d}.ceph-side .ceph-tbl{font-size:12px}.ceph-side .ceph-tbl td.num{font-size:16px;vertical-align:middle}.ceph-side .ceph-tbl td.num:nth-child(2){font-size:18px;font-weight:700}.ceph-side .ceph-tbl thead th.num{font-size:13px}.ceph-side .ceph-tbl td.fl{font-size:18px;vertical-align:middle} /* 數字加大，填滿數字欄的空白 */.ceph-side .ceph-tbl th,.ceph-side .ceph-tbl td{padding:3px 4px}
 .ceph-tbl th,.ceph-tbl td{border-bottom:1px solid var(--line,#ddd);padding:4px 6px;text-align:left;vertical-align:top}
 .ceph-tbl td small{display:block;color:#777;font-size:11px;font-weight:400}
 .ceph-tbl .num{text-align:right;white-space:nowrap}.ceph-tbl thead th{white-space:nowrap}.ceph-tbl td.fl,.ceph-tbl thead th:last-child{width:1.4em;padding-left:2px}.ceph-tbl .fl{white-space:nowrap;font-weight:700}
