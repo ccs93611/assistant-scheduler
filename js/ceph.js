@@ -61,7 +61,7 @@ const CEPH_GROUPS=[
 const CEPH_NORM=CEPH_GROUPS.flatMap(g=>g.items);
 // 每個項目用到的線（數值分析點選項目時，在 X 光上用紅線標出）
 const CEPH_HL={Facial:'Po-Or N-Pog',Convex:'N-A A-Pog',ABpl:'A-B N-Pog',MP:'Po-Or Go-Me',Yax:'Po-Or S-Gn',OccFH:'Po-Or Mo-OP',
-  U1L1:'U1A-U1T L1A-L1T',L1Occ:'L1A-L1T Mo-OP',IMPA:'L1A-L1T Go-Me',FMIA:'Po-Or L1A-L1T Go-Me',FHSN:'Po-Or S-N',
+  U1L1:'U1A-U1T L1A-L1T',L1Occ:'L1A-L1T Mo-OP',IMPA:'L1A-L1T Go-Me',FMIA:'Po-Or L1A-L1T',FHSN:'Po-Or S-N',
   SNA:'S-N N-A',SNB:'S-N N-B',ANB:'N-A N-B',U1FH:'U1A-U1T Po-Or',U1SN:'U1A-U1T S-N',Gonial:'Ar-Go Go-Me',Ramus:'Ar-Go Po-Or',
   U1NA:'U1A-U1T N-A',L1NB:'L1A-L1T N-B',OccSN:'Mo-OP S-N',GoGnSN:'Go-Gn S-N'};
 // 紅線的線段（0～1 相對座標）：兩條線時延長到交點，看得出夾角；其他情況各自前後延長一點
