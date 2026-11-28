@@ -1,7 +1,7 @@
 /* ====== 側顱 X 光分析（治療計劃單「LH日式矯正分析」項目旁的「📐 側顱分析」） ======
    分析項目：Polygon（Downs／Northwestern 項目，日本人常模，照 LH 的 Polygon 表）＋ Steiner 補充
    流程：上傳側顱 X 光原圖 → 🤖 AI 先標點（也可以不用，全部自己點）→ 醫師在原圖上拖曳修正 → 自動算角度、畫 Polygon 圖 → 儲存
-   儲存只存縮小圖（tpFiles）與每個點的相對位置（0～1），不存原圖；只算角度（mm 項目需要比例尺，目前不計算）
+   儲存只存縮小圖（tpFiles）與每個點的相對位置（0～1），不存原圖；只算角度
    p.ceph = {img: 縮小圖檔案編號（本機測試為 dataURL）, w, h: 標點時影像的寬高（算角度用的長寬比）, pts:{S:[x,y],…}, ai: 有沒有用 AI 標點, at, by}
    用到 treatment-plan.html 的 modal、esc、cur、touch、renderEditor、DB、fs、firebase、nowLocal、fmtDT、me、canEdit、isPhotoData */
 
@@ -26,7 +26,7 @@ const CEPH_PTS=[
 ];
 // 描線（OP＝上下門牙切緣的中點，與 Mo 連成咬合平面）
 const CEPH_LINES=[['S','N'],['Po','Or'],['N','Pog'],['N','A'],['N','B'],['A','Pog'],['Go','Me'],['Ar','Go'],['S','Gn'],['U1A','U1T'],['L1A','L1T'],['Mo','OP']];
-// 分析項目（平均 ± 標準差；超出 ±1 SD 標 ↑↓）。poly：畫在 Polygon 圖上的組；unit 'mm' 的項目需要比例尺，目前不計算
+// 分析項目（平均 ± 標準差；超出 ±1 SD 標 ↑↓）。poly：畫在 Polygon 圖上的組
 const CEPH_GROUPS=[
   {poly:true,items:[
     {k:'Facial',label:'Facial angle',zh:'顏面角（FH－N-Pog）',mean:84.83,sd:3.05},
@@ -39,15 +39,13 @@ const CEPH_GROUPS=[
     {k:'U1L1',label:'Interincisal',zh:'上下門牙夾角',mean:124.09,sd:7.63},
     {k:'L1Occ',label:'L-1 to Occlusal',zh:'下門牙－咬合平面',mean:23.84,sd:5.28},
     {k:'IMPA',label:'L-1 to Mandibular',zh:'下門牙－下顎平面（IMPA）',mean:96.33,sd:5.78},
-    {k:'U1AP',label:'U-1 to A-P plane',zh:'上門牙切緣到 A-Pog 線',mean:8.92,sd:1.88,unit:'mm'},
     {k:'FMIA',label:'FMIA',zh:'FH－下門牙',mean:54.63,sd:6.47}]},
   {poly:true,items:[
     {k:'FHSN',label:'FH to SN plane',zh:'FH－SN 平面',mean:6.19,sd:2.89}]},
   {poly:true,items:[
     {k:'SNA',label:'SNA',zh:'上顎相對顱底的前後位置',mean:82.32,sd:3.45},
     {k:'SNB',label:'SNB',zh:'下顎相對顱底的前後位置',mean:78.90,sd:3.45},
-    {k:'ANB',label:'SNA-SNB diff.',zh:'ANB：上下顎前後關係',mean:3.39,sd:1.77},
-    {k:'U1NP',label:'U-1 to N-P plane',zh:'上門牙切緣到 N-Pog 線',mean:11.74,sd:2.73,unit:'mm'}]},
+    {k:'ANB',label:'SNA-SNB diff.',zh:'ANB：上下顎前後關係',mean:3.39,sd:1.77}]},
   {poly:true,items:[
     {k:'U1FH',label:'U-1 to FH plane',zh:'上門牙－FH',mean:111.13,sd:5.54},
     {k:'U1SN',label:'U-1 to SN plane',zh:'上門牙－SN',mean:104.54,sd:5.55}]},
@@ -104,7 +102,7 @@ function cephCalc(c){
 const cephFlag=(n,v)=>v==null?'':v>n.mean+n.sd?'hi':v<n.mean-n.sd?'lo':'ok';
 const cephFmt=(n,v)=>v==null?(n.unit==='mm'?'需比例尺':'—'):v.toFixed(1)+(n.unit==='mm'?' mm':'°');
 function cephTableHtml(c){const r=cephCalc(c);
-  return `<table class="ceph-tbl"><thead><tr><th>項目</th><th>測量值</th><th>Mean</th><th>S.D.</th><th></th></tr></thead>${CEPH_GROUPS.map(g=>`<tbody>${g.title?`<tr class="gh"><th colspan="5">${esc(g.title)}</th></tr>`:''}${g.items.map(n=>{const v=r[n.k],f=cephFlag(n,v);
+  return `<table class="ceph-tbl"><thead><tr><th>項目</th><th class="num">測量值</th><th class="num">Mean</th><th class="num">S.D.</th><th></th></tr></thead>${CEPH_GROUPS.map(g=>`<tbody>${g.title?`<tr class="gh"><th colspan="5">${esc(g.title)}</th></tr>`:''}${g.items.map(n=>{const v=r[n.k],f=cephFlag(n,v);
     return `<tr class="${f}"><td><b>${esc(n.label)}</b><small>${esc(n.zh)}</small></td><td class="num">${cephFmt(n,v)}</td><td class="num">${n.mean}</td><td class="num">${n.sd}</td><td class="fl">${f==='hi'?'↑':f==='lo'?'↓':''}</td></tr>`}).join('')}</tbody>`).join('')}</table>`}
 // Polygon 圖：中線＝平均值；細線＝±1 SD 範圍；粗線＝測量值（橫軸單位為度，每組上下兩端回到中線）
 function cephPolygonSvg(c){const r=cephCalc(c),W=300,CX=W/2,K=4.6,ROW=26,GAP=18;let y=10;const env=[],val=[],rows=[];
@@ -118,7 +116,7 @@ function cephPolygonSvg(c){const r=cephCalc(c),W=300,CX=W/2,K=4.6,ROW=26,GAP=18;
     ${env.map(e=>`<polygon class="env" points="${pl(e)}"/>`).join('')}<line class="mid" x1="${CX}" y1="0" x2="${CX}" y2="${H}"/>
     ${val.map(v=>`<polyline class="val" points="${pl(v)}"/>`).join('')}</svg>`}
 // Polygon 表＋圖（左表右圖，列印與畫面共用）
-function cephPolyHtml(c){return `<div class="ceph-pg"><div>${cephTableHtml(c)}</div><div class="ceph-pg-fig"><div class="hint">Polygon（中線＝平均，細線＝±1 SD）</div>${cephPolygonSvg(c)}</div></div>`}
+function cephPolyHtml(c){return `<div class="ceph-pg">${cephTableHtml(c)}</div>`} // Polygon 圖已移除（只留表格）
 // 描線圖（列印用）：SVG 疊在縮小圖上
 function cephSvg(c){const W=1000,H=Math.round(1000*c.h/c.w);
   const P=k=>{if(k==='OP'){const a=P('U1T'),b=P('L1T');return a&&b?[(a[0]+b[0])/2,(a[1]+b[1])/2]:null}const v=c.pts[k];return v?[v[0]*W,v[1]*H]:null};
@@ -129,7 +127,7 @@ function cephSvg(c){const W=1000,H=Math.round(1000*c.h/c.w);
 function cephPrintHtml(p,img){const c=p.ceph;
   return `<div class="tip-page tip-ceph"><h3>側顱分析（Polygon）<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.name||'')}</span></h3>
     <div class="ceph-pr"><div class="ceph-pr-img"><img src="${img}" alt="側顱 X 光">${cephSvg(c)}</div>${cephPolyHtml(c)}</div>
-    <div class="tip-disc">標記點${c.ai?'由 AI 初步標記，':''}經醫師確認（${esc(fmtDT(c.at))}）；常模為日本人 Polygon 標準值，mm 項目需比例尺未計算。<b>角度數值僅供診斷參考，實際治療方式請以醫師評估與說明為準。</b></div></div>`}
+    <div class="tip-disc">標記點${c.ai?'由 AI 初步標記，':''}經醫師確認（${esc(fmtDT(c.at))}）；常模為日本人 Polygon 標準值。<b>角度數值僅供診斷參考，實際治療方式請以醫師評估與說明為準。</b></div></div>`}
 
 // 讀圖：File 或網址 → Image
 const cephLoadImg=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>bad(new Error('影像讀取失敗'));i.src=src});
@@ -150,9 +148,11 @@ async function openCeph(p){
       <div class="ceph-side">
         ${edit?`<div class="ceph-tools"><label class="btn-sm">📁 上傳側顱 X 光<input type="file" accept="image/jpeg,image/png" hidden></label><button class="btn-sm ai-btn" data-c="ai">🤖 AI 標點</button></div>`:''}
         <div class="ceph-msg hint"></div>
-        <div class="ceph-adj"><label>亮度<input type="range" min="40" max="200" value="100" data-adj="bright"></label><label>對比<input type="range" min="40" max="300" value="100" data-adj="contrast"></label></div>
-        <div class="ceph-list"></div>
-        <div class="ceph-res"></div>
+        <div class="ceph-tabs"><button data-tab="pts">📍 點位標注 <span class="ceph-cnt"></span></button><button data-tab="res">📊 數值分析</button></div>
+        <div class="ceph-pane" data-pane="pts">
+          <div class="ceph-adj"><label>亮度<input type="range" min="40" max="200" value="100" data-adj="bright"></label><label>對比<input type="range" min="40" max="300" value="100" data-adj="contrast"></label></div>
+          <div class="ceph-list"></div></div>
+        <div class="ceph-pane" data-pane="res"><div class="ceph-res"></div></div>
       </div>
     </div>
     <div class="acts">${edit&&p.ceph?'<button class="btn-danger" data-c="del">刪除分析</button>':''}<span class="sp"></span><button data-c="cancel">${edit?'取消':'關閉'}</button>${edit?'<button class="btn-primary" data-c="save">儲存</button>':''}</div>`,
@@ -185,11 +185,14 @@ async function openCeph(p){
       lx.drawImage(st.img,cx-r,cy-r,r*2,r*2,0,0,150,150);lx.filter='none';
       lx.strokeStyle='#ffd54a';lx.lineWidth=1;lx.beginPath();lx.moveTo(75,60);lx.lineTo(75,90);lx.moveTo(60,75);lx.lineTo(90,75);lx.stroke()}
     function renderSide(){
-      const placed=CEPH_PTS.filter(([k])=>st.pts[k]).length;
+      const placed=CEPH_PTS.filter(([k])=>st.pts[k]).length;box.querySelector('.ceph-cnt').textContent=`${placed}/${CEPH_PTS.length}`;
       box.querySelector('.ceph-list').innerHTML=`<div class="hint">標記點 ${placed} / ${CEPH_PTS.length}${edit?'　點選下面的點，再點圖上的位置；也可以直接拖曳圖上的點':''}</div>`+
         CEPH_PTS.map(([k,n,d])=>`<button class="cp ${k===st.sel?'on':''} ${st.pts[k]?'done':''}" data-k="${k}"><span class="dot"></span><b>${esc(n)}</b><small>${esc(d)}</small></button>`).join('');
       box.querySelector('.ceph-res').innerHTML=cephPolyHtml({w:st.img?IW():p.ceph?.w||1,h:st.img?IH():p.ceph?.h||1,pts:st.pts});
     }
+    // 右邊分成「點位標注」「數值分析」兩頁；點都標完的分析預設打開數值分析
+    const setTab=t=>{box.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));box.querySelectorAll('[data-pane]').forEach(x=>x.hidden=x.dataset.pane!==t)};
+    setTab(CEPH_PTS.every(([k])=>st.pts[k])?'res':'pts');
     const nextSel=()=>{const n=CEPH_PTS.find(([k])=>!st.pts[k]);if(n)st.sel=n[0]};
     const setImg=(img,fresh)=>{st.img=img;st.fresh=fresh;fit();renderSide()};
     // 已有分析：載入存檔的縮小圖
@@ -233,6 +236,7 @@ async function openCeph(p){
     cv.addEventListener('wheel',e=>{if(!st.img)return;e.preventDefault();const [sx,sy]=pos(e);zoomAt(e.deltaY<0?1.15:1/1.15,sx,sy)},{passive:false});
 
     box.addEventListener('click',async e=>{
+      const tb=e.target.closest('[data-tab]');if(tb){setTab(tb.dataset.tab);return}
       const cp=e.target.closest('.cp');if(cp){st.sel=cp.dataset.k;renderSide();draw();return}
       const c=e.target.closest('[data-c]')?.dataset.c;if(!c)return;
       if(c==='zin'||c==='zout'){zoomAt(c==='zin'?1.3:1/1.3,stage.clientWidth/2,stage.clientHeight/2);return}
@@ -275,25 +279,28 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .ceph-btn{border-color:#7a5cc7;color:#5b3fae;background:#f4f0fd}
 .modal.ceph-modal{width:98vw;max-width:1500px;height:94vh;max-height:94vh;display:flex;flex-direction:column;padding:12px 14px}
 .ceph-modal h3{margin:0 0 8px}
-.ceph{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:10px}
+.ceph{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,3fr) minmax(340px,2fr);gap:10px} /* X 光約 6 成、右邊約 4 成 */
 .ceph-stage{position:relative;background:#111;border-radius:8px;overflow:hidden;min-height:0}
 .ceph-stage>canvas:first-child{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
 .ceph-loupe{position:absolute;top:8px;width:150px;height:150px;border:2px solid #ffd54a;border-radius:50%;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.5)}
 .ceph-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#bbb;padding:20px;text-align:center}
 .ceph-zoom{position:absolute;right:8px;bottom:8px;display:flex;gap:4px}.ceph-zoom button{width:36px;height:36px;padding:0;font-size:18px;opacity:.85}
-.ceph-side{overflow:auto;min-height:0;display:flex;flex-direction:column;gap:8px}
+.ceph-side{overflow-y:auto;overflow-x:hidden;min-height:0;display:flex;flex-direction:column;gap:8px} /* 不要左右捲動 */
 .ceph-tools{display:flex;gap:6px;flex-wrap:wrap}.ceph-tools label{cursor:pointer}
 .ceph-msg:empty{display:none}.ceph-msg{background:#fff8e1;border-radius:6px;padding:6px 8px;color:#6b5300}
-.ceph-adj{display:flex;gap:10px;font-size:12px;color:var(--muted)}.ceph-adj label{flex:1;display:flex;align-items:center;gap:4px}.ceph-adj input{flex:1;min-width:0}
-.ceph-list{display:flex;flex-direction:column;gap:3px}
-.ceph-list .cp{display:grid;grid-template-columns:14px auto;column-gap:6px;text-align:left;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);font-size:13px}
-.ceph-list .cp small{grid-column:2;color:var(--muted);font-size:11px}
+.ceph-adj{display:flex;gap:10px;font-size:12px;color:var(--muted)}.ceph-adj label{flex:1;display:flex;align-items:center;gap:4px}.ceph-adj input{flex:1;min-width:0;width:0;padding:0;margin:0}
+.ceph-tabs{display:flex;border-bottom:2px solid var(--line,#ddd);gap:2px}.ceph-tabs button{flex:1;border:1px solid var(--line,#ddd);border-bottom:0;border-radius:8px 8px 0 0;background:var(--soft,#f3f5f6);color:var(--muted);font-weight:700;padding:7px 6px;margin-bottom:-2px}
+.ceph-tabs button.on{background:var(--panel,#fff);color:var(--accent);border-color:var(--accent);border-bottom:2px solid var(--panel,#fff)}.ceph-cnt{font-weight:400;font-size:12px}
+.ceph-pane{display:flex;flex-direction:column;gap:8px}.ceph-pane[hidden]{display:none}
+.ceph-list{display:grid;grid-template-columns:1fr 1fr;gap:3px}.ceph-list>.hint{grid-column:1/-1} /* 標記點兩欄，一次看得到比較多 */
+.ceph-list .cp{display:grid;grid-template-columns:12px minmax(0,1fr);column-gap:5px;text-align:left;padding:3px 6px;min-width:0;border-radius:6px;border:1px solid var(--line);background:var(--panel);font-size:13px}
+.ceph-list .cp small{grid-column:2;color:var(--muted);font-size:10.5px;line-height:1.3}.ceph-list .cp b{font-size:12.5px}
 .ceph-list .cp .dot{grid-row:1/3;align-self:center;width:10px;height:10px;border-radius:50%;border:2px solid #ff4d4f}
 .ceph-list .cp.done .dot{background:#ff4d4f}.ceph-list .cp.on{border-color:#e0a800;background:#fffbe6;box-shadow:inset 0 0 0 1px #e0a800}.ceph-list .cp.on .dot{border-color:#e0a800}.ceph-list .cp.on.done .dot{background:#ffd54a}
-.ceph-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.ceph-tbl{width:100%;border-collapse:collapse;font-size:13px}.ceph-side .ceph-tbl{font-size:12px}.ceph-side .ceph-tbl th,.ceph-side .ceph-tbl td{padding:3px 4px}
 .ceph-tbl th,.ceph-tbl td{border-bottom:1px solid var(--line,#ddd);padding:4px 6px;text-align:left;vertical-align:top}
 .ceph-tbl td small{display:block;color:#777;font-size:11px;font-weight:400}
-.ceph-tbl .num{text-align:right;white-space:nowrap}.ceph-tbl .fl{white-space:nowrap;font-weight:700}
+.ceph-tbl .num{text-align:right;white-space:nowrap}.ceph-tbl thead th{white-space:nowrap}.ceph-tbl td.fl,.ceph-tbl thead th:last-child{width:1.4em;padding-left:2px}.ceph-tbl .fl{white-space:nowrap;font-weight:700}
 .ceph-tbl tr.hi .fl,.ceph-tbl tr.hi td.num:nth-child(2){color:#c62828}.ceph-tbl tr.lo .fl,.ceph-tbl tr.lo td.num:nth-child(2){color:#1565c0}.ceph-tbl tr.ok .fl{color:#2e7d32}
 @media (max-width:900px){.ceph{grid-template-columns:1fr;grid-template-rows:minmax(0,1.4fr) minmax(0,1fr)}}
 .tip-ceph .ceph-pr{display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px}
@@ -308,7 +315,7 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .ceph-poly .fr{fill:none;stroke:#bbb}.ceph-poly .gd{stroke:#ddd;stroke-dasharray:2 3}.ceph-poly .mid{stroke:#000;stroke-width:2}
 .ceph-poly .env{fill:none;stroke:#555;stroke-width:1}.ceph-poly .val{fill:none;stroke:#000;stroke-width:2.6;stroke-linejoin:round}
 .tip-ceph .ceph-tbl{font-size:11px}.tip-ceph .ceph-tbl td,.tip-ceph .ceph-tbl th{padding:2px 5px}
-.tip-ceph .ceph-pg{grid-template-columns:1.3fr 1fr;align-items:start}
+.tip-ceph .ceph-pg{grid-template-columns:1fr}
 .tip-ceph .ceph-pr{text-align:center}.tip-ceph .ceph-pr>.ceph-pg{text-align:left}
 .tip-ceph .ceph-pr-img{display:inline-block;vertical-align:top;justify-self:center}.tip-ceph .ceph-pr-img img{width:auto;height:88mm;max-width:180mm;object-fit:contain}
 </style>`);
