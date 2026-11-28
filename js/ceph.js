@@ -145,6 +145,16 @@ function cephPrintHtml(p,img){const c=p.ceph;
 // 讀圖：File 或網址 → Image
 const cephLoadImg=src=>new Promise((ok,bad)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>bad(new Error('影像讀取失敗'));i.src=src});
 // 縮圖：長邊不超過 max，輸出 JPEG
+// 給 AI 看的影像：從原圖裁切 (sx,sy,sw,sh)，縮放成 ow×oh，畫上黃色座標格線與像素刻度（AI 靠格線讀座標比較準）
+function cephGridImg(img,sx,sy,sw,sh,ow,oh){const c=document.createElement('canvas');c.width=ow;c.height=oh;const x=c.getContext('2d');
+  x.fillStyle='#000';x.fillRect(0,0,ow,oh);x.drawImage(img,sx,sy,sw,sh,0,0,ow,oh);
+  const raw=Math.max(ow,oh)/10,step=[20,25,40,50,80,100,200,250].find(v=>v>=raw)||Math.ceil(raw/100)*100;
+  x.strokeStyle='rgba(255,220,0,.45)';x.lineWidth=1;x.font='bold 11px sans-serif';x.textBaseline='top';
+  for(let v=step;v<ow;v+=step){x.beginPath();x.moveTo(v+.5,0);x.lineTo(v+.5,oh);x.stroke()}
+  for(let v=step;v<oh;v+=step){x.beginPath();x.moveTo(0,v+.5);x.lineTo(ow,v+.5);x.stroke()}
+  const lab=(t,tx,ty)=>{x.lineWidth=3;x.strokeStyle='rgba(0,0,0,.9)';x.strokeText(t,tx,ty);x.fillStyle='#ffdc00';x.fillText(t,tx,ty)};
+  for(let v=step;v<ow;v+=step)lab(String(v),v+2,2);for(let v=step;v<oh;v+=step)lab(String(v),2,v+2);
+  return {data:c.toDataURL('image/jpeg',0.9).split(',')[1],w:ow,h:oh}}
 function cephShrink(img,max,q){const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');
   c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
   return {url:c.toDataURL('image/jpeg',q),w:c.width,h:c.height}}
@@ -271,14 +281,28 @@ async function openCeph(p){
         if(!st.img){alert('請先上傳側顱 X 光');return}
         if(!fs||!firebase.auth().currentUser){alert('本機測試模式無法使用 AI 標點，請在正式網站使用。');return}
         if(Object.keys(st.pts).length&&!confirm('AI 標點會取代目前所有的點，確定嗎？'))return;
-        const b=e.target.closest('button'),old=b.textContent;b.disabled=true;b.textContent='🤖 AI 標點中…';msg('AI 標點中，約需 20～60 秒…');
-        try{const s=cephShrink(st.img,1568,0.9); // 送給 AI 的影像：長邊 1568 px（不含病人資料）
-          const r=await fetch('/api/ceph-landmarks',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await firebase.auth().currentUser.getIdToken()},
-            body:JSON.stringify({image:s.url.split(',')[1],mediaType:'image/jpeg',width:s.w,height:s.h})});
-          const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
-          st.pts=j.points||{};st.ai=true;st.dirty=true;nextSel();renderSide();draw();
-          const miss=CEPH_PTS.filter(([k])=>!st.pts[k]).map(([,n])=>n);
-          msg('AI 已標好，請逐一檢查每個點並拖曳修正，確認後再儲存。'+(miss.length?`AI 沒標到：${miss.join('、')}，請自己點。`:'')+(j.note?`（AI 備註：${j.note}）`:''))}
+        const b=e.target.closest('button'),old=b.textContent;b.disabled=true;b.textContent='🤖 AI 標點中…';
+        const call=async body=>{const r=await fetch('/api/ceph-landmarks',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await firebase.auth().currentUser.getIdToken()},body:JSON.stringify(body)});
+          const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j};
+        try{
+          // 第 1 階段：整張片子（長邊 1568 px，加座標格線）→ 大概位置
+          msg('AI 標點（1/2）：先找出各點的大概位置，約 20～60 秒…');
+          const W0=IW(),H0=IH(),k0=Math.min(1,1568/Math.max(W0,H0)),g0=cephGridImg(st.img,0,0,W0,H0,Math.round(W0*k0),Math.round(H0*k0));
+          const j0=await call({mode:'coarse',image:g0.data,mediaType:'image/jpeg',width:g0.w,height:g0.h});
+          const pts={...(j0.points||{})};st.pts=pts;st.ai=true;st.dirty=true;nextSel();renderSide();draw();
+          // 第 2 階段：從原圖把每個點附近放大裁切（加格線），分 4 批同時請 AI 精修
+          msg('AI 標點（2/2）：放大每個點附近重新定位，約 20～60 秒…（第 1 階段的位置已先標上）');
+          const side=Math.round(Math.max(W0,H0)*0.2),OUT=640,keys=CEPH_PTS.map(([k])=>k).filter(k=>pts[k]),crops=[];
+          for(const k of keys){const cx=pts[k][0]*W0,cy=pts[k][1]*H0,sw=Math.min(side,W0),sh=Math.min(side,H0),
+            x0=Math.max(0,Math.min(W0-sw,cx-sw/2)),y0=Math.max(0,Math.min(H0-sh,cy-sh/2)),sc=OUT/Math.max(sw,sh),g=cephGridImg(st.img,x0,y0,sw,sh,Math.round(sw*sc),Math.round(sh*sc));
+            crops.push({key:k,image:g.data,mediaType:'image/jpeg',width:g.w,height:g.h,x0,y0,sc})}
+          const batches=[0,1,2,3].map(n=>crops.filter((_,i)=>i%4===n)).filter(x=>x.length);let fixed=0;
+          const rs=await Promise.allSettled(batches.map(bt=>call({mode:'refine',crops:bt.map(({key,image,mediaType,width,height})=>({key,image,mediaType,width,height}))})));
+          rs.forEach((r,n)=>{if(r.status!=='fulfilled')return;for(const c of batches[n]){const v=r.value.points?.[c.key];if(!v)continue;
+            pts[c.key]=[(c.x0+v[0]*c.width/c.sc)/W0,(c.y0+v[1]*c.height/c.sc)/H0];fixed++}}); // 裁切圖座標換回原圖
+          st.pts=pts;nextSel();renderSide();draw();
+          const miss=CEPH_PTS.filter(([k])=>!st.pts[k]).map(([,n])=>n),bad=rs.filter(r=>r.status!=='fulfilled').length;
+          msg(`AI 已標好（${fixed} 個點經過放大精修${bad?`，${bad} 批精修失敗、保留大概位置`:''}），請逐一檢查每個點並拖曳修正，確認後再儲存。`+(miss.length?`AI 沒標到：${miss.join('、')}，請自己點。`:'')+(j0.note?`（AI 備註：${j0.note}）`:''))}
         catch(err){msg('');alert('AI 標點失敗：'+err.message)}
         finally{b.disabled=false;b.textContent=old}
         return}
