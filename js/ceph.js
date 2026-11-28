@@ -143,7 +143,7 @@ async function openCeph(p){
   await modal(`<h3>📐 側顱分析（Polygon，只算角度）</h3>
     <div class="ceph">
       <div class="ceph-stage"><canvas></canvas><canvas class="ceph-loupe" width="150" height="150" hidden></canvas>
-        <div class="ceph-empty">${edit?'按右邊「📁 上傳側顱 X 光」選擇影像（JPEG／PNG）':'尚未上傳影像'}</div>
+        <div class="ceph-empty">${edit?'按「📁 上傳側顱 X 光」選擇影像（JPEG／PNG）':'尚未上傳影像'}</div>
         <div class="ceph-zoom"><button data-c="zin" title="放大">＋</button><button data-c="zout" title="縮小">－</button><button data-c="fit" title="符合視窗">⤢</button></div></div>
       <div class="ceph-side">
         ${edit?`<div class="ceph-tools"><label class="btn-sm">📁 上傳側顱 X 光<input type="file" accept="image/jpeg,image/png" hidden></label><button class="btn-sm ai-btn" data-c="ai">🤖 AI 標點</button></div>`:''}
@@ -186,7 +186,7 @@ async function openCeph(p){
       lx.strokeStyle='#ffd54a';lx.lineWidth=1;lx.beginPath();lx.moveTo(75,60);lx.lineTo(75,90);lx.moveTo(60,75);lx.lineTo(90,75);lx.stroke()}
     function renderSide(){
       const placed=CEPH_PTS.filter(([k])=>st.pts[k]).length;box.querySelector('.ceph-cnt').textContent=`${placed}/${CEPH_PTS.length}`;
-      box.querySelector('.ceph-list').innerHTML=`<div class="hint">標記點 ${placed} / ${CEPH_PTS.length}${edit?'　點選下面的點，再點圖上的位置；也可以直接拖曳圖上的點':''}</div>`+
+      box.querySelector('.ceph-list').innerHTML=`<div class="hint">標記點 ${placed} / ${CEPH_PTS.length}${edit?'　點選清單中的點，再點圖上的位置；也可以直接拖曳圖上的點':''}</div>`+
         CEPH_PTS.map(([k,n,d])=>`<button class="cp ${k===st.sel?'on':''} ${st.pts[k]?'done':''}" data-k="${k}"><span class="dot"></span><b>${esc(n)}</b><small>${esc(d)}</small></button>`).join('');
       box.querySelector('.ceph-res').innerHTML=cephPolyHtml({w:st.img?IW():p.ceph?.w||1,h:st.img?IH():p.ceph?.h||1,pts:st.pts});
     }
@@ -204,7 +204,7 @@ async function openCeph(p){
     // 上傳原圖（標點用原圖，不存檔）
     box.querySelector('input[type=file]')?.addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
       if(!/^image\/(jpeg|png)$/.test(f.type)){alert('請選擇 JPEG 或 PNG 影像（DICOM 請先匯出成 JPEG）');return}
-      const url=URL.createObjectURL(f);try{setImg(await cephLoadImg(url),true);st.dirty=true;msg(Object.keys(st.pts).length?'已換成新影像，原本的點保留在相同的相對位置，請確認或重新標點。':'按「🤖 AI 標點」讓 AI 先標，或點右邊的點再點圖上位置。')}catch(err){alert(err.message)}});
+      const url=URL.createObjectURL(f);try{setImg(await cephLoadImg(url),true);st.dirty=true;msg(Object.keys(st.pts).length?'已換成新影像，原本的點保留在相同的相對位置，請確認或重新標點。':'按「🤖 AI 標點」讓 AI 先標，或在「📍 點位標注」選一個點，再點圖上位置。')}catch(err){alert(err.message)}});
     // 亮度、對比（只影響畫面，方便看清楚）
     box.querySelector('.ceph-adj').addEventListener('input',e=>{const k=e.target.dataset.adj;if(k){st[k]=+e.target.value;draw()}});
 
