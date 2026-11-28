@@ -286,7 +286,7 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .ceph-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#bbb;padding:20px;text-align:center}
 .ceph-zoom{position:absolute;right:8px;bottom:8px;display:flex;gap:4px}.ceph-zoom button{width:36px;height:36px;padding:0;font-size:18px;opacity:.85}
 .ceph-side{overflow-y:auto;overflow-x:hidden;min-height:0;display:flex;flex-direction:column;gap:8px} /* 不要左右捲動 */
-.ceph-tools{display:flex;gap:6px;flex-wrap:wrap}.ceph-tools label{cursor:pointer}
+.ceph-tools{display:flex;gap:6px;flex-wrap:wrap}.ceph-tools label{cursor:pointer;display:inline-flex;align-items:center;border:1px solid var(--accent);border-radius:6px;background:var(--panel);color:var(--accent);font-weight:700;padding:3px 10px}.ceph-tools label:hover{background:var(--accent-soft)} /* 上傳按鈕（label）要有外框，跟其他按鈕一樣 */
 .ceph-msg:empty{display:none}.ceph-msg{background:#fff8e1;border-radius:6px;padding:6px 8px;color:#6b5300}
 .ceph-adj{display:flex;gap:10px;font-size:12px;color:var(--muted)}.ceph-adj label{flex:1;display:flex;align-items:center;gap:4px}.ceph-adj input{flex:1;min-width:0;width:0;padding:0;margin:0}
 .ceph-tabs{display:flex;border-bottom:2px solid var(--line,#ddd);gap:2px}.ceph-tabs button{flex:1;border:1px solid var(--line,#ddd);border-bottom:0;border-radius:8px 8px 0 0;background:var(--soft,#f3f5f6);color:var(--muted);font-weight:700;padding:7px 6px;margin-bottom:-2px}
