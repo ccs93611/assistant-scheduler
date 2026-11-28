@@ -139,7 +139,7 @@ function cephSvg(c){const W=1000,H=Math.round(1000*c.h/c.w);
 // 列印頁（一張 A4）：img 傳入縮小圖的 dataURL
 function cephPrintHtml(p,img){const c=p.ceph;
   return `<div class="tip-page tip-ceph"><h3>側顱分析（Polygon）<span class="tip-ai-no">治療計劃單 ${esc(p.no)}・${esc(p.name||'')}</span></h3>
-    <div class="ceph-pr"><div class="ceph-pr-img"><img src="${img}" alt="側顱 X 光">${cephSvg(c)}</div>${cephPolyHtml(c)}</div>
+    <div class="ceph-pr"><div class="ceph-pr-img"><img src="${img}" alt="側顱 X 光">${cephSvg(c)}</div>${cephPolyHtml(c)}${p.orthoNote?`<div class="ceph-note-pr"><b>其他分析與治療計畫</b><div>${esc(p.orthoNote)}</div></div>`:''}</div>
     <div class="tip-disc">標記點${c.ai?'由 AI 初步標記，':''}經醫師確認（${esc(fmtDT(c.at))}）；常模為日本人 Polygon 標準值。<b>角度數值僅供診斷參考，實際治療方式請以醫師評估與說明為準。</b></div></div>`}
 
 // 讀圖：File 或網址 → Image
@@ -163,7 +163,7 @@ async function openCeph(p){
   const edit=canEdit()&&p.status==='open';
   const st={img:null,fresh:false,pts:JSON.parse(JSON.stringify(p.ceph?.pts||{})),ai:!!p.ceph?.ai,sel:null,dirty:false,bright:100,contrast:100};
   st.sel=(CEPH_PTS.find(([k])=>!st.pts[k])||CEPH_PTS[0])[0];
-  await modal(`<h3>📐 側顱分析（Polygon，只算角度）</h3>
+  await modal(`<h3 class="ceph-h">📐 側顱分析<button class="btn-sm ceph-note-btn" data-c="note">📝 其他分析與治療計畫${p.orthoNote?' ✓':''}</button></h3>
     <div class="ceph">
       <div class="ceph-stage"><canvas></canvas><canvas class="ceph-loupe" width="150" height="150" hidden></canvas>
         <div class="ceph-empty">${edit?'按「📁 上傳側顱 X 光」選擇影像（JPEG／PNG）':'尚未上傳影像'}</div>
@@ -273,6 +273,12 @@ async function openCeph(p){
       const c=e.target.closest('[data-c]')?.dataset.c;if(!c)return;
       if(c==='zin'||c==='zout'){zoomAt(c==='zin'?1.3:1/1.3,stage.clientWidth/2,stage.clientHeight/2);return}
       if(c==='fit'){fit();return}
+      if(c==='note'){ // 其他分析與治療計畫：醫師自由填寫的文字，存在 p.orthoNote，列印側顱分析時一起印
+        const v=await modal(`<h3>📝 其他分析與治療計畫</h3><textarea class="ceph-note-ta" rows="14" placeholder="其他分析結果、診斷、治療計畫…" ${edit?'':'readonly'}>${esc(p.orthoNote||'')}</textarea>
+          <div class="acts"><span class="sp"></span><button data-x="cancel">${edit?'取消':'關閉'}</button>${edit?'<button class="btn-primary" data-x="ok">儲存</button>':''}</div>`,
+          (b2,cl)=>{b2.classList.add('ceph-note-modal');b2.querySelector('textarea').focus();b2.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(x==='cancel')cl();else if(x==='ok')cl(b2.querySelector('textarea').value)})},true);
+        if(v!==undefined&&edit){p.orthoNote=v.trim();touch();e.target.closest('button').textContent='📝 其他分析與治療計畫'+(p.orthoNote?' ✓':'')}
+        return}
       if(c==='cancel'){if(st.dirty&&!confirm('還沒儲存，確定要關閉嗎？'))return;ro.disconnect();close();return}
       if(c==='del'){if(!confirm('確定刪除這張單的側顱分析（影像與標記點）？'))return;
         const old=p.ceph?.img;if(old&&fs&&!isPhotoData(old))fs.doc('tpFiles/'+old).delete().catch(()=>{});
@@ -324,7 +330,9 @@ async function openCeph(p){
 document.head.insertAdjacentHTML('beforeend',`<style>
 .ceph-btn{border-color:#7a5cc7;color:#5b3fae;background:#f4f0fd}
 .modal.ceph-modal{width:98vw;max-width:1500px;height:94vh;max-height:94vh;display:flex;flex-direction:column;padding:12px 14px}
-.ceph-modal h3{margin:0 0 8px}
+.ceph-modal h3{margin:0 0 8px}.ceph-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.ceph-note-btn{font-size:13px;font-weight:700;border-color:var(--accent);color:var(--accent)}
+.modal.ceph-note-modal{width:min(720px,96vw)}.ceph-note-ta{width:100%;box-sizing:border-box;font:inherit;font-size:15px;line-height:1.6;padding:10px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+.ceph-note-pr{text-align:left;border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:12px}.ceph-note-pr div{white-space:pre-wrap;margin-top:2px}
 .ceph{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,3fr) minmax(340px,2fr);gap:10px} /* X 光約 6 成、右邊約 4 成 */
 .ceph-stage{position:relative;background:#111;border-radius:8px;overflow:hidden;min-height:0}
 .ceph-stage>canvas:first-child{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
